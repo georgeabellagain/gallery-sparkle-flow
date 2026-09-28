@@ -52,9 +52,18 @@ function emit() {
 
 function subscribe(cb: () => void) {
   listeners.add(cb);
-  if (!hydrated) hydrate();
+  ensureHydrated();
   return () => listeners.delete(cb);
 }
+
+/**
+ * Reading stored work must happen before any mutation, otherwise a later
+ * hydrate would replace freshly created content with the previous session.
+ */
+export function ensureHydrated() {
+  if (!hydrated) hydrate();
+}
+
 
 function hydrate() {
   hydrated = true;
