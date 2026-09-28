@@ -196,6 +196,7 @@ export function useStore<T>(selector: (s: Runtime) => T): T {
 }
 
 export function getDoc(): Doc {
+  ensureHydrated();
   return state.doc;
 }
 
