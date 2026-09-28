@@ -185,6 +185,10 @@ export function useStore<T>(selector: (s: Runtime) => T): T {
   return useSyncExternalStore(subscribe, sel, () => selector(getServerSnapshot()));
 }
 
+export function getDoc(): Doc {
+  return state.doc;
+}
+
 export function useDoc(): Doc {
   return useStore((s) => s.doc);
 }

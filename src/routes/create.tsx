@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Label } from "@/components/ui/label";
-import { createPortfolio } from "@/lib/portfolia/store";
+import { createPortfolio, getDoc } from "@/lib/portfolia/store";
 import { TEMPLATES, createFromTemplate, importPdfIntoPortfolio } from "@/lib/portfolia/importFlow";
 import { pdfPageLimit } from "@/lib/portfolia/pdf";
 import { cn } from "@/lib/utils";
@@ -47,12 +47,11 @@ function Create() {
       title: title || file.name.replace(/\.pdf$/i, ""),
       layout: "paged",
     });
-    // Read the fresh project id from the store-created portfolio.
-    const projectId = `first`;
+    const projectId = getDoc().portfolios.find((p) => p.id === portfolioId)?.projects[0]?.id ?? "";
     try {
       const { pages } = await importPdfIntoPortfolio(file, {
         portfolioId,
-        projectId: projectIdFor(portfolioId) ?? projectId,
+        projectId,
         onProgress: (info) => setProgress({ phase: info.phase, percent: info.percent }),
       });
       setProgress({ phase: `Imported ${pages} pages`, percent: 100 });
@@ -177,21 +176,3 @@ function Create() {
     </div>
   );
 }
-
-/** Reads back the id of the single project created with a new portfolio. */
-function projectIdFor(portfolioId: string): string | undefined {
-  // Import lazily to avoid a circular module reference at module scope.
-  const { doc } = (window as unknown as { __portfoliaStore?: never }) && getDocSafely();
-  return doc?.portfolios.find((p) => p.id === portfolioId)?.projects[0]?.id;
-}
-
-function getDocSafely() {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  return { doc: readDoc() };
-}
-
-function readDoc() {
-  return storeRef.read();
-}
-
-import { storeRef } from "@/lib/portfolia/storeRef";
