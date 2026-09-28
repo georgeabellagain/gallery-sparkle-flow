@@ -260,11 +260,11 @@ export function checkDomain(raw: string): { ok: boolean; msg: string; name: stri
   const name = raw.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
   if (!name) return { ok: false, msg: "Enter a domain, like yourname.com.", name };
   if (!/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/.test(name)) return { ok: false, msg: "That doesn’t look like a domain. Try yourname.com.", name };
-  if (name.endsWith("portfolia.com")) return { ok: false, msg: "Use the personalised address for portfolia.com names.", name };
+  if (name.endsWith("portfolia.com") || name.endsWith("portfolia.site")) return { ok: false, msg: "Use the personalised address for Portfolia names.", name };
   return { ok: true, msg: "", name };
 }
 
-export const DOMAIN_PRICES: Record<string, string> = { com: "£12 / year", co: "£24 / year", "co.uk": "£8 / year", studio: "£22 / year", art: "£15 / year", design: "£38 / year", net: "£13 / year" };
+export const DOMAIN_PRICES: Record<string, string> = { com: "£12 / year", co: "£24 / year", "co.uk": "£8 / year", studio: "£22 / year", art: "£15 / year", design: "£38 / year", net: "£13 / year", site: "£29 / year" };
 
 export function domainPrice(name: string): string | null {
   const tld = Object.keys(DOMAIN_PRICES).sort((a, b) => b.length - a.length).find((t) => name.endsWith(`.${t}`));

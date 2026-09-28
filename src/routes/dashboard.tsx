@@ -153,7 +153,7 @@ function Dashboard() {
                 <li>Free address: <span className="font-mono text-xs">{freePath}</span> — always works</li>
                 {p.username && (
                   <li>
-                    Personalised: <span className="font-mono text-xs">{p.username}.portfolia.com</span> <span className="text-xs text-muted-foreground">(preview — opens locally at </span>
+                    Personalised: <span className="font-mono text-xs">{p.username}.portfolia.site</span> <span className="text-xs text-muted-foreground">(preview — opens locally at </span>
                     {active && published ? <Link to="/u/$username" params={{ username: p.username }} className="font-mono text-xs underline">/u/{p.username}</Link> : <span className="font-mono text-xs">/u/{p.username}</span>}
                     <span className="text-xs text-muted-foreground">)</span>
                   </li>
