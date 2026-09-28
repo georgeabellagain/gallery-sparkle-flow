@@ -40,7 +40,9 @@ function Landing() {
       <main className="flex-1">
         <section className="shell grid gap-12 pt-16 pb-16 sm:pt-24 lg:grid-cols-[1fr_1fr] lg:items-center">
           <div>
-            <h1 className="display-title text-5xl leading-[1.05] sm:text-6xl">Your portfolio. One simple link.</h1>
+            <h1 className="display-title text-5xl leading-[1.05] sm:text-6xl">
+              Your portfolio. <em className="italic">One simple link.</em>
+            </h1>
             <p className="mt-5 max-w-md text-[15px] leading-relaxed text-muted-foreground">
               Upload your PDF, add your details, and share your work.
             </p>
@@ -72,7 +74,7 @@ function Landing() {
         <section className="rule-t">
           <div className="shell py-14">
             <h2 className="text-sm font-medium">Plans</h2>
-            <div className="mt-6 grid max-w-3xl gap-px bg-border sm:grid-cols-2">
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:max-w-3xl">
               <Plan name="Free" price="£0" items={["One PDF portfolio", "Address like portfolia.com/p/8fh2k", "Profile and contact links", "Clean PDF viewer", "Basic visit statistics", "Replace your PDF, keep your link", "Small “Hosted on Portfolia” credit"]} />
               <Plan
                 name="Personal"
@@ -93,12 +95,12 @@ function Landing() {
 
 function Plan({ name, price, items, action }: { name: string; price: string; items: string[]; action?: React.ReactNode }) {
   return (
-    <div className="bg-background p-6">
+    <div className="rounded-3xl border border-border bg-card p-7 shadow-soft">
       <h3 className="text-base font-medium">{name}</h3>
       <p className="text-sm text-muted-foreground">{price}</p>
       <ul className="mt-4 space-y-1.5 text-sm">
         {items.map((i) => (
-          <li key={i} className="flex gap-2"><Check className="mt-0.5 size-3.5 shrink-0" aria-hidden />{i}</li>
+          <li key={i} className="flex gap-2"><Check className="mt-0.5 size-3.5 shrink-0 text-leaf" aria-hidden />{i}</li>
         ))}
       </ul>
       {action}

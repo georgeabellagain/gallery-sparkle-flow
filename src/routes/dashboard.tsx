@@ -101,10 +101,10 @@ function Dashboard() {
             <section>
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="display-title text-3xl">Your portfolio</h1>
-                <span className={`border px-2 py-0.5 text-xxs uppercase tracking-wider ${published ? "border-foreground" : "border-border text-muted-foreground"}`}>{published ? "Published · Unlisted" : "Not published"}</span>
+                <span className={`rounded-full border px-2.5 py-0.5 text-xxs uppercase tracking-wider ${published ? "border-foreground" : "border-border text-muted-foreground"}`}>{published ? "Published · Unlisted" : "Not published"}</span>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                <code className="border border-border px-2.5 py-1.5 text-xs select-all">{origin.replace(/^https?:\/\//, "")}{freePath}</code>
+                <code className="rounded-full border border-border px-3.5 py-1.5 text-xs select-all">{origin.replace(/^https?:\/\//, "")}{freePath}</code>
                 <Button size="sm" variant="line" onClick={() => void copy()}><Copy /> {copied ? "Copied" : "Copy link"}</Button>
                 {published ? (
                   <Button size="sm" variant="line" asChild><Link to="/p/$slug" params={{ slug: p.code }}><ExternalLink /> Open portfolio</Link></Button>
@@ -186,8 +186,8 @@ function Thumb({ blobKey }: { blobKey?: string }) {
   const blob = useBlob(blobKey);
   const src = useMemo(() => (blob ? { blob } : null), [blob]);
   return (
-    <div className="h-80 overflow-hidden border border-border">
-      <div className="pointer-events-none h-full overflow-hidden" aria-hidden><PdfViewer source={src} fileName="" compact /></div>
+    <div className="h-80 overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+      <div className="pointer-events-none h-full overflow-hidden rounded-2xl" aria-hidden><PdfViewer source={src} fileName="" compact /></div>
     </div>
   );
 }
@@ -245,10 +245,10 @@ function AnalyticsPanel({ data, sample }: { data: Analytics; sample?: boolean })
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-medium">Visit statistics {sample && <span className="ml-2 border border-border px-1.5 py-0.5 text-xxs uppercase tracking-wider text-muted-foreground">Sample data — example portfolio</span>}</h2>
-        <div role="group" aria-label="Time range" className="flex text-xs">
+        <h2 className="text-sm font-medium">Visit statistics {sample && <span className="ml-2 rounded-full border border-border px-2.5 py-0.5 text-xxs uppercase tracking-wider text-muted-foreground">Sample data — example portfolio</span>}</h2>
+        <div role="group" aria-label="Time range" className="flex gap-1 text-xs">
           {([[7, "7 days"], [30, "30 days"], [0, "All time"]] as const).map(([r, l]) => (
-            <button key={r} onClick={() => setRange(r)} aria-pressed={range === r} className={`border px-2.5 py-1 -ml-px ${range === r ? "border-foreground" : "border-border text-muted-foreground"}`}>{l}</button>
+            <button key={r} onClick={() => setRange(r)} aria-pressed={range === r} className={`rounded-full border px-3 py-1 ${range === r ? "border-foreground" : "border-border text-muted-foreground"}`}>{l}</button>
           ))}
         </div>
       </div>
