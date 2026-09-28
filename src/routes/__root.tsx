@@ -77,15 +77,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Portfolia — portfolios for visual creatives" },
+      { title: "Portfolia — your portfolio, one simple link" },
       {
         name: "description",
-        content:
-          "Upload or create your portfolio, choose how it is experienced, and share it through one personal link.",
+        content: "Upload your PDF portfolio, add your details, and share your work through one simple link.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "robots", content: "noindex" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
