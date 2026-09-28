@@ -12,12 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as ExploreRouteImport } from './routes/explore'
-import { Route as PlansRouteImport } from './routes/plans'
-import { Route as EditorIdRouteImport } from './routes/editor.$id'
 import { Route as PSlugRouteImport } from './routes/p.$slug'
-import { Route as PSlugIndexRouteImport } from './routes/p.$slug.index'
-import { Route as PSlugProjectIdRouteImport } from './routes/p.$slug.$projectId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,113 +29,44 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ExploreRoute = ExploreRouteImport.update({
-  id: '/explore',
-  path: '/explore',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PlansRoute = PlansRouteImport.update({
-  id: '/plans',
-  path: '/plans',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EditorIdRoute = EditorIdRouteImport.update({
-  id: '/editor/$id',
-  path: '/editor/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PSlugRoute = PSlugRouteImport.update({
   id: '/p/$slug',
   path: '/p/$slug',
   getParentRoute: () => rootRouteImport,
-} as any)
-const PSlugIndexRoute = PSlugIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PSlugRoute,
-} as any)
-const PSlugProjectIdRoute = PSlugProjectIdRouteImport.update({
-  id: '/$projectId',
-  path: '/$projectId',
-  getParentRoute: () => PSlugRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
-  '/explore': typeof ExploreRoute
-  '/plans': typeof PlansRoute
-  '/editor/$id': typeof EditorIdRoute
-  '/p/$slug': typeof PSlugRouteWithChildren
-  '/p/$slug/$projectId': typeof PSlugProjectIdRoute
-  '/p/$slug/': typeof PSlugIndexRoute
+  '/p/$slug': typeof PSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
-  '/explore': typeof ExploreRoute
-  '/plans': typeof PlansRoute
-  '/editor/$id': typeof EditorIdRoute
-  '/p/$slug/$projectId': typeof PSlugProjectIdRoute
-  '/p/$slug': typeof PSlugIndexRoute
+  '/p/$slug': typeof PSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
-  '/explore': typeof ExploreRoute
-  '/plans': typeof PlansRoute
-  '/editor/$id': typeof EditorIdRoute
-  '/p/$slug': typeof PSlugRouteWithChildren
-  '/p/$slug/$projectId': typeof PSlugProjectIdRoute
-  '/p/$slug/': typeof PSlugIndexRoute
+  '/p/$slug': typeof PSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/create'
-    | '/dashboard'
-    | '/explore'
-    | '/plans'
-    | '/editor/$id'
-    | '/p/$slug'
-    | '/p/$slug/$projectId'
-    | '/p/$slug/'
+  fullPaths: '/' | '/create' | '/dashboard' | '/p/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/create'
-    | '/dashboard'
-    | '/explore'
-    | '/plans'
-    | '/editor/$id'
-    | '/p/$slug/$projectId'
-    | '/p/$slug'
-  id:
-    | '__root__'
-    | '/'
-    | '/create'
-    | '/dashboard'
-    | '/explore'
-    | '/plans'
-    | '/editor/$id'
-    | '/p/$slug'
-    | '/p/$slug/$projectId'
-    | '/p/$slug/'
+  to: '/' | '/create' | '/dashboard' | '/p/$slug'
+  id: '__root__' | '/' | '/create' | '/dashboard' | '/p/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CreateRoute: typeof CreateRoute
   DashboardRoute: typeof DashboardRoute
-  ExploreRoute: typeof ExploreRoute
-  PlansRoute: typeof PlansRoute
-  EditorIdRoute: typeof EditorIdRoute
-  PSlugRoute: typeof PSlugRouteWithChildren
+  PSlugRoute: typeof PSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -166,27 +92,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/explore': {
-      id: '/explore'
-      path: '/explore'
-      fullPath: '/explore'
-      preLoaderRoute: typeof ExploreRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/plans': {
-      id: '/plans'
-      path: '/plans'
-      fullPath: '/plans'
-      preLoaderRoute: typeof PlansRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/editor/$id': {
-      id: '/editor/$id'
-      path: '/editor/$id'
-      fullPath: '/editor/$id'
-      preLoaderRoute: typeof EditorIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/p/$slug': {
       id: '/p/$slug'
       path: '/p/$slug'
@@ -194,43 +99,14 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/p/$slug/': {
-      id: '/p/$slug/'
-      path: '/'
-      fullPath: '/p/$slug/'
-      preLoaderRoute: typeof PSlugIndexRouteImport
-      parentRoute: typeof PSlugRoute
-    }
-    '/p/$slug/$projectId': {
-      id: '/p/$slug/$projectId'
-      path: '/$projectId'
-      fullPath: '/p/$slug/$projectId'
-      preLoaderRoute: typeof PSlugProjectIdRouteImport
-      parentRoute: typeof PSlugRoute
-    }
   }
 }
-
-interface PSlugRouteChildren {
-  PSlugProjectIdRoute: typeof PSlugProjectIdRoute
-  PSlugIndexRoute: typeof PSlugIndexRoute
-}
-
-const PSlugRouteChildren: PSlugRouteChildren = {
-  PSlugProjectIdRoute: PSlugProjectIdRoute,
-  PSlugIndexRoute: PSlugIndexRoute,
-}
-
-const PSlugRouteWithChildren = PSlugRoute._addFileChildren(PSlugRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CreateRoute: CreateRoute,
   DashboardRoute: DashboardRoute,
-  ExploreRoute: ExploreRoute,
-  PlansRoute: PlansRoute,
-  EditorIdRoute: EditorIdRoute,
-  PSlugRoute: PSlugRouteWithChildren,
+  PSlugRoute: PSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
