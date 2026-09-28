@@ -14,6 +14,9 @@ import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as PlansRouteImport } from './routes/plans'
+import { Route as PSlugRouteImport } from './routes/p.$slug'
+import { Route as PSlugIndexRouteImport } from './routes/p.$slug.index'
+import { Route as PSlugProjectIdRouteImport } from './routes/p.$slug.$projectId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +43,21 @@ const PlansRoute = PlansRouteImport.update({
   path: '/plans',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PSlugRoute = PSlugRouteImport.update({
+  id: '/p/$slug',
+  path: '/p/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PSlugIndexRoute = PSlugIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PSlugRoute,
+} as any)
+const PSlugProjectIdRoute = PSlugProjectIdRouteImport.update({
+  id: '/$projectId',
+  path: '/$projectId',
+  getParentRoute: () => PSlugRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +65,9 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/plans': typeof PlansRoute
+  '/p/$slug': typeof PSlugRouteWithChildren
+  '/p/$slug/$projectId': typeof PSlugProjectIdRoute
+  '/p/$slug/': typeof PSlugIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +75,8 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/plans': typeof PlansRoute
+  '/p/$slug/$projectId': typeof PSlugProjectIdRoute
+  '/p/$slug': typeof PSlugIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,13 +85,40 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/plans': typeof PlansRoute
+  '/p/$slug': typeof PSlugRouteWithChildren
+  '/p/$slug/$projectId': typeof PSlugProjectIdRoute
+  '/p/$slug/': typeof PSlugIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/create' | '/dashboard' | '/explore' | '/plans'
+  fullPaths:
+    | '/'
+    | '/create'
+    | '/dashboard'
+    | '/explore'
+    | '/plans'
+    | '/p/$slug'
+    | '/p/$slug/$projectId'
+    | '/p/$slug/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/create' | '/dashboard' | '/explore' | '/plans'
-  id: '__root__' | '/' | '/create' | '/dashboard' | '/explore' | '/plans'
+  to:
+    | '/'
+    | '/create'
+    | '/dashboard'
+    | '/explore'
+    | '/plans'
+    | '/p/$slug/$projectId'
+    | '/p/$slug'
+  id:
+    | '__root__'
+    | '/'
+    | '/create'
+    | '/dashboard'
+    | '/explore'
+    | '/plans'
+    | '/p/$slug'
+    | '/p/$slug/$projectId'
+    | '/p/$slug/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,6 +127,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   ExploreRoute: typeof ExploreRoute
   PlansRoute: typeof PlansRoute
+  PSlugRoute: typeof PSlugRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -116,8 +167,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlansRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p/$slug': {
+      id: '/p/$slug'
+      path: '/p/$slug'
+      fullPath: '/p/$slug'
+      preLoaderRoute: typeof PSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/p/$slug/': {
+      id: '/p/$slug/'
+      path: '/'
+      fullPath: '/p/$slug/'
+      preLoaderRoute: typeof PSlugIndexRouteImport
+      parentRoute: typeof PSlugRoute
+    }
+    '/p/$slug/$projectId': {
+      id: '/p/$slug/$projectId'
+      path: '/$projectId'
+      fullPath: '/p/$slug/$projectId'
+      preLoaderRoute: typeof PSlugProjectIdRouteImport
+      parentRoute: typeof PSlugRoute
+    }
   }
 }
+
+interface PSlugRouteChildren {
+  PSlugProjectIdRoute: typeof PSlugProjectIdRoute
+  PSlugIndexRoute: typeof PSlugIndexRoute
+}
+
+const PSlugRouteChildren: PSlugRouteChildren = {
+  PSlugProjectIdRoute: PSlugProjectIdRoute,
+  PSlugIndexRoute: PSlugIndexRoute,
+}
+
+const PSlugRouteWithChildren = PSlugRoute._addFileChildren(PSlugRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -125,6 +209,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   ExploreRoute: ExploreRoute,
   PlansRoute: PlansRoute,
+  PSlugRoute: PSlugRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
