@@ -56,7 +56,7 @@ export function DropZone({ onAccepted, label = "Upload your PDF", small }: { onA
         </Button>
       </div>
       {error && (
-        <p role="alert" className="mt-3 border-l-2 border-destructive pl-3 text-sm text-destructive">
+        <p role="alert" className="mt-3 rounded-2xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
           {error}
         </p>
       )}
