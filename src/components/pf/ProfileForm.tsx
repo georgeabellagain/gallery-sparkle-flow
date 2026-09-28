@@ -5,12 +5,33 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { deleteBlob, putBlob, uid } from "@/lib/portfolia/assets";
-import { patchPortfolio, patchProfile, type Portfolio } from "@/lib/portfolia/store";
+import { CV_LIMIT_MB, patchPortfolio, patchProfile, type Portfolio } from "@/lib/portfolia/store";
+import { formatBytes } from "@/lib/portfolia/assets";
+import { CvIcon } from "./CvIcon";
 
 export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg: string | null) => void }) {
   const pr = p.profile;
   const [photoErr, setPhotoErr] = useState<string | null>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
+  const [cvErr, setCvErr] = useState<string | null>(null);
+  const cvInput = useRef<HTMLInputElement>(null);
+  const paid = p.plan === "personal";
+
+  const onCv = async (f?: File) => {
+    setCvErr(null);
+    if (!f) return;
+    if (f.type !== "application/pdf" && !f.name.toLowerCase().endsWith(".pdf")) return setCvErr("Upload your CV as a PDF.");
+    if (f.size > CV_LIMIT_MB * 1048576) return setCvErr(`CVs can be up to ${CV_LIMIT_MB} MB.`);
+    const key = uid("cv");
+    try {
+      await putBlob(key, f);
+    } catch {
+      return setCvErr("Browser storage is full, so the CV wasn’t saved.");
+    }
+    const old = pr.cv?.blobKey;
+    set({ cv: { blobKey: key, name: f.name, bytes: f.size } });
+    if (old) void deleteBlob(old);
+  };
   const set = (patch: Parameters<typeof patchProfile>[0]) =>
     onSaveError(patchProfile(patch) ? null : "Couldn’t save — this browser’s storage is full or blocked. Your last change wasn’t kept.");
 
@@ -59,6 +80,31 @@ export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (ms
           )}
         </div>
         {photoErr && <p role="alert" className="mt-1 text-xs text-destructive">{photoErr}</p>}
+      </div>
+      <div>
+        <p className="flex items-center gap-2 text-xs font-medium">
+          <CvIcon className="size-4 text-leaf" /> CV
+          {!paid && <span className="rounded-full bg-leaf-soft px-2 py-0.5 text-xxs text-leaf">Personal plan</span>}
+        </p>
+        {paid ? (
+          <div className="mt-1.5">
+            <input ref={cvInput} type="file" accept="application/pdf,.pdf" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => { void onCv(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+            {pr.cv ? (
+              <div className="flex items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2 text-xs">
+                <CvIcon className="text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate">{pr.cv.name} · {formatBytes(pr.cv.bytes)}</span>
+                <Button size="xs" variant="line" onClick={() => cvInput.current?.click()}>Replace</Button>
+                <Button size="xs" variant="quiet" onClick={() => { const k = pr.cv?.blobKey; set({ cv: undefined }); if (k) void deleteBlob(k); }}>Remove</Button>
+              </div>
+            ) : (
+              <Button size="xs" variant="line" onClick={() => cvInput.current?.click()}><CvIcon className="size-3.5" /> Upload CV (PDF)</Button>
+            )}
+            <p className="mt-1 text-xxs text-muted-foreground">Visitors see a small CV link next to your contact details.</p>
+          </div>
+        ) : (
+          <p className="mt-1 text-xs text-muted-foreground">Add a downloadable CV with the Personal plan.</p>
+        )}
+        {cvErr && <p role="alert" className="mt-1 text-xs text-destructive">{cvErr}</p>}
       </div>
       <div>
         <Label htmlFor="f-email" className="text-xs">Contact email</Label>

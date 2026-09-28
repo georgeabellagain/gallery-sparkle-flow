@@ -4,7 +4,7 @@ import { Modal } from "./Chrome";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { checkUsername, getDoc, GRACE_DAYS, patchPortfolio, PRICE } from "@/lib/portfolia/store";
+import { checkUsername, getDoc, GRACE_DAYS, MAX_PORTFOLIOS, patchPortfolio, PRICE, setPlanAll } from "@/lib/portfolia/store";
 
 /** Demo upgrade flow. No card details, no billing. */
 export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -17,7 +17,7 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
 
   const confirm = () => {
     if (!check.ok) return;
-    if (!patchPortfolio({ plan: "personal", billing, username: u, cancelledAt: undefined }))
+    if (!setPlanAll({ plan: "personal", billing, cancelledAt: undefined }) || !patchPortfolio({ username: u }))
       return setErr("Couldn’t save the change in this browser. Nothing was upgraded.");
     onClose();
   };
@@ -50,10 +50,15 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
             ))}
           </fieldset>
 
-          <ul className="mt-5 space-y-1.5 text-xs text-muted-foreground">
+          <ul className="mt-5 space-y-1.5 text-sm">
+            <li>✓ Up to {MAX_PORTFOLIOS} portfolios</li>
+            <li>✓ Upload a CV in your details</li>
+            <li>✓ Connect a domain you already own (free), or buy one through Portfolia</li>
+          </ul>
+          <ul className="mt-4 space-y-1.5 text-xs text-muted-foreground">
             <li>This is a personalised Portfolia address, not a separately owned domain.</li>
             <li>Your free link /p/{p.code} keeps working, so links you’ve already shared stay useful.</li>
-            <li>If you cancel, your portfolio stays at its free address and the personalised address stays active for {GRACE_DAYS} days. The name isn’t reassigned straight away.</li>
+            <li>If you cancel, your portfolios stay at their free addresses, nothing is deleted, and the personalised address stays active for {GRACE_DAYS} days. The name isn’t reassigned straight away.</li>
             <li>Real subdomains aren’t connected in this prototype — the address opens as a local preview route.</li>
           </ul>
           {err && <p role="alert" className="mt-3 text-sm text-destructive">{err}</p>}

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Mail } from "lucide-react";
 import type { Profile } from "@/lib/portfolia/store";
 import { PdfViewer } from "./PdfViewer";
+import { CvIcon } from "./CvIcon";
 import { useBlob, useObjectUrl } from "./Chrome";
 
 /** The visitor-facing page: compact profile, then the PDF. No editor controls. */
@@ -14,6 +15,7 @@ export function PortfolioPage({
   onDownload,
   compact,
   immersive,
+  cvBlobKey,
 }: {
   profile: Profile;
   pdf: { blob: Blob } | { url: string } | null;
@@ -23,7 +25,11 @@ export function PortfolioPage({
   onDownload?: () => void;
   compact?: boolean;
   immersive?: boolean;
+  cvBlobKey?: string;
 }) {
+  const cvBlob = useBlob(cvBlobKey);
+  const cvUrl = useObjectUrl(cvBlob);
+  const cv = cvBlobKey ? profile.cv : undefined;
   const links = profile.links.filter((l) => l.url.trim());
   const initials = profile.name
     .split(/\s+/)
@@ -48,11 +54,16 @@ export function PortfolioPage({
             {profile.intro && (
               <p className={immersive ? "mt-1 line-clamp-2 max-w-2xl text-xs leading-relaxed text-muted-foreground" : "mt-2 line-clamp-3 max-w-2xl text-sm leading-relaxed sm:line-clamp-none"}>{profile.intro}</p>
             )}
-            {(profile.email || links.length > 0) && (
+            {(profile.email || links.length > 0 || cv) && (
               <div className={immersive ? "mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs" : "mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm"}>
                 {profile.email && (
                   <a href={`mailto:${profile.email}`} className="inline-flex items-center gap-1.5 underline-offset-4 hover:underline">
                     <Mail className="size-3.5" /> {profile.email}
+                  </a>
+                )}
+                {cv && cvUrl && (
+                  <a href={cvUrl} download={cv.name} className="inline-flex items-center gap-1.5 underline-offset-4 hover:underline">
+                    <CvIcon className="size-3.5" /> CV
                   </a>
                 )}
                 {links.map((l, i) => (
