@@ -7,7 +7,7 @@
  * add overlays and clickable regions on top, or crop a region into its own item.
  */
 
-import { putBlob, uid, type } from "./assets";
+import { putBlob, uid } from "./assets";
 
 export interface PdfImportResult {
   pdfAssetId: string;
@@ -120,4 +120,3 @@ export async function importPdf(file: File, onProgress: Progress): Promise<PdfIm
 }
 
 export const pdfPageLimit = MAX_PAGES;
-export type { type };
