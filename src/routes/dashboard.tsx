@@ -8,7 +8,9 @@ import { UpgradeModal } from "@/components/pf/UpgradeModal";
 import { Button } from "@/components/ui/button";
 import { deleteBlob, formatBytes } from "@/lib/portfolia/assets";
 import { sampleAnalytics } from "@/lib/portfolia/sample";
+import { DomainsSection } from "@/components/pf/DomainsSection";
 import {
+  allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, setPlanAll, switchPortfolio,
   deletePortfolio, startPortfolio, graceEnds, GRACE_DAYS, patchPortfolio, personalActive, replacePdf, update, useDoc,
   type Analytics, type PdfFile,
 } from "@/lib/portfolia/store";
@@ -61,11 +63,31 @@ function Dashboard() {
     );
   }
 
+  const all = allPortfolios(doc);
+  const paid = isPaid(doc);
+  const switcher = (all.length > 1 || paid) && (
+    <nav aria-label="Your portfolios" className="mb-8 flex flex-wrap items-center gap-2">
+      <span className="label-xs mr-1">Portfolios {all.length}/{MAX_PORTFOLIOS}</span>
+      {all.map((x) => (
+        <button key={x.code} onClick={() => switchPortfolio(x.code)} aria-current={x.code === p?.code ? "true" : undefined}
+          className={`rounded-full border px-3.5 py-1.5 text-xs ${x.code === p?.code ? "border-foreground bg-card shadow-soft" : "border-border text-muted-foreground hover:border-border-strong"}`}>
+          {x.profile.name || x.pdf?.name || "Untitled"}{x.status !== "published" && " · draft"}
+        </button>
+      ))}
+      {!p && <span className="rounded-full border border-dashed border-foreground px-3.5 py-1.5 text-xs">New portfolio</span>}
+      {p && (canAddPortfolio(doc)
+        ? <Button size="xs" variant="line" onClick={() => beginNewPortfolio()}>+ New portfolio</Button>
+        : paid && <span className="text-xs text-muted-foreground">You’ve reached {MAX_PORTFOLIOS} portfolios.</span>)}
+    </nav>
+  );
+
   if (!p) {
     return (
       <div className="min-h-screen">{header}
         <main className="shell py-14">
-          <h1 className="display-title text-3xl">No portfolio yet</h1>
+          {switcher}
+          <h1 className="display-title text-3xl">{all.length ? "Upload your next portfolio" : "No portfolio yet"}</h1>
+          {all.length > 0 && <Button size="sm" variant="quiet" className="mt-3" onClick={() => switchPortfolio(all[0]!.code)}>Cancel</Button>}
           <div className="mt-6 max-w-lg"><DropZone onAccepted={(pdf) => { if (startPortfolio(pdf)) void navigate({ to: "/create" }); }} /></div>
           <div className="mt-14 max-w-3xl"><AnalyticsPanel data={sampleAnalytics()} sample /></div>
         </main>
@@ -90,6 +112,7 @@ function Dashboard() {
   return (
     <div className="min-h-screen">{header}
       <main className="shell py-10">
+        {switcher}
         <div className="grid gap-10 lg:grid-cols-[320px_1fr]">
           <div>
             <Thumb blobKey={p.pdf?.blobKey} />
@@ -100,7 +123,7 @@ function Dashboard() {
           <div className="space-y-10">
             <section>
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="display-title text-3xl">Your portfolio</h1>
+                <h1 className="display-title text-3xl">{all.length > 1 ? p.profile.name || "Your portfolio" : "Your portfolio"}</h1>
                 <span className={`rounded-full border px-2.5 py-0.5 text-xxs uppercase tracking-wider ${published ? "border-foreground" : "border-border text-muted-foreground"}`}>{published ? "Published · Unlisted" : "Not published"}</span>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -149,6 +172,16 @@ function Dashboard() {
               </div>
             </section>
 
+            <section className="rule-t pt-8">
+              <DomainsSection p={p} paid={paid} onUpgrade={() => setDialog("upgrade")} />
+            </section>
+            {!paid && (
+              <section className="rule-t pt-8">
+                <h2 className="text-sm font-medium">More portfolios</h2>
+                <p className="mt-2 text-sm text-muted-foreground">The Personal plan lets you keep up to {MAX_PORTFOLIOS} portfolios, each with its own link, and add a CV to your details.</p>
+                <Button size="sm" variant="line" className="mt-4" onClick={() => setDialog("upgrade")}>See Personal plan</Button>
+              </section>
+            )}
             <section className="rule-t pt-8"><AnalyticsPanel data={doc.analytics} /></section>
             <DemoNote>{LOCAL_NOTE}</DemoNote>
           </div>
@@ -166,8 +199,8 @@ function Dashboard() {
         <Confirm onCancel={() => setDialog(null)} label="Delete permanently" onConfirm={() => { void deletePortfolio(); setDialog(null); }} />
       </Modal>
       <Modal open={dialog === "cancel"} onClose={() => setDialog(null)} title="Cancel Personal (demo)?">
-        <p className="text-muted-foreground">Your portfolio stays available at its free address {freePath}. Your personalised address remains active for {GRACE_DAYS} days, and the name isn’t reassigned immediately. The Portfolia credit returns.</p>
-        <Confirm onCancel={() => setDialog(null)} label="Cancel plan" onConfirm={() => { setMsg(patchPortfolio({ plan: "free", cancelledAt: Date.now() }) ? null : "Couldn’t save — plan unchanged."); setDialog(null); }} />
+        <p className="text-muted-foreground">Every portfolio stays available at its free address (this one: {freePath}) — nothing is deleted. You won’t be able to add new portfolios, CVs are hidden from visitors, and custom domains stop pointing here. Your personalised address remains active for {GRACE_DAYS} days, and the name isn’t reassigned immediately. The Portfolia credit returns.</p>
+        <Confirm onCancel={() => setDialog(null)} label="Cancel plan" onConfirm={() => { setMsg(setPlanAll({ plan: "free", cancelledAt: Date.now() }) ? null : "Couldn’t save — plan unchanged."); setDialog(null); }} />
       </Modal>
     </div>
   );
