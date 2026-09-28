@@ -108,7 +108,7 @@ export function PdfViewer({
   }, [mode, total]);
 
   return (
-    <div ref={rootRef} className={cn("relative bg-muted", full && "overflow-auto")}>
+    <div ref={rootRef} className={cn("relative bg-foreground", full && "overflow-auto")}>
       <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-1.5 text-xs backdrop-blur">
         <div className="flex items-center gap-3">
           <div role="radiogroup" aria-label="Reading mode" className="inline-flex rounded-full border border-border p-0.5">
@@ -166,11 +166,11 @@ export function PdfViewer({
 
       {error ? (
         <div className="px-6 py-20 text-center text-sm">
-          <p className="font-medium">This portfolio couldn’t be displayed</p>
+          <p className="font-medium text-background">This portfolio couldn’t be displayed</p>
           <p className="mt-1 text-muted-foreground">{error}</p>
         </div>
       ) : !doc ? (
-        <div className="mx-auto max-w-xs px-6 py-24 text-center text-xs text-muted-foreground">
+        <div className="mx-auto max-w-xs px-6 py-24 text-center text-xs text-background/70">
           <p>Loading portfolio… {progress}%</p>
           <Progress value={progress} className="mt-3 h-1" />
         </div>
@@ -188,7 +188,7 @@ export function PdfViewer({
             <button type="button" onClick={() => go(-1)} disabled={current <= 1} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
               <ChevronLeft className="size-3.5" /> Previous
             </button>
-            <span className="tabular-nums text-muted-foreground">{current} / {doc.numPages}</span>
+            <span className="tabular-nums text-background/70">{current} / {doc.numPages}</span>
             <button type="button" onClick={() => go(1)} disabled={current >= doc.numPages} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
               Next <ChevronRight className="size-3.5" />
             </button>
