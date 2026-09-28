@@ -14,6 +14,7 @@ import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as PlansRouteImport } from './routes/plans'
+import { Route as EditorIdRouteImport } from './routes/editor.$id'
 import { Route as PSlugRouteImport } from './routes/p.$slug'
 import { Route as PSlugIndexRouteImport } from './routes/p.$slug.index'
 import { Route as PSlugProjectIdRouteImport } from './routes/p.$slug.$projectId'
@@ -43,6 +44,11 @@ const PlansRoute = PlansRouteImport.update({
   path: '/plans',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EditorIdRoute = EditorIdRouteImport.update({
+  id: '/editor/$id',
+  path: '/editor/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PSlugRoute = PSlugRouteImport.update({
   id: '/p/$slug',
   path: '/p/$slug',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/plans': typeof PlansRoute
+  '/editor/$id': typeof EditorIdRoute
   '/p/$slug': typeof PSlugRouteWithChildren
   '/p/$slug/$projectId': typeof PSlugProjectIdRoute
   '/p/$slug/': typeof PSlugIndexRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/plans': typeof PlansRoute
+  '/editor/$id': typeof EditorIdRoute
   '/p/$slug/$projectId': typeof PSlugProjectIdRoute
   '/p/$slug': typeof PSlugIndexRoute
 }
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/plans': typeof PlansRoute
+  '/editor/$id': typeof EditorIdRoute
   '/p/$slug': typeof PSlugRouteWithChildren
   '/p/$slug/$projectId': typeof PSlugProjectIdRoute
   '/p/$slug/': typeof PSlugIndexRoute
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/explore'
     | '/plans'
+    | '/editor/$id'
     | '/p/$slug'
     | '/p/$slug/$projectId'
     | '/p/$slug/'
@@ -107,6 +117,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/explore'
     | '/plans'
+    | '/editor/$id'
     | '/p/$slug/$projectId'
     | '/p/$slug'
   id:
@@ -116,6 +127,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/explore'
     | '/plans'
+    | '/editor/$id'
     | '/p/$slug'
     | '/p/$slug/$projectId'
     | '/p/$slug/'
@@ -127,6 +139,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   ExploreRoute: typeof ExploreRoute
   PlansRoute: typeof PlansRoute
+  EditorIdRoute: typeof EditorIdRoute
   PSlugRoute: typeof PSlugRouteWithChildren
 }
 
@@ -165,6 +178,13 @@ declare module '@tanstack/react-router' {
       path: '/plans'
       fullPath: '/plans'
       preLoaderRoute: typeof PlansRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/editor/$id': {
+      id: '/editor/$id'
+      path: '/editor/$id'
+      fullPath: '/editor/$id'
+      preLoaderRoute: typeof EditorIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/p/$slug': {
@@ -209,6 +229,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   ExploreRoute: ExploreRoute,
   PlansRoute: PlansRoute,
+  EditorIdRoute: EditorIdRoute,
   PSlugRoute: PSlugRouteWithChildren,
 }
 export const routeTree = rootRouteImport
