@@ -9,10 +9,12 @@ import { DISCIPLINES } from "@/lib/portfolia/types";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/explore")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    q: typeof search.q === "string" && search.q ? search.q : undefined,
-    d: typeof search.d === "string" && search.d ? search.d : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { q?: string; d?: string } => {
+    const out: { q?: string; d?: string } = {};
+    if (typeof search["q"] === "string" && search["q"]) out.q = search["q"];
+    if (typeof search["d"] === "string" && search["d"]) out.d = search["d"];
+    return out;
+  },
   head: () => ({
     meta: [
       { title: "Explore portfolios — Portfolia" },

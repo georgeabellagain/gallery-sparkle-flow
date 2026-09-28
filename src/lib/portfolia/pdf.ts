@@ -88,7 +88,7 @@ export async function importPdf(file: File, onProgress: Progress): Promise<PdfIm
     if (!ctx) throw new Error("This browser could not render the PDF pages.");
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    await page.render({ canvasContext: ctx, viewport, canvas }).promise;
+    await page.render({ canvasContext: ctx, viewport } as Parameters<typeof page.render>[0]).promise;
     const blob = await new Promise<Blob>((resolve, reject) =>
       canvas.toBlob(
         (b) => (b ? resolve(b) : reject(new Error(`Page ${n} could not be saved.`))),
