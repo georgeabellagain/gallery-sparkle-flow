@@ -1,178 +1,81 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useRef, useState } from "react";
-import { FileUp, PenLine } from "lucide-react";
-import { SiteFooter, SiteHeader, PrototypeNote } from "@/components/portfolia/SiteChrome";
+import { useState } from "react";
+import { SiteHeader, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
+import { ProfileForm } from "@/components/pf/ProfileForm";
+import { PortfolioPage, useStoredMedia } from "@/components/pf/PortfolioPage";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { Label } from "@/components/ui/label";
-import { createPortfolio, getDoc } from "@/lib/portfolia/store";
-import { TEMPLATES, createFromTemplate, importPdfIntoPortfolio } from "@/lib/portfolia/importFlow";
-import { pdfPageLimit } from "@/lib/portfolia/pdf";
-import { cn } from "@/lib/utils";
+import { patchPortfolio, useDoc } from "@/lib/portfolia/store";
 
 export const Route = createFileRoute("/create")({
   head: () => ({
     meta: [
-      { title: "Start a portfolio — Portfolia" },
-      {
-        name: "description",
-        content: "Upload an existing PDF or begin with a blank canvas. No setup questionnaire.",
-      },
-      { property: "og:title", content: "Start a portfolio — Portfolia" },
-      { property: "og:description", content: "Two ways to begin: bring a PDF, or start from nothing." },
+      { title: "Add your details — Portfolia" },
+      { name: "description", content: "Add a few details to your PDF portfolio, preview it, and publish." },
+      { property: "og:title", content: "Add your details — Portfolia" },
+      { property: "og:description", content: "Add a few details to your PDF portfolio, preview it, and publish." },
+      { name: "robots", content: "noindex" },
     ],
   }),
   component: Create,
 });
 
 function Create() {
+  const doc = useDoc();
+  const p = doc.portfolio;
   const navigate = useNavigate();
-  const [title, setTitle] = useState("");
-  const [template, setTemplate] = useState("blank");
-  const [progress, setProgress] = useState<{ phase: string; percent: number } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
+  const [pubErr, setPubErr] = useState<string | null>(null);
+  const { pdf, photoUrl } = useStoredMedia(p?.pdf?.blobKey, p?.profile.photoKey);
 
-  const startBlank = () => {
-    const id = createFromTemplate(template, title || "Untitled portfolio");
-    void navigate({ to: "/editor/$id", params: { id } });
-  };
+  if (!p || !p.pdf) {
+    return (
+      <div className="min-h-screen">
+        <SiteHeader />
+        <main className="mx-auto max-w-md px-5 py-24 text-center text-sm">
+          <p>Start by uploading your PDF.</p>
+          <Button asChild className="mt-4"><Link to="/">Upload a PDF</Link></Button>
+        </main>
+      </div>
+    );
+  }
 
-  const onFile = async (file?: File) => {
-    if (!file) return;
-    setError(null);
-    setProgress({ phase: "Preparing", percent: 2 });
-    const portfolioId = createPortfolio({
-      title: title || file.name.replace(/\.pdf$/i, ""),
-      layout: "paged",
-    });
-    const projectId = getDoc().portfolios.find((p) => p.id === portfolioId)?.projects[0]?.id ?? "";
-    try {
-      const { pages } = await importPdfIntoPortfolio(file, {
-        portfolioId,
-        projectId,
-        onProgress: (info) => setProgress({ phase: info.phase, percent: info.percent }),
-      });
-      setProgress({ phase: `Imported ${pages} pages`, percent: 100 });
-      void navigate({ to: "/editor/$id", params: { id: portfolioId } });
-    } catch (e) {
-      setProgress(null);
-      setError(e instanceof Error ? e.message : "That upload didn’t finish. Nothing else was changed.");
-    }
+  const canPublish = p.profile.name.trim().length > 0;
+  const publish = () => {
+    if (!doc.account.signedIn) return void navigate({ to: "/signin", search: { next: "create" } });
+    if (!patchPortfolio({ status: "published", publishedAt: Date.now() }))
+      return setPubErr("Publishing failed — this browser couldn’t save. Your portfolio is still a draft.");
+    void navigate({ to: "/dashboard" });
   };
 
   return (
     <div className="flex min-h-screen flex-col">
-      <SiteHeader />
-      <main className="flex-1">
-        <div className="mx-auto w-full max-w-3xl px-5 py-14">
-          <h1 className="display-title text-4xl">Start a portfolio</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Two ways in. You can change everything later — nothing is locked by this choice.
-          </p>
-
-          <div className="mt-8 max-w-sm">
-            <Label htmlFor="pf-title" className="text-xs">
-              Portfolio name (optional)
-            </Label>
-            <Input
-              id="pf-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Your name, or a series title"
-              className="mt-1.5"
-            />
+      <SiteHeader right={<span className="text-xs text-muted-foreground">{saveErr ? "Couldn’t save" : "Saved in this browser"}</span>} />
+      <div className="grid flex-1 lg:grid-cols-[380px_1fr]">
+        <aside className="border-border p-5 lg:border-r lg:p-7">
+          <h1 className="display-title text-2xl">Add your details</h1>
+          <p className="mt-1 text-xs text-muted-foreground">{p.pdf.name} · {p.pdf.pages} pages</p>
+          <div className="mt-6"><ProfileForm p={p} onSaveError={setSaveErr} /></div>
+          {saveErr && <p role="alert" className="mt-4 text-sm text-destructive">{saveErr}</p>}
+          <div className="mt-8 rule-t pt-5">
+            <p className="text-xs text-muted-foreground">Will be published at <span className="font-mono text-foreground">/p/{p.code}</span>. Unlisted: anyone with your link can view. Your portfolio will not appear in a public directory.</p>
+            {p.status === "published" ? (
+              <Button asChild className="mt-4 w-full"><Link to="/dashboard">Back to dashboard</Link></Button>
+            ) : (
+              <Button className="mt-4 w-full" disabled={!canPublish} onClick={publish}>Publish portfolio</Button>
+            )}
+            {!canPublish && <p className="mt-2 text-xs text-muted-foreground">Add your name to publish.</p>}
+            {!doc.account.signedIn && canPublish && <p className="mt-2 text-xs text-muted-foreground">You’ll continue with a demo account (no real sign-in).</p>}
+            {pubErr && <p role="alert" className="mt-2 text-sm text-destructive">{pubErr}</p>}
+            <DemoNote className="mt-6">{LOCAL_NOTE}</DemoNote>
           </div>
-
-          <div className="mt-10 grid gap-5 sm:grid-cols-2">
-            <section className="flex flex-col border border-border p-6">
-              <FileUp className="size-5" />
-              <h2 className="mt-4 text-base font-medium">Upload an existing PDF</h2>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
-                Every page is imported exactly as designed. Reorder, hide, crop regions, and add
-                links on top. Up to {pdfPageLimit} pages in this prototype.
-              </p>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="application/pdf"
-                className="hidden"
-                onChange={(e) => void onFile(e.target.files?.[0])}
-              />
-              <Button className="mt-5" onClick={() => fileRef.current?.click()} disabled={Boolean(progress)}>
-                Choose a PDF
-              </Button>
-            </section>
-
-            <section className="flex flex-col border border-border p-6">
-              <PenLine className="size-5" />
-              <h2 className="mt-4 text-base font-medium">Create from scratch</h2>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
-                A genuinely blank canvas. Add images and text straight away, or pick a light starting
-                point.
-              </p>
-              <div className="mt-4 space-y-1.5">
-                {TEMPLATES.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setTemplate(t.id)}
-                    className={cn(
-                      "w-full border px-3 py-2 text-left transition-colors",
-                      template === t.id ? "border-foreground" : "border-border hover:border-border-strong",
-                    )}
-                  >
-                    <span className="text-sm">{t.name}</span>
-                    <span className="block text-xxs text-muted-foreground">{t.blurb}</span>
-                  </button>
-                ))}
-              </div>
-              <Button className="mt-5" variant="line" onClick={startBlank} disabled={Boolean(progress)}>
-                Start editing
-              </Button>
-            </section>
+        </aside>
+        <section aria-label="Preview" className="bg-muted/50 p-3 sm:p-6">
+          <p className="label-xs mb-2">Preview</p>
+          <div className="border border-border">
+            <PortfolioPage profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} showCredit={p.plan === "free"} compact />
           </div>
-
-          {progress && (
-            <div className="mt-8 border border-border p-5">
-              <div className="flex items-baseline justify-between text-sm">
-                <span>{progress.phase}</span>
-                <span className="tabular-nums text-muted-foreground">{progress.percent}%</span>
-              </div>
-              <Progress value={progress.percent} className="mt-3 h-1" />
-              <p className="mt-3 text-xs text-muted-foreground">
-                You can keep scrolling while pages render. Large files take a moment.
-              </p>
-            </div>
-          )}
-
-          {error && (
-            <div className="mt-8 border border-destructive/40 bg-destructive/5 p-4 text-sm">
-              <p className="font-medium text-destructive">Upload didn’t finish</p>
-              <p className="mt-1 text-muted-foreground">{error}</p>
-              <Button variant="line" size="sm" className="mt-3" onClick={() => fileRef.current?.click()}>
-                Try another file
-              </Button>
-            </div>
-          )}
-
-          <PrototypeNote className="mt-12">
-            Prototype behaviour: your PDF, images and portfolio are saved in this browser only
-            (IndexedDB and local storage). Clearing site data removes them, and they cannot be opened
-            on another device. This is not a cloud backup.
-          </PrototypeNote>
-
-          <p className="mt-6 text-xs text-muted-foreground">
-            Already started something?{" "}
-            <Link to="/dashboard" className="underline underline-offset-4">
-              Open your workspace
-            </Link>
-            .
-          </p>
-        </div>
-      </main>
-      <SiteFooter />
+        </section>
+      </div>
     </div>
   );
 }
