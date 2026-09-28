@@ -92,11 +92,11 @@ function Landing() {
           <div className="shell py-14">
             <h2 className="text-sm font-medium">Plans</h2>
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:max-w-3xl">
-              <Plan name="Free" price="£0" items={["One PDF portfolio", "Address like portfolia.com/p/8fh2k", "Profile and contact links", "Clean PDF viewer", "Basic visit statistics", "Replace your PDF, keep your link", "Small “Hosted on Portfolia” credit"]} />
+              <Plan name="Free" price="£0" items={["One PDF portfolio", "Address like portfolia.site/p/8fh2k", "Profile and contact links", "Clean PDF viewer", "Basic visit statistics", "Replace your PDF, keep your link", "Small “Hosted on Portfolia” credit"]} />
               <Plan
                 name="Personal"
                 price={`${PRICE.month}/month or ${PRICE.year}/year`}
-                items={["Everything in Free", "Up to 10 portfolios", "Upload a CV with your details", "Personalised address like georgebell.portfolia.com", "Connect your own domain free, or buy one here", "Portfolia credit removed"]}
+                items={["Everything in Free", "Up to 10 portfolios", "Upload a CV with your details", "Personalised address like marksmith.portfolia.site", "Connect your own domain free, or buy one here", "Portfolia credit removed"]}
                 action={<Button variant="line" size="sm" className="mt-5" onClick={() => setUpgrade(true)}>Choose Personal</Button>}
               />
             </div>

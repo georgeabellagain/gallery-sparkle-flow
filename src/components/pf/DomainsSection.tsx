@@ -77,7 +77,7 @@ export function DomainsSection({ p, paid, onUpgrade }: { p: Portfolio; paid: boo
           <thead className="text-muted-foreground"><tr><th className="py-1 font-normal">Type</th><th className="font-normal">Name</th><th className="font-normal">Value</th></tr></thead>
           <tbody>
             <tr><td className="py-1">A</td><td>@</td><td>185.158.133.1</td></tr>
-            <tr><td className="py-1">CNAME</td><td>www</td><td>sites.portfolia.com</td></tr>
+            <tr><td className="py-1">CNAME</td><td>www</td><td>sites.portfolia.site</td></tr>
           </tbody>
         </table>
         <div className="mt-6 flex justify-end"><Button onClick={() => setDns(null)}>Done</Button></div>

@@ -2,7 +2,7 @@ import { createFileRoute, useHydrated } from "@tanstack/react-router";
 import { LOCAL_MISSING, Missing, OwnVisitor, useOwn } from "@/components/pf/Visitor";
 import { personalActive } from "@/lib/portfolia/store";
 
-/** Local stand-in for <username>.portfolia.com until real subdomains exist. */
+/** Local stand-in for <username>.portfolia.site until real subdomains exist. */
 export const Route = createFileRoute("/u/$username")({
   head: ({ params }) => ({
     meta: [
