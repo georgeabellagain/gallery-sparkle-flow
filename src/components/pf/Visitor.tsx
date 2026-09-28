@@ -20,6 +20,13 @@ export function OwnVisitor({ p, preview }: { p: Portfolio; preview: boolean }) {
   useEffect(() => {
     if (!preview && p.status === "published") recordVisit(p.code);
   }, [p.code, p.status, preview]);
+  useEffect(() => {
+    const tag = document.querySelector('meta[name="robots"]') ?? document.head.appendChild(Object.assign(document.createElement("meta"), { name: "robots" }));
+    tag.setAttribute("content", p.searchIndexing && !preview ? "index, follow" : "noindex, nofollow");
+  }, [p.searchIndexing, preview]);
+  useEffect(() => {
+    if (p.profile.name) document.title = `${p.profile.name} — Portfolio`;
+  }, [p.profile.name]);
   return (
     <div className="min-h-screen">
       {preview && (
