@@ -266,7 +266,7 @@ function PdfPage({
   return (
     <div
       ref={ref}
-      role="img"
+      role="group"
       aria-label={`Page ${n}`}
       className="relative w-full overflow-hidden bg-background"
       style={{ aspectRatio: `${size.w} / ${size.h}` }}
