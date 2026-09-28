@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { Palette } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Minus, Palette, Plus, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { deleteBlob, putBlob, uid } from "@/lib/portfolia/assets";
 import { DEFAULT_STYLE, FONT_OPTIONS, patchPortfolio, type PageStyle, type Portfolio } from "@/lib/portfolia/store";
@@ -10,18 +10,24 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
   const paid = p.plan === "personal";
   const input = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const set = (patch: Partial<PageStyle>) =>
     onSaveError(patchPortfolio({ style: { ...style, ...patch } }) ? null : "Couldn’t save that style change.");
 
-  const onBanner = async (f?: File) => {
+  const onBanner = (f?: File) => {
     setErr(null);
     if (!f) return;
     if (!f.type.startsWith("image/")) return setErr("Choose a JPG, PNG or WebP image.");
     if (f.size > 8 * 1048576) return setErr("Banners can be up to 8 MB.");
+    setCropFile(f);
+  };
+
+  const saveBanner = async (blob: Blob) => {
     const key = uid("banner");
-    try { await putBlob(key, f); } catch { return setErr("Browser storage is full, so the banner wasn’t saved."); }
+    try { await putBlob(key, blob); } catch { return setErr("Browser storage is full, so the banner wasn’t saved."); }
     const old = style.bannerKey;
     set({ bannerKey: key });
+    setCropFile(null);
     if (old) void deleteBlob(old);
   };
 
@@ -50,7 +56,7 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
           <div className="flex items-center justify-between gap-3">
             <span>Banner</span>
             <span className="flex gap-2">
-              <input ref={input} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => { void onBanner(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+               <input ref={input} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => { onBanner(e.target.files?.[0]); e.currentTarget.value = ""; }} />
               <Button size="xs" variant="line" onClick={() => input.current?.click()}>{style.bannerKey ? "Replace" : "Upload banner"}</Button>
               {style.bannerKey && <Button size="xs" variant="quiet" onClick={() => { const k = style.bannerKey; set({ bannerKey: undefined }); if (k) void deleteBlob(k); }}>Remove</Button>}
             </span>
@@ -59,6 +65,91 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
           <Button size="xs" variant="quiet" onClick={() => set({ ...DEFAULT_STYLE, bannerKey: style.bannerKey })}>Reset colours and font</Button>
         </div>
       )}
+      {cropFile && <BannerCropper file={cropFile} onCancel={() => setCropFile(null)} onSave={saveBanner} />}
     </div>
+  );
+}
+
+const CROP_WIDTH = 320;
+const CROP_HEIGHT = 112;
+
+function BannerCropper({ file, onCancel, onSave }: { file: File; onCancel: () => void; onSave: (blob: Blob) => Promise<void> }) {
+  const [url, setUrl] = useState("");
+  const [size, setSize] = useState({ w: 1, h: 1 });
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [saving, setSaving] = useState(false);
+  const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+
+  useEffect(() => {
+    const next = URL.createObjectURL(file);
+    setUrl(next);
+    return () => URL.revokeObjectURL(next);
+  }, [file]);
+
+  const base = Math.max(CROP_WIDTH / size.w, CROP_HEIGHT / size.h);
+  const display = { w: size.w * base * zoom, h: size.h * base * zoom };
+  const clamp = (next: { x: number; y: number }, nextZoom = zoom) => {
+    const nextDisplay = { w: size.w * base * nextZoom, h: size.h * base * nextZoom };
+    return {
+      x: Math.max((CROP_WIDTH - nextDisplay.w) / 2, Math.min((nextDisplay.w - CROP_WIDTH) / 2, next.x)),
+      y: Math.max((CROP_HEIGHT - nextDisplay.h) / 2, Math.min((nextDisplay.h - CROP_HEIGHT) / 2, next.y)),
+    };
+  };
+  const reset = () => { setZoom(1); setOffset({ x: 0, y: 0 }); };
+
+  const commit = async () => {
+    setSaving(true);
+    try {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      const outputWidth = 1600;
+      const outputHeight = 560;
+      const canvas = document.createElement("canvas");
+      canvas.width = outputWidth;
+      canvas.height = outputHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const drawScale = Math.max(outputWidth / img.naturalWidth, outputHeight / img.naturalHeight) * zoom;
+      const dw = img.naturalWidth * drawScale;
+      const dh = img.naturalHeight * drawScale;
+      ctx.drawImage(img, (outputWidth - dw) / 2 + offset.x * outputWidth / CROP_WIDTH, (outputHeight - dh) / 2 + offset.y * outputHeight / CROP_HEIGHT, dw, dh);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+      if (blob) await onSave(blob);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <dialog open aria-modal="true" aria-labelledby="banner-crop-title" className="fixed inset-0 z-50 m-auto w-[min(94vw,38rem)] rounded-3xl border border-border bg-card p-0 text-foreground shadow-lift backdrop:bg-foreground/40">
+      <div className="p-5 sm:p-6">
+        <div className="flex items-center justify-between gap-4">
+          <div><h2 id="banner-crop-title" className="font-medium">Crop banner</h2><p className="mt-0.5 text-xs text-muted-foreground">Drag to position, then zoom as needed.</p></div>
+          <Button variant="quiet" size="icon-sm" aria-label="Cancel banner crop" onClick={onCancel}><X /></Button>
+        </div>
+        <div
+          className="relative mx-auto mt-5 aspect-[20/7] w-full max-w-[32rem] touch-none cursor-grab overflow-hidden rounded-2xl bg-muted active:cursor-grabbing"
+          onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, ox: offset.x, oy: offset.y }; }}
+          onPointerMove={(e) => { const d = drag.current; if (!d) return; setOffset(clamp({ x: d.ox + (e.clientX - d.x) * CROP_WIDTH / e.currentTarget.clientWidth, y: d.oy + (e.clientY - d.y) * CROP_HEIGHT / e.currentTarget.clientHeight })); }}
+          onPointerUp={() => { drag.current = null; }}
+          onPointerCancel={() => { drag.current = null; }}
+        >
+          {url && <img src={url} alt="Banner crop preview" draggable={false} onLoad={(e) => setSize({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })} className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none" style={{ width: `${display.w / CROP_WIDTH * 100}%`, height: `${display.h / CROP_HEIGHT * 100}%`, transform: `translate(calc(-50% + ${offset.x / CROP_WIDTH * 100}%), calc(-50% + ${offset.y / CROP_HEIGHT * 100}%))` }} />}
+          <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-background/70" />
+        </div>
+        <div className="mt-5 flex items-center gap-3">
+          <Minus className="size-4 text-muted-foreground" aria-hidden />
+          <input aria-label="Banner zoom" type="range" min="1" max="3" step="0.05" value={zoom} onChange={(e) => { const next = Number(e.target.value); setZoom(next); setOffset((current) => clamp(current, next)); }} className="min-w-0 flex-1 accent-foreground" />
+          <Plus className="size-4 text-muted-foreground" aria-hidden />
+          <Button variant="quiet" size="icon-sm" aria-label="Reset banner crop" title="Reset banner crop" onClick={reset}><RotateCcw /></Button>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="quiet" onClick={onCancel}>Cancel</Button>
+          <Button onClick={() => void commit()} disabled={saving}>{saving ? "Saving…" : "Use banner"}</Button>
+        </div>
+      </div>
+    </dialog>
   );
 }

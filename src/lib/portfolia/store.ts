@@ -293,7 +293,7 @@ export function resetAll() {
 
 /* ---------- Addresses ---------- */
 
-export const RESERVED = ["admin", "support", "www", "api", "app", "mail", "help", "blog", "login", "signin", "portfolia", "status", "billing", "p", "u"];
+export const RESERVED = ["admin", "support", "www", "api", "app", "mail", "help", "blog", "login", "signin", "portfolia", "status", "billing", "dashboard", "create", "p", "u"];
 export const DEMO_TAKEN = ["marta", "studio", "anna", "design", "photo", "architect", "art", "john"];
 
 export function checkUsername(raw: string): { ok: boolean; msg: string } {
