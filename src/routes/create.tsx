@@ -71,7 +71,7 @@ function Create() {
         </aside>
         <section aria-label="Preview" className="bg-muted/50 p-3 sm:p-6">
           <p className="label-xs mb-2">Preview</p>
-          <div className="border border-border">
+          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
             <PortfolioPage profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} showCredit={p.plan === "free"} compact />
           </div>
         </section>

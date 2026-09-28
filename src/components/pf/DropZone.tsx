@@ -40,12 +40,14 @@ export function DropZone({ onAccepted, label = "Upload your PDF", small }: { onA
           void handle(e.dataTransfer.files[0]);
         }}
         className={cn(
-          "flex flex-col items-center justify-center border border-dashed text-center transition-colors",
-          small ? "px-5 py-8" : "px-6 py-14",
-          over ? "border-foreground bg-muted" : "border-border-strong",
+          "flex flex-col items-center justify-center rounded-[1.75rem] border-2 border-dashed bg-card text-center shadow-soft transition-colors duration-200",
+          small ? "px-5 py-8" : "px-6 py-12",
+          over ? "border-foreground bg-accent" : "border-border-strong hover:border-border-strong hover:bg-accent/40",
         )}
       >
-        <FileUp className="size-5 text-muted-foreground" aria-hidden />
+        <span className="flex size-11 items-center justify-center rounded-full bg-leaf-soft text-leaf" aria-hidden>
+          <FileUp className="size-5" />
+        </span>
         <p className="mt-3 text-sm">{phase ? `${phase}…` : "Drag your PDF here"}</p>
         <p className="mt-1 text-xs text-muted-foreground">PDF only · up to {UPLOAD_LIMIT_MB} MB</p>
         <input ref={input} type="file" accept="application/pdf,.pdf" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => void handle(e.target.files?.[0])} />

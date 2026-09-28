@@ -121,7 +121,7 @@ export function PdfViewer({
               href={downloadUrl}
               download={fileName}
               onClick={onDownload}
-              className="ml-1 inline-flex items-center gap-1.5 border border-border px-2.5 py-1 hover:border-foreground"
+              className="ml-1 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 hover:border-foreground"
             >
               <Download className="size-3.5" /> Download PDF
             </a>

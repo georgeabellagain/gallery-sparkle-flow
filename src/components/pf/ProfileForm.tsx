@@ -46,7 +46,7 @@ export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (ms
       <div>
         <Label htmlFor="f-photo" className="text-xs">Profile photo</Label>
         <div className="mt-1.5 flex items-center gap-3">
-          <input id="f-photo" type="file" accept="image/*" className="text-xs file:mr-3 file:border file:border-border file:bg-background file:px-2.5 file:py-1 file:text-xs" onChange={(e) => void onPhoto(e.target.files?.[0])} />
+          <input id="f-photo" type="file" accept="image/*" className="text-xs file:mr-3 file:cursor-pointer file:rounded-full file:border file:border-border file:bg-background file:px-3 file:py-1.5 file:text-xs" onChange={(e) => void onPhoto(e.target.files?.[0])} />
           {pr.photoKey && (
             <Button size="xs" variant="quiet" onClick={() => { const k = pr.photoKey!; set({ photoKey: undefined }); void deleteBlob(k); }}>Remove</Button>
           )}

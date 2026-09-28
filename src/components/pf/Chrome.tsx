@@ -25,7 +25,7 @@ export function SiteHeader({ right }: { right?: ReactNode }) {
 
 export function DemoNote({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <p className={cn("border-l-2 border-border-strong pl-3 text-xs leading-relaxed text-muted-foreground", className)}>
+    <p className={cn("rounded-2xl bg-muted px-4 py-3 text-xs leading-relaxed text-muted-foreground", className)}>
       {children}
     </p>
   );
@@ -58,7 +58,7 @@ export function Modal({
       ref={ref}
       onClose={onClose}
       aria-labelledby="modal-title"
-      className="m-auto w-[min(92vw,30rem)] border border-border bg-background p-0 text-foreground backdrop:bg-foreground/30"
+      className="m-auto w-[min(92vw,30rem)] rounded-3xl border border-border bg-card p-0 text-foreground shadow-lift backdrop:bg-foreground/30"
     >
       {open && (
         <div className="p-6">
