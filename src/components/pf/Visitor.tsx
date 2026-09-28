@@ -4,7 +4,7 @@ import { Eye } from "lucide-react";
 import { PortfolioPage, useStoredMedia } from "./PortfolioPage";
 import { Wordmark } from "./Chrome";
 import { SAMPLE } from "@/lib/portfolia/sample";
-import { recordDownload, recordVisit, useDoc, type Portfolio } from "@/lib/portfolia/store";
+import { findPortfolio, recordDownload, recordVisit, useDoc, type Portfolio } from "@/lib/portfolia/store";
 
 export function SampleVisitor() {
   return (
@@ -34,7 +34,9 @@ export function OwnVisitor({ p, preview }: { p: Portfolio; preview: boolean }) {
         photoUrl={photoUrl}
         allowDownload={p.allowDownload}
         showCredit={p.plan === "free"}
-        onDownload={preview ? undefined : recordDownload}
+        onDownload={preview ? undefined : () => recordDownload(p.code)}
+        pageStyle={p.plan === "personal" ? p.style : undefined}
+        cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined}
         immersive
       />
     </div>
@@ -55,8 +57,8 @@ export function Missing({ title, body }: { title: string; body: string }) {
   );
 }
 
-export function useOwn() {
-  return useDoc().portfolio;
+export function useOwn(test: (p: Portfolio) => boolean) {
+  return findPortfolio(useDoc(), test);
 }
 
 export const LOCAL_MISSING =

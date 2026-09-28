@@ -18,6 +18,7 @@ export function PdfViewer({
   onDownload,
   compact,
   immersive,
+  backdrop,
 }: {
   source: Source | null;
   fileName: string;
@@ -25,6 +26,7 @@ export function PdfViewer({
   onDownload?: () => void;
   compact?: boolean;
   immersive?: boolean;
+  backdrop?: string;
 }) {
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
@@ -133,7 +135,7 @@ export function PdfViewer({
   }, [mode, total]);
 
   return (
-    <div ref={rootRef} onPointerMove={(e) => revealControls(e.pointerType)} className={cn("relative bg-foreground", immersive && "min-h-[calc(100vh-5rem)]", full && "overflow-auto")}>
+    <div ref={rootRef} onPointerMove={(e) => revealControls(e.pointerType)} style={backdrop ? { background: backdrop } : undefined} className={cn("relative bg-foreground", immersive && "min-h-[calc(100vh-5rem)]", full && "overflow-auto")}>
       <div className={cn(
         "sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-1.5 text-xs backdrop-blur transition-opacity duration-200",
         immersive && "-mb-10 opacity-100 focus-within:opacity-100",
