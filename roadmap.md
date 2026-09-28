@@ -5,3 +5,5 @@
 - [x] Create two colourful geometric Portfolia logo directions, get the user's selection, then apply the chosen logo.
 - [x] Paid: up to 10 portfolios, CV upload with icon, custom domains (buy demo / connect own free)
 - [x] Paid: pick font + colours (profile text, page background, PDF backdrop) and upload a banner
+- [ ] Add banner crop, reposition and zoom before saving
+- [ ] Use root personalised addresses such as portfolia.site/marksmith, retaining old link compatibility
