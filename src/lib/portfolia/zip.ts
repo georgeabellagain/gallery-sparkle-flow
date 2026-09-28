@@ -79,7 +79,8 @@ export function createZip(entries: ZipEntry[]): Blob {
   ev.setUint32(12, centralSize, true);
   ev.setUint32(16, offset, true);
 
-  return new Blob([...chunks, ...central, end], { type: "application/zip" });
+  const parts = [...chunks, ...central, end] as unknown as BlobPart[];
+  return new Blob(parts, { type: "application/zip" });
 }
 
 export function downloadBlob(blob: Blob, filename: string) {

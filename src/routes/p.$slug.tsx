@@ -1,8 +1,9 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/p/$slug")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    preview: typeof search.preview === "string" ? search.preview : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { preview?: string } => {
+    const preview = search["preview"];
+    return typeof preview === "string" && preview ? { preview } : {};
+  },
   component: () => <Outlet />,
 });
