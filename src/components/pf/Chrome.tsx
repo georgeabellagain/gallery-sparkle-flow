@@ -3,11 +3,12 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { getBlob } from "@/lib/portfolia/assets";
 import { cn } from "@/lib/utils";
+import portfoliaLogo from "@/assets/portfolia-logo.png";
 
 export function Wordmark({ className }: { className?: string }) {
   return (
-    <Link to="/" className={cn("display-title text-[1.35rem] leading-none", className)}>
-      Portfolia
+    <Link to="/" className={cn("inline-flex items-center", className)} aria-label="Portfolia home">
+      <img src={portfoliaLogo} alt="Portfolia" width={1162} height={257} className="h-6 w-auto" />
     </Link>
   );
 }
