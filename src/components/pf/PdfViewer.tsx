@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Download, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { Progress } from "@/components/ui/progress";
@@ -91,12 +91,47 @@ export function PdfViewer({
 
   const z = (d: number) => setZoom((v) => Math.min(3, Math.max(0.5, Math.round((v + d) * 100) / 100)));
 
+  const [mode, setMode] = useState<"scroll" | "paged">("scroll");
+  const total = doc?.numPages ?? 0;
+  const go = (d: number) => setCurrent((c) => Math.min(total, Math.max(1, c + d)));
+
+  useEffect(() => {
+    if (mode !== "paged" || !total) return;
+    const on = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest("input, textarea, [contenteditable]")) return;
+      if (e.key === "ArrowRight" || e.key === "PageDown") setCurrent((c) => Math.min(total, c + 1));
+      if (e.key === "ArrowLeft" || e.key === "PageUp") setCurrent((c) => Math.max(1, c - 1));
+    };
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  }, [mode, total]);
+
   return (
-    <div ref={rootRef} className={cn("relative bg-muted", full && "overflow-auto")}>
+    <div ref={rootRef} className={cn("relative bg-foreground", full && "overflow-auto")}>
       <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-1.5 text-xs backdrop-blur">
-        <span className="tabular-nums text-muted-foreground" aria-live="polite">
-          {doc ? `Page ${current} of ${doc.numPages}` : error ? "Couldn’t load" : "Loading…"}
-        </span>
+        <div className="flex items-center gap-3">
+          <div role="radiogroup" aria-label="Reading mode" className="inline-flex rounded-full border border-border p-0.5">
+            {(["scroll", "paged"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                role="radio"
+                aria-checked={mode === m}
+                onClick={() => setMode(m)}
+                className={cn(
+                  "rounded-full px-3 py-0.5 transition-colors",
+                  mode === m ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {m === "scroll" ? "Scroll" : "Page by page"}
+              </button>
+            ))}
+          </div>
+          <span className="hidden tabular-nums text-muted-foreground sm:inline" aria-live="polite">
+            {doc ? `Page ${current} of ${doc.numPages}` : error ? "Couldn’t load" : "Loading…"}
+          </span>
+        </div>
         <div className="flex items-center gap-0.5">
           <ToolBtn label="Zoom out" onClick={() => z(-0.25)} disabled={zoom <= 0.5}>
             <Minus className="size-3.5" />
@@ -131,13 +166,33 @@ export function PdfViewer({
 
       {error ? (
         <div className="px-6 py-20 text-center text-sm">
-          <p className="font-medium">This portfolio couldn’t be displayed</p>
+          <p className="font-medium text-background">This portfolio couldn’t be displayed</p>
           <p className="mt-1 text-muted-foreground">{error}</p>
         </div>
       ) : !doc ? (
-        <div className="mx-auto max-w-xs px-6 py-24 text-center text-xs text-muted-foreground">
+        <div className="mx-auto max-w-xs px-6 py-24 text-center text-xs text-background/70">
           <p>Loading portfolio… {progress}%</p>
           <Progress value={progress} className="mt-3 h-1" />
+        </div>
+      ) : mode === "paged" ? (
+        <div className="overflow-x-auto">
+          <div
+            className={cn("mx-auto py-6", compact ? "px-3" : "px-3 sm:px-8")}
+            style={{ width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? (compact ? 900 : 1100) : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
+          >
+            {sizes[current - 1] && (
+              <PdfPage key={current} doc={doc} n={current} size={sizes[current - 1]!} zoom={zoom} onVisible={noop} eager />
+            )}
+          </div>
+          <div className="flex items-center justify-center gap-3 pb-6 text-xs">
+            <button type="button" onClick={() => go(-1)} disabled={current <= 1} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
+              <ChevronLeft className="size-3.5" /> Previous
+            </button>
+            <span className="tabular-nums text-background/70">{current} / {doc.numPages}</span>
+            <button type="button" onClick={() => go(1)} disabled={current >= doc.numPages} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
+              Next <ChevronRight className="size-3.5" />
+            </button>
+          </div>
         </div>
       ) : (
         <div className="overflow-x-auto" style={{ touchAction: "pan-x pan-y pinch-zoom" }}>
@@ -154,6 +209,8 @@ export function PdfViewer({
     </div>
   );
 }
+
+const noop = () => {};
 
 function ToolBtn(props: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
   return (
@@ -176,15 +233,17 @@ function PdfPage({
   size,
   zoom,
   onVisible,
+  eager,
 }: {
   doc: PDFDocumentProxy;
   n: number;
   size: { w: number; h: number };
   zoom: number;
   onVisible: (n: number) => void;
+  eager?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [near, setNear] = useState(n <= 2);
+  const [near, setNear] = useState(eager || n <= 2);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
