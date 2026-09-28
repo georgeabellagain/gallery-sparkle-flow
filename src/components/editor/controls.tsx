@@ -94,15 +94,17 @@ export function NumberField({
           {suffix}
         </span>
       </div>
-      <Slider
-        className="mt-2"
+      <input
+        type="range"
+        className="mt-2 h-1.5 w-full cursor-pointer appearance-none bg-border accent-foreground"
         min={min}
         max={max}
         step={step}
-        value={[value]}
-        onValueChange={([v]) => onChange(v ?? value)}
+        value={Number.isFinite(value) ? value : min}
+        onChange={(e) => onChange(Number(e.target.value))}
         aria-label={label}
       />
+
     </div>
   );
 }
