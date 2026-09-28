@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Download, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
-import "pdfjs-dist/web/pdf_viewer.css";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { Progress } from "@/components/ui/progress";
