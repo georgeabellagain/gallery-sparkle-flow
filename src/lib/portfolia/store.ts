@@ -193,16 +193,24 @@ export function useDoc(): Doc {
   return useStore((s) => s.doc);
 }
 
+/** Primitive selectors only: the snapshot must be referentially stable. */
 export function useSaveStatus() {
-  return useStore((s) => ({
-    save: s.save,
-    lastSavedAt: s.lastSavedAt,
-    failNextSave: s.failNextSave,
-  }));
+  const save = useStore(selSave);
+  const lastSavedAt = useStore(selLastSavedAt);
+  const failNextSave = useStore(selFailNext);
+  return { save, lastSavedAt, failNextSave };
 }
 
+const selSave = (s: Runtime) => s.save;
+const selLastSavedAt = (s: Runtime) => s.lastSavedAt;
+const selFailNext = (s: Runtime) => s.failNextSave;
+const selCanUndo = (s: Runtime) => s.undo.length > 0;
+const selCanRedo = (s: Runtime) => s.redo.length > 0;
+
 export function useHistoryFlags() {
-  return useStore((s) => ({ canUndo: s.undo.length > 0, canRedo: s.redo.length > 0 }));
+  const canUndo = useStore(selCanUndo);
+  const canRedo = useStore(selCanRedo);
+  return { canUndo, canRedo };
 }
 
 export function usePortfolio(id: string | undefined): Portfolio | undefined {
