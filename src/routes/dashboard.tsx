@@ -97,10 +97,12 @@ function Dashboard() {
 
   const freePath = `/p/${p.code}`;
   const active = personalActive(p);
+  const personalPath = p.username && active ? `/${p.username}` : null;
+  const sharePath = personalPath ?? freePath;
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(origin + freePath);
+      await navigator.clipboard.writeText(origin + sharePath);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -127,10 +129,11 @@ function Dashboard() {
                 <span className={`rounded-full border px-2.5 py-0.5 text-xxs uppercase tracking-wider ${published ? "border-foreground" : "border-border text-muted-foreground"}`}>{published ? "Published · Unlisted" : "Not published"}</span>
               </div>
               <div className="mt-4 flex flex-wrap items-center gap-2">
-                <code className="rounded-full border border-border px-3.5 py-1.5 text-xs select-all">{origin.replace(/^https?:\/\//, "")}{freePath}</code>
+                <code className="rounded-full border border-border px-3.5 py-1.5 text-xs select-all">{origin.replace(/^https?:\/\//, "")}{sharePath}</code>
                 <Button size="sm" variant="line" onClick={() => void copy()}><Copy /> {copied ? "Copied" : "Copy link"}</Button>
                 {published ? (
-                  <Button size="sm" variant="line" asChild><Link to="/p/$slug" params={{ slug: p.code }}><ExternalLink /> Open portfolio</Link></Button>
+                  personalPath ? <Button size="sm" variant="line" asChild><Link to="/$username" params={{ username: p.username ?? "" }}><ExternalLink /> Open portfolio</Link></Button>
+                    : <Button size="sm" variant="line" asChild><Link to="/p/$slug" params={{ slug: p.code }}><ExternalLink /> Open portfolio</Link></Button>
                 ) : (
                   <Button size="sm" onClick={() => setMsg(patchPortfolio({ status: "published", publishedAt: Date.now() }) ? null : "Publishing failed — nothing changed.")}>Publish portfolio</Button>
                 )}
@@ -153,9 +156,7 @@ function Dashboard() {
                 <li>Free address: <span className="font-mono text-xs">{freePath}</span> — always works</li>
                 {p.username && (
                   <li>
-                    Personalised: <span className="font-mono text-xs">{p.username}.portfolia.site</span> <span className="text-xs text-muted-foreground">(preview — opens locally at </span>
-                    {active && published ? <Link to="/u/$username" params={{ username: p.username }} className="font-mono text-xs underline">/u/{p.username}</Link> : <span className="font-mono text-xs">/u/{p.username}</span>}
-                    <span className="text-xs text-muted-foreground">)</span>
+                    Personalised: {active && published ? <Link to="/$username" params={{ username: p.username }} className="font-mono text-xs underline">portfolia.site/{p.username}</Link> : <span className="font-mono text-xs">portfolia.site/{p.username}</span>}
                   </li>
                 )}
                 {p.cancelledAt && active && <li className="text-xs text-muted-foreground">Cancelled. Personalised address stays active until {graceEnds(p)!.toLocaleDateString()}; the name won’t be reassigned straight away.</li>}

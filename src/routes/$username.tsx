@@ -2,26 +2,27 @@ import { createFileRoute, useHydrated } from "@tanstack/react-router";
 import { LOCAL_MISSING, Missing, OwnVisitor, useOwn } from "@/components/pf/Visitor";
 import { personalActive } from "@/lib/portfolia/store";
 
-/** Legacy personalised address retained for previously shared prototype links. */
-export const Route = createFileRoute("/u/$username")({
+export const Route = createFileRoute("/$username")({
   head: ({ params }) => ({
     meta: [
       { title: `${params.username} — Portfolio` },
-      { name: "description", content: "A portfolio hosted on Portfolia." },
+      { name: "description", content: "A personal portfolio hosted on Portfolia." },
       { property: "og:title", content: `${params.username} — Portfolio` },
-      { property: "og:description", content: "A portfolio hosted on Portfolia." },
+      { property: "og:description", content: "A personal portfolio hosted on Portfolia." },
+      { property: "og:type", content: "profile" },
+      { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex, nofollow" },
     ],
   }),
-  component: Page,
+  component: PersonalPortfolio,
 });
 
-function Page() {
+function PersonalPortfolio() {
   const { username } = Route.useParams();
-  const p = useOwn((x) => x.username === username);
+  const p = useOwn((portfolio) => portfolio.username === username);
   const hydrated = useHydrated();
   if (!hydrated) return null;
-  if (!p || p.username !== username || !personalActive(p) || p.status !== "published")
+  if (!p || !personalActive(p) || p.status !== "published")
     return <Missing title="No portfolio here" body={LOCAL_MISSING} />;
   return <OwnVisitor p={p} preview={false} />;
 }

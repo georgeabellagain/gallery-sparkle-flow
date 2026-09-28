@@ -34,11 +34,11 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
         <>
           <Label htmlFor="uname" className="mt-5 block text-xs">Personalised Portfolia address</Label>
           <div className="mt-1.5 flex items-center rounded-full border border-input focus-within:ring-1 focus-within:ring-ring">
+            <span className="pl-4 text-sm text-muted-foreground">portfolia.site/</span>
             <Input id="uname" value={name} onChange={(e) => setName(e.target.value)} className="rounded-full border-0 shadow-none focus-visible:ring-0" placeholder="marksmith" autoComplete="off" aria-describedby="uname-msg" />
-            <span className="pr-4 text-sm text-muted-foreground">.portfolia.site</span>
           </div>
           <p id="uname-msg" className={`mt-1.5 text-xs ${check.ok ? "text-foreground" : "text-muted-foreground"}`}>{name ? check.msg : "Lowercase letters, numbers and hyphens, 3–30 characters."}</p>
-          {check.ok && <p className="mt-2 font-mono text-xs">{u}.portfolia.site <span className="text-muted-foreground">(preview)</span></p>}
+          {check.ok && <p className="mt-2 font-mono text-xs">portfolia.site/{u}</p>}
 
           <fieldset className="mt-5 flex gap-2 text-sm">
             <legend className="sr-only">Billing period</legend>
@@ -59,7 +59,7 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
             <li>This is a personalised Portfolia address, not a separately owned domain.</li>
             <li>Your free link /p/{p.code} keeps working, so links you’ve already shared stay useful.</li>
             <li>If you cancel, your portfolios stay at their free addresses, nothing is deleted, and the personalised address stays active for {GRACE_DAYS} days. The name isn’t reassigned straight away.</li>
-            <li>Real subdomains aren’t connected in this prototype — the address opens as a local preview route.</li>
+            <li>This prototype stores portfolios in this browser, so the address works here but not on another device yet.</li>
           </ul>
           {err && <p role="alert" className="mt-3 text-sm text-destructive">{err}</p>}
           <div className="mt-6 flex justify-end gap-2">

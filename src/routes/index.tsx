@@ -96,7 +96,7 @@ function Landing() {
               <Plan
                 name="Personal"
                 price={`${PRICE.month}/month or ${PRICE.year}/year`}
-                items={["Everything in Free", "Up to 10 portfolios", "Upload a CV with your details", "Personalised address like marksmith.portfolia.site", "Connect your own domain free, or buy one here", "Portfolia credit removed"]}
+                items={["Everything in Free", "Up to 10 portfolios", "Upload a CV with your details", "Personalised address like portfolia.site/marksmith", "Connect your own domain free, or buy one here", "Portfolia credit removed"]}
                 action={<Button variant="line" size="sm" className="mt-5" onClick={() => setUpgrade(true)}>Choose Personal</Button>}
               />
             </div>
