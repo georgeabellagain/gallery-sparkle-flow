@@ -9,7 +9,7 @@ import { recordDownload, recordVisit, useDoc, type Portfolio } from "@/lib/portf
 export function SampleVisitor() {
   return (
     <div className="min-h-screen">
-      <PortfolioPage profile={SAMPLE.profile} pdf={SAMPLE_SRC} allowDownload showCredit />
+      <PortfolioPage profile={SAMPLE.profile} pdf={SAMPLE_SRC} allowDownload showCredit immersive />
     </div>
   );
 }
@@ -35,6 +35,7 @@ export function OwnVisitor({ p, preview }: { p: Portfolio; preview: boolean }) {
         allowDownload={p.allowDownload}
         showCredit={p.plan === "free"}
         onDownload={preview ? undefined : recordDownload}
+        immersive
       />
     </div>
   );

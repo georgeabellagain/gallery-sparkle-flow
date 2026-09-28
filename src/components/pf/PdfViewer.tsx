@@ -17,12 +17,14 @@ export function PdfViewer({
   allowDownload,
   onDownload,
   compact,
+  immersive,
 }: {
   source: Source | null;
   fileName: string;
   allowDownload?: boolean;
   onDownload?: () => void;
   compact?: boolean;
+  immersive?: boolean;
 }) {
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
@@ -108,8 +110,11 @@ export function PdfViewer({
   }, [mode, total]);
 
   return (
-    <div ref={rootRef} className={cn("relative bg-foreground", full && "overflow-auto")}>
-      <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-1.5 text-xs backdrop-blur">
+    <div ref={rootRef} className={cn("group/viewer relative bg-foreground", immersive && "min-h-[calc(100vh-5rem)]", full && "overflow-auto")}>
+      <div className={cn(
+        "sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-1.5 text-xs backdrop-blur transition-opacity duration-200",
+        immersive && "-mb-10 opacity-100 supports-[hover:hover]:opacity-0 supports-[hover:hover]:group-hover/viewer:opacity-100 supports-[hover:hover]:focus-within:opacity-100",
+      )}>
         <div className="flex items-center gap-3">
           <div role="radiogroup" aria-label="Reading mode" className="inline-flex rounded-full border border-border p-0.5">
             {(["scroll", "paged"] as const).map((m) => (
@@ -184,7 +189,7 @@ export function PdfViewer({
               <PdfPage key={current} doc={doc} n={current} size={sizes[current - 1]!} zoom={zoom} onVisible={noop} eager />
             )}
           </div>
-          <div className="flex items-center justify-center gap-3 pb-6 text-xs">
+          <div className={cn("flex items-center justify-center gap-3 pb-6 text-xs transition-opacity duration-200", immersive && "opacity-100 supports-[hover:hover]:opacity-0 supports-[hover:hover]:group-hover/viewer:opacity-100 supports-[hover:hover]:focus-within:opacity-100")}>
             <button type="button" onClick={() => go(-1)} disabled={current <= 1} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
               <ChevronLeft className="size-3.5" /> Previous
             </button>

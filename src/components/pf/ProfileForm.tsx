@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Minus, Plus, RotateCcw, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,22 +10,29 @@ import { patchPortfolio, patchProfile, type Portfolio } from "@/lib/portfolia/st
 export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg: string | null) => void }) {
   const pr = p.profile;
   const [photoErr, setPhotoErr] = useState<string | null>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const set = (patch: Parameters<typeof patchProfile>[0]) =>
     onSaveError(patchProfile(patch) ? null : "Couldn’t save — this browser’s storage is full or blocked. Your last change wasn’t kept.");
 
-  const onPhoto = async (f?: File) => {
+  const onPhoto = (f?: File) => {
     setPhotoErr(null);
     if (!f) return;
     if (!f.type.startsWith("image/")) return setPhotoErr("Choose a JPG, PNG or WebP image.");
     if (f.size > 5 * 1048576) return setPhotoErr("Profile photos can be up to 5 MB.");
+    setCropFile(f);
+  };
+
+  const savePhoto = async (blob: Blob) => {
     const key = uid("photo");
     try {
-      await putBlob(key, f);
+      await putBlob(key, blob);
     } catch {
-      return setPhotoErr("Browser storage is full, so the photo wasn’t saved.");
+      setPhotoErr("Browser storage is full, so the photo wasn’t saved.");
+      return;
     }
     const old = pr.photoKey;
     set({ photoKey: key });
+    setCropFile(null);
     if (old) void deleteBlob(old);
   };
 
@@ -46,9 +53,9 @@ export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (ms
       <div>
         <Label htmlFor="f-photo" className="text-xs">Profile photo</Label>
         <div className="mt-1.5 flex items-center gap-3">
-          <input id="f-photo" type="file" accept="image/*" className="text-xs file:mr-3 file:cursor-pointer file:rounded-full file:border file:border-border file:bg-background file:px-3 file:py-1.5 file:text-xs" onChange={(e) => void onPhoto(e.target.files?.[0])} />
+          <input id="f-photo" type="file" accept="image/*" className="text-xs file:mr-3 file:cursor-pointer file:rounded-full file:border file:border-border file:bg-background file:px-3 file:py-1.5 file:text-xs" onChange={(e) => { onPhoto(e.target.files?.[0]); e.currentTarget.value = ""; }} />
           {pr.photoKey && (
-            <Button size="xs" variant="quiet" onClick={() => { const k = pr.photoKey!; set({ photoKey: undefined }); void deleteBlob(k); }}>Remove</Button>
+            <Button size="xs" variant="quiet" onClick={() => { const k = pr.photoKey; if (!k) return; set({ photoKey: undefined }); void deleteBlob(k); }}>Remove</Button>
           )}
         </div>
         {photoErr && <p role="alert" className="mt-1 text-xs text-destructive">{photoErr}</p>}
@@ -75,6 +82,85 @@ export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (ms
         Let visitors download the PDF
       </label>
       <p className="text-xs text-muted-foreground">Empty fields are hidden on your page.</p>
+      {cropFile && <PhotoCropper file={cropFile} onCancel={() => setCropFile(null)} onSave={savePhoto} />}
     </div>
+  );
+}
+
+const CROP_SIZE = 288;
+
+function PhotoCropper({ file, onCancel, onSave }: { file: File; onCancel: () => void; onSave: (blob: Blob) => Promise<void> }) {
+  const [url, setUrl] = useState("");
+  const [size, setSize] = useState({ w: 1, h: 1 });
+  const [zoom, setZoom] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [saving, setSaving] = useState(false);
+  const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+
+  useEffect(() => {
+    const next = URL.createObjectURL(file);
+    setUrl(next);
+    return () => URL.revokeObjectURL(next);
+  }, [file]);
+
+  const base = Math.max(CROP_SIZE / size.w, CROP_SIZE / size.h);
+  const display = { w: size.w * base * zoom, h: size.h * base * zoom };
+  const clamp = (next: { x: number; y: number }) => ({
+    x: Math.max((CROP_SIZE - display.w) / 2, Math.min((display.w - CROP_SIZE) / 2, next.x)),
+    y: Math.max((CROP_SIZE - display.h) / 2, Math.min((display.h - CROP_SIZE) / 2, next.y)),
+  });
+  const reset = () => { setZoom(1); setOffset({ x: 0, y: 0 }); };
+
+  const commit = async () => {
+    setSaving(true);
+    try {
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      const output = 800;
+      const canvas = document.createElement("canvas");
+      canvas.width = output;
+      canvas.height = output;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const drawScale = Math.max(output / img.naturalWidth, output / img.naturalHeight) * zoom;
+      const dw = img.naturalWidth * drawScale;
+      const dh = img.naturalHeight * drawScale;
+      ctx.drawImage(img, (output - dw) / 2 + offset.x * output / CROP_SIZE, (output - dh) / 2 + offset.y * output / CROP_SIZE, dw, dh);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+      if (blob) await onSave(blob);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <dialog open aria-modal="true" aria-labelledby="crop-title" className="fixed inset-0 z-50 m-auto w-[min(92vw,25rem)] rounded-3xl border border-border bg-card p-0 text-foreground shadow-lift backdrop:bg-foreground/40">
+      <div className="p-5 sm:p-6">
+        <div className="flex items-center justify-between gap-4">
+          <div><h2 id="crop-title" className="font-medium">Crop profile photo</h2><p className="mt-0.5 text-xs text-muted-foreground">Drag to position, then zoom as needed.</p></div>
+          <Button variant="quiet" size="icon-sm" aria-label="Cancel crop" onClick={onCancel}><X /></Button>
+        </div>
+        <div
+          className="relative mx-auto mt-5 size-72 max-w-full touch-none cursor-grab overflow-hidden rounded-full bg-muted active:cursor-grabbing"
+          onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); drag.current = { x: e.clientX, y: e.clientY, ox: offset.x, oy: offset.y }; }}
+          onPointerMove={(e) => { const d = drag.current; if (!d) return; setOffset(clamp({ x: d.ox + e.clientX - d.x, y: d.oy + e.clientY - d.y })); }}
+          onPointerUp={() => { drag.current = null; }}
+        >
+          {url && <img src={url} alt="Crop preview" draggable={false} onLoad={(e) => setSize({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })} className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none" style={{ width: display.w, height: display.h, transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))` }} />}
+          <div className="pointer-events-none absolute inset-0 rounded-full ring-1 ring-inset ring-background/70" />
+        </div>
+        <div className="mt-5 flex items-center gap-3">
+          <Minus className="size-4 text-muted-foreground" aria-hidden />
+          <input aria-label="Photo zoom" type="range" min="1" max="3" step="0.05" value={zoom} onChange={(e) => { setZoom(Number(e.target.value)); setOffset({ x: 0, y: 0 }); }} className="min-w-0 flex-1 accent-foreground" />
+          <Plus className="size-4 text-muted-foreground" aria-hidden />
+          <Button variant="quiet" size="icon-sm" aria-label="Reset crop" title="Reset crop" onClick={reset}><RotateCcw /></Button>
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="quiet" onClick={onCancel}>Cancel</Button>
+          <Button onClick={() => void commit()} disabled={saving}>{saving ? "Saving…" : "Use photo"}</Button>
+        </div>
+      </div>
+    </dialog>
   );
 }
