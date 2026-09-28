@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { AssetImage } from "./AssetImage";
 import type { ViewerTarget } from "./ImageViewer";
 import { useAssets } from "@/lib/portfolia/store";
@@ -10,6 +11,9 @@ export interface BlockContext {
   onOpen: (target: ViewerTarget) => void;
   /** Editor affordances are off in the visitor view. */
   editing?: boolean;
+  selectedItemId?: string;
+  onSelect?: (itemId: string) => void;
+  onEditText?: (itemId: string, text: string) => void;
 }
 
 export function textStyleToCss(style: Item extends never ? never : PageElement["style"], theme: Theme) {
@@ -220,19 +224,70 @@ export function TextBlock({
   ctx: BlockContext;
   className?: string;
 }) {
+  const style = { ...textStyleToCss(item.style, ctx.theme), opacity: item.opacity ?? 1 };
+  if (ctx.editing && ctx.onEditText && !item.locked) {
+    return (
+      <p
+        className={cn("outline-none focus:bg-accent/40", className)}
+        style={style}
+        contentEditable
+        suppressContentEditableWarning
+        role="textbox"
+        aria-label="Edit text"
+        tabIndex={0}
+        onBlur={(e) => ctx.onEditText?.(item.id, e.currentTarget.textContent ?? "")}
+      >
+        {item.text}
+      </p>
+    );
+  }
   return (
-    <p className={className} style={{ ...textStyleToCss(item.style, ctx.theme), opacity: item.opacity ?? 1 }}>
+    <p className={className} style={style}>
       {item.text}
     </p>
   );
 }
 
+/** Wraps an item in the editor canvas with a selection outline. */
+function Selectable({ item, ctx, children }: { item: Item; ctx: BlockContext; children: ReactNode }) {
+  if (!ctx.editing || !ctx.onSelect) return <>{children}</>;
+  const selected = ctx.selectedItemId === item.id;
+  return (
+    <div
+      className={cn(
+        "relative outline-offset-4",
+        selected
+          ? "outline outline-1 outline-foreground"
+          : "hover:outline hover:outline-1 hover:outline-border-strong",
+      )}
+      onClickCapture={(e) => {
+        if (item.kind === "text" && !item.locked) return;
+        e.stopPropagation();
+        e.preventDefault();
+        ctx.onSelect?.(item.id);
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 /** One item, rendered for flowing layouts (scroll / paged / book). */
 export function ItemBlock({ item, ctx }: { item: Item; ctx: BlockContext }) {
-  if (item.hidden) return null;
-  if (item.kind === "text") return <TextBlock item={item} ctx={ctx} />;
-  if (item.kind === "image") return <ImageBlock item={item} ctx={ctx} />;
-  return <PageBlock item={item} ctx={ctx} className="hairline" />;
+  if (item.hidden && !ctx.editing) return null;
+  const inner =
+    item.kind === "text" ? (
+      <TextBlock item={item} ctx={ctx} />
+    ) : item.kind === "image" ? (
+      <ImageBlock item={item} ctx={ctx} />
+    ) : (
+      <PageBlock item={item} ctx={ctx} className="hairline" />
+    );
+  return (
+    <Selectable item={item} ctx={ctx}>
+      {item.hidden ? <div className="opacity-30">{inner}</div> : inner}
+    </Selectable>
+  );
 }
 
 /** One item, rendered as a tile. Compositions stay intact as a single tile. */
@@ -245,9 +300,10 @@ export function TileBlock({
   ctx: BlockContext;
   square?: boolean;
 }) {
-  if (item.hidden) return null;
+  if (item.hidden && !ctx.editing) return null;
+  let inner: ReactNode;
   if (item.kind === "text") {
-    return (
+    inner = (
       <div
         className={cn("flex items-center justify-center p-5 hairline", square && "aspect-square")}
         style={{ background: ctx.theme.background }}
@@ -255,24 +311,29 @@ export function TileBlock({
         <TextBlock item={item} ctx={ctx} className="text-center" />
       </div>
     );
-  }
-  if (item.kind === "image") {
-    return square ? (
+  } else if (item.kind === "image") {
+    inner = square ? (
       <div className="aspect-square overflow-hidden">
         <ImageBlock item={item} ctx={ctx} fit="cover" className="h-full" />
       </div>
     ) : (
       <ImageBlock item={item} ctx={ctx} fit="contain" />
     );
-  }
-  // A designed page keeps its own composition; it is never dismantled.
-  return square ? (
-    <div className="flex aspect-square items-center justify-center overflow-hidden bg-canvas hairline">
-      <div className="w-full" style={{ maxHeight: "100%" }}>
-        <PageBlock item={item} ctx={ctx} />
+  } else {
+    // A designed page keeps its own composition; it is never dismantled.
+    inner = square ? (
+      <div className="flex aspect-square items-center justify-center overflow-hidden bg-canvas hairline">
+        <div className="w-full" style={{ maxHeight: "100%" }}>
+          <PageBlock item={item} ctx={ctx} />
+        </div>
       </div>
-    </div>
-  ) : (
-    <PageBlock item={item} ctx={ctx} className="hairline" />
+    ) : (
+      <PageBlock item={item} ctx={ctx} className="hairline" />
+    );
+  }
+  return (
+    <Selectable item={item} ctx={ctx}>
+      {item.hidden ? <div className="opacity-30">{inner}</div> : inner}
+    </Selectable>
   );
 }
