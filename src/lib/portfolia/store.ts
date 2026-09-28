@@ -19,6 +19,25 @@ export interface CvFile {
   bytes: number;
 }
 
+export interface PageStyle {
+  font: string;
+  text: string;
+  background: string;
+  backdrop: string;
+  bannerKey?: string;
+}
+
+export const FONT_OPTIONS = [
+  { label: "Instrument Serif", css: '"Instrument Serif", Georgia, serif' },
+  { label: "Libre Baskerville", css: '"Libre Baskerville", Georgia, serif' },
+  { label: "Instrument Sans", css: '"Instrument Sans", system-ui, sans-serif' },
+  { label: "DM Sans", css: '"DM Sans", system-ui, sans-serif' },
+  { label: "Space Grotesk", css: '"Space Grotesk", system-ui, sans-serif' },
+  { label: "Archivo", css: '"Archivo", system-ui, sans-serif' },
+];
+
+export const DEFAULT_STYLE: PageStyle = { font: FONT_OPTIONS[0]!.css, text: "#1f1d1a", background: "#fbfaf6", backdrop: "#111111" };
+
 export interface Domain {
   name: string;
   kind: "owned" | "purchased";
@@ -56,6 +75,7 @@ export interface Portfolio {
   createdAt: number;
   publishedAt?: number;
   domains?: Domain[];
+  style?: PageStyle;
 }
 
 export interface Analytics {

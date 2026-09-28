@@ -8,6 +8,7 @@ import { deleteBlob, putBlob, uid } from "@/lib/portfolia/assets";
 import { CV_LIMIT_MB, patchPortfolio, patchProfile, type Portfolio } from "@/lib/portfolia/store";
 import { formatBytes } from "@/lib/portfolia/assets";
 import { CvIcon } from "./CvIcon";
+import { StyleForm } from "./StyleForm";
 
 export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg: string | null) => void }) {
   const pr = p.profile;
@@ -128,6 +129,7 @@ export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (ms
         Let visitors download the PDF
       </label>
       <p className="text-xs text-muted-foreground">Empty fields are hidden on your page.</p>
+      <StyleForm p={p} onSaveError={onSaveError} />
       {cropFile && <PhotoCropper file={cropFile} onCancel={() => setCropFile(null)} onSave={savePhoto} />}
     </div>
   );

@@ -35,6 +35,7 @@ export function OwnVisitor({ p, preview }: { p: Portfolio; preview: boolean }) {
         allowDownload={p.allowDownload}
         showCredit={p.plan === "free"}
         onDownload={preview ? undefined : () => recordDownload(p.code)}
+        pageStyle={p.plan === "personal" ? p.style : undefined}
         cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined}
         immersive
       />
