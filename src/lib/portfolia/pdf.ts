@@ -1,34 +1,9 @@
-/**
- * Real PDF import. Pages are rendered to images for display; the original PDF
- * file is stored untouched alongside them.
- *
- * Honest limitation: pages are imported as intact page images. Text and vector
- * artwork inside a page are not converted into editable objects. Creators can
- * add overlays and clickable regions on top, or crop a region into its own item.
- */
-
 import { putBlob, uid } from "./assets";
-
-export interface PdfImportResult {
-  pdfAssetId: string;
-  pdfBlobKey: string;
-  pdfName: string;
-  pdfBytes: number;
-  pages: {
-    assetId: string;
-    blobKey: string;
-    pageNumber: number;
-    width: number;
-    height: number;
-    bytes: number;
-  }[];
-}
-
-type Progress = (info: { phase: string; page?: number; total?: number; percent: number }) => void;
+import { UPLOAD_LIMIT, UPLOAD_LIMIT_MB, type PdfFile } from "./store";
 
 let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
 
-async function loadPdfjs() {
+export function loadPdfjs() {
   if (!pdfjsPromise) {
     pdfjsPromise = (async () => {
       const pdfjs = await import("pdfjs-dist");
@@ -40,83 +15,43 @@ async function loadPdfjs() {
   return pdfjsPromise;
 }
 
-const MAX_PAGES = 40;
-const TARGET_WIDTH = 1400;
-
-export async function importPdf(file: File, onProgress: Progress): Promise<PdfImportResult> {
-  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-    throw new Error("That file isn’t a PDF. Choose a .pdf file and try again.");
-  }
-  onProgress({ phase: "Reading file", percent: 4 });
-  const buffer = await file.arrayBuffer();
-
-  const pdfBlobKey = uid("blob");
-  await putBlob(pdfBlobKey, new Blob([buffer], { type: "application/pdf" }));
-
-  onProgress({ phase: "Opening document", percent: 10 });
-  const pdfjs = await loadPdfjs();
-  let doc;
-  try {
-    doc = await pdfjs.getDocument({ data: new Uint8Array(buffer.slice(0)) }).promise;
-  } catch {
-    throw new Error(
-      "This PDF couldn’t be opened. It may be password protected or damaged. Nothing else in your portfolio was changed.",
-    );
-  }
-
-  const total = Math.min(doc.numPages, MAX_PAGES);
-  const pages: PdfImportResult["pages"] = [];
-  const pdfAssetId = uid("as");
-
-  for (let n = 1; n <= total; n++) {
-    onProgress({
-      phase: `Rendering page ${n} of ${total}`,
-      page: n,
-      total,
-      percent: 12 + Math.round((n / total) * 84),
-    });
-    // Yield so the interface stays responsive between pages.
-    await new Promise((r) => setTimeout(r, 0));
-    const page = await doc.getPage(n);
-    const base = page.getViewport({ scale: 1 });
-    const scale = Math.min(2.5, TARGET_WIDTH / base.width);
-    const viewport = page.getViewport({ scale });
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(viewport.width);
-    canvas.height = Math.round(viewport.height);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("This browser could not render the PDF pages.");
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    await page.render({ canvasContext: ctx, viewport } as Parameters<typeof page.render>[0]).promise;
-    const blob = await new Promise<Blob>((resolve, reject) =>
-      canvas.toBlob(
-        (b) => (b ? resolve(b) : reject(new Error(`Page ${n} could not be saved.`))),
-        "image/jpeg",
-        0.9,
-      ),
-    );
-    const blobKey = uid("blob");
-    await putBlob(blobKey, blob);
-    pages.push({
-      assetId: uid("as"),
-      blobKey,
-      pageNumber: n,
-      width: canvas.width,
-      height: canvas.height,
-      bytes: blob.size,
-    });
-    page.cleanup();
-  }
-
-  onProgress({ phase: "Finishing", percent: 100 });
-  return {
-    pdfAssetId,
-    pdfBlobKey,
-    pdfName: file.name,
-    pdfBytes: file.size,
-    pages,
-  };
+export function describePdfError(e: unknown): string {
+  const name = (e as { name?: string })?.name;
+  if (name === "PasswordException")
+    return "This PDF is password protected. Export an unprotected copy and upload that instead.";
+  if (name === "InvalidPDFException")
+    return "This file couldn’t be read as a PDF. It may be damaged — try exporting it again.";
+  return "This PDF couldn’t be opened. Try exporting it again from your design software.";
 }
 
-export const pdfPageLimit = MAX_PAGES;
+/**
+ * Validates a PDF (type, size, readable, not password protected) and stores it
+ * in this browser. Nothing is changed if any step fails.
+ */
+export async function acceptPdf(file: File, onPhase?: (p: string) => void): Promise<PdfFile> {
+  if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf"))
+    throw new Error("That file isn’t a PDF. Portfolia only hosts PDF portfolios.");
+  if (file.size > UPLOAD_LIMIT)
+    throw new Error(
+      `This PDF is ${(file.size / 1048576).toFixed(1)} MB. The limit is ${UPLOAD_LIMIT_MB} MB — try exporting with compressed images.`,
+    );
+  onPhase?.("Checking your PDF");
+  const buf = await file.arrayBuffer();
+  const pdfjs = await loadPdfjs();
+  let pages = 0;
+  try {
+    const doc = await pdfjs.getDocument({ data: new Uint8Array(buf.slice(0)) }).promise;
+    pages = doc.numPages;
+    void doc.destroy();
+  } catch (e) {
+    throw new Error(describePdfError(e));
+  }
+  onPhase?.("Saving in this browser");
+  const blobKey = uid("pdf");
+  try {
+    await putBlob(blobKey, new Blob([buf], { type: "application/pdf" }));
+  } catch {
+    throw new Error("Your browser’s storage is full or blocked, so the PDF couldn’t be saved. Free some space and try again.");
+  }
+  return { blobKey, name: file.name, bytes: file.size, pages, uploadedAt: Date.now() };
+}

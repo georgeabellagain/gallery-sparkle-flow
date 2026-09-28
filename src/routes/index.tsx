@@ -1,143 +1,107 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Search } from "lucide-react";
-import { SiteFooter, SiteHeader } from "@/components/portfolia/SiteChrome";
-import { AssetImage } from "@/components/portfolia/AssetImage";
+import { Check } from "lucide-react";
+import { SiteHeader, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
+import { DropZone } from "@/components/pf/DropZone";
+import { UpgradeModal } from "@/components/pf/UpgradeModal";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useDoc } from "@/lib/portfolia/store";
+import { PRICE, startPortfolio, useDoc } from "@/lib/portfolia/store";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Portfolia — one link for your work" },
-      {
-        name: "description",
-        content:
-          "Upload a PDF or start from a blank canvas, choose how your work is experienced, and share one personal link.",
-      },
-      { property: "og:title", content: "Portfolia — one link for your work" },
-      {
-        property: "og:description",
-        content: "Minimal portfolios for artists, designers, architects and photographers.",
-      },
+      { title: "Portfolia — Your portfolio. One simple link." },
+      { name: "description", content: "Upload your PDF, add your details, and share your work." },
+      { property: "og:title", content: "Portfolia — Your portfolio. One simple link." },
+      { property: "og:description", content: "Upload your PDF, add your details, and share your work." },
     ],
   }),
-  component: Home,
+  component: Landing,
 });
 
-function Home() {
-  const doc = useDoc();
+function Landing() {
   const navigate = useNavigate();
-  const [q, setQ] = useState("");
-  const examples = doc.portfolios.filter((p) => p.isExample).slice(0, 4);
+  const doc = useDoc();
+  const [err, setErr] = useState<string | null>(null);
+  const [upgrade, setUpgrade] = useState(false);
+  const published = doc.portfolio?.status === "published";
 
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader
         right={
-          <Button asChild size="sm">
-            <Link to="/create">Create a portfolio</Link>
-          </Button>
+          doc.account.signedIn ? (
+            <Link to="/dashboard" className="hover:underline underline-offset-4">Dashboard</Link>
+          ) : (
+            <Link to="/signin" className="hover:underline underline-offset-4">Sign in</Link>
+          )
         }
       />
-
       <main className="flex-1">
-        <section className="shell pt-20 pb-16 sm:pt-28">
-          <h1 className="display-title max-w-3xl text-5xl text-balance sm:text-6xl">
-            Upload or create your portfolio, choose how it is experienced, and share it through one
-            link.
-          </h1>
-          <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-muted-foreground">
-            Portfolia is a quiet home for visual work. No feeds, no likes, no noise — just your
-            pages, presented the way you intended.
-          </p>
-
-          <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button asChild size="lg">
-              <Link to="/create">
-                Create a portfolio <ArrowRight />
+        <section className="shell grid gap-12 pt-16 pb-16 sm:pt-24 lg:grid-cols-[1fr_1fr] lg:items-center">
+          <div>
+            <h1 className="display-title text-5xl leading-[1.05] sm:text-6xl">Your portfolio. One simple link.</h1>
+            <p className="mt-5 max-w-md text-[15px] leading-relaxed text-muted-foreground">
+              Upload your PDF, add your details, and share your work.
+            </p>
+            <p className="mt-6 text-sm">
+              <Link to="/p/$slug" params={{ slug: "sample" }} className="underline underline-offset-4">
+                View an example portfolio
               </Link>
-            </Button>
-            <Button asChild size="lg" variant="line">
-              <Link to="/explore">Explore portfolios</Link>
-            </Button>
-            <form
-              className="relative sm:ml-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void navigate({ to: "/explore", search: { q: q || undefined } });
-              }}
-            >
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Search creators and work"
-                aria-label="Search creators and work"
-                className="h-11 w-full pl-9 sm:w-72"
+            </p>
+          </div>
+          <div>
+            {published ? (
+              <div className="border border-border p-8 text-sm">
+                <p>Your portfolio is published.</p>
+                <Button asChild className="mt-4"><Link to="/dashboard">Open dashboard</Link></Button>
+              </div>
+            ) : (
+              <DropZone
+                onAccepted={(pdf) => {
+                  if (!startPortfolio(pdf)) return setErr("Your browser refused to save. Free some storage and try again.");
+                  void navigate({ to: "/create" });
+                }}
               />
-            </form>
+            )}
+            {err && <p role="alert" className="mt-3 text-sm text-destructive">{err}</p>}
+            <p className="mt-3 text-xs text-muted-foreground">No account needed to upload and preview.</p>
           </div>
         </section>
 
         <section className="rule-t">
           <div className="shell py-14">
-            <div className="flex items-baseline justify-between gap-4">
-              <h2 className="text-sm font-medium">Example portfolios</h2>
-              <Link to="/explore" className="text-xs text-muted-foreground hover:text-foreground">
-                See all
-              </Link>
+            <h2 className="text-sm font-medium">Plans</h2>
+            <div className="mt-6 grid max-w-3xl gap-px bg-border sm:grid-cols-2">
+              <Plan name="Free" price="£0" items={["One PDF portfolio", "Address like portfolia.com/p/8fh2k", "Profile and contact links", "Clean PDF viewer", "Basic visit statistics", "Replace your PDF, keep your link", "Small “Hosted on Portfolia” credit"]} />
+              <Plan
+                name="Personal"
+                price={`${PRICE.month}/month or ${PRICE.year}/year`}
+                items={["Everything in Free", "Personalised address like georgebell.portfolia.com", "Portfolia credit removed"]}
+                action={<Button variant="line" size="sm" className="mt-5" onClick={() => setUpgrade(true)}>Choose Personal</Button>}
+              />
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Demonstration content included with the prototype, not real client work.
-            </p>
-
-            <div className="mt-8 grid gap-x-6 gap-y-9 sm:grid-cols-2 lg:grid-cols-4">
-              {examples.map((p) => (
-                <Link key={p.id} to="/p/$slug" params={{ slug: p.slug }} className="group">
-                  <div className="overflow-hidden bg-muted">
-                    <AssetImage
-                      assetId={p.projects[0]?.coverAssetId}
-                      alt=""
-                      className="aspect-3/4 w-full transition-transform duration-500 group-hover:scale-[1.015]"
-                    />
-                  </div>
-                  <h3 className="mt-3 text-sm font-medium">{p.title}</h3>
-                  <p className="text-xs text-muted-foreground">{p.discipline}</p>
-                  <p className="label-xs mt-1">Example</p>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="rule-t">
-          <div className="shell grid gap-10 py-14 sm:grid-cols-3">
-            {[
-              {
-                t: "Start from what you have",
-                d: "Bring an existing PDF and keep every page exactly as you designed it, or begin with a genuinely blank canvas.",
-              },
-              {
-                t: "Five ways to be seen",
-                d: "Paged, continuous scroll, grid, masonry or a page-turn book. Switch freely — your content is never rearranged behind your back.",
-              },
-              {
-                t: "One link, your terms",
-                d: "Publish unlisted by default. Opt into Explore only when you want to be found.",
-              },
-            ].map((c) => (
-              <div key={c.t}>
-                <h3 className="text-sm font-medium">{c.t}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{c.d}</p>
-              </div>
-            ))}
+            <p className="mt-4 text-xs text-muted-foreground">Provisional pricing. Both plans accept PDFs up to 25 MB. Addresses shown are illustrative.</p>
+            <DemoNote className="mt-8 max-w-2xl">{LOCAL_NOTE}</DemoNote>
           </div>
         </section>
       </main>
+      <UpgradeModal open={upgrade} onClose={() => setUpgrade(false)} />
+    </div>
+  );
+}
 
-      <SiteFooter />
+function Plan({ name, price, items, action }: { name: string; price: string; items: string[]; action?: React.ReactNode }) {
+  return (
+    <div className="bg-background p-6">
+      <h3 className="text-base font-medium">{name}</h3>
+      <p className="text-sm text-muted-foreground">{price}</p>
+      <ul className="mt-4 space-y-1.5 text-sm">
+        {items.map((i) => (
+          <li key={i} className="flex gap-2"><Check className="mt-0.5 size-3.5 shrink-0" aria-hidden />{i}</li>
+        ))}
+      </ul>
+      {action}
     </div>
   );
 }
