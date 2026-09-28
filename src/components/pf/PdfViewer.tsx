@@ -233,15 +233,17 @@ function PdfPage({
   size,
   zoom,
   onVisible,
+  eager,
 }: {
   doc: PDFDocumentProxy;
   n: number;
   size: { w: number; h: number };
   zoom: number;
   onVisible: (n: number) => void;
+  eager?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [near, setNear] = useState(n <= 2);
+  const [near, setNear] = useState(eager || n <= 2);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
