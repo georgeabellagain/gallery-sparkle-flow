@@ -34,6 +34,8 @@ export function PdfViewer({
   const [current, setCurrent] = useState(1);
   const [full, setFull] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [controlsVisible, setControlsVisible] = useState(!immersive);
   const [downloadUrl, setDownloadUrl] = useState<string>();
 
   useEffect(() => {
@@ -92,6 +94,15 @@ export function PdfViewer({
   };
 
   const z = (d: number) => setZoom((v) => Math.min(3, Math.max(0.5, Math.round((v + d) * 100) / 100)));
+  const revealControls = (pointerType?: string) => {
+    setControlsVisible(true);
+    if (controlsTimer.current) clearTimeout(controlsTimer.current);
+    if (pointerType !== "touch") controlsTimer.current = setTimeout(() => setControlsVisible(false), 1400);
+  };
+
+  useEffect(() => () => {
+    if (controlsTimer.current) clearTimeout(controlsTimer.current);
+  }, []);
 
   const [mode, setMode] = useState<"scroll" | "paged">("scroll");
   const total = doc?.numPages ?? 0;
@@ -110,10 +121,11 @@ export function PdfViewer({
   }, [mode, total]);
 
   return (
-    <div ref={rootRef} className={cn("group/viewer relative bg-foreground", immersive && "min-h-[calc(100vh-5rem)]", full && "overflow-auto")}>
+    <div ref={rootRef} onPointerMove={(e) => revealControls(e.pointerType)} className={cn("relative bg-foreground", immersive && "min-h-[calc(100vh-5rem)]", full && "overflow-auto")}>
       <div className={cn(
         "sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-1.5 text-xs backdrop-blur transition-opacity duration-200",
-        immersive && "-mb-10 opacity-100 supports-[hover:hover]:opacity-0 supports-[hover:hover]:group-hover/viewer:opacity-100 supports-[hover:hover]:focus-within:opacity-100",
+        immersive && "-mb-10 opacity-100 supports-[hover:hover]:focus-within:opacity-100",
+        immersive && !controlsVisible && "supports-[hover:hover]:pointer-events-none supports-[hover:hover]:opacity-0",
       )}>
         <div className="flex items-center gap-3">
           <div role="radiogroup" aria-label="Reading mode" className="inline-flex rounded-full border border-border p-0.5">
@@ -189,7 +201,7 @@ export function PdfViewer({
               <PdfPage key={current} doc={doc} n={current} size={sizes[current - 1]!} zoom={zoom} onVisible={noop} eager />
             )}
           </div>
-          <div className={cn("flex items-center justify-center gap-3 pb-6 text-xs transition-opacity duration-200", immersive && "opacity-100 supports-[hover:hover]:opacity-0 supports-[hover:hover]:group-hover/viewer:opacity-100 supports-[hover:hover]:focus-within:opacity-100")}>
+          <div className={cn("flex items-center justify-center gap-3 pb-6 text-xs transition-opacity duration-200", immersive && "opacity-100 supports-[hover:hover]:focus-within:opacity-100", immersive && !controlsVisible && "supports-[hover:hover]:pointer-events-none supports-[hover:hover]:opacity-0")}>
             <button type="button" onClick={() => go(-1)} disabled={current <= 1} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
               <ChevronLeft className="size-3.5" /> Previous
             </button>
