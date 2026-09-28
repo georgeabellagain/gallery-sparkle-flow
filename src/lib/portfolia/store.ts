@@ -10,6 +10,20 @@ export const UPLOAD_LIMIT_MB = 25;
 export const UPLOAD_LIMIT = UPLOAD_LIMIT_MB * 1024 * 1024;
 export const GRACE_DAYS = 30;
 export const PRICE = { month: "£3", year: "£25" };
+export const MAX_PORTFOLIOS = 10;
+export const CV_LIMIT_MB = 10;
+
+export interface CvFile {
+  blobKey: string;
+  name: string;
+  bytes: number;
+}
+
+export interface Domain {
+  name: string;
+  kind: "owned" | "purchased";
+  addedAt: number;
+}
 
 export interface PdfFile {
   blobKey: string;
@@ -26,6 +40,7 @@ export interface Profile {
   photoKey?: string;
   email: string;
   links: { label: string; url: string }[];
+  cv?: CvFile;
 }
 
 export interface Portfolio {
@@ -40,6 +55,7 @@ export interface Portfolio {
   cancelledAt?: number;
   createdAt: number;
   publishedAt?: number;
+  domains?: Domain[];
 }
 
 export interface Analytics {
@@ -52,10 +68,12 @@ interface Doc {
   account: { signedIn: boolean };
   portfolio: Portfolio | null;
   analytics: Analytics;
+  /** Inactive portfolios (paid plan). The active one lives in `portfolio`. */
+  others: { portfolio: Portfolio; analytics: Analytics }[];
 }
 
 const KEY = "portfolia.simple.v1";
-const empty = (): Doc => ({ v: 1, account: { signedIn: false }, portfolio: null, analytics: { visits: [], downloads: [] } });
+const empty = (): Doc => ({ v: 1, account: { signedIn: false }, portfolio: null, analytics: { visits: [], downloads: [] }, others: [] });
 
 let state: Doc = empty();
 let loaded = false;
@@ -117,13 +135,15 @@ export function startPortfolio(pdf: PdfFile): boolean {
       if (d.portfolio.status === "draft") d.portfolio.pdf = pdf;
       return d;
     }
+    const paid = isPaid(d);
     d.portfolio = {
       code: randomCode(),
       status: "draft",
       profile: { name: "", title: "", intro: "", email: "", links: [] },
       pdf,
       allowDownload: true,
-      plan: "free",
+      plan: paid ? "personal" : "free",
+      billing: paid ? allPortfolios(d).find((x) => x.plan === "personal")?.billing : undefined,
       createdAt: Date.now(),
     };
     return d;
@@ -155,7 +175,92 @@ export async function deletePortfolio(): Promise<void> {
   const p = getDoc().portfolio;
   if (p?.pdf) await deleteBlob(p.pdf.blobKey).catch(() => {});
   if (p?.profile.photoKey) await deleteBlob(p.profile.photoKey).catch(() => {});
-  update((d) => ({ ...d, portfolio: null, analytics: { visits: [], downloads: [] } }));
+  if (p?.profile.cv) await deleteBlob(p.profile.cv.blobKey).catch(() => {});
+  update((d) => {
+    const [next, ...rest] = d.others;
+    return next ? { ...d, portfolio: next.portfolio, analytics: next.analytics, others: rest } : { ...d, portfolio: null, analytics: { visits: [], downloads: [] } };
+  });
+}
+
+/* ---------- Multiple portfolios (paid) ---------- */
+
+export function allPortfolios(d: Doc): Portfolio[] {
+  return [...(d.portfolio ? [d.portfolio] : []), ...d.others.map((o) => o.portfolio)];
+}
+
+export function isPaid(d: Doc): boolean {
+  return allPortfolios(d).some((p) => p.plan === "personal");
+}
+
+export function canAddPortfolio(d: Doc): boolean {
+  return isPaid(d) && allPortfolios(d).length < MAX_PORTFOLIOS;
+}
+
+/** Parks the active portfolio so a new upload starts a fresh one. */
+export function beginNewPortfolio(): boolean {
+  return update((d) => {
+    if (!canAddPortfolio(d) || !d.portfolio) return d;
+    d.others.unshift({ portfolio: d.portfolio, analytics: d.analytics });
+    d.portfolio = null;
+    d.analytics = { visits: [], downloads: [] };
+    return d;
+  });
+}
+
+export function switchPortfolio(code: string): boolean {
+  return update((d) => {
+    const i = d.others.findIndex((o) => o.portfolio.code === code);
+    if (i < 0) return d;
+    const [target] = d.others.splice(i, 1);
+    if (d.portfolio) d.others.unshift({ portfolio: d.portfolio, analytics: d.analytics });
+    d.portfolio = target!.portfolio;
+    d.analytics = target!.analytics;
+    return d;
+  });
+}
+
+/** Applies a plan change to every portfolio. Cancelling never deletes anything. */
+export function setPlanAll(patch: Pick<Portfolio, "plan"> & Partial<Portfolio>): boolean {
+  return update((d) => {
+    if (d.portfolio) d.portfolio = { ...d.portfolio, ...patch };
+    d.others = d.others.map((o) => ({ ...o, portfolio: { ...o.portfolio, ...patch } }));
+    return d;
+  });
+}
+
+export function findPortfolio(d: Doc, test: (p: Portfolio) => boolean): Portfolio | undefined {
+  return allPortfolios(d).find(test);
+}
+
+/* ---------- Domains (demo, paid) ---------- */
+
+export function checkDomain(raw: string): { ok: boolean; msg: string; name: string } {
+  const name = raw.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
+  if (!name) return { ok: false, msg: "Enter a domain, like yourname.com.", name };
+  if (!/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/.test(name)) return { ok: false, msg: "That doesn’t look like a domain. Try yourname.com.", name };
+  if (name.endsWith("portfolia.com")) return { ok: false, msg: "Use the personalised address for portfolia.com names.", name };
+  return { ok: true, msg: "", name };
+}
+
+export const DOMAIN_PRICES: Record<string, string> = { com: "£12 / year", co: "£24 / year", "co.uk": "£8 / year", studio: "£22 / year", art: "£15 / year", design: "£38 / year", net: "£13 / year" };
+
+export function domainPrice(name: string): string | null {
+  const tld = Object.keys(DOMAIN_PRICES).sort((a, b) => b.length - a.length).find((t) => name.endsWith(`.${t}`));
+  return tld ? DOMAIN_PRICES[tld]! : null;
+}
+
+export function addDomain(domain: Domain): boolean {
+  return update((d) => {
+    if (d.portfolio) d.portfolio.domains = [...(d.portfolio.domains ?? []).filter((x) => x.name !== domain.name), domain];
+    return d;
+  });
+}
+
+export function removeDomain(name: string): boolean {
+  return update((d) => {
+    if (d.portfolio) d.portfolio.domains = (d.portfolio.domains ?? []).filter((x) => x.name !== name);
+    return d;
+  });
 }
 
 export function resetAll() {
@@ -215,15 +320,17 @@ export function recordVisit(code: string) {
   sessionStorage.setItem(k, "1");
   const v = visitorId();
   update((d) => {
-    d.analytics.visits.push({ t: Date.now(), v });
+    const a = d.portfolio?.code === code ? d.analytics : d.others.find((o) => o.portfolio.code === code)?.analytics;
+    a?.visits.push({ t: Date.now(), v });
     return d;
   });
 }
 
-export function recordDownload() {
+export function recordDownload(code?: string) {
   if (typeof window === "undefined" || isBot()) return;
   update((d) => {
-    d.analytics.downloads.push(Date.now());
+    const a = !code || d.portfolio?.code === code ? d.analytics : d.others.find((o) => o.portfolio.code === code)?.analytics;
+    a?.downloads.push(Date.now());
     return d;
   });
 }

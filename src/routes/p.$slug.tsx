@@ -25,7 +25,7 @@ export const Route = createFileRoute("/p/$slug")({
 function Page() {
   const { slug } = Route.useParams();
   const { preview } = Route.useSearch();
-  const p = useOwn();
+  const p = useOwn((x) => x.code === slug);
   const hydrated = useHydrated();
   if (slug === SAMPLE.code) return <SampleVisitor />;
   if (!hydrated) return null;

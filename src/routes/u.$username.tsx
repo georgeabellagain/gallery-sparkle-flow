@@ -18,7 +18,7 @@ export const Route = createFileRoute("/u/$username")({
 
 function Page() {
   const { username } = Route.useParams();
-  const p = useOwn();
+  const p = useOwn((x) => x.username === username);
   const hydrated = useHydrated();
   if (!hydrated) return null;
   if (!p || p.username !== username || !personalActive(p) || p.status !== "published")
