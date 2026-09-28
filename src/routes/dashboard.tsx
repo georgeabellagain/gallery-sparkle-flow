@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { deleteBlob, formatBytes } from "@/lib/portfolia/assets";
 import { sampleAnalytics } from "@/lib/portfolia/sample";
 import {
-  deletePortfolio, graceEnds, GRACE_DAYS, patchPortfolio, personalActive, replacePdf, update, useDoc,
+  deletePortfolio, startPortfolio, graceEnds, GRACE_DAYS, patchPortfolio, personalActive, replacePdf, update, useDoc,
   type Analytics, type PdfFile,
 } from "@/lib/portfolia/store";
 
@@ -66,7 +66,7 @@ function Dashboard() {
       <div className="min-h-screen">{header}
         <main className="shell py-14">
           <h1 className="display-title text-3xl">No portfolio yet</h1>
-          <div className="mt-6 max-w-lg"><DropZone onAccepted={(pdf) => { import("@/lib/portfolia/store").then((m) => { m.startPortfolio(pdf); void navigate({ to: "/create" }); }); }} /></div>
+          <div className="mt-6 max-w-lg"><DropZone onAccepted={(pdf) => { if (startPortfolio(pdf)) void navigate({ to: "/create" }); }} /></div>
           <div className="mt-14 max-w-3xl"><AnalyticsPanel data={sampleAnalytics()} sample /></div>
         </main>
       </div>
