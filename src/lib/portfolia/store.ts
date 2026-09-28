@@ -68,6 +68,8 @@ export interface Portfolio {
   profile: Profile;
   pdf: PdfFile | null;
   allowDownload: boolean;
+  /** Opt-in: allow search engines to index this portfolio. Off by default. */
+  searchIndexing?: boolean;
   plan: "free" | "personal";
   billing?: "month" | "year";
   username?: string;

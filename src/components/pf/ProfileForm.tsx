@@ -128,6 +128,13 @@ export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (ms
         <input type="checkbox" checked={p.allowDownload} onChange={(e) => onSaveError(patchPortfolio({ allowDownload: e.target.checked }) ? null : "Couldn’t save that setting.")} />
         Let visitors download the PDF
       </label>
+      <label className="flex items-start gap-2 text-sm">
+        <input type="checkbox" className="mt-1" checked={Boolean(p.searchIndexing)} onChange={(e) => onSaveError(patchPortfolio({ searchIndexing: e.target.checked }) ? null : "Couldn’t save that setting.")} />
+        <span>
+          Allow search engines to list my portfolio
+          <span className="block text-xs text-muted-foreground">Off by default. Turning it off doesn’t stop people with your link from viewing it.</span>
+        </span>
+      </label>
       <p className="text-xs text-muted-foreground">Empty fields are hidden on your page.</p>
       <StyleForm p={p} onSaveError={onSaveError} />
       {cropFile && <PhotoCropper file={cropFile} onCancel={() => setCropFile(null)} onSave={savePhoto} />}

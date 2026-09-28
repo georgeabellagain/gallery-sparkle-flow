@@ -6,16 +6,33 @@ import { DropZone } from "@/components/pf/DropZone";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
 import { Button } from "@/components/ui/button";
 import { PRICE, startPortfolio, useDoc } from "@/lib/portfolia/store";
+import { getRequestOrigin } from "@/lib/origin.functions";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Portfolia — Your portfolio. One simple link." },
-      { name: "description", content: "Upload your PDF, add your details, and share your work." },
-      { property: "og:title", content: "Portfolia — Your portfolio. One simple link." },
-      { property: "og:description", content: "Upload your PDF, add your details, and share your work." },
-    ],
-  }),
+  loader: async () => ({ origin: await getRequestOrigin() }),
+  head: ({ loaderData }) => {
+    const o = loaderData?.origin ?? "";
+    const img = o ? [{ property: "og:image", content: `${o}/og-image.jpg` }, { name: "twitter:image", content: `${o}/og-image.jpg` }] : [];
+    return {
+      meta: [
+        { title: "Portfolia — Your portfolio. One simple link." },
+        { name: "description", content: "Upload your PDF, add your details, and share your work." },
+        { property: "og:title", content: "Portfolia — Your portfolio. One simple link." },
+        { property: "og:description", content: "Upload your PDF, add your details, and share your work." },
+        ...img,
+      ],
+      scripts: [{
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "Portfolia",
+          url: o || undefined,
+          description: "Upload your PDF portfolio, add your details, and share your work through one simple link.",
+        }),
+      }],
+    };
+  },
   component: Landing,
 });
 

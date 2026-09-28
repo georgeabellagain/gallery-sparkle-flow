@@ -2,21 +2,37 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useHydrated } from "@tanstack/react-router";
 import { LOCAL_MISSING, Missing, OwnVisitor, SampleVisitor, useOwn } from "@/components/pf/Visitor";
 import { SAMPLE } from "@/lib/portfolia/sample";
+import { getRequestOrigin } from "@/lib/origin.functions";
 
 export const Route = createFileRoute("/p/$slug")({
   validateSearch: (s: Record<string, unknown>): { preview?: string } =>
     typeof s["preview"] === "string" && s["preview"] ? { preview: s["preview"] } : {},
-  head: ({ params }) => {
-    const t = params.slug === "sample" ? `${SAMPLE.profile.name} — Portfolio` : "Portfolio — Portfolia";
-    const d = params.slug === "sample" ? SAMPLE.profile.title : "A portfolio hosted on Portfolia.";
+  loader: async () => ({ origin: await getRequestOrigin() }),
+  head: ({ params, loaderData }) => {
+    const sample = params.slug === "sample";
+    const t = sample ? `${SAMPLE.profile.name} — Portfolio` : "Portfolio — Portfolia";
+    const d = sample ? SAMPLE.profile.title : "A portfolio hosted on Portfolia.";
+    const o = loaderData?.origin ?? "";
+    const img = sample && o ? [{ property: "og:image", content: `${o}/og-image.jpg` }, { name: "twitter:image", content: `${o}/og-image.jpg` }] : [];
     return {
       meta: [
         { title: t },
         { name: "description", content: d },
         { property: "og:title", content: t },
         { property: "og:description", content: d },
+        ...img,
         { name: "robots", content: "noindex, nofollow" },
       ],
+      scripts: sample
+        ? [{
+            type: "application/ld+json",
+            children: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "ProfilePage",
+              mainEntity: { "@type": "Person", name: SAMPLE.profile.name, jobTitle: SAMPLE.profile.title, description: SAMPLE.profile.intro },
+            }),
+          }]
+        : [],
     };
   },
   component: Page,
