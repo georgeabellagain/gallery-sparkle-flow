@@ -136,6 +136,7 @@ interface MutateOptions {
 }
 
 export function mutate(fn: (doc: Doc) => void, opts: MutateOptions = {}) {
+  ensureHydrated();
   const { history = true } = opts;
   const before = history ? JSON.stringify(state.doc) : null;
   const next = structuredCloneSafe(state.doc);
