@@ -8,6 +8,11 @@
 - Keep essential controls visible on touch devices, where hover is unavailable.
 - Preserve the existing scroll/page-by-page choice, zoom, full-screen, download, keyboard navigation, selectable text, and PDF links.
 
+## Logo direction
+- Create two distinct colourful geometric Portfolia logo concepts.
+- Present both for selection before replacing the existing text logo.
+- Apply the selected logo consistently at navigation sizes while retaining accessible text.
+
 ## Verification
 - Test profile photo selection, positioning, zooming, saving, and cancellation.
 - Test the public sample and local portfolio pages at desktop and mobile sizes.
