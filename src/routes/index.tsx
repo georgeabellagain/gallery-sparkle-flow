@@ -119,7 +119,7 @@ function Landing() {
                 </div>
               </div>
               <div className="bg-foreground px-3 py-5 sm:px-6 sm:py-7">
-                <img src={samplePage} alt="Start of the first page in the example PDF portfolio" width={818} height={578} loading="lazy" className="mx-auto w-full rounded-sm" />
+                <img src={samplePage} alt="Start of the first page in the example PDF portfolio" width={1648} height={1168} loading="lazy" className="mx-auto w-full rounded-sm" />
               </div>
               <div className="preview-fade pointer-events-none absolute inset-x-0 bottom-0 h-40" aria-hidden />
             </div>
