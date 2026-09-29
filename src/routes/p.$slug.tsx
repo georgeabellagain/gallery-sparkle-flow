@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useHydrated } from "@tanstack/react-router";
-import { LOCAL_MISSING, Missing, OwnVisitor, SampleVisitor, useOwn } from "@/components/pf/Visitor";
+import { CloudVisitor, LOCAL_MISSING, Missing, OwnVisitor, SampleVisitor, useOwn } from "@/components/pf/Visitor";
+import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
+import { portfolioHead } from "@/lib/portfolia/head";
 import { SAMPLE } from "@/lib/portfolia/sample";
 import { getRequestOrigin } from "@/lib/origin.functions";
 
@@ -8,9 +10,14 @@ export const Route = createFileRoute("/p/$slug")({
   staticData: { sitemap: false },
   validateSearch: (s: Record<string, unknown>): { preview?: string } =>
     typeof s["preview"] === "string" && s["preview"] ? { preview: s["preview"] } : {},
-  loader: async () => ({ origin: await getRequestOrigin() }),
+  loader: async ({ params }) => ({
+    origin: await getRequestOrigin(),
+    data: params.slug === "sample" ? null : await getPublicPortfolio({ data: { by: "code", value: params.slug } }),
+  }),
+  errorComponent: () => <Missing title="Couldn’t load this portfolio" body="Please refresh the page to try again." />,
   head: ({ params, loaderData }) => {
     const sample = params.slug === "sample";
+    if (!sample) return portfolioHead(loaderData?.data ?? null, "Portfolio");
     const t = sample ? `${SAMPLE.profile.name} — Architecture PDF Portfolio Example | Portfolia` : "PDF Portfolio — Portfolia";
     const d = sample ? `Example architecture PDF portfolio by ${SAMPLE.profile.name}, ${SAMPLE.profile.title}, hosted on Portfolia.` : "A PDF portfolio hosted on Portfolia.";
     const o = loaderData?.origin ?? "";
@@ -42,11 +49,15 @@ export const Route = createFileRoute("/p/$slug")({
 function Page() {
   const { slug } = Route.useParams();
   const { preview } = Route.useSearch();
+  const { data } = Route.useLoaderData();
   const p = useOwn((x) => x.code === slug);
   const hydrated = useHydrated();
   if (slug === SAMPLE.code) return <SampleVisitor />;
-  if (!hydrated) return null;
-  if (!p || p.code !== slug || (p.status !== "published" && !preview))
-    return <Missing title="No portfolio here" body={LOCAL_MISSING} />;
-  return <OwnVisitor p={p} preview={Boolean(preview)} />;
+  if (preview) {
+    if (!hydrated) return null;
+    if (!p || p.code !== slug) return <Missing title="No portfolio here" body="Sign in on this device to preview your draft." />;
+    return <OwnVisitor p={p} preview />;
+  }
+  if (!data) return <Missing title="No portfolio here" body={LOCAL_MISSING} />;
+  return <CloudVisitor data={data} />;
 }

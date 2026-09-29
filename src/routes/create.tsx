@@ -5,6 +5,7 @@ import { ProfileForm } from "@/components/pf/ProfileForm";
 import { PortfolioPage, useStoredMedia } from "@/components/pf/PortfolioPage";
 import { Button } from "@/components/ui/button";
 import { patchPortfolio, useDoc } from "@/lib/portfolia/store";
+import { retrySync, useSyncStatus } from "@/lib/portfolia/cloud";
 
 export const Route = createFileRoute("/create")({
   staticData: { sitemap: false },
@@ -26,6 +27,7 @@ function Create() {
   const navigate = useNavigate();
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const [pubErr, setPubErr] = useState<string | null>(null);
+  const sync = useSyncStatus();
   const { pdf, photoUrl } = useStoredMedia(p?.pdf?.blobKey, p?.profile.photoKey);
 
   if (!p || !p.pdf) {
@@ -45,13 +47,13 @@ function Create() {
   const publish = () => {
     if (!doc.account.signedIn) return void navigate({ to: "/signin", search: { next: "create" } });
     if (!patchPortfolio({ status: "published", publishedAt: Date.now() }))
-      return setPubErr("Publishing failed — this browser couldn’t save. Your portfolio is still a draft.");
+      return setPubErr("Publishing failed — couldn’t save. Your portfolio is still a draft.");
     void navigate({ to: "/dashboard" });
   };
 
   return (
     <div className="flex min-h-screen flex-col">
-      <SiteHeader right={<span className="text-xs text-muted-foreground">{saveErr ? "Couldn’t save" : "Saved in this browser"}</span>} />
+      <SiteHeader right={<span className="text-xs text-muted-foreground">{saveErr || sync.status === "error" ? <>Couldn’t save · <button className="underline" onClick={retrySync}>Retry</button></> : !doc.account.signedIn ? "Draft — sign in to save to your account" : sync.status === "saving" ? "Saving…" : "Saved to your account"}</span>} />
       <div className="grid flex-1 lg:grid-cols-[380px_1fr]">
         <aside className="border-border p-5 lg:border-r lg:p-7">
           <h1 className="display-title text-2xl">Add your details</h1>
@@ -66,7 +68,8 @@ function Create() {
               <Button className="mt-4 w-full" disabled={!canPublish} onClick={publish}>Publish portfolio</Button>
             )}
             {!canPublish && <p className="mt-2 text-xs text-muted-foreground">Add your name to publish.</p>}
-            {!doc.account.signedIn && canPublish && <p className="mt-2 text-xs text-muted-foreground">You’ll continue with a demo account (no real sign-in).</p>}
+            {!doc.account.signedIn && canPublish && <p className="mt-2 text-xs text-muted-foreground">You’ll sign in (or create a free account) to publish. Your draft comes with you.</p>}
+            {sync.status === "error" && sync.message && <p role="alert" className="mt-2 text-sm text-destructive">{sync.message}</p>}
             {pubErr && <p role="alert" className="mt-2 text-sm text-destructive">{pubErr}</p>}
             <DemoNote className="mt-6">{LOCAL_NOTE}</DemoNote>
           </div>

@@ -2,8 +2,8 @@ import { useSyncExternalStore } from "react";
 import { deleteBlob, uid } from "./assets";
 
 /**
- * Local prototype store. Settings live in localStorage; PDFs and photos live
- * in IndexedDB (see assets.ts). Nothing here is sent to a server.
+ * Portfolio store. A localStorage copy keeps the UI instant; once signed in,
+ * every change is synced to the account by cloud.ts, and files go to storage.
  */
 
 export const FREE_UPLOAD_LIMIT_MB = 10;
@@ -78,6 +78,8 @@ export interface Portfolio {
   publishedAt?: number;
   domains?: Domain[];
   style?: PageStyle;
+  /** Stored in the signed-in account. */
+  synced?: boolean;
 }
 
 export interface Analytics {
@@ -85,7 +87,7 @@ export interface Analytics {
   downloads: number[];
 }
 
-interface Doc {
+export interface Doc {
   v: 1;
   account: { signedIn: boolean };
   portfolio: Portfolio | null;
@@ -98,6 +100,18 @@ const KEY = "portfolia.simple.v1";
 const empty = (): Doc => ({ v: 1, account: { signedIn: false }, portfolio: null, analytics: { visits: [], downloads: [] }, others: [] });
 
 let state: Doc = empty();
+let commitHook: ((d: Doc) => void) | null = null;
+/** Called after every successful save (used to sync to the cloud). */
+export function setCommitHook(fn: ((d: Doc) => void) | null) {
+  commitHook = fn;
+}
+/** Replace state without triggering the commit hook (used when loading from the cloud). */
+export function replaceDoc(next: Doc) {
+  load();
+  try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* cache only */ }
+  state = next;
+  listeners.forEach((l) => l());
+}
 let loaded = false;
 const listeners = new Set<() => void>();
 
@@ -121,6 +135,7 @@ function commit(next: Doc): boolean {
   }
   state = next;
   listeners.forEach((l) => l());
+  commitHook?.(next);
   return true;
 }
 
@@ -297,8 +312,7 @@ export function resetAll() {
 
 /* ---------- Addresses ---------- */
 
-export const RESERVED = ["admin", "support", "www", "api", "app", "mail", "help", "blog", "login", "signin", "portfolia", "status", "billing", "dashboard", "create", "p", "u", "reset-password", "signup", "account"];
-export const DEMO_TAKEN = ["marta", "studio", "anna", "design", "photo", "architect", "art", "john"];
+export const RESERVED = ["admin", "support", "www", "api", "app", "mail", "help", "blog", "login", "signin", "portfolia", "status", "billing", "dashboard", "create", "p", "u", "reset-password", "signup", "account", "pricing", "terms", "privacy", "refund", "sitemap.xml", "robots.txt", "sample"];
 
 export function checkUsername(raw: string): { ok: boolean; msg: string } {
   const u = raw.trim().toLowerCase();
@@ -309,8 +323,7 @@ export function checkUsername(raw: string): { ok: boolean; msg: string } {
   if (u.startsWith("-") || u.endsWith("-")) return { ok: false, msg: "The address can’t start or end with a hyphen." };
   if (u.includes("--")) return { ok: false, msg: "Avoid two hyphens in a row." };
   if (RESERVED.includes(u)) return { ok: false, msg: "This name is reserved by Portfolia." };
-  if (DEMO_TAKEN.includes(u)) return { ok: false, msg: "Already taken (demo data). Try a variation." };
-  return { ok: true, msg: "Available (demo check)." };
+  return { ok: true, msg: "" };
 }
 
 export function personalActive(p: Portfolio): boolean {
@@ -350,6 +363,12 @@ export function recordVisit(code: string) {
     a?.visits.push({ t: Date.now(), v });
     return d;
   });
+  void logEvent(code, "visit", v);
+}
+
+async function logEvent(code: string, kind: "visit" | "download", visitor?: string) {
+  const { supabase } = await import("@/integrations/supabase/client");
+  await supabase.from("portfolio_events").insert({ portfolio_code: code, kind, visitor }).then(() => {}, () => {});
 }
 
 export function recordDownload(code?: string) {
@@ -359,4 +378,6 @@ export function recordDownload(code?: string) {
     a?.downloads.push(Date.now());
     return d;
   });
+  const c = code ?? getDoc().portfolio?.code;
+  if (c) void logEvent(c, "download");
 }

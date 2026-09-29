@@ -11,7 +11,8 @@
 
 - Portfolia is a focused PDF-hosting prototype (brief v2): no editor, templates or discovery — scope was deliberately reduced by the user.
 - PDF upload allowances are plan-based: Free accepts up to 10 MB and Personal up to 50 MB, so storage value is clear and enforceable.
-- State lives in src/lib/portfolia/store.ts (localStorage) with PDFs/photos in IndexedDB; one active portfolio per browser — prototype has no backend.
+- Portfolios live in the `portfolios` table (full Portfolio JSON in `data`) and files in private `portfolio-files/<uid>/<key>`; store.ts keeps a localStorage/IndexedDB cache and cloud.ts syncs it. Why: links must work on any device.
+- Public portfolio pages load via getPublicPortfolio (publishable read + admin-signed file URLs); drafts are never returned.
 - PDF viewer renders with pdfjs-dist directly; don't import pdf_viewer.css (Lightning CSS rejects its relative urls) — text-layer rules are copied into styles.css.
 - Personalised portfolios use root paths (`/name`); `/p/code` remains the permanent free address and `/u/name` remains compatible with old links.
-- Payments: Paddle via connector gateway; subscriptions table synced by webhook at /api/public/payments/webhook; useAccount mirrors subscription into local plan. Why: portfolios are still browser-local.
+- Payments: Paddle via connector gateway; subscriptions table synced by webhook at /api/public/payments/webhook; useAccount mirrors subscription into the portfolio plan field, which syncs to the account.

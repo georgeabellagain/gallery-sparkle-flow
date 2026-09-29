@@ -14,6 +14,103 @@ export type Database = {
   }
   public: {
     Tables: {
+      portfolio_domains: {
+        Row: {
+          created_at: string
+          kind: string
+          name: string
+          owner_id: string
+          portfolio_code: string
+        }
+        Insert: {
+          created_at?: string
+          kind?: string
+          name: string
+          owner_id: string
+          portfolio_code: string
+        }
+        Update: {
+          created_at?: string
+          kind?: string
+          name?: string
+          owner_id?: string
+          portfolio_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_domains_portfolio_code_fkey"
+            columns: ["portfolio_code"]
+            isOneToOne: false
+            referencedRelation: "portfolios"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      portfolio_events: {
+        Row: {
+          created_at: string
+          id: number
+          kind: string
+          portfolio_code: string
+          visitor: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          kind: string
+          portfolio_code: string
+          visitor?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          kind?: string
+          portfolio_code?: string
+          visitor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_events_portfolio_code_fkey"
+            columns: ["portfolio_code"]
+            isOneToOne: false
+            referencedRelation: "portfolios"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      portfolios: {
+        Row: {
+          code: string
+          created_at: string
+          data: Json
+          owner_id: string
+          search_indexing: boolean
+          status: string
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          data: Json
+          owner_id: string
+          search_indexing?: boolean
+          status?: string
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          data?: Json
+          owner_id?: string
+          search_indexing?: boolean
+          status?: string
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           cancel_at_period_end: boolean | null
@@ -67,8 +164,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      domain_available: {
+        Args: { _code: string; _name: string }
+        Returns: boolean
+      }
       has_active_subscription: {
         Args: { check_env?: string; user_uuid: string }
+        Returns: boolean
+      }
+      name_available: {
+        Args: { _code: string; _username: string }
         Returns: boolean
       }
     }

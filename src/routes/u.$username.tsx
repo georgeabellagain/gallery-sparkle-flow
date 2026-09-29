@@ -1,28 +1,23 @@
-import { createFileRoute, useHydrated } from "@tanstack/react-router";
-import { LOCAL_MISSING, Missing, OwnVisitor, useOwn } from "@/components/pf/Visitor";
+import { createFileRoute } from "@tanstack/react-router";
+import { CloudVisitor, LOCAL_MISSING, Missing } from "@/components/pf/Visitor";
+import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
 import { personalActive } from "@/lib/portfolia/store";
+import { portfolioHead } from "@/lib/portfolia/head";
 
-/** Legacy personalised address retained for previously shared prototype links. */
+/** Legacy personalised address retained for previously shared links. */
 export const Route = createFileRoute("/u/$username")({
   staticData: { sitemap: false },
-  head: ({ params }) => ({
-    meta: [
-      { title: `${params.username} — Portfolio` },
-      { name: "description", content: "A portfolio hosted on Portfolia." },
-      { property: "og:title", content: `${params.username} — Portfolio` },
-      { property: "og:description", content: "A portfolio hosted on Portfolia." },
-      { name: "robots", content: "noindex, nofollow" },
-    ],
-  }),
+  loader: async ({ params }) => {
+    const data = await getPublicPortfolio({ data: { by: "username", value: params.username } });
+    return { data: data && personalActive(data.portfolio) ? data : null };
+  },
+  head: ({ loaderData, params }) => portfolioHead(loaderData?.data ?? null, params.username),
+  errorComponent: () => <Missing title="Couldn’t load this portfolio" body="Please refresh the page to try again." />,
   component: Page,
 });
 
 function Page() {
-  const { username } = Route.useParams();
-  const p = useOwn((x) => x.username === username);
-  const hydrated = useHydrated();
-  if (!hydrated) return null;
-  if (!p || p.username !== username || !personalActive(p) || p.status !== "published")
-    return <Missing title="No portfolio here" body={LOCAL_MISSING} />;
-  return <OwnVisitor p={p} preview={false} />;
+  const { data } = Route.useLoaderData();
+  if (!data) return <Missing title="No portfolio here" body={LOCAL_MISSING} />;
+  return <CloudVisitor data={data} />;
 }

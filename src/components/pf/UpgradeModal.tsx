@@ -20,8 +20,11 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
   const [busy, setBusy] = useState(false);
   const paid = p?.plan === "personal";
   const confirm = async () => {
-    if (!check.ok) return;
-    if (!patchPortfolio({ username: u })) return setErr("Couldn’t save your address in this browser.");
+    if (!check.ok || !p) return;
+    const { data: free, error: availErr } = await supabase.rpc("name_available", { _username: u, _code: p.code });
+    if (availErr) return setErr("Couldn’t check that name. Please try again.");
+    if (!free) return setErr("That address is already taken. Try a variation.");
+    if (!patchPortfolio({ username: u })) return setErr("Couldn’t save your address. Please try again.");
     if (paid) return onClose();
     const { data } = await supabase.auth.getUser();
     if (!data.user) return setErr("Please sign in first so your plan is linked to your account.");
@@ -88,7 +91,6 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
             <li>Your free link /p/{p.code} keeps working, so links you’ve already shared stay useful.</li>
             <li>If you cancel, your portfolios stay at their free addresses, nothing is deleted, and the personalised address stays active for {GRACE_DAYS} days. The name isn’t reassigned straight away.</li>
             <li>Switching between monthly and yearly takes effect straight away; the difference is charged or credited.</li>
-            <li>Portfolios are still stored in this browser, so the address works here but not on another device yet.</li>
           </ul>
           {err && <p role="alert" className="mt-3 text-sm text-destructive">{err}</p>}
           <div className="mt-6 flex justify-end gap-2">
