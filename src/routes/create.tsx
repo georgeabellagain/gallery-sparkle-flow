@@ -77,6 +77,7 @@ function Create() {
           </div>
         </section>
       </div>
+      <SiteFooter />
     </div>
   );
 }
