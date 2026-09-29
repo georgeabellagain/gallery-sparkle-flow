@@ -24,6 +24,19 @@ export function SiteHeader({ right }: { right?: ReactNode }) {
   );
 }
 
+export function SiteFooter({ className }: { className?: string }) {
+  return (
+    <footer className={cn("rule-t mt-auto", className)}>
+      <div className="shell flex flex-wrap items-center gap-x-6 gap-y-2 py-6 text-xs text-muted-foreground">
+        <span>© {new Date().getFullYear()} George Bell</span>
+        <Link to="/terms" className="hover:underline underline-offset-4">Terms</Link>
+        <Link to="/privacy" className="hover:underline underline-offset-4">Privacy</Link>
+        <Link to="/refund" className="hover:underline underline-offset-4">Refund policy</Link>
+      </div>
+    </footer>
+  );
+}
+
 export function DemoNote({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <p className={cn("rounded-2xl bg-muted px-4 py-3 text-xs leading-relaxed text-muted-foreground", className)}>
