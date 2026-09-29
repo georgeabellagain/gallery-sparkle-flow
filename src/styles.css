@@ -218,6 +218,10 @@
   }
 }
 
+@utility preview-fade {
+  background: linear-gradient(to bottom, transparent, var(--color-background));
+}
+
 /* --- Page-turn book ------------------------------------------------- */
 
 @utility book-scene {

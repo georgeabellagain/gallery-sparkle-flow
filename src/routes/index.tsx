@@ -7,7 +7,7 @@ import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE } from "@/components/pf/Ch
 import { DropZone } from "@/components/pf/DropZone";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
 import { Button } from "@/components/ui/button";
-import { PRICE, startPortfolio, useDoc } from "@/lib/portfolia/store";
+import { PRICE, startPortfolio, uploadLimitMb, useDoc } from "@/lib/portfolia/store";
 import { getRequestOrigin } from "@/lib/origin.functions";
 
 export const Route = createFileRoute("/")({
@@ -88,6 +88,7 @@ function Landing() {
               </div>
             ) : (
               <DropZone
+                limitMb={uploadLimitMb(doc)}
                 onAccepted={(pdf) => {
                   if (!startPortfolio(pdf)) return setErr("Your browser refused to save. Free some storage and try again.");
                   void navigate({ to: "/create" });
@@ -120,12 +121,7 @@ function Landing() {
               <div className="bg-foreground px-5 py-7 sm:px-16 sm:py-10">
                 <img src={samplePage} alt="Start of the first page in the example PDF portfolio" width={818} height={578} loading="lazy" className="mx-auto w-full max-w-4xl rounded-sm" />
               </div>
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40" aria-hidden>
-                <span className="block h-1/4 bg-background/20" />
-                <span className="block h-1/4 bg-background/50" />
-                <span className="block h-1/4 bg-background/80" />
-                <span className="block h-1/4 bg-background" />
-              </div>
+              <div className="preview-fade pointer-events-none absolute inset-x-0 bottom-0 h-40" aria-hidden />
             </div>
           </div>
         </section>
