@@ -136,7 +136,7 @@ function Landing() {
                 price={`${PRICE.month}/month or ${PRICE.year}/year`}
                 description="For professionals managing a broader body of work and a more personal presence."
                 featured
-                items={["Everything included in Free", "Up to 10 portfolios, each up to 50 MB", "CV displayed with your profile", "Personalised address such as portfolia.site/marksmith", "Connect a domain you own at no additional charge", "Portfolia credit removed"]}
+                items={["Everything included in Free", "Up to 10 portfolios, each up to 50 MB", "CV displayed with your profile", "Personalised address such as portfolia.site/marksmith", "Portfolia credit removed"]}
                 action={<Button variant="line" size="sm" className="mt-5" onClick={() => setUpgrade(true)}>Choose Personal</Button>}
               />
             </div>
