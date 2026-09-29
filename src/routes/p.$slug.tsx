@@ -10,8 +10,8 @@ export const Route = createFileRoute("/p/$slug")({
   loader: async () => ({ origin: await getRequestOrigin() }),
   head: ({ params, loaderData }) => {
     const sample = params.slug === "sample";
-    const t = sample ? `${SAMPLE.profile.name} — Portfolio` : "Portfolio — Portfolia";
-    const d = sample ? SAMPLE.profile.title : "A portfolio hosted on Portfolia.";
+    const t = sample ? `${SAMPLE.profile.name} — Architecture PDF Portfolio Example | Portfolia` : "PDF Portfolio — Portfolia";
+    const d = sample ? `Example architecture PDF portfolio by ${SAMPLE.profile.name}, ${SAMPLE.profile.title}, hosted on Portfolia.` : "A PDF portfolio hosted on Portfolia.";
     const o = loaderData?.origin ?? "";
     const img = sample && o ? [{ property: "og:image", content: `${o}/og-image.jpg` }, { name: "twitter:image", content: `${o}/og-image.jpg` }] : [];
     return {

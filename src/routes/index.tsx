@@ -15,20 +15,24 @@ export const Route = createFileRoute("/")({
     const img = o ? [{ property: "og:image", content: `${o}/og-image.jpg` }, { name: "twitter:image", content: `${o}/og-image.jpg` }] : [];
     return {
       meta: [
-        { title: "Portfolia — Your portfolio. One simple link." },
-        { name: "description", content: "Upload your PDF, add your details, and share your work." },
-        { property: "og:title", content: "Portfolia — Your portfolio. One simple link." },
-        { property: "og:description", content: "Upload your PDF, add your details, and share your work." },
+        { title: "Portfolia — PDF Portfolio Hosting. One Simple Link." },
+        { name: "description", content: "Host your PDF portfolio online and share it with one simple link. Ideal for architects, designers and creatives — a clean viewer, your details, visit stats. Free to start." },
+        { name: "keywords", content: "pdf portfolio, pdf portfolio hosting, online portfolio, portfolio website, architecture portfolio website, design portfolio, share portfolio link, portfolio for designers" },
+        { property: "og:title", content: "Portfolia — PDF Portfolio Hosting. One Simple Link." },
+        { property: "og:description", content: "Turn your PDF portfolio into a personal link. A clean viewer for architects, designers and creatives." },
+        { property: "og:url", content: "https://portfolia.site/" },
+        { property: "og:site_name", content: "Portfolia" },
         ...img,
       ],
+      links: [{ rel: "canonical", href: "https://portfolia.site/" }],
       scripts: [{
         type: "application/ld+json",
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "WebSite",
           name: "Portfolia",
-          url: o || undefined,
-          description: "Upload your PDF portfolio, add your details, and share your work through one simple link.",
+          url: "https://portfolia.site/",
+          description: "PDF portfolio hosting: upload your PDF portfolio, add your details, and share your work through one simple link.",
         }),
       }],
     };
