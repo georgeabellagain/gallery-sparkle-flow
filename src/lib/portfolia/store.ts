@@ -120,7 +120,10 @@ function load() {
   loaded = true;
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) state = { ...empty(), ...JSON.parse(raw) };
+    if (raw) {
+      const cached = JSON.parse(raw) as Partial<Doc>;
+      state = { ...empty(), ...cached, account: { signedIn: false } };
+    }
   } catch {
     /* corrupt data: start fresh */
   }
