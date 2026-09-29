@@ -12,17 +12,27 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as UsernameRouteImport } from './routes/$username'
 import { Route as ArchitecturePortfolioRouteImport } from './routes/architecture-portfolio'
+import { Route as ArtPortfolioRouteImport } from './routes/art-portfolio'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as FashionPortfolioRouteImport } from './routes/fashion-portfolio'
 import { Route as FreePdfPortfolioRouteImport } from './routes/free-pdf-portfolio'
 import { Route as FreePortfolioWebsiteRouteImport } from './routes/free-portfolio-website'
+import { Route as GraphicDesignPortfolioRouteImport } from './routes/graphic-design-portfolio'
+import { Route as IllustrationPortfolioRouteImport } from './routes/illustration-portfolio'
+import { Route as InteriorDesignPortfolioRouteImport } from './routes/interior-design-portfolio'
+import { Route as LandscapeArchitecturePortfolioRouteImport } from './routes/landscape-architecture-portfolio'
+import { Route as PhotographyPortfolioRouteImport } from './routes/photography-portfolio'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ProductDesignPortfolioRouteImport } from './routes/product-design-portfolio'
 import { Route as RefundRouteImport } from './routes/refund'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as StudentPortfolioRouteImport } from './routes/student-portfolio'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as UxDesignPortfolioRouteImport } from './routes/ux-design-portfolio'
 import { Route as PSlugRouteImport } from './routes/p.$slug'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
@@ -42,6 +52,11 @@ const ArchitecturePortfolioRoute = ArchitecturePortfolioRouteImport.update({
   path: '/architecture-portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ArtPortfolioRoute = ArtPortfolioRouteImport.update({
+  id: '/art-portfolio',
+  path: '/art-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CreateRoute = CreateRouteImport.update({
   id: '/create',
   path: '/create',
@@ -50,6 +65,11 @@ const CreateRoute = CreateRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FashionPortfolioRoute = FashionPortfolioRouteImport.update({
+  id: '/fashion-portfolio',
+  path: '/fashion-portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FreePdfPortfolioRoute = FreePdfPortfolioRouteImport.update({
@@ -62,6 +82,32 @@ const FreePortfolioWebsiteRoute = FreePortfolioWebsiteRouteImport.update({
   path: '/free-portfolio-website',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GraphicDesignPortfolioRoute = GraphicDesignPortfolioRouteImport.update({
+  id: '/graphic-design-portfolio',
+  path: '/graphic-design-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IllustrationPortfolioRoute = IllustrationPortfolioRouteImport.update({
+  id: '/illustration-portfolio',
+  path: '/illustration-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InteriorDesignPortfolioRoute = InteriorDesignPortfolioRouteImport.update({
+  id: '/interior-design-portfolio',
+  path: '/interior-design-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LandscapeArchitecturePortfolioRoute =
+  LandscapeArchitecturePortfolioRouteImport.update({
+    id: '/landscape-architecture-portfolio',
+    path: '/landscape-architecture-portfolio',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const PhotographyPortfolioRoute = PhotographyPortfolioRouteImport.update({
+  id: '/photography-portfolio',
+  path: '/photography-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
@@ -70,6 +116,11 @@ const PricingRoute = PricingRouteImport.update({
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProductDesignPortfolioRoute = ProductDesignPortfolioRouteImport.update({
+  id: '/product-design-portfolio',
+  path: '/product-design-portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RefundRoute = RefundRouteImport.update({
@@ -92,9 +143,19 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StudentPortfolioRoute = StudentPortfolioRouteImport.update({
+  id: '/student-portfolio',
+  path: '/student-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UxDesignPortfolioRoute = UxDesignPortfolioRouteImport.update({
+  id: '/ux-design-portfolio',
+  path: '/ux-design-portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PSlugRoute = PSlugRouteImport.update({
@@ -118,17 +179,27 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$username': typeof UsernameRoute
   '/architecture-portfolio': typeof ArchitecturePortfolioRoute
+  '/art-portfolio': typeof ArtPortfolioRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/fashion-portfolio': typeof FashionPortfolioRoute
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
+  '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
+  '/illustration-portfolio': typeof IllustrationPortfolioRoute
+  '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
+  '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
+  '/photography-portfolio': typeof PhotographyPortfolioRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/product-design-portfolio': typeof ProductDesignPortfolioRoute
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signin': typeof SigninRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/student-portfolio': typeof StudentPortfolioRoute
   '/terms': typeof TermsRoute
+  '/ux-design-portfolio': typeof UxDesignPortfolioRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -137,17 +208,27 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$username': typeof UsernameRoute
   '/architecture-portfolio': typeof ArchitecturePortfolioRoute
+  '/art-portfolio': typeof ArtPortfolioRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/fashion-portfolio': typeof FashionPortfolioRoute
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
+  '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
+  '/illustration-portfolio': typeof IllustrationPortfolioRoute
+  '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
+  '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
+  '/photography-portfolio': typeof PhotographyPortfolioRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/product-design-portfolio': typeof ProductDesignPortfolioRoute
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signin': typeof SigninRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/student-portfolio': typeof StudentPortfolioRoute
   '/terms': typeof TermsRoute
+  '/ux-design-portfolio': typeof UxDesignPortfolioRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -157,17 +238,27 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/$username': typeof UsernameRoute
   '/architecture-portfolio': typeof ArchitecturePortfolioRoute
+  '/art-portfolio': typeof ArtPortfolioRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/fashion-portfolio': typeof FashionPortfolioRoute
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
+  '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
+  '/illustration-portfolio': typeof IllustrationPortfolioRoute
+  '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
+  '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
+  '/photography-portfolio': typeof PhotographyPortfolioRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/product-design-portfolio': typeof ProductDesignPortfolioRoute
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signin': typeof SigninRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/student-portfolio': typeof StudentPortfolioRoute
   '/terms': typeof TermsRoute
+  '/ux-design-portfolio': typeof UxDesignPortfolioRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -178,17 +269,27 @@ export interface FileRouteTypes {
     | '/'
     | '/$username'
     | '/architecture-portfolio'
+    | '/art-portfolio'
     | '/create'
     | '/dashboard'
+    | '/fashion-portfolio'
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
+    | '/graphic-design-portfolio'
+    | '/illustration-portfolio'
+    | '/interior-design-portfolio'
+    | '/landscape-architecture-portfolio'
+    | '/photography-portfolio'
     | '/pricing'
     | '/privacy'
+    | '/product-design-portfolio'
     | '/refund'
     | '/reset-password'
     | '/signin'
     | '/sitemap.xml'
+    | '/student-portfolio'
     | '/terms'
+    | '/ux-design-portfolio'
     | '/p/$slug'
     | '/u/$username'
     | '/api/public/payments/webhook'
@@ -197,17 +298,27 @@ export interface FileRouteTypes {
     | '/'
     | '/$username'
     | '/architecture-portfolio'
+    | '/art-portfolio'
     | '/create'
     | '/dashboard'
+    | '/fashion-portfolio'
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
+    | '/graphic-design-portfolio'
+    | '/illustration-portfolio'
+    | '/interior-design-portfolio'
+    | '/landscape-architecture-portfolio'
+    | '/photography-portfolio'
     | '/pricing'
     | '/privacy'
+    | '/product-design-portfolio'
     | '/refund'
     | '/reset-password'
     | '/signin'
     | '/sitemap.xml'
+    | '/student-portfolio'
     | '/terms'
+    | '/ux-design-portfolio'
     | '/p/$slug'
     | '/u/$username'
     | '/api/public/payments/webhook'
@@ -216,17 +327,27 @@ export interface FileRouteTypes {
     | '/'
     | '/$username'
     | '/architecture-portfolio'
+    | '/art-portfolio'
     | '/create'
     | '/dashboard'
+    | '/fashion-portfolio'
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
+    | '/graphic-design-portfolio'
+    | '/illustration-portfolio'
+    | '/interior-design-portfolio'
+    | '/landscape-architecture-portfolio'
+    | '/photography-portfolio'
     | '/pricing'
     | '/privacy'
+    | '/product-design-portfolio'
     | '/refund'
     | '/reset-password'
     | '/signin'
     | '/sitemap.xml'
+    | '/student-portfolio'
     | '/terms'
+    | '/ux-design-portfolio'
     | '/p/$slug'
     | '/u/$username'
     | '/api/public/payments/webhook'
@@ -236,17 +357,27 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   UsernameRoute: typeof UsernameRoute
   ArchitecturePortfolioRoute: typeof ArchitecturePortfolioRoute
+  ArtPortfolioRoute: typeof ArtPortfolioRoute
   CreateRoute: typeof CreateRoute
   DashboardRoute: typeof DashboardRoute
+  FashionPortfolioRoute: typeof FashionPortfolioRoute
   FreePdfPortfolioRoute: typeof FreePdfPortfolioRoute
   FreePortfolioWebsiteRoute: typeof FreePortfolioWebsiteRoute
+  GraphicDesignPortfolioRoute: typeof GraphicDesignPortfolioRoute
+  IllustrationPortfolioRoute: typeof IllustrationPortfolioRoute
+  InteriorDesignPortfolioRoute: typeof InteriorDesignPortfolioRoute
+  LandscapeArchitecturePortfolioRoute: typeof LandscapeArchitecturePortfolioRoute
+  PhotographyPortfolioRoute: typeof PhotographyPortfolioRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
+  ProductDesignPortfolioRoute: typeof ProductDesignPortfolioRoute
   RefundRoute: typeof RefundRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SigninRoute: typeof SigninRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  StudentPortfolioRoute: typeof StudentPortfolioRoute
   TermsRoute: typeof TermsRoute
+  UxDesignPortfolioRoute: typeof UxDesignPortfolioRoute
   PSlugRoute: typeof PSlugRoute
   UUsernameRoute: typeof UUsernameRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
@@ -275,6 +406,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ArchitecturePortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/art-portfolio': {
+      id: '/art-portfolio'
+      path: '/art-portfolio'
+      fullPath: '/art-portfolio'
+      preLoaderRoute: typeof ArtPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/create': {
       id: '/create'
       path: '/create'
@@ -287,6 +425,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fashion-portfolio': {
+      id: '/fashion-portfolio'
+      path: '/fashion-portfolio'
+      fullPath: '/fashion-portfolio'
+      preLoaderRoute: typeof FashionPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/free-pdf-portfolio': {
@@ -303,6 +448,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FreePortfolioWebsiteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/graphic-design-portfolio': {
+      id: '/graphic-design-portfolio'
+      path: '/graphic-design-portfolio'
+      fullPath: '/graphic-design-portfolio'
+      preLoaderRoute: typeof GraphicDesignPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/illustration-portfolio': {
+      id: '/illustration-portfolio'
+      path: '/illustration-portfolio'
+      fullPath: '/illustration-portfolio'
+      preLoaderRoute: typeof IllustrationPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/interior-design-portfolio': {
+      id: '/interior-design-portfolio'
+      path: '/interior-design-portfolio'
+      fullPath: '/interior-design-portfolio'
+      preLoaderRoute: typeof InteriorDesignPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/landscape-architecture-portfolio': {
+      id: '/landscape-architecture-portfolio'
+      path: '/landscape-architecture-portfolio'
+      fullPath: '/landscape-architecture-portfolio'
+      preLoaderRoute: typeof LandscapeArchitecturePortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/photography-portfolio': {
+      id: '/photography-portfolio'
+      path: '/photography-portfolio'
+      fullPath: '/photography-portfolio'
+      preLoaderRoute: typeof PhotographyPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pricing': {
       id: '/pricing'
       path: '/pricing'
@@ -315,6 +495,13 @@ declare module '@tanstack/react-router' {
       path: '/privacy'
       fullPath: '/privacy'
       preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/product-design-portfolio': {
+      id: '/product-design-portfolio'
+      path: '/product-design-portfolio'
+      fullPath: '/product-design-portfolio'
+      preLoaderRoute: typeof ProductDesignPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/refund': {
@@ -345,11 +532,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/student-portfolio': {
+      id: '/student-portfolio'
+      path: '/student-portfolio'
+      fullPath: '/student-portfolio'
+      preLoaderRoute: typeof StudentPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ux-design-portfolio': {
+      id: '/ux-design-portfolio'
+      path: '/ux-design-portfolio'
+      fullPath: '/ux-design-portfolio'
+      preLoaderRoute: typeof UxDesignPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/p/$slug': {
@@ -380,17 +581,27 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   UsernameRoute: UsernameRoute,
   ArchitecturePortfolioRoute: ArchitecturePortfolioRoute,
+  ArtPortfolioRoute: ArtPortfolioRoute,
   CreateRoute: CreateRoute,
   DashboardRoute: DashboardRoute,
+  FashionPortfolioRoute: FashionPortfolioRoute,
   FreePdfPortfolioRoute: FreePdfPortfolioRoute,
   FreePortfolioWebsiteRoute: FreePortfolioWebsiteRoute,
+  GraphicDesignPortfolioRoute: GraphicDesignPortfolioRoute,
+  IllustrationPortfolioRoute: IllustrationPortfolioRoute,
+  InteriorDesignPortfolioRoute: InteriorDesignPortfolioRoute,
+  LandscapeArchitecturePortfolioRoute: LandscapeArchitecturePortfolioRoute,
+  PhotographyPortfolioRoute: PhotographyPortfolioRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
+  ProductDesignPortfolioRoute: ProductDesignPortfolioRoute,
   RefundRoute: RefundRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SigninRoute: SigninRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  StudentPortfolioRoute: StudentPortfolioRoute,
   TermsRoute: TermsRoute,
+  UxDesignPortfolioRoute: UxDesignPortfolioRoute,
   PSlugRoute: PSlugRoute,
   UUsernameRoute: UUsernameRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,

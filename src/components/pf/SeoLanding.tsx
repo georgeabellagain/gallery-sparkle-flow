@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check } from "lucide-react";
+import { SEO_LINKS } from "@/lib/portfolia/seo-pages";
 import { SiteHeader, SiteFooter } from "@/components/pf/Chrome";
 
 export interface SeoContent {
@@ -43,11 +44,7 @@ export function seoHead(c: SeoContent) {
   };
 }
 
-const OTHERS = [
-  { to: "/free-pdf-portfolio", label: "Free PDF portfolio hosting" },
-  { to: "/free-portfolio-website", label: "Free portfolio website" },
-  { to: "/architecture-portfolio", label: "Architecture portfolio website" },
-] as const;
+const OTHERS = SEO_LINKS;
 
 export function SeoLanding({ c }: { c: SeoContent }) {
   return (
@@ -112,7 +109,7 @@ export function SeoLanding({ c }: { c: SeoContent }) {
             </dl>
             <nav aria-label="Related guides" className="mt-10 flex flex-wrap gap-2">
               {OTHERS.filter((o) => o.to !== c.path).map((o) => (
-                <Link key={o.to} to={o.to} className="rounded-full border border-border px-4 py-1.5 text-xs hover:bg-accent">{o.label}</Link>
+                <a key={o.to} href={o.to} className="rounded-full border border-border px-4 py-1.5 text-xs hover:bg-accent">{o.label}</a>
               ))}
             </nav>
           </div>
