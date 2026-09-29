@@ -232,7 +232,7 @@ function Dashboard() {
       </Modal>
       <Modal open={dialog === "cancel"} onClose={() => setDialog(null)} title="Cancel Personal?">
         <p className="text-muted-foreground">Every portfolio stays available at its free address (this one: {freePath}) — nothing is deleted. You won’t be able to add new portfolios, CVs are hidden from visitors, and custom domains stop pointing here. Personal stays active until the end of the period you’ve paid for, then your personalised address remains for {GRACE_DAYS} more days. The Portfolia credit returns after that. Cancelling, card details and invoices open in a secure billing page.</p>
-        <Confirm onCancel={() => setDialog(null)} label="Open billing page" onConfirm={async () => { setDialog(null); try { const url = await portal({ data: { environment: getPaddleEnvironment() } }); window.open(url, "_blank"); } catch { setMsg("Couldn’t open the billing page — try again."); } }} />
+        <Confirm onCancel={() => setDialog(null)} label="Open billing page" onConfirm={async () => { setDialog(null); const w = window.open("", "_blank"); try { const url = await portal({ data: { environment: getPaddleEnvironment() } }); if (w) w.location.href = url; else window.location.href = url; } catch { w?.close(); setMsg("Couldn’t open the billing page — try again."); } }} />
       </Modal>
     </div>
   );
