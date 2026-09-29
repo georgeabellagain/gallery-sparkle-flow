@@ -13,7 +13,7 @@ import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { useAccount } from "@/hooks/useAccount";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
-import { getPortalUrl, switchBilling } from "@/lib/payments.functions";
+import { getPortalUrl, keepSubscription, switchBilling } from "@/lib/payments.functions";
 import { getPaddleEnvironment } from "@/lib/paddle";
 import {
   allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, switchPortfolio,
@@ -42,7 +42,8 @@ function Dashboard() {
   const [dialog, setDialog] = useState<null | "replace" | "unpublish" | "delete" | "upgrade" | "cancel">(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const { user, sub, loading } = useAccount();
+  const { user, sub, loading, refresh } = useAccount();
+  const keepFn = useServerFn(keepSubscription);
   const portal = useServerFn(getPortalUrl);
   const switchFn = useServerFn(switchBilling);
   const [billingBusy, setBillingBusy] = useState(false);
@@ -184,12 +185,20 @@ function Dashboard() {
                     {sub && sub.status !== "canceled" && !sub.cancel_at_period_end && (
                       <Button size="sm" variant="line" disabled={billingBusy} onClick={async () => {
                         setBillingBusy(true); setMsg(null);
-                        try { await switchFn({ data: { environment: getPaddleEnvironment(), priceId: p.billing === "month" ? "personal_yearly" : "personal_monthly" } }); setMsg("Billing switched. The difference has been charged or credited."); }
-                        catch { setMsg("Couldn’t switch billing — nothing changed."); }
+                        try { await switchFn({ data: { environment: getPaddleEnvironment(), priceId: p.billing === "month" ? "personal_yearly" : "personal_monthly" } }); setMsg("Billing switched. The difference has been charged or credited."); setTimeout(refresh, 3000); }
+                        catch (e) { setMsg(`Couldn’t switch billing — nothing changed. ${e instanceof Error ? e.message : ""}`); }
                         finally { setBillingBusy(false); }
                       }}>Switch to {p.billing === "month" ? "yearly" : "monthly"}</Button>
                     )}
-                    {sub && <Button size="sm" variant="quiet" onClick={() => setDialog("cancel")}>Manage or cancel</Button>}
+                    {sub && sub.status !== "canceled" && sub.cancel_at_period_end && (
+                      <Button size="sm" disabled={billingBusy} onClick={async () => {
+                        setBillingBusy(true); setMsg(null);
+                        try { await keepFn({ data: { environment: getPaddleEnvironment() } }); setMsg("Your plan will renew as normal."); setTimeout(refresh, 3000); }
+                        catch { setMsg("Couldn’t undo the cancellation — please try again."); }
+                        finally { setBillingBusy(false); }
+                      }}>Keep my plan</Button>
+                    )}
+                    {sub && sub.status !== "canceled" && <Button size="sm" variant="quiet" onClick={() => setDialog("cancel")}>{sub.status === "past_due" ? "Update card" : "Manage or cancel"}</Button>}
                   </>
                 )}
               </div>
