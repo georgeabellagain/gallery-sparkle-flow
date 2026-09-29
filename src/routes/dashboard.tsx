@@ -348,3 +348,49 @@ function Stat({ label, value }: { label: string; value: number }) {
     </div>
   );
 }
+
+function FeedbackBox() {
+  const send = useServerFn(submitFeedback);
+  const [text, setText] = useState("");
+  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (state === "sending") return;
+    setState("sending");
+    try {
+      await send({ data: { message: text } });
+      setText("");
+      setState("sent");
+    } catch {
+      setState("error");
+    }
+  };
+  return (
+    <form onSubmit={(e) => void submit(e)} className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+      <h2 className="text-sm font-medium">We’d love to hear your thoughts and suggestions</h2>
+      <p className="mt-1.5 text-sm text-muted-foreground">Anything you’d like to see added, changed or made simpler — tell us below and we’ll read every note. You can also email <a className="underline underline-offset-4" href="mailto:hello@portfolia.site">hello@portfolia.site</a>.</p>
+      {state === "sent" ? (
+        <p role="status" className="mt-4 text-sm">Thank you — your feedback has reached us.</p>
+      ) : (
+        <>
+          <label htmlFor="feedback-message" className="sr-only">Your feedback</label>
+          <textarea
+            id="feedback-message"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={4}
+            maxLength={4000}
+            placeholder="What works well, what doesn’t, what would make Portfolia better…"
+            className="mt-4 w-full resize-y rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus-visible:border-foreground"
+          />
+          <div className="mt-3 flex items-center gap-3">
+            <Button size="sm" type="submit" disabled={state === "sending" || text.trim().length < 2}>
+              {state === "sending" ? "Sending…" : "Send feedback"}
+            </Button>
+            {state === "error" && <p role="alert" className="text-xs text-destructive">Couldn’t send — please try again.</p>}
+          </div>
+        </>
+      )}
+    </form>
+  );
+}
