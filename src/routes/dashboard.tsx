@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { getPortalUrl, keepSubscription, switchBilling } from "@/lib/payments.functions";
 import { getPaddleEnvironment } from "@/lib/paddle";
+import { submitFeedback } from "@/lib/feedback.functions";
 import {
   allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, switchPortfolio,
   deletePortfolio, startPortfolio, graceEnds, GRACE_DAYS, patchPortfolio, personalActive, replacePdf, update, uploadLimitMb, useDoc,
