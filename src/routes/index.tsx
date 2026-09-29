@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import samplePage from "@/assets/sample-page.jpg";
-import { SiteHeader, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
+import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
 import { DropZone } from "@/components/pf/DropZone";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
 import { Button } from "@/components/ui/button";
@@ -140,6 +140,7 @@ function Landing() {
           </div>
         </section>
       </main>
+      <SiteFooter />
       <UpgradeModal open={upgrade} onClose={() => setUpgrade(false)} />
     </div>
   );

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useHydrated, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Copy, ExternalLink } from "lucide-react";
-import { SiteHeader, DemoNote, LOCAL_NOTE, Modal, useBlob } from "@/components/pf/Chrome";
+import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE, Modal, useBlob } from "@/components/pf/Chrome";
 import { DropZone } from "@/components/pf/DropZone";
 import { PdfViewer } from "@/components/pf/PdfViewer";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
