@@ -7,3 +7,6 @@
 - [x] Paid: pick font + colours (profile text, page background, PDF backdrop) and upload a banner
 - [x] Add banner crop, reposition and zoom before saving
 - [x] Use root personalised addresses such as portfolia.site/marksmith, retaining old link compatibility
+- [x] Real payments: Personal plan checkout, accounts, billing switch, cancel via billing page
+- [ ] Welcome email after purchase — needs an email sending domain set up
+- [ ] Store portfolios online so links work on every device
