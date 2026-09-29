@@ -2,10 +2,10 @@ import { useRef, useState } from "react";
 import { FileUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { acceptPdf } from "@/lib/portfolia/pdf";
-import { UPLOAD_LIMIT_MB, type PdfFile } from "@/lib/portfolia/store";
+import { FREE_UPLOAD_LIMIT_MB, type PdfFile } from "@/lib/portfolia/store";
 import { cn } from "@/lib/utils";
 
-export function DropZone({ onAccepted, label = "Upload your PDF", small }: { onAccepted: (pdf: PdfFile) => void; label?: string; small?: boolean }) {
+export function DropZone({ onAccepted, label = "Upload your PDF", small, limitMb = FREE_UPLOAD_LIMIT_MB }: { onAccepted: (pdf: PdfFile) => void; label?: string; small?: boolean; limitMb?: number }) {
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [phase, setPhase] = useState<string | null>(null);
@@ -16,7 +16,7 @@ export function DropZone({ onAccepted, label = "Upload your PDF", small }: { onA
     setError(null);
     setPhase("Reading file");
     try {
-      const pdf = await acceptPdf(file, setPhase);
+      const pdf = await acceptPdf(file, setPhase, limitMb);
       setPhase(null);
       onAccepted(pdf);
     } catch (e) {
@@ -49,7 +49,7 @@ export function DropZone({ onAccepted, label = "Upload your PDF", small }: { onA
           <FileUp className="size-5" />
         </span>
         <p className="mt-3 text-sm">{phase ? `${phase}…` : "Drag your PDF here"}</p>
-        <p className="mt-1 text-xs text-muted-foreground">PDF only · up to {UPLOAD_LIMIT_MB} MB</p>
+        <p className="mt-1 text-xs text-muted-foreground">PDF only · up to {limitMb} MB on your current plan</p>
         <input ref={input} type="file" accept="application/pdf,.pdf" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => void handle(e.target.files?.[0])} />
         <Button className="mt-5" onClick={() => input.current?.click()} disabled={Boolean(phase)}>
           {label}

@@ -48,11 +48,7 @@ export function PortfolioPage({
         <div className="mx-auto flex max-w-[1100px] items-start gap-4">
           {photoUrl ? (
             <img src={photoUrl} alt="" className={immersive ? "size-10 shrink-0 rounded-full object-cover" : "size-11 shrink-0 rounded-full object-cover sm:size-14"} />
-          ) : (
-            <span className="hidden size-14 shrink-0 items-center justify-center rounded-full bg-muted text-sm text-muted-foreground sm:flex" aria-hidden>
-              {initials || "·"}
-            </span>
-          )}
+          ) : null}
           <div className="min-w-0 flex-1">
             <h1 style={pageStyle ? { fontFamily: pageStyle.font } : undefined} className={immersive ? "display-title text-xl leading-tight sm:text-2xl" : "display-title text-2xl leading-tight sm:text-3xl"}>{profile.name || "Your name"}</h1>
             {profile.title && <p className="text-sm text-muted-foreground">{profile.title}</p>}

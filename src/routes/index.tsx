@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, Check, Sparkles } from "lucide-react";
 import samplePage from "@/assets/sample-page.jpg";
+import sampleBanner from "@/assets/demo-arch-1.jpg";
 import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
 import { DropZone } from "@/components/pf/DropZone";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
@@ -94,20 +95,21 @@ function Landing() {
               />
             )}
             {err && <p role="alert" className="mt-3 text-sm text-destructive">{err}</p>}
-            <p className="mt-3 text-xs text-muted-foreground">No account needed to upload and preview.</p>
+            <p className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-leaf"><Sparkles className="size-3.5" aria-hidden /> Try for free — publish one portfolio at no cost.</p>
           </div>
         </section>
 
         <section className="rule-t">
-          <div className="shell py-14">
+          <div className="shell py-16">
             <h2 className="text-sm font-medium">What visitors see</h2>
-            <p className="mt-2 max-w-md text-sm text-muted-foreground">Your details on top, your PDF below — exactly as you designed it, on a calm dark background.</p>
-            <Link to="/p/$slug" params={{ slug: "sample" }} aria-label="Open the example portfolio" className="group mt-6 block max-w-3xl overflow-hidden rounded-3xl border border-border bg-card shadow-soft transition-shadow hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground">Your profile and optional banner introduce the work, followed immediately by your original PDF on a focused dark background.</p>
+            <div aria-label="Static preview of a published portfolio" className="relative mx-auto mt-7 h-[34rem] w-full max-w-5xl overflow-hidden rounded-3xl border border-border bg-card shadow-soft sm:h-[42rem]">
               <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
                 <span className="h-2.5 w-2.5 rounded-full bg-border" /><span className="h-2.5 w-2.5 rounded-full bg-border" /><span className="h-2.5 w-2.5 rounded-full bg-border" />
                 <span className="ml-3 rounded-full bg-muted px-3 py-0.5 font-mono text-[0.6875rem] text-muted-foreground">portfolia.site/marta</span>
               </div>
-              <div className="flex items-center gap-3 px-5 py-4">
+              <img src={sampleBanner} alt="" className="h-24 w-full object-cover object-center sm:h-36" />
+              <div className="flex items-center gap-3 px-5 py-4 sm:px-8">
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-leaf-soft text-xs font-medium text-leaf">MO</span>
                 <div className="text-left">
                   <p className="text-sm font-medium">Marta Oyelaran</p>
@@ -115,27 +117,29 @@ function Landing() {
                 </div>
                 <span className="ml-auto hidden text-xs text-muted-foreground sm:inline">Email · Website · CV</span>
               </div>
-              <div className="bg-foreground px-6 py-8 sm:px-14 sm:py-12">
-                <img src={samplePage} alt="First page of the example PDF portfolio, shown in the Portfolia viewer" width={818} height={578} loading="lazy" className="mx-auto w-full rounded-sm transition-transform duration-500 group-hover:scale-[1.01]" />
-                <p className="mt-4 text-center text-[0.6875rem] text-background/60">1 / 6 · scroll or page by page</p>
+              <div className="bg-foreground px-5 py-7 sm:px-16 sm:py-10">
+                <img src={samplePage} alt="Start of the first page in the example PDF portfolio" width={818} height={578} loading="lazy" className="mx-auto w-full max-w-4xl rounded-sm" />
               </div>
-            </Link>
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-[linear-gradient(to_bottom,transparent,var(--color-background))]" aria-hidden />
+            </div>
           </div>
         </section>
 
         <section className="rule-t">
           <div className="shell py-14">
             <h2 className="text-sm font-medium">Plans</h2>
-            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:max-w-3xl">
-              <Plan name="Free" price="£0" items={["One PDF portfolio", "Address like portfolia.site/p/8fh2k", "Profile and contact links", "Clean PDF viewer", "Basic visit statistics", "Replace your PDF, keep your link", "Small “Hosted on Portfolia” credit"]} />
+            <div className="mx-auto mt-7 grid max-w-5xl gap-5 sm:grid-cols-2">
+              <Plan name="Free" price="£0" description="A complete, permanent starting point for one portfolio." items={["One PDF portfolio up to 10 MB", "Permanent Portfolia sharing address", "Profile and contact links", "Continuous and page-by-page viewing", "Basic visit statistics", "Replace your PDF without changing its link", "Small Portfolia credit"]} />
               <Plan
                 name="Personal"
                 price={`${PRICE.month}/month or ${PRICE.year}/year`}
-                items={["Everything in Free", "Up to 10 portfolios", "Upload a CV with your details", "Personalised address like portfolia.site/marksmith", "Connect your own domain free, or buy one here", "Portfolia credit removed"]}
+                description="For professionals managing a broader body of work and a more personal presence."
+                featured
+                items={["Everything included in Free", "Up to 10 portfolios, each up to 50 MB", "CV displayed with your profile", "Personalised address such as portfolia.site/marksmith", "Connect a domain you own at no additional charge", "Portfolia credit removed"]}
                 action={<Button variant="line" size="sm" className="mt-5" onClick={() => setUpgrade(true)}>Choose Personal</Button>}
               />
             </div>
-            <p className="mt-4 text-xs text-muted-foreground">Provisional pricing. Both plans accept PDFs up to 25 MB. Addresses shown are illustrative.</p>
+            <p className="mx-auto mt-4 max-w-5xl text-xs text-muted-foreground">Prices are shown before checkout. You may cancel at any time; cancellation does not immediately delete your work.</p>
             <DemoNote className="mt-8 max-w-2xl">{LOCAL_NOTE}</DemoNote>
           </div>
         </section>
@@ -146,11 +150,13 @@ function Landing() {
   );
 }
 
-function Plan({ name, price, items, action }: { name: string; price: string; items: string[]; action?: React.ReactNode }) {
+function Plan({ name, price, description, items, action, featured }: { name: string; price: string; description: string; items: string[]; action?: React.ReactNode; featured?: boolean }) {
   return (
-    <div className="rounded-3xl border border-border bg-card p-7 shadow-soft">
+    <div className={`relative rounded-3xl border bg-card p-7 ${featured ? "border-leaf shadow-lift sm:-translate-y-2" : "border-border shadow-soft"}`}>
+      {featured && <span className="absolute right-5 top-5 rounded-full bg-leaf-soft px-3 py-1 text-xxs font-medium uppercase text-leaf">Recommended</span>}
       <h3 className="text-base font-medium">{name}</h3>
-      <p className="text-sm text-muted-foreground">{price}</p>
+      <p className="mt-1 text-sm font-medium">{price}</p>
+      <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">{description}</p>
       <ul className="mt-4 space-y-1.5 text-sm">
         {items.map((i) => (
           <li key={i} className="flex gap-2"><Check className="mt-0.5 size-3.5 shrink-0 text-leaf" aria-hidden />{i}</li>

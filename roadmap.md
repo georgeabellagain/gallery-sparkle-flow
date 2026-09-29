@@ -10,8 +10,8 @@
 - [x] Real payments: Personal plan checkout, accounts, billing switch, cancel via billing page
 - [ ] Welcome email after purchase — needs an email sending domain set up
 - [ ] Store portfolios online so links work on every device
-- [ ] Widen and center homepage preview, plans, and dashboard content
-- [ ] Make the homepage portfolio preview static with banner, first-page glimpse, and fade
-- [ ] Clarify free upload and formalize/emphasize plan presentation
-- [ ] Enforce 10 MB Free and 50 MB Personal PDF limits across upload and replacement
-- [ ] Hide the public profile placeholder when no image is uploaded
+- [x] Widen and center homepage preview, plans, and dashboard content
+- [x] Make the homepage portfolio preview static with banner, first-page glimpse, and fade
+- [x] Clarify free upload and formalize/emphasize plan presentation
+- [x] Enforce 10 MB Free and 50 MB Personal PDF limits across upload and replacement
+- [x] Hide the public profile placeholder when no image is uploaded
