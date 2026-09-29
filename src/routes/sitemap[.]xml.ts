@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getRouterInstance } from "@tanstack/react-start";
+import { listIndexablePortfolios } from "@/lib/portfolia/public.functions";
 import { sitemapStaticPaths, sitemapXML, type SitemapEntry } from "@/lib/sitemap";
 
 const BASE_URL = "https://portfolia.site";
@@ -17,7 +18,8 @@ export const Route = createFileRoute("/sitemap.xml")({
         }
         const router = await getRouterInstance();
         const entries: SitemapEntry[] = sitemapStaticPaths(router).map((path) => ({ path }));
-        // Add queries for dynamic pages selected for SEO, using sitemapPathForLocation.
+        // Published portfolios whose owners opted in to search indexing.
+        entries.push(...(await listIndexablePortfolios().catch(() => [])));
         if (entries.length === 0) {
           return new Response(
             'No pages are included in this sitemap. Check route decisions and ancestor exclusions. Setting "exclude-subtree" on the root excludes the entire site.',
