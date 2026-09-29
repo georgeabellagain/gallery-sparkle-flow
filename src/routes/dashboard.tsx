@@ -71,6 +71,7 @@ function Dashboard() {
           <p>Sign in to see your dashboard.</p>
           <Button asChild className="mt-4"><Link to="/signin">Sign in</Link></Button>
         </main>
+        <SiteFooter />
       </div>
     );
   }
@@ -103,6 +104,7 @@ function Dashboard() {
           <div className="mt-6 max-w-lg"><DropZone onAccepted={(pdf) => { if (startPortfolio(pdf)) void navigate({ to: "/create" }); }} /></div>
           <div className="mt-14 max-w-3xl"><AnalyticsPanel data={sampleAnalytics()} sample /></div>
         </main>
+        <SiteFooter />
       </div>
     );
   }
@@ -219,6 +221,7 @@ function Dashboard() {
           </div>
         </div>
       </main>
+      <SiteFooter />
 
       <ReplaceModal open={dialog === "replace"} onClose={() => setDialog(null)} current={p.pdf} />
       <UpgradeModal open={dialog === "upgrade"} onClose={() => setDialog(null)} />
