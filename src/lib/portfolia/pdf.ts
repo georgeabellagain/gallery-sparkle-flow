@@ -1,5 +1,5 @@
 import { putBlob, uid } from "./assets";
-import { UPLOAD_LIMIT, UPLOAD_LIMIT_MB, type PdfFile } from "./store";
+import { FREE_UPLOAD_LIMIT_MB, type PdfFile } from "./store";
 
 let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
 
@@ -28,12 +28,12 @@ export function describePdfError(e: unknown): string {
  * Validates a PDF (type, size, readable, not password protected) and stores it
  * in this browser. Nothing is changed if any step fails.
  */
-export async function acceptPdf(file: File, onPhase?: (p: string) => void): Promise<PdfFile> {
+export async function acceptPdf(file: File, onPhase?: (p: string) => void, limitMb = FREE_UPLOAD_LIMIT_MB): Promise<PdfFile> {
   if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf"))
     throw new Error("That file isn’t a PDF. Portfolia only hosts PDF portfolios.");
-  if (file.size > UPLOAD_LIMIT)
+  if (file.size > limitMb * 1024 * 1024)
     throw new Error(
-      `This PDF is ${(file.size / 1048576).toFixed(1)} MB. The limit is ${UPLOAD_LIMIT_MB} MB — try exporting with compressed images.`,
+      `This PDF is ${(file.size / 1048576).toFixed(1)} MB. Your plan allows up to ${limitMb} MB — try exporting with compressed images or upgrade for a larger allowance.`,
     );
   onPhase?.("Checking your PDF");
   const buf = await file.arrayBuffer();

@@ -4,7 +4,7 @@ import { Modal } from "./Chrome";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { checkUsername, getDoc, GRACE_DAYS, MAX_PORTFOLIOS, patchPortfolio, PRICE } from "@/lib/portfolia/store";
+import { checkUsername, getDoc, GRACE_DAYS, MAX_PORTFOLIOS, PERSONAL_UPLOAD_LIMIT_MB, patchPortfolio, PRICE } from "@/lib/portfolia/store";
 import { supabase } from "@/integrations/supabase/client";
 import { getPaddleEnvironment, openCheckout } from "@/lib/paddle";
 
@@ -79,6 +79,7 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
 
           <ul className="mt-5 space-y-1.5 text-sm">
             <li>✓ Up to {MAX_PORTFOLIOS} portfolios</li>
+            <li>✓ PDFs up to {PERSONAL_UPLOAD_LIMIT_MB} MB each</li>
             <li>✓ Upload a CV in your details</li>
             <li>✓ Connect a domain you already own (free), or buy one through Portfolia</li>
           </ul>

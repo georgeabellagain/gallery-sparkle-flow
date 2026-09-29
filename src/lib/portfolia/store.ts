@@ -6,8 +6,8 @@ import { deleteBlob, uid } from "./assets";
  * in IndexedDB (see assets.ts). Nothing here is sent to a server.
  */
 
-export const UPLOAD_LIMIT_MB = 25;
-export const UPLOAD_LIMIT = UPLOAD_LIMIT_MB * 1024 * 1024;
+export const FREE_UPLOAD_LIMIT_MB = 10;
+export const PERSONAL_UPLOAD_LIMIT_MB = 50;
 export const GRACE_DAYS = 30;
 export const PRICE = { month: "£3", year: "£25" };
 export const MAX_PORTFOLIOS = 10;
@@ -212,6 +212,10 @@ export function allPortfolios(d: Doc): Portfolio[] {
 
 export function isPaid(d: Doc): boolean {
   return allPortfolios(d).some((p) => p.plan === "personal");
+}
+
+export function uploadLimitMb(d: Doc): number {
+  return isPaid(d) ? PERSONAL_UPLOAD_LIMIT_MB : FREE_UPLOAD_LIMIT_MB;
 }
 
 export function canAddPortfolio(d: Doc): boolean {

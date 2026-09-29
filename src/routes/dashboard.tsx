@@ -17,7 +17,7 @@ import { getPortalUrl, keepSubscription, switchBilling } from "@/lib/payments.fu
 import { getPaddleEnvironment } from "@/lib/paddle";
 import {
   allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, switchPortfolio,
-  deletePortfolio, startPortfolio, graceEnds, GRACE_DAYS, patchPortfolio, personalActive, replacePdf, update, useDoc,
+  deletePortfolio, startPortfolio, graceEnds, GRACE_DAYS, patchPortfolio, personalActive, replacePdf, update, uploadLimitMb, useDoc,
   type Analytics, type PdfFile,
 } from "@/lib/portfolia/store";
 
@@ -78,6 +78,7 @@ function Dashboard() {
 
   const all = allPortfolios(doc);
   const paid = isPaid(doc);
+  const pdfLimitMb = uploadLimitMb(doc);
   const switcher = (all.length > 1 || paid) && (
     <nav aria-label="Your portfolios" className="mb-8 flex flex-wrap items-center gap-2">
       <span className="label-xs mr-1">Portfolios {all.length}/{MAX_PORTFOLIOS}</span>
@@ -97,12 +98,12 @@ function Dashboard() {
   if (!p) {
     return (
       <div className="min-h-screen">{header}
-        <main className="shell py-14">
+        <main className="shell max-w-[90rem] py-14">
           {switcher}
           <h1 className="display-title text-3xl">{all.length ? "Upload your next portfolio" : "No portfolio yet"}</h1>
           {all.length > 0 && <Button size="sm" variant="quiet" className="mt-3" onClick={() => switchPortfolio(all[0]!.code)}>Cancel</Button>}
-          <div className="mt-6 max-w-lg"><DropZone onAccepted={(pdf) => { if (startPortfolio(pdf)) void navigate({ to: "/create" }); }} /></div>
-          <div className="mt-14 max-w-3xl"><AnalyticsPanel data={sampleAnalytics()} sample /></div>
+          <div className="mt-6 max-w-2xl"><DropZone limitMb={pdfLimitMb} onAccepted={(pdf) => { if (startPortfolio(pdf)) void navigate({ to: "/create" }); }} /></div>
+          <div className="mt-14"><AnalyticsPanel data={sampleAnalytics()} sample /></div>
         </main>
         <SiteFooter />
       </div>
@@ -127,9 +128,9 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen"><PaymentTestModeBanner />{header}
-      <main className="shell py-10">
+      <main className="shell max-w-[90rem] py-10">
         {switcher}
-        <div className="grid gap-10 lg:grid-cols-[320px_1fr]">
+        <div className="grid gap-10 lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] lg:gap-14">
           <div>
             <Thumb blobKey={p.pdf?.blobKey} />
             <p className="mt-3 text-sm font-medium">{p.profile.name}</p>
@@ -223,7 +224,7 @@ function Dashboard() {
       </main>
       <SiteFooter />
 
-      <ReplaceModal open={dialog === "replace"} onClose={() => setDialog(null)} current={p.pdf} />
+      <ReplaceModal open={dialog === "replace"} onClose={() => setDialog(null)} current={p.pdf} limitMb={pdfLimitMb} />
       <UpgradeModal open={dialog === "upgrade"} onClose={() => setDialog(null)} />
       <Modal open={dialog === "unpublish"} onClose={() => setDialog(null)} title="Unpublish portfolio?">
         <p className="text-muted-foreground">Visitors will see “No portfolio here” at your link. Your PDF, details and link are kept, so you can publish again later.</p>
@@ -260,7 +261,7 @@ function Thumb({ blobKey }: { blobKey?: string }) {
   );
 }
 
-function ReplaceModal({ open, onClose, current }: { open: boolean; onClose: () => void; current: PdfFile | null }) {
+function ReplaceModal({ open, onClose, current, limitMb }: { open: boolean; onClose: () => void; current: PdfFile | null; limitMb: number }) {
   const [next, setNext] = useState<PdfFile | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const blob = useBlob(next?.blobKey);
@@ -276,7 +277,7 @@ function ReplaceModal({ open, onClose, current }: { open: boolean; onClose: () =
       <p className="text-muted-foreground">Your link and profile stay the same. {current ? `The current PDF (${current.name}) stays published until you confirm.` : ""}</p>
       <div className="mt-4">
         {!next ? (
-          <DropZone small label="Choose replacement PDF" onAccepted={setNext} />
+          <DropZone small label="Choose replacement PDF" limitMb={limitMb} onAccepted={setNext} />
         ) : (
           <>
             <p className="text-xs">{next.name} · {next.pages} pages · {formatBytes(next.bytes)}</p>
