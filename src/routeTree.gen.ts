@@ -13,8 +13,11 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as UsernameRouteImport } from './routes/$username'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as RefundRouteImport } from './routes/refund'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SigninRouteImport } from './routes/signin'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as PSlugRouteImport } from './routes/p.$slug'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
@@ -39,6 +42,16 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RefundRoute = RefundRouteImport.update({
+  id: '/refund',
+  path: '/refund',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
@@ -47,6 +60,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const SigninRoute = SigninRouteImport.update({
   id: '/signin',
   path: '/signin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PSlugRoute = PSlugRouteImport.update({
@@ -71,8 +89,11 @@ export interface FileRoutesByFullPath {
   '/$username': typeof UsernameRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/privacy': typeof PrivacyRoute
+  '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signin': typeof SigninRoute
+  '/terms': typeof TermsRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -82,8 +103,11 @@ export interface FileRoutesByTo {
   '/$username': typeof UsernameRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/privacy': typeof PrivacyRoute
+  '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signin': typeof SigninRoute
+  '/terms': typeof TermsRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -94,8 +118,11 @@ export interface FileRoutesById {
   '/$username': typeof UsernameRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/privacy': typeof PrivacyRoute
+  '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signin': typeof SigninRoute
+  '/terms': typeof TermsRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -107,8 +134,11 @@ export interface FileRouteTypes {
     | '/$username'
     | '/create'
     | '/dashboard'
+    | '/privacy'
+    | '/refund'
     | '/reset-password'
     | '/signin'
+    | '/terms'
     | '/p/$slug'
     | '/u/$username'
     | '/api/public/payments/webhook'
@@ -118,8 +148,11 @@ export interface FileRouteTypes {
     | '/$username'
     | '/create'
     | '/dashboard'
+    | '/privacy'
+    | '/refund'
     | '/reset-password'
     | '/signin'
+    | '/terms'
     | '/p/$slug'
     | '/u/$username'
     | '/api/public/payments/webhook'
@@ -129,8 +162,11 @@ export interface FileRouteTypes {
     | '/$username'
     | '/create'
     | '/dashboard'
+    | '/privacy'
+    | '/refund'
     | '/reset-password'
     | '/signin'
+    | '/terms'
     | '/p/$slug'
     | '/u/$username'
     | '/api/public/payments/webhook'
@@ -141,8 +177,11 @@ export interface RootRouteChildren {
   UsernameRoute: typeof UsernameRoute
   CreateRoute: typeof CreateRoute
   DashboardRoute: typeof DashboardRoute
+  PrivacyRoute: typeof PrivacyRoute
+  RefundRoute: typeof RefundRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SigninRoute: typeof SigninRoute
+  TermsRoute: typeof TermsRoute
   PSlugRoute: typeof PSlugRoute
   UUsernameRoute: typeof UUsernameRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
@@ -178,6 +217,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/refund': {
+      id: '/refund'
+      path: '/refund'
+      fullPath: '/refund'
+      preLoaderRoute: typeof RefundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
@@ -190,6 +243,13 @@ declare module '@tanstack/react-router' {
       path: '/signin'
       fullPath: '/signin'
       preLoaderRoute: typeof SigninRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/p/$slug': {
@@ -221,8 +281,11 @@ const rootRouteChildren: RootRouteChildren = {
   UsernameRoute: UsernameRoute,
   CreateRoute: CreateRoute,
   DashboardRoute: DashboardRoute,
+  PrivacyRoute: PrivacyRoute,
+  RefundRoute: RefundRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SigninRoute: SigninRoute,
+  TermsRoute: TermsRoute,
   PSlugRoute: PSlugRoute,
   UUsernameRoute: UUsernameRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
