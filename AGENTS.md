@@ -13,3 +13,4 @@
 - State lives in src/lib/portfolia/store.ts (localStorage) with PDFs/photos in IndexedDB; one active portfolio per browser — prototype has no backend.
 - PDF viewer renders with pdfjs-dist directly; don't import pdf_viewer.css (Lightning CSS rejects its relative urls) — text-layer rules are copied into styles.css.
 - Personalised portfolios use root paths (`/name`); `/p/code` remains the permanent free address and `/u/name` remains compatible with old links.
+- Payments: Paddle via connector gateway; subscriptions table synced by webhook at /api/public/payments/webhook; useAccount mirrors subscription into local plan. Why: portfolios are still browser-local.
