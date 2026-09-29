@@ -47,7 +47,7 @@ export function DemoNote({ children, className }: { children: ReactNode; classNa
 }
 
 export const LOCAL_NOTE =
-  "Local prototype: your PDF and details are stored in this browser only. Links work here, but can’t serve your upload to other people or devices until a backend is connected.";
+  "Your PDF and details are saved to your Portfolia account when you sign in, so your link opens on any device. Personal-plan custom domains are saved but not yet connected to live traffic.";
 
 /** Accessible modal built on the native <dialog> element. */
 export function Modal({

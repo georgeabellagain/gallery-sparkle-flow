@@ -4,6 +4,8 @@ import { Eye } from "lucide-react";
 import { PortfolioPage, useStoredMedia } from "./PortfolioPage";
 import { Wordmark } from "./Chrome";
 import { SAMPLE } from "@/lib/portfolia/sample";
+import { registerPublicUrls } from "@/lib/portfolia/assets";
+import type { PublicPortfolio } from "@/lib/portfolia/public.functions";
 import { findPortfolio, recordDownload, recordVisit, useDoc, type Portfolio } from "@/lib/portfolia/store";
 
 export function SampleVisitor() {
@@ -68,5 +70,10 @@ export function useOwn(test: (p: Portfolio) => boolean) {
   return findPortfolio(useDoc(), test);
 }
 
-export const LOCAL_MISSING =
-  "Nothing is published at this address in this browser. In this prototype, portfolios are stored locally, so links can’t be opened on other devices.";
+export const LOCAL_MISSING = "Nothing is published at this address. Check the link, or ask the owner to publish it again.";
+
+/** A published portfolio loaded from the server. */
+export function CloudVisitor({ data }: { data: NonNullable<PublicPortfolio> }) {
+  registerPublicUrls(data.urls);
+  return <OwnVisitor p={data.portfolio} preview={false} />;
+}

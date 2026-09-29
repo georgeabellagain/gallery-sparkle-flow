@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Globe, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Modal } from "./Chrome";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,9 +17,12 @@ export function DomainsSection({ p, paid, onUpgrade }: { p: Portfolio; paid: boo
   const domains = p.domains ?? [];
 
   const close = () => { setMode(null); setRaw(""); setErr(null); };
-  const confirm = () => {
+  const confirm = async () => {
     if (!check.ok || !mode) return;
-    if (!addDomain({ name: check.name, kind: mode === "buy" ? "purchased" : "owned", addedAt: Date.now() })) return setErr("Couldn’t save in this browser. Nothing was added.");
+    const { data: free, error } = await supabase.rpc("domain_available", { _name: check.name, _code: p.code });
+    if (error) return setErr("Couldn’t check that domain. Please try again.");
+    if (!free) return setErr("That domain is already connected to another Portfolia account.");
+    if (!addDomain({ name: check.name, kind: mode === "buy" ? "purchased" : "owned", addedAt: Date.now() })) return setErr("Couldn’t save. Nothing was added.");
     if (mode === "own") setDns(check.name);
     close();
   };
@@ -67,7 +71,7 @@ export function DomainsSection({ p, paid, onUpgrade }: { p: Portfolio; paid: boo
         {err && <p role="alert" className="mt-2 text-sm text-destructive">{err}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="line" onClick={close}>Cancel</Button>
-          <Button disabled={!check.ok || (mode === "buy" && !price)} onClick={confirm}>{mode === "buy" ? "Buy (demo)" : "Add domain"}</Button>
+          <Button disabled={!check.ok || (mode === "buy" && !price)} onClick={() => void confirm()}>{mode === "buy" ? "Buy (demo)" : "Add domain"}</Button>
         </div>
       </Modal>
 

@@ -232,7 +232,7 @@ function Dashboard() {
         <Confirm onCancel={() => setDialog(null)} label="Unpublish" onConfirm={() => { setMsg(patchPortfolio({ status: "draft" }) ? null : "Couldn’t unpublish — nothing changed."); setDialog(null); }} />
       </Modal>
       <Modal open={dialog === "delete"} onClose={() => setDialog(null)} title="Delete portfolio?">
-        <p className="text-muted-foreground">This removes your PDF, details and statistics from this browser. It can’t be undone.</p>
+        <p className="text-muted-foreground">This permanently removes this portfolio’s PDF, details and statistics from your account. It can’t be undone.</p>
         <Confirm onCancel={() => setDialog(null)} label="Delete permanently" onConfirm={() => { void deletePortfolio(); setDialog(null); }} />
       </Modal>
       <Modal open={dialog === "cancel"} onClose={() => setDialog(null)} title="Cancel Personal?">
@@ -332,7 +332,7 @@ function AnalyticsPanel({ data, sample }: { data: Analytics; sample?: boolean })
       </div>
       <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
         A visit is one viewing session — scrolling, zooming or loading more pages doesn’t add visits. Your own previews and known bots are excluded. Unique visitors are estimated per browser. Download clicks count button presses, not completed downloads. Statistics can’t identify who visited or show whether anyone read your work.
-        {!sample && " In this prototype, only visits from this browser are counted."}
+        
       </p>
     </div>
   );

@@ -78,6 +78,8 @@ export interface Portfolio {
   publishedAt?: number;
   domains?: Domain[];
   style?: PageStyle;
+  /** Stored in the signed-in account. */
+  synced?: boolean;
 }
 
 export interface Analytics {
