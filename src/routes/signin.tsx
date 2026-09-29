@@ -10,6 +10,7 @@ import { useEffect } from "react";
 import { getDoc, update } from "@/lib/portfolia/store";
 
 export const Route = createFileRoute("/signin")({
+  staticData: { sitemap: false },
   validateSearch: (s: Record<string, unknown>): { next?: string } => (typeof s["next"] === "string" ? { next: s["next"] } : {}),
   head: () => ({
     meta: [

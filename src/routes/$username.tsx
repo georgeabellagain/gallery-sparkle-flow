@@ -3,6 +3,7 @@ import { LOCAL_MISSING, Missing, OwnVisitor, useOwn } from "@/components/pf/Visi
 import { personalActive } from "@/lib/portfolia/store";
 
 export const Route = createFileRoute("/$username")({
+  staticData: { sitemap: false },
   head: ({ params }) => ({
     meta: [
       { title: `${params.username} — Portfolio` },
