@@ -1,9 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Check, Sparkles } from "lucide-react";
+import { ArrowRight, Check, Mail, Sparkles } from "lucide-react";
 import samplePage from "@/assets/sample-page.jpg";
-import sampleBanner from "@/assets/demo-arch-1.jpg";
 import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
+import { CvIcon } from "@/components/pf/CvIcon";
 import { DropZone } from "@/components/pf/DropZone";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
 import { Button } from "@/components/ui/button";
@@ -103,23 +103,22 @@ function Landing() {
         <section className="rule-t">
           <div className="shell py-16">
             <h2 className="text-sm font-medium">What visitors see</h2>
-            <p className="mt-2 max-w-xl text-sm text-muted-foreground">Your profile and optional banner introduce the work, followed immediately by your original PDF on a focused dark background.</p>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground">Your details and contact links sit directly above your original PDF on a focused dark background.</p>
             <div aria-label="Static preview of a published portfolio" className="relative mx-auto mt-7 h-[34rem] w-full max-w-5xl overflow-hidden rounded-3xl border border-border bg-card shadow-soft sm:h-[42rem]">
-              <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-border" /><span className="h-2.5 w-2.5 rounded-full bg-border" /><span className="h-2.5 w-2.5 rounded-full bg-border" />
-                <span className="ml-3 rounded-full bg-muted px-3 py-0.5 font-mono text-[0.6875rem] text-muted-foreground">portfolia.site/marta</span>
-              </div>
-              <img src={sampleBanner} alt="" className="h-24 w-full object-cover object-center sm:h-36" />
-              <div className="flex items-center gap-3 px-5 py-4 sm:px-8">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-leaf-soft text-xs font-medium text-leaf">MO</span>
-                <div className="text-left">
-                  <p className="text-sm font-medium">Marta Oyelaran</p>
-                  <p className="text-xs text-muted-foreground">Architect ARB</p>
+              <div className="px-4 py-3 sm:px-6 sm:py-4">
+                <div className="mx-auto max-w-[1100px]">
+                  <h3 className="display-title text-xl leading-tight sm:text-2xl">Marta Oyelaran</h3>
+                  <p className="text-sm text-muted-foreground">Architect ARB</p>
+                  <p className="mt-1 line-clamp-2 max-w-2xl text-xs leading-relaxed text-muted-foreground">Small public buildings, reading rooms and landscape structures. Currently working between Bristol and Lagos.</p>
+                  <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                    <span className="inline-flex items-center gap-1.5"><Mail className="size-3.5" aria-hidden /> studio@example.com</span>
+                    <span>LinkedIn</span>
+                    <span className="inline-flex items-center gap-1.5"><CvIcon className="size-3.5" /> CV</span>
+                  </div>
                 </div>
-                <span className="ml-auto hidden text-xs text-muted-foreground sm:inline">Email · Website · CV</span>
               </div>
-              <div className="bg-foreground px-5 py-7 sm:px-16 sm:py-10">
-                <img src={samplePage} alt="Start of the first page in the example PDF portfolio" width={818} height={578} loading="lazy" className="mx-auto w-full max-w-4xl rounded-sm" />
+              <div className="bg-foreground px-3 py-5 sm:px-6 sm:py-7">
+                <img src={samplePage} alt="Start of the first page in the example PDF portfolio" width={818} height={578} loading="lazy" className="mx-auto w-full rounded-sm" />
               </div>
               <div className="preview-fade pointer-events-none absolute inset-x-0 bottom-0 h-40" aria-hidden />
             </div>
