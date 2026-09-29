@@ -16,7 +16,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { getPortalUrl, switchBilling } from "@/lib/payments.functions";
 import { getPaddleEnvironment } from "@/lib/paddle";
 import {
-  allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, setPlanAll, switchPortfolio,
+  allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, switchPortfolio,
   deletePortfolio, startPortfolio, graceEnds, GRACE_DAYS, patchPortfolio, personalActive, replacePdf, update, useDoc,
   type Analytics, type PdfFile,
 } from "@/lib/portfolia/store";
