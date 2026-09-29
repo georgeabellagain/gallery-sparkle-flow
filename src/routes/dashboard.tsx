@@ -106,6 +106,7 @@ function Dashboard() {
           {all.length > 0 && <Button size="sm" variant="quiet" className="mt-3" onClick={() => switchPortfolio(all[0]!.code)}>Cancel</Button>}
           <div className="mt-6 max-w-2xl"><DropZone limitMb={pdfLimitMb} onAccepted={(pdf) => { if (startPortfolio(pdf)) void navigate({ to: "/create" }); }} /></div>
           <div className="mt-14"><AnalyticsPanel data={sampleAnalytics()} sample /></div>
+          <div className="mt-14 max-w-2xl"><FeedbackBox /></div>
         </main>
         <SiteFooter />
       </div>
@@ -219,6 +220,7 @@ function Dashboard() {
             )}
             <section className="rule-t pt-8"><AnalyticsPanel data={doc.analytics} /></section>
             <DemoNote>{LOCAL_NOTE}</DemoNote>
+            <section className="rule-t pt-8"><FeedbackBox /></section>
           </div>
         </div>
       </main>
