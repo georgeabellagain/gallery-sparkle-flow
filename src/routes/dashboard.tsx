@@ -9,7 +9,6 @@ import { PortfolioQrCode } from "@/components/pf/PortfolioQrCode";
 import { Button } from "@/components/ui/button";
 import { deleteBlob, formatBytes } from "@/lib/portfolia/assets";
 import { sampleAnalytics } from "@/lib/portfolia/sample";
-import { DomainsSection } from "@/components/pf/DomainsSection";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { useAccount } from "@/hooks/useAccount";
 import { supabase } from "@/integrations/supabase/client";
@@ -210,9 +209,6 @@ function Dashboard() {
               </div>
             </section>
 
-            <section className="rule-t pt-8">
-              <DomainsSection p={p} paid={paid} onUpgrade={() => setDialog("upgrade")} />
-            </section>
             {!paid && (
               <section className="rule-t pt-8">
                 <h2 className="text-sm font-medium">More portfolios</h2>
@@ -239,7 +235,7 @@ function Dashboard() {
         <Confirm onCancel={() => setDialog(null)} label="Delete permanently" onConfirm={() => { void deletePortfolio(); setDialog(null); }} />
       </Modal>
       <Modal open={dialog === "cancel"} onClose={() => setDialog(null)} title="Cancel Personal?">
-        <p className="text-muted-foreground">Every portfolio stays available at its free address (this one: {freePath}) — nothing is deleted. You won’t be able to add new portfolios, CVs are hidden from visitors, and custom domains stop pointing here. Personal stays active until the end of the period you’ve paid for, then your personalised address remains for {GRACE_DAYS} more days. The Portfolia credit returns after that. Cancelling, card details and invoices open in a secure billing page.</p>
+        <p className="text-muted-foreground">Every portfolio stays available at its free address (this one: {freePath}) — nothing is deleted. You won’t be able to add new portfolios and CVs are hidden from visitors. Personal stays active until the end of the period you’ve paid for, then your personalised address remains for {GRACE_DAYS} more days. The Portfolia credit returns after that. Cancelling, card details and invoices open in a secure billing page.</p>
         <Confirm onCancel={() => setDialog(null)} label="Open billing page" onConfirm={async () => { setDialog(null); const w = window.open("", "_blank"); try { const url = await portal({ data: { environment: getPaddleEnvironment() } }); if (w) w.location.href = url; else window.location.href = url; } catch { w?.close(); setMsg("Couldn’t open the billing page — try again."); } }} />
       </Modal>
     </div>

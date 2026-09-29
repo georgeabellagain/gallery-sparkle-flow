@@ -85,7 +85,6 @@ function PricingPage() {
                 "Up to 10 portfolios, each up to 50 MB",
                 "CV displayed with your profile",
                 "Personalised address such as portfolia.site/marksmith",
-                "Connect a domain you own at no additional charge",
                 "Portfolia credit removed",
               ]}
               action={
@@ -120,10 +119,10 @@ function PricingPage() {
                 </dd>
               </div>
               <div>
-                <dt className="font-medium">Do I need my own domain?</dt>
+                <dt className="font-medium">How do people find my portfolio?</dt>
                 <dd className="mt-1 text-muted-foreground">
-                  No. Every portfolio gets a Portfolia address. On Personal you can also
-                  connect a domain you already own at no extra charge.
+                  Every portfolio gets a permanent Portfolia link and a QR code. On
+                  Personal you can also choose a personalised address.
                 </dd>
               </div>
             </dl>

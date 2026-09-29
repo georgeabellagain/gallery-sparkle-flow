@@ -103,12 +103,6 @@ function TermsPage() {
         inquiries and handles returns.
       </p>
 
-      <h2>Custom domains</h2>
-      <p>
-        If you connect a domain you own, you remain responsible for keeping its DNS
-        settings with your domain provider. Your free portfolia.site link keeps working
-        either way.
-      </p>
 
       <h2>Service level and warranties</h2>
       <p>

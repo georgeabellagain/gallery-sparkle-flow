@@ -84,10 +84,8 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
             <li>✓ Up to {MAX_PORTFOLIOS} portfolios</li>
             <li>✓ PDFs up to {PERSONAL_UPLOAD_LIMIT_MB} MB each</li>
             <li>✓ Upload a CV in your details</li>
-            <li>✓ Connect a domain you already own (free), or buy one through Portfolia</li>
           </ul>
           <ul className="mt-4 space-y-1.5 text-xs text-muted-foreground">
-            <li>This is a personalised Portfolia address, not a separately owned domain.</li>
             <li>Your free link /p/{p.code} keeps working, so links you’ve already shared stay useful.</li>
             <li>If you cancel, your portfolios stay at their free addresses, nothing is deleted, and the personalised address stays active for {GRACE_DAYS} days. The name isn’t reassigned straight away.</li>
             <li>Switching between monthly and yearly takes effect straight away; the difference is charged or credited.</li>
