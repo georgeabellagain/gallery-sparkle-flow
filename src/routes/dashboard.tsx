@@ -9,6 +9,12 @@ import { Button } from "@/components/ui/button";
 import { deleteBlob, formatBytes } from "@/lib/portfolia/assets";
 import { sampleAnalytics } from "@/lib/portfolia/sample";
 import { DomainsSection } from "@/components/pf/DomainsSection";
+import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
+import { useAccount } from "@/hooks/useAccount";
+import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { getPortalUrl, switchBilling } from "@/lib/payments.functions";
+import { getPaddleEnvironment } from "@/lib/paddle";
 import {
   allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, setPlanAll, switchPortfolio,
   deletePortfolio, startPortfolio, graceEnds, GRACE_DAYS, patchPortfolio, personalActive, replacePdf, update, useDoc,
@@ -36,27 +42,32 @@ function Dashboard() {
   const [dialog, setDialog] = useState<null | "replace" | "unpublish" | "delete" | "upgrade" | "cancel">(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const { user, sub, loading } = useAccount();
+  const portal = useServerFn(getPortalUrl);
+  const switchFn = useServerFn(switchBilling);
+  const [billingBusy, setBillingBusy] = useState(false);
+  const checkoutDone = typeof window !== "undefined" && window.location.search.includes("checkout=success");
 
-  if (!hydrated) return null;
+  if (!hydrated || loading) return null;
 
   const header = (
     <SiteHeader
       right={
         <>
-          <span className="hidden text-xs text-muted-foreground sm:inline">Demo account</span>
-          {doc.account.signedIn && (
-            <button className="text-sm hover:underline underline-offset-4" onClick={() => { update((d) => ({ ...d, account: { signedIn: false } })); void navigate({ to: "/" }); }}>Sign out</button>
+          <span className="hidden text-xs text-muted-foreground sm:inline">{user?.email}</span>
+          {user && (
+            <button className="text-sm hover:underline underline-offset-4" onClick={() => { void supabase.auth.signOut(); update((d) => ({ ...d, account: { signedIn: false } })); void navigate({ to: "/" }); }}>Sign out</button>
           )}
         </>
       }
     />
   );
 
-  if (!doc.account.signedIn) {
+  if (!user) {
     return (
       <div className="min-h-screen">{header}
         <main className="mx-auto max-w-md px-5 py-24 text-center text-sm">
-          <p>Sign in with the demo account to see your dashboard.</p>
+          <p>Sign in to see your dashboard.</p>
           <Button asChild className="mt-4"><Link to="/signin">Sign in</Link></Button>
         </main>
       </div>
@@ -112,7 +123,7 @@ function Dashboard() {
   const published = p.status === "published";
 
   return (
-    <div className="min-h-screen">{header}
+    <div className="min-h-screen"><PaymentTestModeBanner />{header}
       <main className="shell py-10">
         {switcher}
         <div className="grid gap-10 lg:grid-cols-[320px_1fr]">
@@ -151,7 +162,10 @@ function Dashboard() {
 
             <section className="rule-t pt-8">
               <h2 className="text-sm font-medium">Plan and address</h2>
-              <p className="mt-2 text-sm">{p.plan === "personal" ? `Personal (demo) — billed ${p.billing === "month" ? "monthly" : "yearly"}` : "Free"}</p>
+              <p className="mt-2 text-sm">{p.plan === "personal" ? `Personal — billed ${p.billing === "month" ? "monthly" : "yearly"}` : "Free"}</p>
+              {checkoutDone && !sub && <p role="status" className="mt-1 text-xs text-muted-foreground">Payment received — confirming your plan, this takes a few seconds…</p>}
+              {sub?.cancel_at_period_end && sub.current_period_end && <p className="mt-1 text-xs text-muted-foreground">Cancelled. Personal stays active until {new Date(sub.current_period_end).toLocaleDateString()}, then your personalised address is kept for {GRACE_DAYS} more days.</p>}
+              {sub?.status === "past_due" && <p role="alert" className="mt-1 text-xs text-destructive">Your last payment didn’t go through. Please update your card to keep Personal.</p>}
               <ul className="mt-2 space-y-1 text-sm">
                 <li>Free address: <span className="font-mono text-xs">{freePath}</span> — always works</li>
                 {p.username && (
@@ -167,7 +181,15 @@ function Dashboard() {
                 ) : (
                   <>
                     <Button size="sm" variant="line" onClick={() => setDialog("upgrade")}>Change address</Button>
-                    <Button size="sm" variant="quiet" onClick={() => setDialog("cancel")}>Cancel Personal</Button>
+                    {sub && sub.status !== "canceled" && !sub.cancel_at_period_end && (
+                      <Button size="sm" variant="line" disabled={billingBusy} onClick={async () => {
+                        setBillingBusy(true); setMsg(null);
+                        try { await switchFn({ data: { environment: getPaddleEnvironment(), priceId: p.billing === "month" ? "personal_yearly" : "personal_monthly" } }); setMsg("Billing switched. The difference has been charged or credited."); }
+                        catch { setMsg("Couldn’t switch billing — nothing changed."); }
+                        finally { setBillingBusy(false); }
+                      }}>Switch to {p.billing === "month" ? "yearly" : "monthly"}</Button>
+                    )}
+                    {sub && <Button size="sm" variant="quiet" onClick={() => setDialog("cancel")}>Manage or cancel</Button>}
                   </>
                 )}
               </div>
@@ -199,9 +221,9 @@ function Dashboard() {
         <p className="text-muted-foreground">This removes your PDF, details and statistics from this browser. It can’t be undone.</p>
         <Confirm onCancel={() => setDialog(null)} label="Delete permanently" onConfirm={() => { void deletePortfolio(); setDialog(null); }} />
       </Modal>
-      <Modal open={dialog === "cancel"} onClose={() => setDialog(null)} title="Cancel Personal (demo)?">
-        <p className="text-muted-foreground">Every portfolio stays available at its free address (this one: {freePath}) — nothing is deleted. You won’t be able to add new portfolios, CVs are hidden from visitors, and custom domains stop pointing here. Your personalised address remains active for {GRACE_DAYS} days, and the name isn’t reassigned immediately. The Portfolia credit returns.</p>
-        <Confirm onCancel={() => setDialog(null)} label="Cancel plan" onConfirm={() => { setMsg(setPlanAll({ plan: "free", cancelledAt: Date.now() }) ? null : "Couldn’t save — plan unchanged."); setDialog(null); }} />
+      <Modal open={dialog === "cancel"} onClose={() => setDialog(null)} title="Cancel Personal?">
+        <p className="text-muted-foreground">Every portfolio stays available at its free address (this one: {freePath}) — nothing is deleted. You won’t be able to add new portfolios, CVs are hidden from visitors, and custom domains stop pointing here. Personal stays active until the end of the period you’ve paid for, then your personalised address remains for {GRACE_DAYS} more days. The Portfolia credit returns after that. Cancelling, card details and invoices open in a secure billing page.</p>
+        <Confirm onCancel={() => setDialog(null)} label="Open billing page" onConfirm={async () => { setDialog(null); try { const url = await portal({ data: { environment: getPaddleEnvironment() } }); window.open(url, "_blank"); } catch { setMsg("Couldn’t open the billing page — try again."); } }} />
       </Modal>
     </div>
   );

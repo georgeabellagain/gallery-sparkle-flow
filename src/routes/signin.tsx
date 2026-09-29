@@ -1,6 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { SiteHeader, DemoNote } from "@/components/pf/Chrome";
+import { useState } from "react";
+import { SiteHeader } from "@/components/pf/Chrome";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
 import { getDoc, update } from "@/lib/portfolia/store";
 
 export const Route = createFileRoute("/signin")({
@@ -8,9 +12,10 @@ export const Route = createFileRoute("/signin")({
   head: () => ({
     meta: [
       { title: "Sign in — Portfolia" },
-      { name: "description", content: "Continue with the Portfolia demo account." },
+      { name: "description", content: "Sign in or create your Portfolia account." },
       { property: "og:title", content: "Sign in — Portfolia" },
-      { property: "og:description", content: "Continue with the Portfolia demo account." },
+      { property: "og:description", content: "Sign in or create your Portfolia account." },
+      { name: "robots", content: "noindex" },
     ],
   }),
   component: SignIn,
@@ -19,22 +24,62 @@ export const Route = createFileRoute("/signin")({
 function SignIn() {
   const navigate = useNavigate();
   const { next } = Route.useSearch();
+  const [mode, setMode] = useState<"in" | "up">("in");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  const done = () => {
+    update((d) => ({ ...d, account: { signedIn: true } }));
+    void navigate({ to: next === "create" && getDoc().portfolio?.status === "draft" ? "/create" : "/dashboard" });
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    setInfo(null);
+    if (mode === "up") {
+      const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/dashboard` } });
+      setBusy(false);
+      if (error) return setErr(error.message);
+      if (data.session) return done();
+      setInfo("Check your inbox and click the confirmation link, then sign in.");
+      setMode("in");
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      setBusy(false);
+      if (error) return setErr(error.message);
+      done();
+    }
+  };
+
   return (
     <div className="min-h-screen">
       <SiteHeader />
       <main className="mx-auto max-w-sm px-5 py-20">
-        <h1 className="display-title text-3xl">Sign in</h1>
-        <p className="mt-3 text-sm text-muted-foreground">This prototype uses a demo account instead of real sign-in. There are no passwords and no account security.</p>
-        <Button
-          className="mt-6 w-full"
-          onClick={() => {
-            update((d) => ({ ...d, account: { signedIn: true } }));
-            void navigate({ to: next === "create" && getDoc().portfolio?.status === "draft" ? "/create" : "/dashboard" });
-          }}
-        >
-          Continue with demo account
-        </Button>
-        <DemoNote className="mt-8">Demo account: your work is kept in this browser only.</DemoNote>
+        <h1 className="display-title text-3xl">{mode === "in" ? "Sign in" : "Create account"}</h1>
+        <form onSubmit={submit} className="mt-6 space-y-4">
+          <div>
+            <Label htmlFor="email" className="text-xs">Email</Label>
+            <Input id="email" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1.5 rounded-full" />
+          </div>
+          <div>
+            <Label htmlFor="pw" className="text-xs">Password</Label>
+            <Input id="pw" type="password" required minLength={8} autoComplete={mode === "in" ? "current-password" : "new-password"} value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1.5 rounded-full" />
+          </div>
+          {err && <p role="alert" className="text-sm text-destructive">{err}</p>}
+          {info && <p role="status" className="text-sm">{info}</p>}
+          <Button type="submit" className="w-full" disabled={busy}>{busy ? "Please wait…" : mode === "in" ? "Sign in" : "Create account"}</Button>
+        </form>
+        <p className="mt-5 text-sm text-muted-foreground">
+          {mode === "in" ? "New to Portfolia? " : "Already have an account? "}
+          <button type="button" className="underline underline-offset-4" onClick={() => { setMode(mode === "in" ? "up" : "in"); setErr(null); }}>
+            {mode === "in" ? "Create an account" : "Sign in"}
+          </button>
+        </p>
       </main>
     </div>
   );
