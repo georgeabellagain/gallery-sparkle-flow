@@ -35,12 +35,6 @@ export function PortfolioPage({
   const cvUrl = useObjectUrl(cvBlob);
   const cv = cvBlobKey ? profile.cv : undefined;
   const links = profile.links.filter((l) => l.url.trim());
-  const initials = profile.name
-    .split(/\s+/)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
   return (
     <div className="flex min-h-full flex-col bg-background" style={pageStyle ? { background: pageStyle.background, color: pageStyle.text } : undefined}>
       {bannerUrl && <img src={bannerUrl} alt="" className={immersive ? "h-28 w-full object-cover sm:h-40" : "h-24 w-full object-cover"} />}

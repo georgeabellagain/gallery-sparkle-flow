@@ -120,7 +120,12 @@ function Landing() {
               <div className="bg-foreground px-5 py-7 sm:px-16 sm:py-10">
                 <img src={samplePage} alt="Start of the first page in the example PDF portfolio" width={818} height={578} loading="lazy" className="mx-auto w-full max-w-4xl rounded-sm" />
               </div>
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-[linear-gradient(to_bottom,transparent,var(--color-background))]" aria-hidden />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40" aria-hidden>
+                <span className="block h-1/4 bg-background/20" />
+                <span className="block h-1/4 bg-background/50" />
+                <span className="block h-1/4 bg-background/80" />
+                <span className="block h-1/4 bg-background" />
+              </div>
             </div>
           </div>
         </section>
