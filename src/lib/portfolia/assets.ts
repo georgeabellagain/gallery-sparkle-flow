@@ -1,5 +1,8 @@
+import { supabase } from "@/integrations/supabase/client";
+
 /**
- * Asset bytes live in IndexedDB. Originals are stored once and never mutated —
+ * Asset bytes are cached in IndexedDB and, once signed in, stored in the
+ * account's private cloud folder (portfolio-files/<userId>/<key>). Originals are stored once and never mutated —
  * crops and page renders are written as *new* records.
  * This is browser-local storage: it only exists in this browser profile.
  */
@@ -27,7 +30,25 @@ function openDb(): Promise<IDBDatabase> {
   return dbPromise;
 }
 
-export async function putBlob(key: string, blob: Blob): Promise<void> {
+const BUCKET = "portfolio-files";
+let cloudUser: string | null = null;
+/** Signed URLs for files of published portfolios owned by someone else. */
+const publicUrls = new Map<string, string>();
+
+export function setCloudUser(id: string | null) {
+  cloudUser = id;
+}
+export function registerPublicUrls(urls: Record<string, string>) {
+  for (const [k, v] of Object.entries(urls)) publicUrls.set(k, v);
+}
+
+export async function uploadToCloud(key: string, blob: Blob): Promise<void> {
+  if (!cloudUser) return;
+  const { error } = await supabase.storage.from(BUCKET).upload(`${cloudUser}/${key}`, blob, { upsert: true, contentType: blob.type || undefined });
+  if (error) throw new Error("Couldn’t upload the file. Please check your connection and try again.");
+}
+
+async function putLocal(key: string, blob: Blob) {
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(STORE, "readwrite");
@@ -38,7 +59,7 @@ export async function putBlob(key: string, blob: Blob): Promise<void> {
   });
 }
 
-export async function getBlob(key: string): Promise<Blob | undefined> {
+async function getLocal(key: string): Promise<Blob | undefined> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, "readonly");
@@ -48,7 +69,36 @@ export async function getBlob(key: string): Promise<Blob | undefined> {
   });
 }
 
+export async function putBlob(key: string, blob: Blob): Promise<void> {
+  await uploadToCloud(key, blob);
+  await putLocal(key, blob).catch(() => {
+    if (!cloudUser) throw new Error("Could not save file");
+  });
+}
+
+export async function getBlob(key: string): Promise<Blob | undefined> {
+  const local = await getLocal(key).catch(() => undefined);
+  if (local) return local;
+  const signed = publicUrls.get(key);
+  if (signed) {
+    const r = await fetch(signed).catch(() => null);
+    if (r?.ok) return r.blob();
+  }
+  if (cloudUser) {
+    const { data } = await supabase.storage.from(BUCKET).download(`${cloudUser}/${key}`);
+    if (data) {
+      void putLocal(key, data).catch(() => {});
+      return data;
+    }
+  }
+  return undefined;
+}
+
+/** Local-only read, used when moving browser files into an account. */
+export const getLocalBlob = (key: string) => getLocal(key).catch(() => undefined);
+
 export async function deleteBlob(key: string): Promise<void> {
+  if (cloudUser) await supabase.storage.from(BUCKET).remove([`${cloudUser}/${key}`]).catch(() => {});
   const db = await openDb();
   await new Promise<void>((resolve) => {
     const tx = db.transaction(STORE, "readwrite");
