@@ -12,7 +12,7 @@ async function created(data: any, env: PaddleEnv) {
   const priceId = item.price.importMeta?.externalId;
   const productId = item.product.importMeta?.externalId;
   if (!priceId || !productId) return console.warn("Skipping subscription: missing importMeta.externalId");
-  await (db().from("subscriptions") as any).upsert(
+  const { error } = await (db().from("subscriptions") as any).upsert(
     {
       user_id: userId,
       paddle_subscription_id: data.id,
@@ -22,16 +22,22 @@ async function created(data: any, env: PaddleEnv) {
       status: data.status,
       current_period_start: data.currentBillingPeriod?.startsAt,
       current_period_end: data.currentBillingPeriod?.endsAt,
+      cancel_at_period_end: data.scheduledChange?.action === "cancel",
       environment: env,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "paddle_subscription_id" },
   );
+  // Throwing makes Paddle retry, so a failed write never silently loses a purchase.
+  if (error) throw new Error(`Subscription save failed: ${error.message}`);
 }
 
 async function updated(data: any, env: PaddleEnv) {
   const priceId = data.items?.[0]?.price?.importMeta?.externalId;
-  await (db().from("subscriptions") as any)
+  // Arrives before (or without) subscription.created: create the row instead.
+  const { data: row } = await (db().from("subscriptions") as any).select("id").eq("paddle_subscription_id", data.id).maybeSingle();
+  if (!row) return created(data, env);
+  const { error } = await (db().from("subscriptions") as any)
     .update({
       status: data.status,
       ...(priceId ? { price_id: priceId } : {}),
@@ -42,13 +48,16 @@ async function updated(data: any, env: PaddleEnv) {
     })
     .eq("paddle_subscription_id", data.id)
     .eq("environment", env);
+  if (error) throw new Error(`Subscription update failed: ${error.message}`);
 }
 
 async function canceled(data: any, env: PaddleEnv) {
-  await (db().from("subscriptions") as any)
-    .update({ status: "canceled", updated_at: new Date().toISOString() })
+  const end = data.currentBillingPeriod?.endsAt ?? data.canceledAt ?? new Date().toISOString();
+  const { error } = await (db().from("subscriptions") as any)
+    .update({ status: "canceled", cancel_at_period_end: false, current_period_end: end, updated_at: new Date().toISOString() })
     .eq("paddle_subscription_id", data.id)
     .eq("environment", env);
+  if (error) throw new Error(`Subscription cancel failed: ${error.message}`);
 }
 
 export const Route = createFileRoute("/api/public/payments/webhook")({

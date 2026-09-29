@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { checkUsername, getDoc, GRACE_DAYS, MAX_PORTFOLIOS, patchPortfolio, PRICE } from "@/lib/portfolia/store";
 import { supabase } from "@/integrations/supabase/client";
-import { openCheckout } from "@/lib/paddle";
+import { getPaddleEnvironment, openCheckout } from "@/lib/paddle";
 
 /** Upgrade flow: saves the chosen address, then opens secure checkout. The plan unlocks once payment is confirmed. */
 export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -26,6 +26,14 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
     const { data } = await supabase.auth.getUser();
     if (!data.user) return setErr("Please sign in first so your plan is linked to your account.");
     setBusy(true);
+    // Guard against paying twice (e.g. already subscribed from another browser).
+    const { data: existing } = await supabase.from("subscriptions").select("status, current_period_end")
+      .eq("user_id", data.user.id).eq("environment", getPaddleEnvironment())
+      .order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (existing && (["active", "trialing", "past_due"].includes(existing.status) || (existing.status === "canceled" && existing.current_period_end && Date.parse(existing.current_period_end) > Date.now()))) {
+      setBusy(false);
+      return setErr("You already have the Personal plan — it will switch on here in a few seconds. Your address has been saved.");
+    }
     try {
       await openCheckout({
         priceId: billing === "month" ? "personal_monthly" : "personal_yearly",
