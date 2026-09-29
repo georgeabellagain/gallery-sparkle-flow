@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
+import { useEffect } from "react";
 import { getDoc, update } from "@/lib/portfolia/store";
 
 export const Route = createFileRoute("/signin")({
@@ -30,6 +32,28 @@ function SignIn() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+
+  // Returning from Google: finish once the session is ready.
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => { if (data.session) done(); });
+    const { data } = supabase.auth.onAuthStateChange((e, sess) => { if (e === "SIGNED_IN" && sess) done(); });
+    return () => data.subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const google = async () => {
+    setErr(null);
+    const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: `${window.location.origin}/signin${next ? `?next=${encodeURIComponent(next)}` : ""}` });
+    if (r.error) setErr("Couldn’t sign in with Google — please try again.");
+  };
+
+  const forgot = async () => {
+    setErr(null); setInfo(null);
+    if (!email) return setErr("Enter your email above first.");
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
+    if (error) return setErr(error.message);
+    setInfo("If an account exists for that email, a reset link is on its way.");
+  };
 
   const done = () => {
     update((d) => ({ ...d, account: { signedIn: true } }));
@@ -74,6 +98,9 @@ function SignIn() {
           {info && <p role="status" className="text-sm">{info}</p>}
           <Button type="submit" className="w-full" disabled={busy}>{busy ? "Please wait…" : mode === "in" ? "Sign in" : "Create account"}</Button>
         </form>
+        {mode === "in" && <button type="button" className="mt-3 text-xs underline underline-offset-4 text-muted-foreground" onClick={() => void forgot()}>Forgot password?</button>}
+        <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />or<span className="h-px flex-1 bg-border" /></div>
+        <Button type="button" variant="line" className="w-full" onClick={() => void google()}>Continue with Google</Button>
         <p className="mt-5 text-sm text-muted-foreground">
           {mode === "in" ? "New to Portfolia? " : "Already have an account? "}
           <button type="button" className="underline underline-offset-4" onClick={() => { setMode(mode === "in" ? "up" : "in"); setErr(null); }}>
