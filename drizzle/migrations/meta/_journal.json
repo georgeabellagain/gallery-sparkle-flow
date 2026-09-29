@@ -8,6 +8,13 @@
       "when": 1790670918322,
       "tag": "0000_subscriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790676032926,
+      "tag": "0001_portfolios_online",
+      "breakpoints": true
     }
   ]
 }
