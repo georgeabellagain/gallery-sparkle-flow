@@ -15,6 +15,13 @@
       "when": 1790676032926,
       "tag": "0001_portfolios_online",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790678835535,
+      "tag": "0002_user_feedback",
+      "breakpoints": true
     }
   ]
 }
