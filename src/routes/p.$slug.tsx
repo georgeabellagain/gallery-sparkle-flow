@@ -5,6 +5,7 @@ import { SAMPLE } from "@/lib/portfolia/sample";
 import { getRequestOrigin } from "@/lib/origin.functions";
 
 export const Route = createFileRoute("/p/$slug")({
+  staticData: { sitemap: false },
   validateSearch: (s: Record<string, unknown>): { preview?: string } =>
     typeof s["preview"] === "string" && s["preview"] ? { preview: s["preview"] } : {},
   loader: async () => ({ origin: await getRequestOrigin() }),

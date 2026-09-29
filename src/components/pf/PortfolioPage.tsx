@@ -37,11 +37,11 @@ export function PortfolioPage({
   const links = profile.links.filter((l) => l.url.trim());
   return (
     <div className="flex min-h-full flex-col bg-background" style={pageStyle ? { background: pageStyle.background, color: pageStyle.text } : undefined}>
-      {bannerUrl && <img src={bannerUrl} alt="" className={immersive ? "h-28 w-full object-cover sm:h-40" : "h-24 w-full object-cover"} />}
+      {bannerUrl && <img src={bannerUrl} alt={profile.name ? `${profile.name} portfolio banner` : "Portfolio banner"} className={immersive ? "h-28 w-full object-cover sm:h-40" : "h-24 w-full object-cover"} />}
       <header className={immersive ? "px-4 py-3 sm:px-6 sm:py-4" : compact ? "px-4 py-4" : "px-5 py-5 sm:px-8 sm:py-8"}>
         <div className="mx-auto flex max-w-[1100px] items-start gap-4">
           {photoUrl ? (
-            <img src={photoUrl} alt="" className={immersive ? "size-10 shrink-0 rounded-full object-cover" : "size-11 shrink-0 rounded-full object-cover sm:size-14"} />
+            <img src={photoUrl} alt={profile.name || "Profile photo"} className={immersive ? "size-10 shrink-0 rounded-full object-cover" : "size-11 shrink-0 rounded-full object-cover sm:size-14"} />
           ) : null}
           <div className="min-w-0 flex-1">
             <h1 style={pageStyle ? { fontFamily: pageStyle.font } : undefined} className={immersive ? "display-title text-xl leading-tight sm:text-2xl" : "display-title text-2xl leading-tight sm:text-3xl"}>{profile.name || "Your name"}</h1>

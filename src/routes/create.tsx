@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { patchPortfolio, useDoc } from "@/lib/portfolia/store";
 
 export const Route = createFileRoute("/create")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "Add your details — Portfolia" },

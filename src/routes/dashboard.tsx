@@ -22,6 +22,7 @@ import {
 } from "@/lib/portfolia/store";
 
 export const Route = createFileRoute("/dashboard")({
+  staticData: { sitemap: false },
   head: () => ({
     meta: [
       { title: "Dashboard — Portfolia" },

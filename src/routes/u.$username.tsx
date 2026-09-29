@@ -4,6 +4,7 @@ import { personalActive } from "@/lib/portfolia/store";
 
 /** Legacy personalised address retained for previously shared prototype links. */
 export const Route = createFileRoute("/u/$username")({
+  staticData: { sitemap: false },
   head: ({ params }) => ({
     meta: [
       { title: `${params.username} — Portfolio` },
