@@ -20,6 +20,7 @@ export function useAccount() {
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((_e, s) => {
       setUser(s?.user ?? null);
+      if (!s?.user) syncPlan(null); // signed out: never leave paid features on in this browser
       update((d) => ({ ...d, account: { signedIn: Boolean(s?.user) } }));
     });
     void supabase.auth.getSession().then(({ data: { session } }) => {
@@ -47,26 +48,35 @@ export function useAccount() {
       syncPlan(data as Sub | null);
     };
     void load();
-    const t = setInterval(load, 15000);
+    // Right after checkout, check every 3s so the plan unlocks quickly.
+    const fast = typeof window !== "undefined" && window.location.search.includes("checkout=success");
+    const t = setInterval(load, fast ? 3000 : 15000);
     return () => {
       stop = true;
       clearInterval(t);
     };
   }, [user]);
 
-  return { user, sub, loading };
+  return { user, sub, loading, refresh: () => setUser((u) => (u ? { ...u } : u)) };
+}
+
+/** Active = paid up. past_due keeps access while Paddle retries the card; paused does not. */
+export function subActive(sub: Sub | null): boolean {
+  if (!sub) return false;
+  const end = sub.current_period_end ? Date.parse(sub.current_period_end) : null;
+  if (["active", "trialing", "past_due"].includes(sub.status)) return true;
+  return sub.status === "canceled" && end !== null && end > Date.now();
 }
 
 function syncPlan(sub: Sub | null) {
-  if (!getDoc().portfolio || !sub) return;
-  const end = sub.current_period_end ? Date.parse(sub.current_period_end) : null;
-  const billing = sub.price_id === "personal_yearly" ? "year" : "month";
-  const ended = sub.status === "canceled" && (!end || end <= Date.now());
-  if (!ended) {
-    // Paid and current (including cancelled-but-paid-up): full Personal.
+  const d = getDoc();
+  if (!d.portfolio) return;
+  const billing = sub?.price_id === "personal_yearly" ? "year" : "month";
+  if (subActive(sub)) {
     setPlanAll({ plan: "personal", billing, cancelledAt: undefined });
-  } else {
-    // Paid period over: 30-day grace starts from the end of the period.
-    setPlanAll({ plan: "free", cancelledAt: end ?? Date.now() });
+  } else if (d.portfolio.plan === "personal") {
+    // Plan ended (or none on this account): 30-day address grace from the end of the paid period.
+    const end = sub?.current_period_end ? Date.parse(sub.current_period_end) : Date.now();
+    setPlanAll({ plan: "free", cancelledAt: sub ? Math.min(end, Date.now()) : Date.now() });
   }
 }
