@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useHydrated, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Copy, ExternalLink } from "lucide-react";
-import { SiteHeader, DemoNote, LOCAL_NOTE, Modal, useBlob } from "@/components/pf/Chrome";
+import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE, Modal, useBlob } from "@/components/pf/Chrome";
 import { DropZone } from "@/components/pf/DropZone";
 import { PdfViewer } from "@/components/pf/PdfViewer";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
@@ -71,6 +71,7 @@ function Dashboard() {
           <p>Sign in to see your dashboard.</p>
           <Button asChild className="mt-4"><Link to="/signin">Sign in</Link></Button>
         </main>
+        <SiteFooter />
       </div>
     );
   }
@@ -103,6 +104,7 @@ function Dashboard() {
           <div className="mt-6 max-w-lg"><DropZone onAccepted={(pdf) => { if (startPortfolio(pdf)) void navigate({ to: "/create" }); }} /></div>
           <div className="mt-14 max-w-3xl"><AnalyticsPanel data={sampleAnalytics()} sample /></div>
         </main>
+        <SiteFooter />
       </div>
     );
   }
@@ -219,6 +221,7 @@ function Dashboard() {
           </div>
         </div>
       </main>
+      <SiteFooter />
 
       <ReplaceModal open={dialog === "replace"} onClose={() => setDialog(null)} current={p.pdf} />
       <UpgradeModal open={dialog === "upgrade"} onClose={() => setDialog(null)} />

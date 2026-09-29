@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { SiteHeader, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
+import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
 import { ProfileForm } from "@/components/pf/ProfileForm";
 import { PortfolioPage, useStoredMedia } from "@/components/pf/PortfolioPage";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ function Create() {
           <p>Start by uploading your PDF.</p>
           <Button asChild className="mt-4"><Link to="/">Upload a PDF</Link></Button>
         </main>
+        <SiteFooter />
       </div>
     );
   }
