@@ -16,6 +16,7 @@ export function useAccount() {
   const [user, setUser] = useState<User | null>(null);
   const [sub, setSub] = useState<Sub | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((_e, s) => {
@@ -34,7 +35,7 @@ export function useAccount() {
     if (!user) return;
     let stop = false;
     const load = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("subscriptions")
         .select("status, price_id, current_period_end, cancel_at_period_end")
         .eq("user_id", user.id)
@@ -42,7 +43,7 @@ export function useAccount() {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (stop) return;
+      if (stop || error) return; // network hiccup: keep the current plan rather than guessing
       setSub(data as Sub | null);
       setLoading(false);
       syncPlan(data as Sub | null);
@@ -55,9 +56,9 @@ export function useAccount() {
       stop = true;
       clearInterval(t);
     };
-  }, [user]);
+  }, [user?.id, tick]);
 
-  return { user, sub, loading, refresh: () => setUser((u) => (u ? { ...u } : u)) };
+  return { user, sub, loading, refresh: () => setTick((n) => n + 1) };
 }
 
 /** Active = paid up. past_due keeps access while Paddle retries the card; paused does not. */
