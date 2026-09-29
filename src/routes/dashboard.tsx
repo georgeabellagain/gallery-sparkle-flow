@@ -9,7 +9,6 @@ import { PortfolioQrCode } from "@/components/pf/PortfolioQrCode";
 import { Button } from "@/components/ui/button";
 import { deleteBlob, formatBytes } from "@/lib/portfolia/assets";
 import { sampleAnalytics } from "@/lib/portfolia/sample";
-import { DomainsSection } from "@/components/pf/DomainsSection";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { useAccount } from "@/hooks/useAccount";
 import { supabase } from "@/integrations/supabase/client";
@@ -210,9 +209,6 @@ function Dashboard() {
               </div>
             </section>
 
-            <section className="rule-t pt-8">
-              <DomainsSection p={p} paid={paid} onUpgrade={() => setDialog("upgrade")} />
-            </section>
             {!paid && (
               <section className="rule-t pt-8">
                 <h2 className="text-sm font-medium">More portfolios</h2>

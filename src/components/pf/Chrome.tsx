@@ -48,7 +48,7 @@ export function DemoNote({ children, className }: { children: ReactNode; classNa
 }
 
 export const LOCAL_NOTE =
-  "Your PDF and details are saved to your Portfolia account when you sign in, so your link opens on any device. Personal-plan custom domains are saved but not yet connected to live traffic.";
+  "Your PDF and details are saved to your Portfolia account when you sign in, so your link opens on any device.";
 
 /** Accessible modal built on the native <dialog> element. */
 export function Modal({
