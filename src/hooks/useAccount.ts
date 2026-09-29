@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { getPaddleEnvironment } from "@/lib/paddle";
-import { getDoc, GRACE_DAYS, setPlanAll, update } from "@/lib/portfolia/store";
+import { getDoc, setPlanAll, update } from "@/lib/portfolia/store";
 
 export type Sub = {
   status: string;
@@ -47,15 +47,10 @@ export function useAccount() {
       syncPlan(data as Sub | null);
     };
     void load();
-    const ch = supabase
-      .channel(`subs-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${user.id}` }, () => void load())
-      .subscribe();
     const t = setInterval(load, 15000);
     return () => {
       stop = true;
       clearInterval(t);
-      void supabase.removeChannel(ch);
     };
   }, [user]);
 
@@ -72,8 +67,6 @@ function syncPlan(sub: Sub | null) {
     setPlanAll({ plan: "personal", billing, cancelledAt: undefined });
   } else {
     // Paid period over: 30-day grace starts from the end of the period.
-    const since = end ?? Date.now();
-    if (Date.now() < since + GRACE_DAYS * 864e5) setPlanAll({ plan: "free", cancelledAt: since });
-    else setPlanAll({ plan: "free", cancelledAt: since });
+    setPlanAll({ plan: "free", cancelledAt: end ?? Date.now() });
   }
 }
