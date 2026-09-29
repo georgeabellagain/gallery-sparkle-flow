@@ -156,6 +156,6 @@ export const SEO_LINKS: { to: string; label: string }[] = [
 ];
 
 export function disciplineContent(slug: string): SeoContent {
-  const { label: _l, ...rest } = DISCIPLINE_PAGES[slug];
+  const { label: _l, ...rest } = DISCIPLINE_PAGES[slug]!;
   return { path: `/${slug}`, ...rest };
 }
