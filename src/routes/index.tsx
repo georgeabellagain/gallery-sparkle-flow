@@ -111,7 +111,7 @@ function Landing() {
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-leaf-soft text-xs font-medium text-leaf">MO</span>
                 <div className="text-left">
                   <p className="text-sm font-medium">Marta Oyelaran</p>
-                  <p className="text-xs text-muted-foreground">Architect ARB · London</p>
+                  <p className="text-xs text-muted-foreground">Architect ARB</p>
                 </div>
                 <span className="ml-auto hidden text-xs text-muted-foreground sm:inline">Email · Website · CV</span>
               </div>
