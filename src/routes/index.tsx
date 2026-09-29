@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
+import samplePage from "@/assets/sample-page.jpg";
 import { SiteHeader, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
 import { DropZone } from "@/components/pf/DropZone";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
@@ -67,11 +68,16 @@ function Landing() {
             <p className="mt-5 max-w-md text-[15px] leading-relaxed text-muted-foreground">
               Upload your PDF, add your details, and share your work.
             </p>
-            <p className="mt-6 text-sm">
-              <Link to="/p/$slug" params={{ slug: "sample" }} className="underline underline-offset-4">
-                View an example portfolio
-              </Link>
-            </p>
+            <Link
+              to="/p/$slug"
+              params={{ slug: "sample" }}
+              className="group mt-8 inline-flex items-center gap-3 rounded-full bg-leaf py-3 pl-6 pr-3 text-sm font-medium text-background shadow-lift transition-all hover:-translate-y-0.5 hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98]"
+            >
+              View an example portfolio
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-background/20 transition-transform group-hover:translate-x-0.5">
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </span>
+            </Link>
           </div>
           <div>
             {published ? (
@@ -89,6 +95,31 @@ function Landing() {
             )}
             {err && <p role="alert" className="mt-3 text-sm text-destructive">{err}</p>}
             <p className="mt-3 text-xs text-muted-foreground">No account needed to upload and preview.</p>
+          </div>
+        </section>
+
+        <section className="rule-t">
+          <div className="shell py-14">
+            <h2 className="text-sm font-medium">What visitors see</h2>
+            <p className="mt-2 max-w-md text-sm text-muted-foreground">Your details on top, your PDF below — exactly as you designed it, on a calm dark background.</p>
+            <Link to="/p/$slug" params={{ slug: "sample" }} aria-label="Open the example portfolio" className="group mt-6 block max-w-3xl overflow-hidden rounded-3xl border border-border bg-card shadow-soft transition-shadow hover:shadow-lift focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+                <span className="h-2.5 w-2.5 rounded-full bg-border" /><span className="h-2.5 w-2.5 rounded-full bg-border" /><span className="h-2.5 w-2.5 rounded-full bg-border" />
+                <span className="ml-3 rounded-full bg-muted px-3 py-0.5 font-mono text-[0.6875rem] text-muted-foreground">portfolia.site/marta</span>
+              </div>
+              <div className="flex items-center gap-3 px-5 py-4">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-leaf-soft text-xs font-medium text-leaf">MO</span>
+                <div className="text-left">
+                  <p className="text-sm font-medium">Marta Oyelaran</p>
+                  <p className="text-xs text-muted-foreground">Architect ARB · London</p>
+                </div>
+                <span className="ml-auto hidden text-xs text-muted-foreground sm:inline">Email · Website · CV</span>
+              </div>
+              <div className="bg-foreground px-6 py-8 sm:px-14 sm:py-12">
+                <img src={samplePage} alt="First page of the example PDF portfolio, shown in the Portfolia viewer" width={818} height={578} loading="lazy" className="mx-auto w-full rounded-sm transition-transform duration-500 group-hover:scale-[1.01]" />
+                <p className="mt-4 text-center text-[0.6875rem] text-background/60">1 / 6 · scroll or page by page</p>
+              </div>
+            </Link>
           </div>
         </section>
 
