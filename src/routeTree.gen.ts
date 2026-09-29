@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as UsernameRouteImport } from './routes/$username'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as PSlugRouteImport } from './routes/p.$slug'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
@@ -36,6 +37,11 @@ const CreateRoute = CreateRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SigninRoute = SigninRouteImport.update({
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/$username': typeof UsernameRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signin': typeof SigninRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/$username': typeof UsernameRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signin': typeof SigninRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/$username': typeof UsernameRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/signin': typeof SigninRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/$username'
     | '/create'
     | '/dashboard'
+    | '/reset-password'
     | '/signin'
     | '/p/$slug'
     | '/u/$username'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/$username'
     | '/create'
     | '/dashboard'
+    | '/reset-password'
     | '/signin'
     | '/p/$slug'
     | '/u/$username'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/$username'
     | '/create'
     | '/dashboard'
+    | '/reset-password'
     | '/signin'
     | '/p/$slug'
     | '/u/$username'
@@ -129,6 +141,7 @@ export interface RootRouteChildren {
   UsernameRoute: typeof UsernameRoute
   CreateRoute: typeof CreateRoute
   DashboardRoute: typeof DashboardRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SigninRoute: typeof SigninRoute
   PSlugRoute: typeof PSlugRoute
   UUsernameRoute: typeof UUsernameRoute
@@ -163,6 +176,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/signin': {
@@ -201,6 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   UsernameRoute: UsernameRoute,
   CreateRoute: CreateRoute,
   DashboardRoute: DashboardRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SigninRoute: SigninRoute,
   PSlugRoute: PSlugRoute,
   UUsernameRoute: UUsernameRoute,
