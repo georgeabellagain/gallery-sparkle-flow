@@ -1,4 +1,3 @@
-```ts
 import type { AnyRoute, AnyRouter, ParsedLocation } from "@tanstack/react-router";
 
 // Static sitemap URLs update automatically from each route's staticData.sitemap.
