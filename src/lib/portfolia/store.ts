@@ -312,7 +312,7 @@ export function resetAll() {
 
 /* ---------- Addresses ---------- */
 
-export const RESERVED = ["admin", "support", "www", "api", "app", "mail", "help", "blog", "login", "signin", "portfolia", "status", "billing", "dashboard", "create", "p", "u", "reset-password", "signup", "account", "pricing", "terms", "privacy", "refund", "sitemap.xml", "robots.txt", "sample"];
+export const RESERVED = ["admin", "support", "www", "api", "app", "mail", "help", "blog", "login", "signin", "portfolia", "status", "billing", "dashboard", "create", "p", "u", "reset-password", "signup", "account", "pricing", "terms", "privacy", "refund", "sitemap.xml", "robots.txt", "sample", "free-pdf-portfolio", "free-portfolio-website", "architecture-portfolio"];
 
 export function checkUsername(raw: string): { ok: boolean; msg: string } {
   const u = raw.trim().toLowerCase();

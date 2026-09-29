@@ -11,8 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as UsernameRouteImport } from './routes/$username'
+import { Route as ArchitecturePortfolioRouteImport } from './routes/architecture-portfolio'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as FreePdfPortfolioRouteImport } from './routes/free-pdf-portfolio'
+import { Route as FreePortfolioWebsiteRouteImport } from './routes/free-portfolio-website'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RefundRouteImport } from './routes/refund'
@@ -34,6 +37,11 @@ const UsernameRoute = UsernameRouteImport.update({
   path: '/$username',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ArchitecturePortfolioRoute = ArchitecturePortfolioRouteImport.update({
+  id: '/architecture-portfolio',
+  path: '/architecture-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CreateRoute = CreateRouteImport.update({
   id: '/create',
   path: '/create',
@@ -42,6 +50,16 @@ const CreateRoute = CreateRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FreePdfPortfolioRoute = FreePdfPortfolioRouteImport.update({
+  id: '/free-pdf-portfolio',
+  path: '/free-pdf-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FreePortfolioWebsiteRoute = FreePortfolioWebsiteRouteImport.update({
+  id: '/free-portfolio-website',
+  path: '/free-portfolio-website',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -99,8 +117,11 @@ const ApiPublicPaymentsWebhookRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$username': typeof UsernameRoute
+  '/architecture-portfolio': typeof ArchitecturePortfolioRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
+  '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/refund': typeof RefundRoute
@@ -115,8 +136,11 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$username': typeof UsernameRoute
+  '/architecture-portfolio': typeof ArchitecturePortfolioRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
+  '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/refund': typeof RefundRoute
@@ -132,8 +156,11 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$username': typeof UsernameRoute
+  '/architecture-portfolio': typeof ArchitecturePortfolioRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
+  '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/refund': typeof RefundRoute
@@ -150,8 +177,11 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$username'
+    | '/architecture-portfolio'
     | '/create'
     | '/dashboard'
+    | '/free-pdf-portfolio'
+    | '/free-portfolio-website'
     | '/pricing'
     | '/privacy'
     | '/refund'
@@ -166,8 +196,11 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$username'
+    | '/architecture-portfolio'
     | '/create'
     | '/dashboard'
+    | '/free-pdf-portfolio'
+    | '/free-portfolio-website'
     | '/pricing'
     | '/privacy'
     | '/refund'
@@ -182,8 +215,11 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$username'
+    | '/architecture-portfolio'
     | '/create'
     | '/dashboard'
+    | '/free-pdf-portfolio'
+    | '/free-portfolio-website'
     | '/pricing'
     | '/privacy'
     | '/refund'
@@ -199,8 +235,11 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   UsernameRoute: typeof UsernameRoute
+  ArchitecturePortfolioRoute: typeof ArchitecturePortfolioRoute
   CreateRoute: typeof CreateRoute
   DashboardRoute: typeof DashboardRoute
+  FreePdfPortfolioRoute: typeof FreePdfPortfolioRoute
+  FreePortfolioWebsiteRoute: typeof FreePortfolioWebsiteRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   RefundRoute: typeof RefundRoute
@@ -229,6 +268,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UsernameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/architecture-portfolio': {
+      id: '/architecture-portfolio'
+      path: '/architecture-portfolio'
+      fullPath: '/architecture-portfolio'
+      preLoaderRoute: typeof ArchitecturePortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/create': {
       id: '/create'
       path: '/create'
@@ -241,6 +287,20 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/free-pdf-portfolio': {
+      id: '/free-pdf-portfolio'
+      path: '/free-pdf-portfolio'
+      fullPath: '/free-pdf-portfolio'
+      preLoaderRoute: typeof FreePdfPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/free-portfolio-website': {
+      id: '/free-portfolio-website'
+      path: '/free-portfolio-website'
+      fullPath: '/free-portfolio-website'
+      preLoaderRoute: typeof FreePortfolioWebsiteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -319,8 +379,11 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   UsernameRoute: UsernameRoute,
+  ArchitecturePortfolioRoute: ArchitecturePortfolioRoute,
   CreateRoute: CreateRoute,
   DashboardRoute: DashboardRoute,
+  FreePdfPortfolioRoute: FreePdfPortfolioRoute,
+  FreePortfolioWebsiteRoute: FreePortfolioWebsiteRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   RefundRoute: RefundRoute,
