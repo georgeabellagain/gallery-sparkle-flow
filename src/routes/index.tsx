@@ -48,7 +48,7 @@ function Landing() {
   const doc = useDoc();
   const [err, setErr] = useState<string | null>(null);
   const [upgrade, setUpgrade] = useState(false);
-  const published = doc.portfolio?.status === "published";
+  const published = doc.account.signedIn && doc.portfolio?.status === "published";
 
   return (
     <div className="flex min-h-screen flex-col">
