@@ -14,7 +14,7 @@ export const Route = createFileRoute("/pricing")({
       {
         name: "description",
         content:
-          "Portfolia pricing: host one PDF portfolio free, or choose Personal at £3 per month or £25 per year for up to 10 portfolios, a CV and a personalised address.",
+          "Portfolia pricing: host one PDF portfolio free with a sharing link and QR code, or choose Personal for more portfolios, a CV and a personalised address.",
       },
       { property: "og:title", content: "Pricing — Portfolia PDF Portfolio Hosting" },
       {
@@ -60,6 +60,7 @@ function PricingPage() {
               items={[
                 "One PDF portfolio up to 10 MB",
                 "Permanent Portfolia sharing address",
+                "Downloadable personal QR code",
                 "Profile and contact links",
                 "Continuous and page-by-page viewing",
                 "Basic visit statistics",

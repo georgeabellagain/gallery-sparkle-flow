@@ -19,10 +19,10 @@ export const Route = createFileRoute("/")({
     return {
       meta: [
         { title: "Portfolia — PDF Portfolio Hosting. One Simple Link." },
-        { name: "description", content: "Host your PDF portfolio online and share it with one simple link. Ideal for architects, designers and creatives — a clean viewer, your details, visit stats. Free to start." },
+        { name: "description", content: "Host your PDF portfolio online and share it with one simple link or downloadable QR code. A clean viewer for architects, designers and creatives. Free to start." },
         { name: "keywords", content: "pdf portfolio, pdf portfolio hosting, online portfolio, portfolio website, architecture portfolio website, design portfolio, share portfolio link, portfolio for designers" },
         { property: "og:title", content: "Portfolia — PDF Portfolio Hosting. One Simple Link." },
-        { property: "og:description", content: "Turn your PDF portfolio into a personal link. A clean viewer for architects, designers and creatives." },
+        { property: "og:description", content: "Turn your PDF portfolio into a personal link and downloadable QR code. A clean viewer for architects, designers and creatives." },
         { property: "og:url", content: "https://portfolia.site/" },
         { property: "og:site_name", content: "Portfolia" },
         ...img,
@@ -130,7 +130,7 @@ function Landing() {
           <div className="shell py-14">
             <h2 className="text-sm font-medium">Plans</h2>
             <div className="mx-auto mt-7 grid max-w-5xl gap-5 sm:grid-cols-2">
-              <Plan name="Free" price="£0" description="A complete, permanent starting point for one portfolio." items={["One PDF portfolio up to 10 MB", "Permanent Portfolia sharing address", "Profile and contact links", "Continuous and page-by-page viewing", "Basic visit statistics", "Replace your PDF without changing its link", "Small Portfolia credit"]} />
+               <Plan name="Free" price="£0" description="A complete, permanent starting point for one portfolio." items={["One PDF portfolio up to 10 MB", "Permanent Portfolia sharing address", "Downloadable personal QR code", "Profile and contact links", "Continuous and page-by-page viewing", "Basic visit statistics", "Replace your PDF without changing its link", "Small Portfolia credit"]} />
               <Plan
                 name="Personal"
                 price={`${PRICE.month}/month or ${PRICE.year}/year`}

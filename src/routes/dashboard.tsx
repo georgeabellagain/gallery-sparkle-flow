@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useHydrated, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Copy, ExternalLink } from "lucide-react";
+import { Copy, ExternalLink, QrCode } from "lucide-react";
 import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE, Modal, useBlob } from "@/components/pf/Chrome";
 import { DropZone } from "@/components/pf/DropZone";
 import { PdfViewer } from "@/components/pf/PdfViewer";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
+import { PortfolioQrCode } from "@/components/pf/PortfolioQrCode";
 import { Button } from "@/components/ui/button";
 import { deleteBlob, formatBytes } from "@/lib/portfolia/assets";
 import { sampleAnalytics } from "@/lib/portfolia/sample";
@@ -40,7 +41,7 @@ function Dashboard() {
   const hydrated = useHydrated();
   const navigate = useNavigate();
   const p = doc.portfolio;
-  const [dialog, setDialog] = useState<null | "replace" | "unpublish" | "delete" | "upgrade" | "cancel">(null);
+  const [dialog, setDialog] = useState<null | "replace" | "unpublish" | "delete" | "upgrade" | "cancel" | "qr">(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const { user, sub, loading, refresh } = useAccount();
@@ -147,6 +148,7 @@ function Dashboard() {
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <code className="rounded-full border border-border px-3.5 py-1.5 text-xs select-all">{origin.replace(/^https?:\/\//, "")}{sharePath}</code>
                 <Button size="sm" variant="line" onClick={() => void copy()}><Copy /> {copied ? "Copied" : "Copy link"}</Button>
+                <Button size="sm" variant="line" onClick={() => setDialog("qr")}><QrCode /> QR code</Button>
                 {published ? (
                   personalPath ? <Button size="sm" variant="line" asChild><Link to="/$username" params={{ username: p.username ?? "" }}><ExternalLink /> Open portfolio</Link></Button>
                     : <Button size="sm" variant="line" asChild><Link to="/p/$slug" params={{ slug: p.code }}><ExternalLink /> Open portfolio</Link></Button>
@@ -226,6 +228,7 @@ function Dashboard() {
       <SiteFooter />
 
       <ReplaceModal open={dialog === "replace"} onClose={() => setDialog(null)} current={p.pdf} limitMb={pdfLimitMb} />
+      <PortfolioQrCode open={dialog === "qr"} onClose={() => setDialog(null)} url={origin + sharePath} name={p.profile.name} />
       <UpgradeModal open={dialog === "upgrade"} onClose={() => setDialog(null)} />
       <Modal open={dialog === "unpublish"} onClose={() => setDialog(null)} title="Unpublish portfolio?">
         <p className="text-muted-foreground">Visitors will see “No portfolio here” at your link. Your PDF, details and link are kept, so you can publish again later.</p>

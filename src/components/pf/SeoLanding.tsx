@@ -91,7 +91,7 @@ export function SeoLanding({ c }: { c: SeoContent }) {
               ))}
             </ol>
             <ul className="mt-8 space-y-1.5 text-sm">
-              {["Free plan: one PDF portfolio up to 10 MB", "Permanent sharing link", "Profile, email, LinkedIn and contact links", "Basic visit statistics"].map((i) => (
+              {["Free plan: one PDF portfolio up to 10 MB", "Permanent sharing link and downloadable QR code", "Profile, email, LinkedIn and contact links", "Basic visit statistics"].map((i) => (
                 <li key={i} className="flex gap-2"><Check className="mt-0.5 size-3.5 shrink-0 text-leaf" aria-hidden />{i}</li>
               ))}
             </ul>
