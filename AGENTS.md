@@ -16,3 +16,4 @@
 - PDF viewer renders with pdfjs-dist directly; don't import pdf_viewer.css (Lightning CSS rejects its relative urls) — text-layer rules are copied into styles.css.
 - Personalised portfolios use root paths (`/name`); `/p/code` remains the permanent free address and `/u/name` remains compatible with old links.
 - Payments: Paddle via connector gateway; subscriptions table synced by webhook at /api/public/payments/webhook; useAccount mirrors subscription into the portfolio plan field, which syncs to the account.
+- Portfolio QR codes are generated locally in the browser from the active public link and downloaded as high-resolution PNGs; no third-party QR service receives portfolio URLs.
