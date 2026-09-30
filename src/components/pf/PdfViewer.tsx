@@ -309,7 +309,7 @@ function BookView({
     return out;
   }, [sizes.length, narrow]);
   const [idx, setIdx] = useState(0);
-  const [leaf, setLeaf] = useState<{ dir: 1 | -1; page: number; slot: 0 | 1 } | null>(null);
+  const [turn, setTurn] = useState<{ dir: 1 | -1; from: number; to: number } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchX = useRef<number | null>(null);
   const safeIdx = Math.min(idx, spreads.length - 1);
@@ -319,22 +319,37 @@ function BookView({
   useEffect(() => {
     if (!jump) return;
     const i = spreads.findIndex((s) => s.includes(jump.page));
-    if (i >= 0) setIdx(i);
+    if (i >= 0) {
+      setTurn(null);
+      setIdx(i);
+    }
   }, [jump, spreads]);
   useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
 
+  const finishTurn = () => {
+    if (!turn) return;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    setIdx(turn.to);
+    setTurn(null);
+  };
+
   const flip = (d: 1 | -1) => {
+    if (turn) return;
     const next = safeIdx + d;
     if (next < 0 || next >= spreads.length) return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!reduced) {
-      const page = d > 0 ? spread[spread.length - 1]! : spread[0]!;
-      const slot: 0 | 1 = narrow ? 0 : d > 0 ? 1 : 0;
-      setLeaf({ dir: d, page, slot });
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => setLeaf(null), 650);
+    if (reduced) {
+      setIdx(next);
+      return;
     }
-    setIdx(next);
+    setTurn({ dir: d, from: safeIdx, to: next });
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      setIdx(next);
+      setTurn(null);
+      timer.current = null;
+    }, 820);
   };
   const flipRef = useRef(flip);
   flipRef.current = flip;
@@ -349,13 +364,26 @@ function BookView({
     return () => window.removeEventListener("keydown", on);
   }, []);
 
-  // Desktop: two equal slots; cover sits on the right like a closed book.
-  const slots: (number | null)[] = narrow ? [spread[0]!] : spread.length === 2 ? spread : spread[0] === 1 ? [null, 1] : [spread[0]!, null];
-  const ref = sizes[0]!;
-  const blankSize = { w: ref.w, h: ref.h };
+  const slotsFor = (value: number[]) => narrow
+    ? [value[0] ?? null]
+    : value.length === 2
+      ? value
+      : value[0] === 1
+        ? [null, 1]
+        : [value[0] ?? null, null];
+  // While turning, the destination sits underneath the moving sheet. The
+  // stationary half of the old spread remains above it until the turn ends.
+  const destination = turn ? spreads[turn.to] ?? spread : spread;
+  const sourceSpread = turn ? spreads[turn.from] ?? spread : spread;
+  const slots = slotsFor(destination);
+  const sourceSlots = slotsFor(sourceSpread);
+  const ref = sizes[0] ?? { w: 1, h: 1 };
   const atStart = safeIdx === 0;
   const atEnd = safeIdx === spreads.length - 1;
   const label = spread.length === 2 ? `Pages ${spread[0]}–${spread[1]} of ${sizes.length}` : `Page ${spread[0]} of ${sizes.length}`;
+  const turningFront = turn ? sourceSlots[turn.dir > 0 && !narrow ? 1 : 0] : null;
+  const turningBack = turn ? slots[turn.dir > 0 ? 0 : narrow ? 0 : 1] : null;
+  const stationarySlot = turn && !narrow ? (turn.dir > 0 ? 0 : 1) : null;
 
   return (
     <div className="overflow-x-auto">
@@ -371,40 +399,66 @@ function BookView({
           flip(end < x ? 1 : -1);
         }}
       >
-        <div className="relative flex" style={{ perspective: "2400px" }} aria-live="polite" aria-label={label}>
+        <div
+          className={cn("pf-book-stage relative grid", narrow ? "grid-cols-1" : "grid-cols-2")}
+          style={{ aspectRatio: narrow ? `${ref.w} / ${ref.h}` : `${ref.w * 2} / ${ref.h}` }}
+          aria-live="polite"
+          aria-label={label}
+        >
           {slots.map((n, i) => (
-            <div key={`${safeIdx}-${i}`} className="relative flex-1" style={{ aspectRatio: n ? undefined : `${blankSize.w} / ${blankSize.h}` }}>
-              {n && <PdfPage doc={doc} n={n} size={sizes[n - 1]!} zoom={zoom} onVisible={noop} eager />}
+            <div key={`base-${i}`} className="relative min-w-0 overflow-hidden bg-foreground">
+              {n && <PdfPage doc={doc} n={n} size={sizes[n - 1] ?? ref} zoom={zoom} onVisible={noop} eager />}
               {!narrow && n && <div aria-hidden className={cn("pointer-events-none absolute inset-y-0 w-px bg-foreground/20", i === 0 ? "right-0" : "left-0")} />}
             </div>
           ))}
-          {leaf && (
+          {turn && stationarySlot !== null && (
             <div
               aria-hidden
-              className={cn("pf-leaf pointer-events-none absolute top-0", leaf.dir > 0 && !narrow ? "pf-leaf-fwd" : narrow ? "pf-leaf-fwd" : "pf-leaf-back")}
-              style={{ left: narrow ? 0 : leaf.slot === 1 ? "50%" : 0, width: narrow ? "100%" : "50%" }}
+              className="absolute inset-y-0 z-[2] overflow-hidden bg-foreground"
+              style={{ left: stationarySlot === 0 ? 0 : "50%", width: "50%" }}
             >
-              <PdfPage doc={doc} n={leaf.page} size={sizes[leaf.page - 1]!} zoom={zoom} onVisible={noop} eager thumb />
+              {sourceSlots[stationarySlot] && (
+                <PdfPage doc={doc} n={sourceSlots[stationarySlot] ?? 1} size={sizes[(sourceSlots[stationarySlot] ?? 1) - 1] ?? ref} zoom={zoom} onVisible={noop} eager />
+              )}
+            </div>
+          )}
+          {turn && turningFront && (
+            <div
+              aria-hidden
+              className={cn("pf-turn-sheet pointer-events-none absolute inset-y-0 z-[3]", turn.dir > 0 ? "pf-turn-forward" : "pf-turn-backward")}
+              style={{ left: narrow || turn.dir < 0 ? 0 : "50%", width: narrow ? "100%" : "50%" }}
+              onAnimationEnd={(event) => {
+                if (event.currentTarget === event.target) finishTurn();
+              }}
+            >
+              <div className="pf-turn-face pf-turn-front">
+                <PdfPage doc={doc} n={turningFront} size={sizes[turningFront - 1] ?? ref} zoom={zoom} onVisible={noop} eager thumb />
+                <span className="pf-turn-shade" />
+              </div>
+              <div className="pf-turn-face pf-turn-back">
+                {turningBack && <PdfPage doc={doc} n={turningBack} size={sizes[turningBack - 1] ?? ref} zoom={zoom} onVisible={noop} eager thumb />}
+                <span className="pf-turn-shade" />
+              </div>
             </div>
           )}
           {!atEnd && (
-            <button type="button" onClick={() => flip(1)} aria-label="Turn to next page" title="Next page" className="group absolute bottom-0 right-0 size-14 overflow-hidden">
+            <button type="button" onClick={() => flip(1)} disabled={!!turn} aria-label="Turn to next page" title="Next page" className="group absolute bottom-0 right-0 z-[4] size-14 overflow-hidden disabled:pointer-events-none">
               <span className="absolute bottom-0 right-0 size-7 bg-muted shadow-md [clip-path:polygon(100%_0,0_100%,0_0)] transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
             </button>
           )}
           {!atStart && (
-            <button type="button" onClick={() => flip(-1)} aria-label="Turn to previous page" title="Previous page" className="group absolute bottom-0 left-0 size-14 overflow-hidden">
+            <button type="button" onClick={() => flip(-1)} disabled={!!turn} aria-label="Turn to previous page" title="Previous page" className="group absolute bottom-0 left-0 z-[4] size-14 overflow-hidden disabled:pointer-events-none">
               <span className="absolute bottom-0 left-0 size-7 bg-muted shadow-md [clip-path:polygon(0_0,100%_0,100%_100%)] transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
             </button>
           )}
         </div>
       </div>
       <div className={cn("flex items-center justify-center gap-3 pb-6 text-xs transition-opacity duration-200", controlsHidden && "pointer-events-none opacity-0")}>
-        <button type="button" onClick={() => flip(-1)} disabled={atStart} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
+        <button type="button" onClick={() => flip(-1)} disabled={atStart || !!turn} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
           <ChevronLeft className="size-3.5" /> Previous
         </button>
-        <span className="tabular-nums text-background/70">{label}</span>
-        <button type="button" onClick={() => flip(1)} disabled={atEnd} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
+        <span className="min-w-32 text-center tabular-nums text-background/70">{label}</span>
+        <button type="button" onClick={() => flip(1)} disabled={atEnd || !!turn} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
           Next <ChevronRight className="size-3.5" />
         </button>
       </div>
