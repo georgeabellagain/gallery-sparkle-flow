@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { ChevronLeft, ChevronRight, Download, LayoutGrid, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { Progress } from "@/components/ui/progress";
@@ -118,9 +119,17 @@ export function PdfViewer({
     return () => query.removeEventListener("change", sync);
   }, [immersive]);
 
-  const [mode, setMode] = useState<"scroll" | "paged">("scroll");
+  const [mode, setMode] = useState<"scroll" | "paged" | "book">("scroll");
+  const [thumbs, setThumbs] = useState(false);
+  const [jump, setJump] = useState<{ page: number; t: number } | null>(null);
   const total = doc?.numPages ?? 0;
   const go = (d: number) => setCurrent((c) => Math.min(total, Math.max(1, c + d)));
+
+  const jumpTo = (n: number) => {
+    setCurrent(n);
+    setJump({ page: n, t: Date.now() });
+    if (mode === "scroll") rootRef.current?.querySelector(`[data-page="${n}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   useEffect(() => {
     if (mode !== "paged" || !total) return;
@@ -143,7 +152,7 @@ export function PdfViewer({
       )}>
         <div className="flex items-center gap-3">
           <div role="radiogroup" aria-label="Reading mode" className="inline-flex rounded-full border border-border p-0.5">
-            {(["scroll", "paged"] as const).map((m) => (
+            {(["scroll", "paged", "book"] as const).map((m) => (
               <button
                 key={m}
                 type="button"
@@ -155,7 +164,7 @@ export function PdfViewer({
                   mode === m ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {m === "scroll" ? "Scroll" : "Page by page"}
+                {m === "scroll" ? "Scroll" : m === "paged" ? "Page by page" : "Flipbook"}
               </button>
             ))}
           </div>
@@ -164,6 +173,16 @@ export function PdfViewer({
           </span>
         </div>
         <div className="flex items-center gap-0.5">
+          {doc && (
+            <button
+              type="button"
+              onClick={() => setThumbs((v) => !v)}
+              aria-pressed={thumbs}
+              className={cn("mr-1 inline-flex items-center gap-1.5 rounded-full px-3 py-1 hover:text-foreground", thumbs ? "bg-muted text-foreground" : "text-muted-foreground")}
+            >
+              <LayoutGrid className="size-3.5" /> Pages
+            </button>
+          )}
           <ToolBtn label="Zoom out" onClick={() => z(-0.25)} disabled={zoom <= 0.5}>
             <Minus className="size-3.5" />
           </ToolBtn>
@@ -195,6 +214,26 @@ export function PdfViewer({
         </div>
       </div>
 
+      {doc && thumbs && (
+        <nav aria-label="Pages" className={cn("sticky z-[9] flex gap-2 overflow-x-auto border-b border-border bg-background/95 px-3 py-2 backdrop-blur", immersive ? "top-10" : "top-[41px]")}>
+          {sizes.map((s, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => jumpTo(i + 1)}
+              aria-label={`Go to page ${i + 1}`}
+              aria-current={current === i + 1 ? "page" : undefined}
+              className={cn("shrink-0 rounded-md p-0.5 text-xxs text-muted-foreground", current === i + 1 ? "ring-2 ring-primary" : "hover:ring-1 hover:ring-border")}
+            >
+              <div className="pointer-events-none w-16">
+                <PdfPage doc={doc} n={i + 1} size={s} zoom={0} onVisible={noop} eager thumb />
+              </div>
+              <span className="block pt-0.5 tabular-nums">{i + 1}</span>
+            </button>
+          ))}
+        </nav>
+      )}
+
       {error ? (
         <div className="px-6 py-20 text-center text-sm">
           <p className="font-medium text-background">This portfolio couldn’t be displayed</p>
@@ -205,6 +244,8 @@ export function PdfViewer({
           <p>Loading portfolio… {progress}%</p>
           <Progress value={progress} className="mt-3 h-1" />
         </div>
+      ) : mode === "book" ? (
+        <BookView doc={doc} sizes={sizes} zoom={zoom} jump={jump} onPage={setCurrent} controlsHidden={!!immersive && canHover && !controlsVisible} />
       ) : mode === "paged" ? (
         <div className="overflow-x-auto">
           <div
@@ -243,6 +284,134 @@ export function PdfViewer({
 
 const noop = () => {};
 
+/** Two-page spread flipbook with a page-turn animation (single pages on phones). */
+function BookView({
+  doc,
+  sizes,
+  zoom,
+  jump,
+  onPage,
+  controlsHidden,
+}: {
+  doc: PDFDocumentProxy;
+  sizes: { w: number; h: number }[];
+  zoom: number;
+  jump: { page: number; t: number } | null;
+  onPage: (n: number) => void;
+  controlsHidden: boolean;
+}) {
+  const narrow = useIsMobile();
+  const spreads = useMemo(() => {
+    const n = sizes.length;
+    if (narrow) return Array.from({ length: n }, (_, i) => [i + 1]);
+    const out: number[][] = [[1]];
+    for (let i = 2; i <= n; i += 2) out.push(i + 1 <= n ? [i, i + 1] : [i]);
+    return out;
+  }, [sizes.length, narrow]);
+  const [idx, setIdx] = useState(0);
+  const [leaf, setLeaf] = useState<{ dir: 1 | -1; page: number; slot: 0 | 1 } | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchX = useRef<number | null>(null);
+  const safeIdx = Math.min(idx, spreads.length - 1);
+  const spread = spreads[safeIdx] ?? [1];
+
+  useEffect(() => onPage(spread[0]!), [spread, onPage]);
+  useEffect(() => {
+    if (!jump) return;
+    const i = spreads.findIndex((s) => s.includes(jump.page));
+    if (i >= 0) setIdx(i);
+  }, [jump, spreads]);
+  useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
+
+  const flip = (d: 1 | -1) => {
+    const next = safeIdx + d;
+    if (next < 0 || next >= spreads.length) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!reduced) {
+      const page = d > 0 ? spread[spread.length - 1]! : spread[0]!;
+      const slot: 0 | 1 = narrow ? 0 : d > 0 ? 1 : 0;
+      setLeaf({ dir: d, page, slot });
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => setLeaf(null), 650);
+    }
+    setIdx(next);
+  };
+  const flipRef = useRef(flip);
+  flipRef.current = flip;
+
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).closest("input, textarea, [contenteditable]")) return;
+      if (e.key === "ArrowRight" || e.key === "PageDown") flipRef.current(1);
+      if (e.key === "ArrowLeft" || e.key === "PageUp") flipRef.current(-1);
+    };
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  }, []);
+
+  // Desktop: two equal slots; cover sits on the right like a closed book.
+  const slots: (number | null)[] = narrow ? [spread[0]!] : spread.length === 2 ? spread : spread[0] === 1 ? [null, 1] : [spread[0]!, null];
+  const ref = sizes[0]!;
+  const blankSize = { w: ref.w, h: ref.h };
+  const atStart = safeIdx === 0;
+  const atEnd = safeIdx === spreads.length - 1;
+  const label = spread.length === 2 ? `Pages ${spread[0]}–${spread[1]} of ${sizes.length}` : `Page ${spread[0]} of ${sizes.length}`;
+
+  return (
+    <div className="overflow-x-auto">
+      <div
+        className="mx-auto px-3 py-6 sm:px-8"
+        style={{ width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? 1400 : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
+        onTouchStart={(e) => (touchX.current = e.touches[0]?.clientX ?? null)}
+        onTouchEnd={(e) => {
+          const x = touchX.current;
+          touchX.current = null;
+          const end = e.changedTouches[0]?.clientX;
+          if (x == null || end == null || Math.abs(end - x) < 50) return;
+          flip(end < x ? 1 : -1);
+        }}
+      >
+        <div className="relative flex" style={{ perspective: "2400px" }} aria-live="polite" aria-label={label}>
+          {slots.map((n, i) => (
+            <div key={`${safeIdx}-${i}`} className="relative flex-1" style={{ aspectRatio: n ? undefined : `${blankSize.w} / ${blankSize.h}` }}>
+              {n && <PdfPage doc={doc} n={n} size={sizes[n - 1]!} zoom={zoom} onVisible={noop} eager />}
+              {!narrow && n && <div aria-hidden className={cn("pointer-events-none absolute inset-y-0 w-px bg-foreground/20", i === 0 ? "right-0" : "left-0")} />}
+            </div>
+          ))}
+          {leaf && (
+            <div
+              aria-hidden
+              className={cn("pf-leaf pointer-events-none absolute top-0", leaf.dir > 0 && !narrow ? "pf-leaf-fwd" : narrow ? "pf-leaf-fwd" : "pf-leaf-back")}
+              style={{ left: narrow ? 0 : leaf.slot === 1 ? "50%" : 0, width: narrow ? "100%" : "50%" }}
+            >
+              <PdfPage doc={doc} n={leaf.page} size={sizes[leaf.page - 1]!} zoom={zoom} onVisible={noop} eager thumb />
+            </div>
+          )}
+          {!atEnd && (
+            <button type="button" onClick={() => flip(1)} aria-label="Turn to next page" title="Next page" className="group absolute bottom-0 right-0 size-14 overflow-hidden">
+              <span className="absolute bottom-0 right-0 size-7 bg-muted shadow-md [clip-path:polygon(100%_0,0_100%,0_0)] transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
+            </button>
+          )}
+          {!atStart && (
+            <button type="button" onClick={() => flip(-1)} aria-label="Turn to previous page" title="Previous page" className="group absolute bottom-0 left-0 size-14 overflow-hidden">
+              <span className="absolute bottom-0 left-0 size-7 bg-muted shadow-md [clip-path:polygon(0_0,100%_0,100%_100%)] transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
+            </button>
+          )}
+        </div>
+      </div>
+      <div className={cn("flex items-center justify-center gap-3 pb-6 text-xs transition-opacity duration-200", controlsHidden && "pointer-events-none opacity-0")}>
+        <button type="button" onClick={() => flip(-1)} disabled={atStart} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
+          <ChevronLeft className="size-3.5" /> Previous
+        </button>
+        <span className="tabular-nums text-background/70">{label}</span>
+        <button type="button" onClick={() => flip(1)} disabled={atEnd} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
+          Next <ChevronRight className="size-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ToolBtn(props: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
   return (
     <button
@@ -265,7 +434,9 @@ function PdfPage({
   zoom,
   onVisible,
   eager,
+  thumb,
 }: {
+  thumb?: boolean;
   doc: PDFDocumentProxy;
   n: number;
   size: { w: number; h: number };
@@ -301,7 +472,7 @@ function PdfPage({
         const cssW = el.clientWidth;
         const scale = cssW / size.w;
         const vp = page.getViewport({ scale });
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const dpr = thumb ? 1 : Math.min(window.devicePixelRatio || 1, 2);
         const canvas = document.createElement("canvas");
         canvas.width = Math.floor(vp.width * dpr);
         canvas.height = Math.floor(vp.height * dpr);
@@ -314,6 +485,10 @@ function PdfPage({
         await rt.promise;
         if (cancelled) return;
 
+        if (thumb) {
+          el.replaceChildren(canvas);
+          return;
+        }
         const text = document.createElement("div");
         text.className = "textLayer";
         const tl = new pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: text, viewport: vp });
@@ -355,8 +530,9 @@ function PdfPage({
   return (
     <div
       ref={ref}
-      role="group"
-      aria-label={`Page ${n}`}
+      role={thumb ? undefined : "group"}
+      aria-label={thumb ? undefined : `Page ${n}`}
+      data-page={thumb ? undefined : n}
       className="relative w-full overflow-hidden bg-background"
       style={{ aspectRatio: `${size.w} / ${size.h}` }}
     >
