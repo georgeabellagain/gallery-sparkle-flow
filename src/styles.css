@@ -226,7 +226,7 @@
 
 @utility book-scene {
   perspective: 2400px;
-  perspective-origin: 50% 0%;
+  perspective-origin: 50% 25%;
 }
 
 @utility book-leaf {
@@ -431,6 +431,7 @@
 }
 .pf-turn-back { transform: rotateY(180deg); }
 .pf-strip { transform-style: preserve-3d; }
+.pf-strip > .pf-turn-face { inset: 0 -1px; }
 @keyframes pf-bend-forward { 0%, 100% { transform: rotateY(0deg); } 50% { transform: rotateY(-7deg); } }
 @keyframes pf-bend-backward { 0%, 100% { transform: rotateY(0deg); } 50% { transform: rotateY(7deg); } }
 .pf-bend-forward { animation: pf-bend-forward 390ms cubic-bezier(.22,.61,.36,1) both; }
