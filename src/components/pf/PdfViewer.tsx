@@ -407,7 +407,7 @@ function BookView({
         >
           {slots.map((n, i) => (
             <div key={`base-${i}`} className="relative min-w-0 overflow-hidden bg-foreground">
-              {n && sizes[n - 1] && <PdfPage doc={doc} n={n} size={sizes[n - 1]} zoom={zoom} onVisible={noop} eager />}
+              {n && <PdfPage doc={doc} n={n} size={sizes[n - 1] ?? ref} zoom={zoom} onVisible={noop} eager />}
               {!narrow && n && <div aria-hidden className={cn("pointer-events-none absolute inset-y-0 w-px bg-foreground/20", i === 0 ? "right-0" : "left-0")} />}
             </div>
           ))}
@@ -417,12 +417,12 @@ function BookView({
               className="absolute inset-y-0 z-[2] overflow-hidden bg-foreground"
               style={{ left: stationarySlot === 0 ? 0 : "50%", width: "50%" }}
             >
-              {sourceSlots[stationarySlot] && sizes[(sourceSlots[stationarySlot] ?? 1) - 1] && (
-                <PdfPage doc={doc} n={sourceSlots[stationarySlot] ?? 1} size={sizes[(sourceSlots[stationarySlot] ?? 1) - 1]} zoom={zoom} onVisible={noop} eager />
+              {sourceSlots[stationarySlot] && (
+                <PdfPage doc={doc} n={sourceSlots[stationarySlot] ?? 1} size={sizes[(sourceSlots[stationarySlot] ?? 1) - 1] ?? ref} zoom={zoom} onVisible={noop} eager />
               )}
             </div>
           )}
-          {turn && turningFront && sizes[turningFront - 1] && (
+          {turn && turningFront && (
             <div
               aria-hidden
               className={cn("pf-turn-sheet pointer-events-none absolute inset-y-0 z-[3]", turn.dir > 0 ? "pf-turn-forward" : "pf-turn-backward")}
@@ -432,11 +432,11 @@ function BookView({
               }}
             >
               <div className="pf-turn-face pf-turn-front">
-                <PdfPage doc={doc} n={turningFront} size={sizes[turningFront - 1]} zoom={zoom} onVisible={noop} eager thumb />
+                <PdfPage doc={doc} n={turningFront} size={sizes[turningFront - 1] ?? ref} zoom={zoom} onVisible={noop} eager thumb />
                 <span className="pf-turn-shade" />
               </div>
               <div className="pf-turn-face pf-turn-back">
-                {turningBack && sizes[turningBack - 1] && <PdfPage doc={doc} n={turningBack} size={sizes[turningBack - 1]} zoom={zoom} onVisible={noop} eager thumb />}
+                {turningBack && <PdfPage doc={doc} n={turningBack} size={sizes[turningBack - 1] ?? ref} zoom={zoom} onVisible={noop} eager thumb />}
                 <span className="pf-turn-shade" />
               </div>
             </div>
