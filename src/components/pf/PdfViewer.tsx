@@ -375,7 +375,7 @@ function BookView({
           {slots.map((n, i) => (
             <div key={`${safeIdx}-${i}`} className="relative flex-1" style={{ aspectRatio: n ? undefined : `${blankSize.w} / ${blankSize.h}` }}>
               {n && <PdfPage doc={doc} n={n} size={sizes[n - 1]!} zoom={zoom} onVisible={noop} eager />}
-              {!narrow && n && <div aria-hidden className={cn("pointer-events-none absolute inset-y-0 w-6", i === 0 ? "right-0 bg-gradient-to-l from-foreground/15 to-transparent" : "left-0 bg-gradient-to-r from-foreground/15 to-transparent")} />}
+              {!narrow && n && <div aria-hidden className={cn("pointer-events-none absolute inset-y-0 w-px bg-foreground/20", i === 0 ? "right-0" : "left-0")} />}
             </div>
           ))}
           {leaf && (
@@ -389,12 +389,12 @@ function BookView({
           )}
           {!atEnd && (
             <button type="button" onClick={() => flip(1)} aria-label="Turn to next page" title="Next page" className="group absolute bottom-0 right-0 size-14 overflow-hidden">
-              <span className="absolute bottom-0 right-0 size-7 origin-bottom-right bg-gradient-to-tl from-background from-50% to-foreground/25 to-50% shadow-md transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
+              <span className="absolute bottom-0 right-0 size-7 bg-muted shadow-md [clip-path:polygon(100%_0,0_100%,0_0)] transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
             </button>
           )}
           {!atStart && (
             <button type="button" onClick={() => flip(-1)} aria-label="Turn to previous page" title="Previous page" className="group absolute bottom-0 left-0 size-14 overflow-hidden">
-              <span className="absolute bottom-0 left-0 size-7 bg-gradient-to-tr from-background from-50% to-foreground/25 to-50% shadow-md transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
+              <span className="absolute bottom-0 left-0 size-7 bg-muted shadow-md [clip-path:polygon(0_0,100%_0,100%_100%)] transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
             </button>
           )}
         </div>
