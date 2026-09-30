@@ -386,7 +386,12 @@ function BookView({
   const stationarySlot = turn && !narrow ? (turn.dir > 0 ? 0 : 1) : null;
 
   return (
-    <div className="overflow-x-auto">
+    <div className={zoom > 1 ? "overflow-x-auto" : "overflow-visible"}>
+      <div aria-hidden className="pointer-events-none invisible absolute left-0 top-0 -z-10 w-1/2 max-w-[700px]">
+        {[...(spreads[safeIdx + 1] ?? []), ...(spreads[safeIdx - 1] ?? [])].map((n) => (
+          <PdfPage key={`warm-${n}`} doc={doc} n={n} size={sizes[n - 1] ?? ref} zoom={zoom} onVisible={noop} eager thumb />
+        ))}
+      </div>
       <div
         className="mx-auto px-3 py-6 sm:px-8"
         style={{ width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? 1400 : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
@@ -481,6 +486,28 @@ function ToolBtn(props: { label: string; onClick: () => void; disabled?: boolean
   );
 }
 
+// Rendered pages are cached per document so a page that appears in a new
+// place (turning sheet, stationary half, next spread) paints instantly.
+const pageCache = new WeakMap<object, Map<number, HTMLCanvasElement>>();
+function cachedCopy(doc: object, n: number) {
+  const src = pageCache.get(doc)?.get(n);
+  if (!src) return null;
+  const c = document.createElement("canvas");
+  c.width = src.width;
+  c.height = src.height;
+  c.style.width = "100%";
+  c.style.height = "100%";
+  c.setAttribute("aria-hidden", "true");
+  c.getContext("2d")!.drawImage(src, 0, 0);
+  return c;
+}
+function storePage(doc: object, n: number, canvas: HTMLCanvasElement) {
+  let m = pageCache.get(doc);
+  if (!m) pageCache.set(doc, (m = new Map()));
+  const prev = m.get(n);
+  if (!prev || prev.width <= canvas.width) m.set(n, canvas);
+}
+
 function PdfPage({
   doc,
   n,
@@ -514,6 +541,13 @@ function PdfPage({
     };
   }, [n, onVisible]);
 
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || el.firstChild) return;
+    const copy = cachedCopy(doc, n);
+    if (copy) el.replaceChildren(copy);
+  }, [doc, n]);
+
   useEffect(() => {
     if (!near) return;
     const el = ref.current!;
@@ -538,8 +572,13 @@ function PdfPage({
         task = rt;
         await rt.promise;
         if (cancelled) return;
-
+        { const keep = document.createElement("canvas"); keep.width = canvas.width; keep.height = canvas.height; keep.getContext("2d")!.drawImage(canvas, 0, 0); storePage(doc, n, keep); }
         if (thumb) {
+          const copy = cachedCopy(doc, n);
+          el.replaceChildren(copy ?? canvas);
+          return;
+        }
+        if (false) {
           el.replaceChildren(canvas);
           return;
         }
