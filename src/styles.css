@@ -387,8 +387,61 @@
     top:0;
   }
 
-@keyframes pf-flip-fwd { from { transform: rotateY(0deg); } to { transform: rotateY(-180deg); } }
-@keyframes pf-flip-back { from { transform: rotateY(0deg); } to { transform: rotateY(180deg); } }
-.pf-leaf { backface-visibility: hidden; transform-style: preserve-3d; box-shadow: 0 0 40px rgb(0 0 0 / 0.35); }
-.pf-leaf-fwd { transform-origin: left center; animation: pf-flip-fwd 650ms cubic-bezier(.45,.05,.3,1) forwards; }
-.pf-leaf-back { transform-origin: right center; animation: pf-flip-back 650ms cubic-bezier(.45,.05,.3,1) forwards; }
+@keyframes pf-turn-forward {
+  0% { transform: translateZ(0) rotateY(0deg); }
+  18% { transform: translateZ(8px) rotateY(-18deg); }
+  52% { transform: translateZ(18px) rotateY(-96deg); }
+  82% { transform: translateZ(8px) rotateY(-164deg); }
+  100% { transform: translateZ(0) rotateY(-180deg); }
+}
+@keyframes pf-turn-backward {
+  0% { transform: translateZ(0) rotateY(0deg); }
+  18% { transform: translateZ(8px) rotateY(18deg); }
+  52% { transform: translateZ(18px) rotateY(96deg); }
+  82% { transform: translateZ(8px) rotateY(164deg); }
+  100% { transform: translateZ(0) rotateY(180deg); }
+}
+@keyframes pf-turn-light {
+  0%, 100% { opacity: 0; }
+  45%, 58% { opacity: .26; }
+}
+.pf-book-stage {
+  perspective: 2600px;
+  perspective-origin: 50% 45%;
+  contain: layout paint;
+  isolation: isolate;
+}
+.pf-turn-sheet {
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.pf-turn-forward {
+  transform-origin: left center;
+  animation: pf-turn-forward 780ms cubic-bezier(.22,.61,.36,1) both;
+}
+.pf-turn-backward {
+  transform-origin: right center;
+  animation: pf-turn-backward 780ms cubic-bezier(.22,.61,.36,1) both;
+}
+.pf-turn-face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  backface-visibility: hidden;
+  background: var(--color-background);
+  box-shadow: 0 2px 22px color-mix(in srgb, var(--color-foreground) 28%, transparent);
+}
+.pf-turn-back { transform: rotateY(180deg); }
+.pf-turn-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 30%, color-mix(in srgb, var(--color-foreground) 35%, transparent));
+  animation: pf-turn-light 780ms ease-in-out both;
+}
+.pf-turn-back .pf-turn-shade { transform: scaleX(-1); }
+@media (prefers-reduced-motion: reduce) {
+  .pf-turn-forward,
+  .pf-turn-backward,
+  .pf-turn-shade { animation: none; }
+}
