@@ -6,5 +6,5 @@
 - [x] Downloadable personal portfolio QR codes and related SEO messaging
 - [x] Discipline SEO pages (fashion, photography, design, art, student etc.)
 
-- [ ] Flipbook: curved page turn, no shadow
-- [ ] Flipbook: always two-page spread (incl. phones)
+- [x] Flipbook: curved page turn, no shadow
+- [x] Flipbook: always two-page spread (incl. phones)
