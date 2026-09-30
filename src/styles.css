@@ -226,7 +226,7 @@
 
 @utility book-scene {
   perspective: 2400px;
-  perspective-origin: 50% 50%;
+  perspective-origin: 50% 0%;
 }
 
 @utility book-leaf {
@@ -407,7 +407,7 @@
 }
 .pf-book-stage {
   perspective: 1700px;
-  perspective-origin: 50% 50%;
+  perspective-origin: 50% 0%;
   isolation: isolate;
 }
 .pf-turn-sheet {
