@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { ChevronLeft, ChevronRight, Download, LayoutGrid, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
@@ -300,7 +299,7 @@ function BookView({
   onPage: (n: number) => void;
   controlsHidden: boolean;
 }) {
-  const narrow = useIsMobile();
+  const narrow = false; // Flipbook always shows two-page spreads
   const spreads = useMemo(() => {
     const n = sizes.length;
     if (narrow) return Array.from({ length: n }, (_, i) => [i + 1]);
@@ -431,19 +430,12 @@ function BookView({
             <div
               aria-hidden
               className={cn("pf-turn-sheet pointer-events-none absolute inset-y-0 z-[3]", turn.dir > 0 ? "pf-turn-forward" : "pf-turn-backward")}
-              style={{ left: narrow || turn.dir < 0 ? 0 : "50%", width: narrow ? "100%" : "50%" }}
+              style={{ left: turn.dir < 0 ? 0 : "50%", width: "50%" }}
               onAnimationEnd={(event) => {
                 if (event.currentTarget === event.target) finishTurn();
               }}
             >
-              <div className="pf-turn-face pf-turn-front">
-                <PdfPage doc={doc} n={turningFront} size={sizes[turningFront - 1] ?? ref} zoom={zoom} onVisible={noop} eager thumb />
-                <span className="pf-turn-shade" />
-              </div>
-              <div className="pf-turn-face pf-turn-back">
-                {turningBack && <PdfPage doc={doc} n={turningBack} size={sizes[turningBack - 1] ?? ref} zoom={zoom} onVisible={noop} eager thumb />}
-                <span className="pf-turn-shade" />
-              </div>
+              <CurlStrip i={0} dir={turn.dir} front={pageImage(doc, turningFront)} back={pageImage(doc, turningBack)} />
             </div>
           )}
           {!atEnd && (
@@ -467,6 +459,29 @@ function BookView({
           Next <ChevronRight className="size-3.5" />
         </button>
       </div>
+    </div>
+  );
+}
+
+const STRIPS = 8;
+// One vertical slice of the turning page. Each slice is nested inside the
+// previous one and bends slightly further, so the page curls like paper.
+function CurlStrip({ i, dir, front, back }: { i: number; dir: 1 | -1; front: string | null; back: string | null }) {
+  const slice = (url: string | null, region: number) =>
+    url ? <img src={url} alt="" draggable={false} className="absolute inset-y-0 h-full max-w-none" style={{ width: `${STRIPS * 100}%`, left: `${-region * 100}%` }} /> : null;
+  const fwd = dir > 0;
+  const frontRegion = fwd ? i : STRIPS - 1 - i;
+  const backRegion = fwd ? STRIPS - 1 - i : i;
+  return (
+    <div
+      className={cn("pf-strip absolute inset-y-0", i > 0 && (fwd ? "pf-bend-forward" : "pf-bend-backward"))}
+      style={i === 0
+        ? { width: `${100 / STRIPS}%`, [fwd ? "left" : "right"]: 0, transformOrigin: fwd ? "left center" : "right center" }
+        : { width: "100%", [fwd ? "left" : "right"]: "100%", transformOrigin: fwd ? "left center" : "right center" }}
+    >
+      <div className="pf-turn-face">{slice(front, frontRegion)}</div>
+      <div className="pf-turn-face pf-turn-back">{slice(back, backRegion)}</div>
+      {i < STRIPS - 1 && <CurlStrip i={i + 1} dir={dir} front={front} back={back} />}
     </div>
   );
 }
@@ -501,11 +516,27 @@ function cachedCopy(doc: object, n: number) {
   c.getContext("2d")!.drawImage(src, 0, 0);
   return c;
 }
+const imageCache = new WeakMap<object, Map<number, string>>();
+function pageImage(doc: object, n: number | null | undefined) {
+  if (!n) return null;
+  let m = imageCache.get(doc);
+  if (!m) imageCache.set(doc, (m = new Map()));
+  const hit = m.get(n);
+  if (hit) return hit;
+  const src = pageCache.get(doc)?.get(n);
+  if (!src) return null;
+  const url = src.toDataURL("image/jpeg", 0.9);
+  m.set(n, url);
+  return url;
+}
 function storePage(doc: object, n: number, canvas: HTMLCanvasElement) {
   let m = pageCache.get(doc);
   if (!m) pageCache.set(doc, (m = new Map()));
   const prev = m.get(n);
-  if (!prev || prev.width <= canvas.width) m.set(n, canvas);
+  if (!prev || prev.width < canvas.width) {
+    m.set(n, canvas);
+    imageCache.get(doc)?.delete(n);
+  }
 }
 
 function PdfPage({
