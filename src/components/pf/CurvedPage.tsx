@@ -1,6 +1,12 @@
 import { useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 
+const TURN_DURATION = 488;
+// World units: one page is 1 wide; overscan keeps the lifted sheet visible
+// beyond the original two-page frame without changing the book's layout.
+const SIDE_ROOM = 0.7;
+const VERTICAL_ROOM = 0.55;
+
 /** One continuous textured surface, curved on the GPU without separate DOM strips. */
 export function CurvedPage({ front, back, direction, ratio, onFinish }: {
   front: HTMLCanvasElement;
@@ -21,7 +27,7 @@ export function CurvedPage({ front, back, direction, ratio, onFinish }: {
       renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
     } catch {
       // Keep navigation usable if WebGL is disabled.
-      const fallback = window.setTimeout(() => finish.current(), 390);
+      const fallback = window.setTimeout(() => finish.current(), TURN_DURATION);
       return () => window.clearTimeout(fallback);
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -32,7 +38,13 @@ export function CurvedPage({ front, back, direction, ratio, onFinish }: {
 
     const scene = new THREE.Scene();
     const distance = 3;
-    const camera = new THREE.PerspectiveCamera(2 * Math.atan(ratio / (2 * distance)) * 180 / Math.PI, 2 / ratio, 0.01, 20);
+    const viewHeight = ratio + 2 * VERTICAL_ROOM;
+    const camera = new THREE.PerspectiveCamera(
+      2 * Math.atan(viewHeight / (2 * distance)) * 180 / Math.PI,
+      (2 + 2 * SIDE_ROOM) / viewHeight,
+      0.01,
+      20,
+    );
     camera.position.z = distance;
     const segments = 40;
     const positions = new Float32Array((segments + 1) * 2 * 3);
@@ -77,13 +89,12 @@ export function CurvedPage({ front, back, direction, ratio, onFinish }: {
     mesh.frustumCulled = false;
     scene.add(mesh);
 
-    const duration = 390;
     const start = performance.now();
     let frame = 0;
     let stopped = false;
     const draw = (now: number) => {
       if (stopped) return;
-      const t = Math.min(1, (now - start) / duration);
+      const t = Math.min(1, (now - start) / TURN_DURATION);
       const eased = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       let x = 0;
       let z = 0;
@@ -92,7 +103,7 @@ export function CurvedPage({ front, back, direction, ratio, onFinish }: {
           const u = (i - .5) / segments;
           const angle = Math.PI * eased - Math.sin(Math.PI * eased) * .42 * u;
           x += direction * Math.cos(angle) / segments;
-          z += Math.sin(angle) / segments;
+          z += 1.6 * Math.sin(angle) / segments;
         }
         const offset = i * 6;
         positions[offset] = x;
@@ -120,5 +131,17 @@ export function CurvedPage({ front, back, direction, ratio, onFinish }: {
     };
   }, [front, back, direction, ratio]);
 
-  return <div ref={mount} aria-hidden className="pointer-events-none absolute inset-0 z-[3] overflow-visible" />;
+  return (
+    <div
+      ref={mount}
+      aria-hidden
+      className="pointer-events-none absolute z-[3]"
+      style={{
+        left: `${-SIDE_ROOM * 50}%`,
+        width: `${(2 + 2 * SIDE_ROOM) * 50}%`,
+        top: `${-VERTICAL_ROOM / ratio * 100}%`,
+        height: `${(1 + 2 * VERTICAL_ROOM / ratio) * 100}%`,
+      }}
+    />
+  );
 }
