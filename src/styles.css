@@ -417,11 +417,11 @@
 }
 .pf-turn-forward {
   transform-origin: left center;
-  animation: pf-turn-forward 780ms cubic-bezier(.22,.61,.36,1) both;
+  animation: pf-turn-forward 390ms cubic-bezier(.22,.61,.36,1) both;
 }
 .pf-turn-backward {
   transform-origin: right center;
-  animation: pf-turn-backward 780ms cubic-bezier(.22,.61,.36,1) both;
+  animation: pf-turn-backward 390ms cubic-bezier(.22,.61,.36,1) both;
 }
 .pf-turn-face {
   position: absolute;
@@ -438,7 +438,7 @@
   pointer-events: none;
   background: color-mix(in srgb, var(--color-foreground) 18%, transparent);
   box-shadow: inset 18px 0 28px color-mix(in srgb, var(--color-foreground) 16%, transparent);
-  animation: pf-turn-light 780ms ease-in-out both;
+  animation: pf-turn-light 390ms ease-in-out both;
 }
 .pf-turn-back .pf-turn-shade { transform: scaleX(-1); }
 @media (prefers-reduced-motion: reduce) {
