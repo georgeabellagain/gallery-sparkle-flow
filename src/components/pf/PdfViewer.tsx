@@ -427,7 +427,9 @@ function BookView({
               aria-hidden
               className={cn("pf-turn-sheet pointer-events-none absolute inset-y-0 z-[3]", turn.dir > 0 ? "pf-turn-forward" : "pf-turn-backward")}
               style={{ left: narrow || turn.dir < 0 ? 0 : "50%", width: narrow ? "100%" : "50%" }}
-              onAnimationEnd={finishTurn}
+              onAnimationEnd={(event) => {
+                if (event.currentTarget === event.target) finishTurn();
+              }}
             >
               <div className="pf-turn-face pf-turn-front">
                 <PdfPage doc={doc} n={turningFront} size={sizes[turningFront - 1]} zoom={zoom} onVisible={noop} eager thumb />
