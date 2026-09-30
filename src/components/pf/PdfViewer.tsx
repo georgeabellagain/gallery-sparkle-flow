@@ -349,7 +349,7 @@ function BookView({
       setIdx(next);
       setTurn(null);
       timer.current = null;
-    }, 820);
+    }, 430);
   };
   const flipRef = useRef(flip);
   flipRef.current = flip;
