@@ -4,6 +4,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { CurvedPage } from "@/components/pf/CurvedPage";
 
 type Source = { blob: Blob } | { url: string };
 
@@ -283,7 +284,7 @@ export function PdfViewer({
 
 const noop = () => {};
 
-/** Two-page spread flipbook with a page-turn animation (single pages on phones). */
+/** Two-page spread flipbook with a continuous curved page turn. */
 function BookView({
   doc,
   sizes,
@@ -344,11 +345,12 @@ function BookView({
     }
     setTurn({ dir: d, from: safeIdx, to: next });
     if (timer.current) clearTimeout(timer.current);
+    // Safety net only: the visible sheet commits the spread on its final frame.
     timer.current = setTimeout(() => {
       setIdx(next);
       setTurn(null);
       timer.current = null;
-    }, 430);
+    }, 1500);
   };
   const flipRef = useRef(flip);
   flipRef.current = flip;
@@ -426,17 +428,14 @@ function BookView({
               )}
             </div>
           )}
-          {turn && turningFront && (
-            <div
-              aria-hidden
-              className={cn("pf-turn-sheet pointer-events-none absolute inset-y-0 z-[3]", turn.dir > 0 ? "pf-turn-forward" : "pf-turn-backward")}
-              style={{ left: turn.dir < 0 ? 0 : "50%", width: "50%" }}
-              onAnimationEnd={(event) => {
-                if (event.currentTarget === event.target) finishTurn();
-              }}
-            >
-              <CurlStrip i={0} dir={turn.dir} front={pageImage(doc, turningFront)} back={pageImage(doc, turningBack)} />
-            </div>
+          {turn && turningFront && pageCache.get(doc)?.get(turningFront) && (
+            <CurvedPage
+              front={pageCache.get(doc)?.get(turningFront) ?? pageCache.get(doc)?.get(1) ?? document.createElement("canvas")}
+              back={turningBack ? pageCache.get(doc)?.get(turningBack) ?? null : null}
+              direction={turn.dir}
+              ratio={ref.h / ref.w}
+              onFinish={finishTurn}
+            />
           )}
           {!atEnd && (
             <button type="button" onClick={() => flip(1)} disabled={!!turn} aria-label="Turn to next page" title="Next page" className="group absolute bottom-0 right-0 z-[4] size-14 overflow-hidden disabled:pointer-events-none">
@@ -459,29 +458,6 @@ function BookView({
           Next <ChevronRight className="size-3.5" />
         </button>
       </div>
-    </div>
-  );
-}
-
-const STRIPS = 8;
-// One vertical slice of the turning page. Each slice is nested inside the
-// previous one and bends slightly further, so the page curls like paper.
-function CurlStrip({ i, dir, front, back }: { i: number; dir: 1 | -1; front: string | null; back: string | null }) {
-  const slice = (url: string | null, region: number) =>
-    url ? <img src={url} alt="" draggable={false} className="absolute inset-y-0 h-full max-w-none" style={{ width: `${STRIPS * 100}%`, left: `${-region * 100}%` }} /> : null;
-  const fwd = dir > 0;
-  const frontRegion = fwd ? i : STRIPS - 1 - i;
-  const backRegion = fwd ? STRIPS - 1 - i : i;
-  return (
-    <div
-      className={cn("pf-strip absolute inset-y-0", i > 0 && (fwd ? "pf-bend-forward" : "pf-bend-backward"))}
-      style={i === 0
-        ? { width: `${100 / STRIPS}%`, [fwd ? "left" : "right"]: 0, transformOrigin: fwd ? "left center" : "right center" }
-        : { width: "100%", [fwd ? "left" : "right"]: "100%", transformOrigin: fwd ? "left center" : "right center" }}
-    >
-      <div className="pf-turn-face">{slice(front, frontRegion)}</div>
-      <div className="pf-turn-face pf-turn-back">{slice(back, backRegion)}</div>
-      {i < STRIPS - 1 && <CurlStrip i={i + 1} dir={dir} front={front} back={back} />}
     </div>
   );
 }
@@ -516,26 +492,12 @@ function cachedCopy(doc: object, n: number) {
   c.getContext("2d")!.drawImage(src, 0, 0);
   return c;
 }
-const imageCache = new WeakMap<object, Map<number, string>>();
-function pageImage(doc: object, n: number | null | undefined) {
-  if (!n) return null;
-  let m = imageCache.get(doc);
-  if (!m) imageCache.set(doc, (m = new Map()));
-  const hit = m.get(n);
-  if (hit) return hit;
-  const src = pageCache.get(doc)?.get(n);
-  if (!src) return null;
-  const url = src.toDataURL("image/jpeg", 0.9);
-  m.set(n, url);
-  return url;
-}
 function storePage(doc: object, n: number, canvas: HTMLCanvasElement) {
   let m = pageCache.get(doc);
   if (!m) pageCache.set(doc, (m = new Map()));
   const prev = m.get(n);
   if (!prev || prev.width < canvas.width) {
     m.set(n, canvas);
-    imageCache.get(doc)?.delete(n);
   }
 }
 
