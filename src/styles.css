@@ -389,16 +389,16 @@
 
 @keyframes pf-turn-forward {
   0% { transform: translateZ(0) rotateX(0deg) rotateY(0deg); }
-  18% { transform: translateZ(40px) rotateX(2deg) rotateY(-24deg); }
-  52% { transform: translateZ(110px) rotateX(3deg) rotateY(-92deg); }
-  82% { transform: translateZ(40px) rotateX(2deg) rotateY(-160deg); }
+  18% { transform: translateZ(28px) rotateX(0.5deg) rotateY(-24deg); }
+  52% { transform: translateZ(70px) rotateX(1deg) rotateY(-92deg); }
+  82% { transform: translateZ(28px) rotateX(0.5deg) rotateY(-160deg); }
   100% { transform: translateZ(0) rotateX(0deg) rotateY(-180deg); }
 }
 @keyframes pf-turn-backward {
   0% { transform: translateZ(0) rotateX(0deg) rotateY(0deg); }
-  18% { transform: translateZ(40px) rotateX(2deg) rotateY(24deg); }
-  52% { transform: translateZ(110px) rotateX(3deg) rotateY(92deg); }
-  82% { transform: translateZ(40px) rotateX(2deg) rotateY(160deg); }
+  18% { transform: translateZ(28px) rotateX(0.5deg) rotateY(24deg); }
+  52% { transform: translateZ(70px) rotateX(1deg) rotateY(92deg); }
+  82% { transform: translateZ(28px) rotateX(0.5deg) rotateY(160deg); }
   100% { transform: translateZ(0) rotateX(0deg) rotateY(180deg); }
 }
 @keyframes pf-turn-light {
@@ -407,7 +407,7 @@
 }
 .pf-book-stage {
   perspective: 1700px;
-  perspective-origin: 50% 40%;
+  perspective-origin: 50% 50%;
   isolation: isolate;
 }
 .pf-turn-sheet {
