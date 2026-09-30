@@ -51,7 +51,8 @@ export function CurvedPage({ front, back, direction, ratio, onFinish }: {
       }
     }
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+    const positionAttribute = new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage);
+    geometry.setAttribute("position", positionAttribute);
     geometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
     geometry.setIndex(indices);
     const frontTexture = new THREE.CanvasTexture(front);
@@ -101,7 +102,7 @@ export function CurvedPage({ front, back, direction, ratio, onFinish }: {
         positions[offset + 4] = -ratio / 2;
         positions[offset + 5] = z;
       }
-      geometry.attributes.position.needsUpdate = true;
+      positionAttribute.needsUpdate = true;
       renderer.render(scene, camera);
       if (t < 1) frame = requestAnimationFrame(draw);
       else finish.current();
