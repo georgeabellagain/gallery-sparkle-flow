@@ -386,7 +386,7 @@ function BookView({
   const stationarySlot = turn && !narrow ? (turn.dir > 0 ? 0 : 1) : null;
 
   return (
-    <div className={zoom > 1 ? "relative overflow-x-auto" : "relative overflow-visible"}>
+    <div className={zoom > 1 ? "relative z-0 isolate overflow-x-auto" : "relative z-0 isolate overflow-visible"}>
       <div aria-hidden className="pointer-events-none invisible absolute left-0 top-0 -z-10 w-1/2 max-w-[700px]">
         {[...(spreads[safeIdx + 1] ?? []), ...(spreads[safeIdx - 1] ?? [])].map((n) => (
           <PdfPage key={`warm-${n}`} doc={doc} n={n} size={sizes[n - 1] ?? ref} zoom={zoom} onVisible={noop} eager thumb />
