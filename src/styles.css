@@ -226,7 +226,7 @@
 
 @utility book-scene {
   perspective: 2400px;
-  perspective-origin: 50% 50%;
+  perspective-origin: 50% 0%;
 }
 
 @utility book-leaf {
@@ -388,27 +388,26 @@
   }
 
 @keyframes pf-turn-forward {
-  0% { transform: translateZ(0) rotateY(0deg); }
-  18% { transform: translateZ(8px) rotateY(-18deg); }
-  52% { transform: translateZ(18px) rotateY(-96deg); }
-  82% { transform: translateZ(8px) rotateY(-164deg); }
-  100% { transform: translateZ(0) rotateY(-180deg); }
+  0% { transform: translateZ(0) rotateX(0deg) rotateY(0deg); }
+  18% { transform: translateZ(28px) rotateX(0.5deg) rotateY(-24deg); }
+  52% { transform: translateZ(70px) rotateX(1deg) rotateY(-92deg); }
+  82% { transform: translateZ(28px) rotateX(0.5deg) rotateY(-160deg); }
+  100% { transform: translateZ(0) rotateX(0deg) rotateY(-180deg); }
 }
 @keyframes pf-turn-backward {
-  0% { transform: translateZ(0) rotateY(0deg); }
-  18% { transform: translateZ(8px) rotateY(18deg); }
-  52% { transform: translateZ(18px) rotateY(96deg); }
-  82% { transform: translateZ(8px) rotateY(164deg); }
-  100% { transform: translateZ(0) rotateY(180deg); }
+  0% { transform: translateZ(0) rotateX(0deg) rotateY(0deg); }
+  18% { transform: translateZ(28px) rotateX(0.5deg) rotateY(24deg); }
+  52% { transform: translateZ(70px) rotateX(1deg) rotateY(92deg); }
+  82% { transform: translateZ(28px) rotateX(0.5deg) rotateY(160deg); }
+  100% { transform: translateZ(0) rotateX(0deg) rotateY(180deg); }
 }
 @keyframes pf-turn-light {
   0%, 100% { opacity: 0; }
   45%, 58% { opacity: .26; }
 }
 .pf-book-stage {
-  perspective: 2600px;
-  perspective-origin: 50% 45%;
-  contain: layout paint;
+  perspective: 1700px;
+  perspective-origin: 50% 0%;
   isolation: isolate;
 }
 .pf-turn-sheet {
