@@ -386,3 +386,9 @@
 .textLayer.selecting .endOfContent{
     top:0;
   }
+
+@keyframes pf-flip-fwd { from { transform: rotateY(0deg); } to { transform: rotateY(-180deg); } }
+@keyframes pf-flip-back { from { transform: rotateY(0deg); } to { transform: rotateY(180deg); } }
+.pf-leaf { backface-visibility: hidden; transform-style: preserve-3d; box-shadow: 0 0 40px rgb(0 0 0 / 0.35); }
+.pf-leaf-fwd { transform-origin: left center; animation: pf-flip-fwd 650ms cubic-bezier(.45,.05,.3,1) forwards; }
+.pf-leaf-back { transform-origin: right center; animation: pf-flip-back 650ms cubic-bezier(.45,.05,.3,1) forwards; }
