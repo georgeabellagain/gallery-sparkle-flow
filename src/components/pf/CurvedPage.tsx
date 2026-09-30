@@ -90,7 +90,7 @@ export function CurvedPage({ front, back, direction, ratio, onFinish }: {
         if (i) {
           const u = (i - .5) / segments;
           const angle = Math.PI * eased - Math.sin(Math.PI * eased) * .42 * u;
-          x -= direction * Math.cos(angle) / segments;
+          x += direction * Math.cos(angle) / segments;
           z += Math.sin(angle) / segments;
         }
         const offset = i * 6;
