@@ -428,9 +428,13 @@
   overflow: hidden;
   backface-visibility: hidden;
   background: var(--color-background);
-  box-shadow: 0 2px 22px color-mix(in srgb, var(--color-foreground) 28%, transparent);
 }
 .pf-turn-back { transform: rotateY(180deg); }
+.pf-strip { transform-style: preserve-3d; }
+@keyframes pf-bend-forward { 0%, 100% { transform: rotateY(0deg); } 50% { transform: rotateY(-7deg); } }
+@keyframes pf-bend-backward { 0%, 100% { transform: rotateY(0deg); } 50% { transform: rotateY(7deg); } }
+.pf-bend-forward { animation: pf-bend-forward 390ms cubic-bezier(.22,.61,.36,1) both; }
+.pf-bend-backward { animation: pf-bend-backward 390ms cubic-bezier(.22,.61,.36,1) both; }
 .pf-turn-shade {
   position: absolute;
   inset: 0;
@@ -443,5 +447,7 @@
 @media (prefers-reduced-motion: reduce) {
   .pf-turn-forward,
   .pf-turn-backward,
-  .pf-turn-shade { animation: none; }
+  .pf-turn-shade,
+  .pf-bend-forward,
+  .pf-bend-backward { animation: none; }
 }

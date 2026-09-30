@@ -300,7 +300,7 @@ function BookView({
   onPage: (n: number) => void;
   controlsHidden: boolean;
 }) {
-  const narrow = useIsMobile();
+  const narrow = false; // Flipbook always shows two-page spreads
   const spreads = useMemo(() => {
     const n = sizes.length;
     if (narrow) return Array.from({ length: n }, (_, i) => [i + 1]);
@@ -431,19 +431,19 @@ function BookView({
             <div
               aria-hidden
               className={cn("pf-turn-sheet pointer-events-none absolute inset-y-0 z-[3]", turn.dir > 0 ? "pf-turn-forward" : "pf-turn-backward")}
-              style={{ left: narrow || turn.dir < 0 ? 0 : "50%", width: narrow ? "100%" : "50%" }}
+              style={{ left: turn.dir < 0 ? 0 : "50%", width: "50%" }}
               onAnimationEnd={(event) => {
                 if (event.currentTarget === event.target) finishTurn();
               }}
             >
-              <div className="pf-turn-face pf-turn-front">
-                <PdfPage doc={doc} n={turningFront} size={sizes[turningFront - 1] ?? ref} zoom={zoom} onVisible={noop} eager thumb />
-                <span className="pf-turn-shade" />
-              </div>
-              <div className="pf-turn-face pf-turn-back">
-                {turningBack && <PdfPage doc={doc} n={turningBack} size={sizes[turningBack - 1] ?? ref} zoom={zoom} onVisible={noop} eager thumb />}
-                <span className="pf-turn-shade" />
-              </div>
+              <CurlStrip i={0} dir={turn.dir} render={(front, region) => {
+                const n = front ? turningFront : turningBack;
+                return n ? (
+                  <div className="absolute inset-y-0" style={{ width: `${STRIPS * 100}%`, left: `${-region * 100}%` }}>
+                    <PdfPage doc={doc} n={n} size={sizes[n - 1] ?? ref} zoom={zoom} onVisible={noop} eager thumb />
+                  </div>
+                ) : null;
+              }} />
             </div>
           )}
           {!atEnd && (
@@ -467,6 +467,27 @@ function BookView({
           Next <ChevronRight className="size-3.5" />
         </button>
       </div>
+    </div>
+  );
+}
+
+const STRIPS = 8;
+// One vertical slice of the turning page. Each slice is nested inside the
+// previous one and bends slightly further, so the page curls like paper.
+function CurlStrip({ i, dir, render }: { i: number; dir: 1 | -1; render: (front: boolean, region: number) => React.ReactNode }) {
+  const fwd = dir > 0;
+  const frontRegion = fwd ? i : STRIPS - 1 - i;
+  const backRegion = fwd ? STRIPS - 1 - i : i;
+  return (
+    <div
+      className={cn("pf-strip absolute inset-y-0", i > 0 && (fwd ? "pf-bend-forward" : "pf-bend-backward"))}
+      style={i === 0
+        ? { width: `${100 / STRIPS}%`, [fwd ? "left" : "right"]: 0, transformOrigin: fwd ? "left center" : "right center" }
+        : { width: "100%", [fwd ? "left" : "right"]: "100%", transformOrigin: fwd ? "left center" : "right center" }}
+    >
+      <div className="pf-turn-face">{render(true, frontRegion)}</div>
+      <div className="pf-turn-face pf-turn-back">{render(false, backRegion)}</div>
+      {i < STRIPS - 1 && <CurlStrip i={i + 1} dir={dir} render={render} />}
     </div>
   );
 }
