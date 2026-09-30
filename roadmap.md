@@ -9,3 +9,4 @@
 - [x] Flipbook: curved page turn, no shadow
 - [x] Flipbook: always two-page spread (incl. phones)
 - [x] Flipbook: replace segmented turn with smooth continuous sheet to remove seams and frame drops
+- [x] Flipbook: slow the turn by 25% and extend the curved sheet beyond the book frame

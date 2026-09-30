@@ -4,8 +4,8 @@ import * as THREE from "three";
 const TURN_DURATION = 488;
 // World units: one page is 1 wide; overscan keeps the lifted sheet visible
 // beyond the original two-page frame without changing the book's layout.
-const SIDE_ROOM = 0.4;
-const VERTICAL_ROOM = 0.28;
+const SIDE_ROOM = 0.7;
+const VERTICAL_ROOM = 0.55;
 
 /** One continuous textured surface, curved on the GPU without separate DOM strips. */
 export function CurvedPage({ front, back, direction, ratio, onFinish }: {
@@ -103,7 +103,7 @@ export function CurvedPage({ front, back, direction, ratio, onFinish }: {
           const u = (i - .5) / segments;
           const angle = Math.PI * eased - Math.sin(Math.PI * eased) * .42 * u;
           x += direction * Math.cos(angle) / segments;
-          z += 1.35 * Math.sin(angle) / segments;
+          z += 1.6 * Math.sin(angle) / segments;
         }
         const offset = i * 6;
         positions[offset] = x;
