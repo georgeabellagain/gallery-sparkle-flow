@@ -18,7 +18,7 @@ export function CurvedPage({ front, back, direction, ratio, onFinish }: {
     if (!host) return;
     let renderer: THREE.WebGLRenderer;
     try {
-      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true, powerPreference: "high-performance" });
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
     } catch {
       // Keep navigation usable if WebGL is disabled.
       const fallback = window.setTimeout(() => finish.current(), 390);

@@ -345,11 +345,12 @@ function BookView({
     }
     setTurn({ dir: d, from: safeIdx, to: next });
     if (timer.current) clearTimeout(timer.current);
+    // Safety net only: the visible sheet commits the spread on its final frame.
     timer.current = setTimeout(() => {
       setIdx(next);
       setTurn(null);
       timer.current = null;
-    }, 430);
+    }, 1500);
   };
   const flipRef = useRef(flip);
   flipRef.current = flip;
