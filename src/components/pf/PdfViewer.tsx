@@ -118,9 +118,17 @@ export function PdfViewer({
     return () => query.removeEventListener("change", sync);
   }, [immersive]);
 
-  const [mode, setMode] = useState<"scroll" | "paged">("scroll");
+  const [mode, setMode] = useState<"scroll" | "paged" | "book">("scroll");
+  const [thumbs, setThumbs] = useState(false);
+  const [jump, setJump] = useState<{ page: number; t: number } | null>(null);
   const total = doc?.numPages ?? 0;
   const go = (d: number) => setCurrent((c) => Math.min(total, Math.max(1, c + d)));
+
+  const jumpTo = (n: number) => {
+    setCurrent(n);
+    setJump({ page: n, t: Date.now() });
+    if (mode === "scroll") rootRef.current?.querySelector(`[data-page="${n}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   useEffect(() => {
     if (mode !== "paged" || !total) return;
@@ -143,7 +151,7 @@ export function PdfViewer({
       )}>
         <div className="flex items-center gap-3">
           <div role="radiogroup" aria-label="Reading mode" className="inline-flex rounded-full border border-border p-0.5">
-            {(["scroll", "paged"] as const).map((m) => (
+            {(["scroll", "paged", "book"] as const).map((m) => (
               <button
                 key={m}
                 type="button"
@@ -155,7 +163,7 @@ export function PdfViewer({
                   mode === m ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {m === "scroll" ? "Scroll" : "Page by page"}
+                {m === "scroll" ? "Scroll" : m === "paged" ? "Page by page" : "Flipbook"}
               </button>
             ))}
           </div>
@@ -164,6 +172,16 @@ export function PdfViewer({
           </span>
         </div>
         <div className="flex items-center gap-0.5">
+          {doc && (
+            <button
+              type="button"
+              onClick={() => setThumbs((v) => !v)}
+              aria-pressed={thumbs}
+              className={cn("mr-1 inline-flex items-center gap-1.5 rounded-full px-3 py-1 hover:text-foreground", thumbs ? "bg-muted text-foreground" : "text-muted-foreground")}
+            >
+              <LayoutGrid className="size-3.5" /> Pages
+            </button>
+          )}
           <ToolBtn label="Zoom out" onClick={() => z(-0.25)} disabled={zoom <= 0.5}>
             <Minus className="size-3.5" />
           </ToolBtn>
@@ -195,6 +213,26 @@ export function PdfViewer({
         </div>
       </div>
 
+      {doc && thumbs && (
+        <nav aria-label="Pages" className={cn("sticky z-[9] flex gap-2 overflow-x-auto border-b border-border bg-background/95 px-3 py-2 backdrop-blur", immersive ? "top-10" : "top-[41px]")}>
+          {sizes.map((s, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => jumpTo(i + 1)}
+              aria-label={`Go to page ${i + 1}`}
+              aria-current={current === i + 1 ? "page" : undefined}
+              className={cn("shrink-0 rounded-md p-0.5 text-xxs text-muted-foreground", current === i + 1 ? "ring-2 ring-primary" : "hover:ring-1 hover:ring-border")}
+            >
+              <div className="pointer-events-none w-16">
+                <PdfPage doc={doc} n={i + 1} size={s} zoom={0} onVisible={noop} eager thumb />
+              </div>
+              <span className="block pt-0.5 tabular-nums">{i + 1}</span>
+            </button>
+          ))}
+        </nav>
+      )}
+
       {error ? (
         <div className="px-6 py-20 text-center text-sm">
           <p className="font-medium text-background">This portfolio couldn’t be displayed</p>
@@ -205,6 +243,8 @@ export function PdfViewer({
           <p>Loading portfolio… {progress}%</p>
           <Progress value={progress} className="mt-3 h-1" />
         </div>
+      ) : mode === "book" ? (
+        <BookView doc={doc} sizes={sizes} zoom={zoom} jump={jump} onPage={setCurrent} controlsHidden={!!immersive && canHover && !controlsVisible} />
       ) : mode === "paged" ? (
         <div className="overflow-x-auto">
           <div
