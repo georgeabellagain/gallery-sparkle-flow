@@ -6,7 +6,7 @@ import { Wordmark } from "./Chrome";
 import { SAMPLE } from "@/lib/portfolia/sample";
 import { registerPublicUrls } from "@/lib/portfolia/assets";
 import type { PublicPortfolio } from "@/lib/portfolia/public.functions";
-import { findPortfolio, recordDownload, recordVisit, useDoc, type Portfolio } from "@/lib/portfolia/store";
+import { DEFAULT_VIEWER, findPortfolio, recordDownload, recordVisit, useDoc, type Portfolio } from "@/lib/portfolia/store";
 
 export function SampleVisitor() {
   return (
@@ -45,6 +45,7 @@ export function OwnVisitor({ p, preview }: { p: Portfolio; preview: boolean }) {
         showCredit={p.plan === "free"}
         onDownload={preview ? undefined : () => recordDownload(p.code)}
         pageStyle={p.plan === "personal" ? p.style : undefined}
+        viewer={p.viewer}
         cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined}
         immersive
       />
@@ -76,4 +77,26 @@ export const LOCAL_MISSING = "Nothing is published at this address. Check the li
 export function CloudVisitor({ data }: { data: NonNullable<PublicPortfolio> }) {
   registerPublicUrls(data.urls);
   return <OwnVisitor p={data.portfolio} preview={false} />;
+}
+
+/** Compact published viewer for embedding on another website. */
+export function EmbeddedVisitor({ data, startPage, mode, background, look }: { data: NonNullable<PublicPortfolio>; startPage?: number; mode?: "scroll" | "paged" | "book"; background?: "black" | "paper" | "soft"; look?: "clean" | "studio" }) {
+  registerPublicUrls(data.urls);
+  const p = data.portfolio;
+  const { pdf } = useStoredMedia(p.pdf?.blobKey);
+  useEffect(() => recordVisit(p.code), [p.code]);
+  return (
+    <PortfolioPage
+      profile={p.profile}
+      pdf={pdf}
+      allowDownload={p.allowDownload}
+      showCredit={false}
+      onDownload={() => recordDownload(p.code)}
+      pageStyle={p.plan === "personal" ? p.style : undefined}
+      viewer={{ ...DEFAULT_VIEWER, ...p.viewer, ...(mode ? { mode } : {}), ...(background ? { background } : {}), ...(look ? { look } : {}), showHeader: false }}
+      startPage={startPage}
+      immersive
+      embed
+    />
+  );
 }

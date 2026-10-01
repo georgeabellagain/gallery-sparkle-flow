@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useHydrated, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Copy, ExternalLink, QrCode } from "lucide-react";
+import { Code2, Copy, ExternalLink, QrCode } from "lucide-react";
 import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE, Modal, useBlob } from "@/components/pf/Chrome";
 import { DropZone } from "@/components/pf/DropZone";
 import { PdfViewer } from "@/components/pf/PdfViewer";
@@ -41,7 +41,7 @@ function Dashboard() {
   const hydrated = useHydrated();
   const navigate = useNavigate();
   const p = doc.portfolio;
-  const [dialog, setDialog] = useState<null | "replace" | "unpublish" | "delete" | "upgrade" | "cancel" | "qr">(null);
+  const [dialog, setDialog] = useState<null | "replace" | "unpublish" | "delete" | "upgrade" | "cancel" | "qr" | "embed">(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const { user, sub, loading, refresh } = useAccount();
@@ -150,6 +150,7 @@ function Dashboard() {
                 <code className="rounded-full border border-border px-3.5 py-1.5 text-xs select-all">{origin.replace(/^https?:\/\//, "")}{sharePath}</code>
                 <Button size="sm" variant="line" onClick={() => void copy()}><Copy /> {copied ? "Copied" : "Copy link"}</Button>
                 <Button size="sm" variant="line" onClick={() => setDialog("qr")}><QrCode /> QR code</Button>
+                {published && <Button size="sm" variant="line" onClick={() => setDialog("embed")}><Code2 /> Embed</Button>}
                 {published ? (
                   personalPath ? <Button size="sm" variant="line" asChild><Link to="/$username" params={{ username: p.username ?? "" }}><ExternalLink /> Open portfolio</Link></Button>
                     : <Button size="sm" variant="line" asChild><Link to="/p/$slug" params={{ slug: p.code }}><ExternalLink /> Open portfolio</Link></Button>
@@ -228,6 +229,7 @@ function Dashboard() {
 
       <ReplaceModal open={dialog === "replace"} onClose={() => setDialog(null)} current={p.pdf} limitMb={pdfLimitMb} />
       <PortfolioQrCode open={dialog === "qr"} onClose={() => setDialog(null)} url={origin + sharePath} name={p.profile.name} />
+      <EmbedModal open={dialog === "embed"} onClose={() => setDialog(null)} url={`${origin}/embed/${p.code}`} title={p.profile.name || "Portfolio"} />
       <UpgradeModal open={dialog === "upgrade"} onClose={() => setDialog(null)} />
       <Modal open={dialog === "unpublish"} onClose={() => setDialog(null)} title="Unpublish portfolio?">
         <p className="text-muted-foreground">Visitors will see “No portfolio here” at your link. Your PDF, details and link are kept, so you can publish again later.</p>
@@ -242,6 +244,34 @@ function Dashboard() {
         <Confirm onCancel={() => setDialog(null)} label="Open billing page" onConfirm={async () => { setDialog(null); const w = window.open("", "_blank"); try { const url = await portal({ data: { environment: getPaddleEnvironment() } }); if (w) w.location.href = url; else window.location.href = url; } catch { w?.close(); setMsg("Couldn’t open the billing page — try again."); } }} />
       </Modal>
     </div>
+  );
+}
+
+function EmbedModal({ open, onClose, url, title }: { open: boolean; onClose: () => void; url: string; title: string }) {
+  const [copied, setCopied] = useState(false);
+  const [page, setPage] = useState(1);
+  const [mode, setMode] = useState<"scroll" | "paged" | "book">("book");
+  const [look, setLook] = useState<"clean" | "studio">("clean");
+  const [background, setBackground] = useState<"black" | "paper" | "soft">("black");
+  const params = new URLSearchParams({ page: String(page), mode, look, background });
+  const embedUrl = `${url}?${params}`;
+  const safeTitle = title.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  const code = `<iframe src="${embedUrl}" title="${safeTitle} portfolio" loading="lazy" allow="fullscreen" style="width:100%;aspect-ratio:16/10;border:0"></iframe><p><a href="${url.replace("/embed/", "/p/")}">View ${safeTitle} portfolio</a></p>`;
+  return (
+    <Modal open={open} onClose={onClose} title="Embed portfolio">
+      <p className="text-muted-foreground">Paste this code into a website that accepts embeds. It always shows the published version.</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <label className="text-xs">Starting page<input type="number" min={1} value={page} onChange={(e) => setPage(Math.max(1, Number(e.target.value) || 1))} className="mt-1 w-full rounded-full border border-input bg-background px-3 py-1.5" /></label>
+        <label className="text-xs">Reading mode<select value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} className="mt-1 w-full rounded-full border border-input bg-background px-3 py-1.5"><option value="scroll">Scroll</option><option value="paged">Page by page</option><option value="book">Flipbook</option></select></label>
+        <label className="text-xs">Look<select value={look} onChange={(e) => setLook(e.target.value as typeof look)} className="mt-1 w-full rounded-full border border-input bg-background px-3 py-1.5"><option value="clean">Clean</option><option value="studio">Studio</option></select></label>
+        <label className="text-xs">Background<select value={background} onChange={(e) => setBackground(e.target.value as typeof background)} className="mt-1 w-full rounded-full border border-input bg-background px-3 py-1.5"><option value="black">Black</option><option value="paper">Paper</option><option value="soft">Soft grey</option></select></label>
+      </div>
+      <div className="mt-4 overflow-hidden rounded-xl border border-border bg-muted">
+        <iframe key={embedUrl} src={embedUrl} title={`${title} embed preview`} className="aspect-[16/10] w-full border-0" />
+      </div>
+      <textarea readOnly value={code} aria-label="Portfolio embed code" rows={5} className="mt-4 w-full resize-none rounded-xl border border-border bg-muted p-3 font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
+      <div className="mt-4 flex justify-end gap-2"><Button variant="line" onClick={onClose}>Close</Button><Button onClick={async () => { await navigator.clipboard.writeText(code); setCopied(true); }}>{copied ? "Copied" : "Copy embed code"}</Button></div>
+    </Modal>
   );
 }
 

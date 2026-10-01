@@ -49,7 +49,12 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const normalized = await normalizeCatastrophicSsrResponse(response);
+      if (!new URL(request.url).pathname.startsWith("/embed/")) return normalized;
+      const headers = new Headers(normalized.headers);
+      headers.set("Content-Security-Policy", "frame-ancestors *");
+      headers.set("X-Robots-Tag", "noindex, nofollow");
+      return new Response(normalized.body, { status: normalized.status, statusText: normalized.statusText, headers });
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {

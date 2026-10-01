@@ -5,6 +5,8 @@ import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { CurvedPage, type TurnerHandle } from "@/components/pf/CurvedPage";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 
 type Source = { blob: Blob } | { url: string };
 
@@ -20,6 +22,8 @@ export function PdfViewer({
   compact,
   immersive,
   backdrop,
+  viewer,
+  startPage = 1,
 }: {
   source: Source | null;
   fileName: string;
@@ -28,7 +32,10 @@ export function PdfViewer({
   compact?: boolean;
   immersive?: boolean;
   backdrop?: string;
+  viewer?: ViewerSettings;
+  startPage?: number;
 }) {
+  const view = { ...DEFAULT_VIEWER, ...viewer };
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
   const [progress, setProgress] = useState(0);
@@ -119,7 +126,7 @@ export function PdfViewer({
     return () => query.removeEventListener("change", sync);
   }, [immersive]);
 
-  const [mode, setMode] = useState<"scroll" | "paged" | "book">("scroll");
+  const [mode, setMode] = useState<"scroll" | "paged" | "book">(view.mode);
   const [thumbs, setThumbs] = useState(false);
   const [jump, setJump] = useState<{ page: number; t: number } | null>(null);
   const total = doc?.numPages ?? 0;
@@ -130,6 +137,14 @@ export function PdfViewer({
     setJump({ page: n, t: Date.now() });
     if (mode === "scroll") rootRef.current?.querySelector(`[data-page="${n}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  useEffect(() => setMode(view.mode), [view.mode]);
+  useEffect(() => {
+    if (!total) return;
+    const page = Math.min(total, Math.max(1, startPage));
+    setCurrent(page);
+    setJump({ page, t: Date.now() });
+  }, [startPage, total]);
 
   useEffect(() => {
     if (mode !== "paged" || !total) return;
@@ -144,10 +159,10 @@ export function PdfViewer({
   }, [mode, total]);
 
   return (
-    <div ref={rootRef} onPointerMove={(e) => revealControls(e.pointerType)} style={backdrop ? { background: backdrop } : undefined} className={cn("relative bg-foreground", immersive && "min-h-[calc(100vh-5rem)]", full && "overflow-auto")}>
+    <div ref={rootRef} onPointerMove={(e) => revealControls(e.pointerType)} style={backdrop ? { background: backdrop } : undefined} className={cn("relative bg-foreground", !backdrop && view.background === "paper" && "bg-background", !backdrop && view.background === "soft" && "bg-muted", immersive && "min-h-[calc(100vh-5rem)]", full && "overflow-auto")}>
       <div className={cn(
-        "sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-1.5 text-xs backdrop-blur transition-opacity duration-200",
-        immersive && "-mb-10 opacity-100 focus-within:opacity-100",
+        "sticky top-0 z-50 isolate flex items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-1.5 text-xs backdrop-blur transition-opacity duration-200",
+        immersive && "opacity-100 focus-within:opacity-100",
         immersive && canHover && !controlsVisible && "pointer-events-none opacity-0",
       )}>
         <div className="flex items-center gap-3">
@@ -215,7 +230,7 @@ export function PdfViewer({
       </div>
 
       {doc && thumbs && (
-        <nav aria-label="Pages" className={cn("sticky z-[9] flex gap-2 overflow-x-auto border-b border-border bg-background/95 px-3 py-2 backdrop-blur", immersive ? "top-10" : "top-[41px]")}>
+        <nav aria-label="Pages" className={cn("sticky z-40 isolate flex gap-2 overflow-x-auto border-b border-border bg-background/95 px-3 py-2 backdrop-blur", immersive ? "top-10" : "top-[41px]")}>
           {sizes.map((s, i) => (
             <button
               key={i}
@@ -245,7 +260,7 @@ export function PdfViewer({
           <Progress value={progress} className="mt-3 h-1" />
         </div>
       ) : mode === "book" ? (
-        <BookView doc={doc} sizes={sizes} zoom={zoom} jump={jump} onPage={setCurrent} controlsHidden={!!immersive && canHover && !controlsVisible} />
+        <BookView doc={doc} sizes={sizes} zoom={zoom} jump={jump} onPage={setCurrent} controlsHidden={!!immersive && canHover && !controlsVisible} viewer={view} />
       ) : mode === "paged" ? (
         <div className="overflow-x-auto">
           <div
@@ -284,7 +299,7 @@ export function PdfViewer({
 
 const noop = () => {};
 
-/** Two-page spread flipbook with a continuous curved page turn. */
+/** Responsive flipbook: desktop spreads and single-page mobile turns. */
 function BookView({
   doc,
   sizes,
@@ -292,6 +307,7 @@ function BookView({
   jump,
   onPage,
   controlsHidden,
+  viewer,
 }: {
   doc: PDFDocumentProxy;
   sizes: { w: number; h: number }[];
@@ -299,8 +315,9 @@ function BookView({
   jump: { page: number; t: number } | null;
   onPage: (n: number) => void;
   controlsHidden: boolean;
+  viewer: ViewerSettings;
 }) {
-  const narrow = false; // Flipbook always shows two-page spreads
+  const narrow = useIsMobile() || viewer.spreads === "ready";
   const spreads = useMemo(() => {
     const n = sizes.length;
     if (narrow) return Array.from({ length: n }, (_, i) => [i + 1]);
@@ -368,7 +385,7 @@ function BookView({
       return;
     }
     const to = safeIdx + d;
-    if (startTurn(d)) turner.current!.release(true, endTurn(to));
+    if (startTurn(d)) turner.current?.release(true, endTurn(to));
   };
   const flipRef = useRef(flip);
   flipRef.current = flip;
@@ -425,6 +442,8 @@ function BookView({
   const atEnd = safeIdx === spreads.length - 1;
   const label = spread.length === 2 ? `Pages ${spread[0]}–${spread[1]} of ${sizes.length}` : `Page ${spread[0]} of ${sizes.length}`;
   const stationarySlot = turn && !narrow ? (turn.dir > 0 ? 0 : 1) : null;
+  const standalone = slots.filter(Boolean).length === 1;
+  const studio = viewer.look === "studio";
 
   return (
     <div className={zoom > 1 ? "relative z-0 isolate overflow-x-auto" : "relative z-0 isolate overflow-visible"}>
@@ -434,8 +453,8 @@ function BookView({
         ))}
       </div>
       <div
-        className="mx-auto px-3 py-6 sm:px-8"
-        style={{ width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? 1400 : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
+        className="mx-auto px-4 pb-8 pt-10 sm:px-10 sm:pt-12"
+        style={{ width: `${zoom * 94}%`, maxWidth: zoom <= 1 ? 1240 : undefined, minWidth: zoom > 1 ? `${zoom * 94}%` : undefined }}
         onTouchStart={(e) => (touchX.current = e.touches.length === 1 && zoom <= 1 ? e.touches[0]?.clientX ?? null : null)}
         onTouchMove={(e) => e.touches.length > 1 && (touchX.current = null)}
         onTouchEnd={(e) => {
@@ -447,40 +466,49 @@ function BookView({
           flip(end < x ? 1 : -1);
         }}
       >
-        <div
-          ref={stage}
-          className={cn("pf-book-stage relative grid", narrow ? "grid-cols-1" : "grid-cols-2")}
-          style={{ aspectRatio: narrow ? `${ref.w} / ${ref.h}` : `${ref.w * 2} / ${ref.h}` }}
-          aria-label={label}
-        >
-          {slots.map((n, i) => (
-            <div key={`base-${i}`} className="relative min-w-0 overflow-hidden bg-foreground">
-              {n && <PdfPage doc={doc} n={n} size={sizes[n - 1] ?? ref} zoom={zoom} onVisible={noop} eager />}
-              {!narrow && n && <div aria-hidden className={cn("pointer-events-none absolute inset-y-0 w-px bg-foreground/20", i === 0 ? "right-0" : "left-0")} />}
-            </div>
-          ))}
-          {turn && stationarySlot !== null && (
-            <div
-              aria-hidden
-              className="absolute inset-y-0 z-[2] overflow-hidden bg-foreground"
-              style={{ left: stationarySlot === 0 ? 0 : "50%", width: "50%" }}
-            >
-              {sourceSlots[stationarySlot] && (
-                <PdfPage doc={doc} n={sourceSlots[stationarySlot] ?? 1} size={sizes[(sourceSlots[stationarySlot] ?? 1) - 1] ?? ref} zoom={zoom} onVisible={noop} eager />
-              )}
-            </div>
-          )}
-          <CurvedPage ref={turner} ratio={ref.h / ref.w} />
-          {!atEnd && (
-            <button type="button" onClick={() => flip(1)} onPointerDown={cornerDown(1)} onPointerMove={cornerMove} onPointerUp={cornerUp} onPointerCancel={cornerUp} aria-label="Turn to next page" title="Next page — click or drag" className="group absolute bottom-0 right-0 z-[4] size-16 touch-none overflow-hidden">
-              <span className="absolute bottom-0 right-0 size-7 bg-muted shadow-md [clip-path:polygon(100%_0,0_100%,0_0)] transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
-            </button>
-          )}
-          {!atStart && (
-            <button type="button" onClick={() => flip(-1)} onPointerDown={cornerDown(-1)} onPointerMove={cornerMove} onPointerUp={cornerUp} onPointerCancel={cornerUp} aria-label="Turn to previous page" title="Previous page — click or drag" className="group absolute bottom-0 left-0 z-[4] size-16 touch-none overflow-hidden">
-              <span className="absolute bottom-0 left-0 size-7 bg-muted shadow-md [clip-path:polygon(0_0,100%_0,100%_100%)] transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
-            </button>
-          )}
+        <div className="relative" style={{ aspectRatio: narrow ? `${ref.w} / ${ref.h}` : `${ref.w * 2} / ${ref.h}` }} aria-label={label}>
+          <div
+            ref={stage}
+            className={cn(
+              "pf-book-stage absolute inset-y-0 grid transition-[left,width] duration-300 ease-out",
+              narrow ? "left-0 w-full grid-cols-1" : standalone ? "left-1/4 w-1/2 grid-cols-1" : "left-0 w-full grid-cols-2",
+              studio && "pf-book-studio",
+              studio && `pf-book-shadow-${viewer.shadow}`,
+              studio && `pf-book-thickness-${viewer.thickness}`,
+              studio && `pf-book-finish-${viewer.finish}`,
+              studio && `pf-book-paper-${viewer.paper}`,
+              studio && `pf-book-light-${viewer.light}`,
+            )}
+          >
+            {slots.filter((n) => narrow ? Boolean(n) : true).map((n, i) => (
+              <div key={`base-${i}`} className="relative min-w-0 overflow-hidden bg-foreground">
+                {n && <PdfPage doc={doc} n={n} size={sizes[n - 1] ?? ref} zoom={zoom} onVisible={noop} eager />}
+                {!narrow && !standalone && n && <div aria-hidden className={cn("pointer-events-none absolute inset-y-0 w-px bg-foreground/20", i === 0 ? "right-0" : "left-0")} />}
+              </div>
+            ))}
+            {turn && stationarySlot !== null && !standalone && (
+              <div
+                aria-hidden
+                className="absolute inset-y-0 z-[2] overflow-hidden bg-foreground"
+                style={{ left: stationarySlot === 0 ? 0 : "50%", width: "50%" }}
+              >
+                {sourceSlots[stationarySlot] && (
+                  <PdfPage doc={doc} n={sourceSlots[stationarySlot] ?? 1} size={sizes[(sourceSlots[stationarySlot] ?? 1) - 1] ?? ref} zoom={zoom} onVisible={noop} eager />
+                )}
+              </div>
+            )}
+            <CurvedPage ref={turner} ratio={ref.h / ref.w} />
+            {!atEnd && (
+              <button type="button" onClick={() => flip(1)} onPointerDown={cornerDown(1)} onPointerMove={cornerMove} onPointerUp={cornerUp} onPointerCancel={cornerUp} aria-label="Turn to next page" title="Next page — click or drag" className="group absolute bottom-0 right-0 z-[4] size-16 touch-none overflow-hidden">
+                <span className="absolute bottom-0 right-0 size-7 bg-muted shadow-md [clip-path:polygon(100%_0,0_100%,0_0)] transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
+              </button>
+            )}
+            {!atStart && (
+              <button type="button" onClick={() => flip(-1)} onPointerDown={cornerDown(-1)} onPointerMove={cornerMove} onPointerUp={cornerUp} onPointerCancel={cornerUp} aria-label="Turn to previous page" title="Previous page — click or drag" className="group absolute bottom-0 left-0 z-[4] size-16 touch-none overflow-hidden">
+                <span className="absolute bottom-0 left-0 size-7 bg-muted shadow-md [clip-path:polygon(0_0,100%_0,100%_100%)] transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
       <div className={cn("flex items-center justify-center gap-3 pb-6 text-xs transition-opacity duration-200", controlsHidden && "pointer-events-none opacity-0")}>

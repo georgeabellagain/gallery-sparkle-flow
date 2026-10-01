@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Minus, Palette, Plus, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { deleteBlob, putBlob, uid } from "@/lib/portfolia/assets";
-import { DEFAULT_STYLE, FONT_OPTIONS, patchPortfolio, type PageStyle, type Portfolio } from "@/lib/portfolia/store";
+import { DEFAULT_STYLE, DEFAULT_VIEWER, FONT_OPTIONS, patchPortfolio, type PageStyle, type Portfolio, type ViewerSettings } from "@/lib/portfolia/store";
 
 /** Paid-plan page styling: heading font, colours and an optional banner. */
 export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg: string | null) => void }) {
@@ -13,6 +13,9 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
   const [cropFile, setCropFile] = useState<File | null>(null);
   const set = (patch: Partial<PageStyle>) =>
     onSaveError(patchPortfolio({ style: { ...style, ...patch } }) ? null : "Couldn’t save that style change.");
+  const viewer = { ...DEFAULT_VIEWER, ...p.viewer };
+  const setViewer = (patch: Partial<ViewerSettings>) =>
+    onSaveError(patchPortfolio({ viewer: { ...viewer, ...patch } }) ? null : "Couldn’t save that viewer change.");
 
   const onBanner = (f?: File) => {
     setErr(null);
@@ -66,8 +69,34 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
         </div>
       )}
       {cropFile && <BannerCropper file={cropFile} onCancel={() => setCropFile(null)} onSave={saveBanner} />}
+      <div className="mt-5 rule-t pt-4">
+        <p className="text-xs font-medium">Portfolio experience</p>
+        <div className="mt-3 space-y-3 text-xs">
+          <SettingSelect label="Default reading mode" value={viewer.mode} onChange={(value) => setViewer({ mode: value as ViewerSettings["mode"] })} options={[["scroll", "Scroll"], ["paged", "Page by page"], ["book", "Flipbook"]]} />
+          <SettingSelect label="My PDF contains" value={viewer.spreads} onChange={(value) => setViewer({ spreads: value as ViewerSettings["spreads"] })} options={[["single", "Single pages"], ["ready", "Ready-made spreads"]]} />
+          <SettingSelect label="Look" value={viewer.look} onChange={(value) => setViewer({ look: value as ViewerSettings["look"] })} options={[["clean", "Clean"], ["studio", "Studio"]]} />
+          <SettingSelect label="Viewer background" value={viewer.background} onChange={(value) => setViewer({ background: value as ViewerSettings["background"] })} options={[["black", "Black"], ["paper", "Paper"], ["soft", "Soft grey"]]} />
+          <label className="flex items-center justify-between gap-3"><span>Show profile header</span><input type="checkbox" checked={viewer.showHeader} onChange={(e) => setViewer({ showHeader: e.target.checked })} /></label>
+          {viewer.look === "studio" && (
+            <details className="rounded-lg border border-border p-3">
+              <summary className="cursor-pointer font-medium">Advanced Studio details</summary>
+              <div className="mt-3 space-y-3">
+                <SettingSelect label="Cover finish" value={viewer.finish} onChange={(value) => setViewer({ finish: value as ViewerSettings["finish"] })} options={[["matte", "Matte"], ["satin", "Satin"], ["textured", "Textured"]]} />
+                <SettingSelect label="Paper" value={viewer.paper} onChange={(value) => setViewer({ paper: value as ViewerSettings["paper"] })} options={[["smooth", "Smooth"], ["natural", "Natural"]]} />
+                <SettingSelect label="Lighting" value={viewer.light} onChange={(value) => setViewer({ light: value as ViewerSettings["light"] })} options={[["soft", "Soft"], ["bright", "Bright"]]} />
+                <SettingSelect label="Shadow" value={viewer.shadow} onChange={(value) => setViewer({ shadow: value as ViewerSettings["shadow"] })} options={[["none", "None"], ["subtle", "Subtle"], ["grounded", "Grounded"]]} />
+                <SettingSelect label="Page thickness" value={viewer.thickness} onChange={(value) => setViewer({ thickness: value as ViewerSettings["thickness"] })} options={[["thin", "Thin"], ["medium", "Medium"], ["thick", "Thick"]]} />
+              </div>
+            </details>
+          )}
+        </div>
+      </div>
     </div>
   );
+}
+
+function SettingSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: readonly (readonly [string, string])[] }) {
+  return <label className="flex items-center justify-between gap-3"><span>{label}</span><select value={value} onChange={(e) => onChange(e.target.value)} className="max-w-44 rounded-full border border-input bg-background px-3 py-1.5">{options.map(([v, text]) => <option key={v} value={v}>{text}</option>)}</select></label>;
 }
 
 const CROP_WIDTH = 320;

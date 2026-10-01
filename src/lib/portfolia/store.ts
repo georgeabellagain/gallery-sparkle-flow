@@ -27,6 +27,32 @@ export interface PageStyle {
   bannerKey?: string;
 }
 
+export interface ViewerSettings {
+  mode: "scroll" | "paged" | "book";
+  look: "clean" | "studio";
+  background: "black" | "paper" | "soft";
+  finish: "matte" | "satin" | "textured";
+  paper: "smooth" | "natural";
+  light: "soft" | "bright";
+  shadow: "none" | "subtle" | "grounded";
+  thickness: "thin" | "medium" | "thick";
+  spreads: "single" | "ready";
+  showHeader: boolean;
+}
+
+export const DEFAULT_VIEWER: ViewerSettings = {
+  mode: "scroll",
+  look: "clean",
+  background: "black",
+  finish: "matte",
+  paper: "smooth",
+  light: "soft",
+  shadow: "subtle",
+  thickness: "thin",
+  spreads: "single",
+  showHeader: true,
+};
+
 export const FONT_OPTIONS = [
   { label: "Instrument Serif", css: '"Instrument Serif", Georgia, serif' },
   { label: "Libre Baskerville", css: '"Libre Baskerville", Georgia, serif' },
@@ -78,6 +104,7 @@ export interface Portfolio {
   publishedAt?: number;
   domains?: Domain[];
   style?: PageStyle;
+  viewer?: ViewerSettings;
   /** Stored in the signed-in account. */
   synced?: boolean;
 }

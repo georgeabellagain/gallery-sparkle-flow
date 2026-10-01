@@ -77,7 +77,7 @@ function Create() {
         <section aria-label="Preview" className="bg-muted/50 p-3 sm:p-6">
           <p className="label-xs mb-2">Preview</p>
           <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
-            <PortfolioPage profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} showCredit={p.plan === "free"} pageStyle={p.plan === "personal" ? p.style : undefined} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />
+            <PortfolioPage profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} showCredit={p.plan === "free"} pageStyle={p.plan === "personal" ? p.style : undefined} viewer={p.viewer} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />
           </div>
         </section>
       </div>

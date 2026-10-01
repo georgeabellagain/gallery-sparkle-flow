@@ -45,6 +45,8 @@ export const CurvedPage = forwardRef<TurnerHandle, { ratio: number }>(function C
       return;
     }
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.NoToneMapping;
     renderer.setClearColor(0x000000, 0);
     renderer.domElement.style.cssText = "width:100%;height:100%;display:block;pointer-events:none";
     host.appendChild(renderer.domElement);
@@ -90,14 +92,18 @@ export const CurvedPage = forwardRef<TurnerHandle, { ratio: number }>(function C
     blank.needsUpdate = true;
     const material = new THREE.ShaderMaterial({
       side: THREE.DoubleSide,
-      uniforms: { frontPage: { value: blank }, backPage: { value: blank }, direction: { value: 1 } },
-      vertexShader: "varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+      toneMapped: false,
+      uniforms: { frontPage: { value: blank }, backPage: { value: blank }, direction: { value: 1 }, turnProgress: { value: 0 } },
+      vertexShader: "varying vec2 vUv; varying float vFold; uniform float turnProgress; void main() { vUv = uv; vFold = sin(3.14159265 * uv.x) * sin(3.14159265 * turnProgress); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
       fragmentShader: `uniform sampler2D frontPage; uniform sampler2D backPage; uniform float direction;
-        varying vec2 vUv;
+        varying vec2 vUv; varying float vFold;
         void main() {
           vec2 frontUv = vec2(direction > 0.0 ? vUv.x : 1.0 - vUv.x, vUv.y);
           vec2 backUv = vec2(direction > 0.0 ? 1.0 - vUv.x : vUv.x, vUv.y);
-          gl_FragColor = gl_FrontFacing ? texture2D(frontPage, frontUv) : texture2D(backPage, backUv);
+          vec4 page = gl_FrontFacing ? texture2D(frontPage, frontUv) : texture2D(backPage, backUv);
+          page.rgb *= 1.0 - 0.045 * vFold;
+          gl_FragColor = page;
+          #include <colorspace_fragment>
         }`,
     });
     const mesh = new THREE.Mesh(geometry, material);
@@ -118,9 +124,9 @@ export const CurvedPage = forwardRef<TurnerHandle, { ratio: number }>(function C
       for (let i = 0; i <= SEGMENTS; i++) {
         if (i) {
           const u = (i - .5) / SEGMENTS;
-          const angle = Math.PI * p - Math.sin(Math.PI * p) * .42 * u;
+          const angle = Math.PI * p - Math.sin(Math.PI * p) * .72 * u;
           x += dir * Math.cos(angle) / SEGMENTS;
-          z += 1.6 * Math.sin(angle) / SEGMENTS;
+          z += 1.9 * Math.sin(angle) / SEGMENTS;
         }
         const o = i * 6;
         positions[o] = x;
@@ -131,6 +137,7 @@ export const CurvedPage = forwardRef<TurnerHandle, { ratio: number }>(function C
         positions[o + 5] = z;
       }
       positionAttribute.needsUpdate = true;
+      material.uniforms["turnProgress"]!.value = p;
       renderer.render(scene, camera);
     };
     const texture = (c: HTMLCanvasElement) => {

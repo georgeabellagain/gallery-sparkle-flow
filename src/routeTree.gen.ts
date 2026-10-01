@@ -33,6 +33,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as StudentPortfolioRouteImport } from './routes/student-portfolio'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as UxDesignPortfolioRouteImport } from './routes/ux-design-portfolio'
+import { Route as EmbedCodeRouteImport } from './routes/embed.$code'
 import { Route as PSlugRouteImport } from './routes/p.$slug'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
@@ -158,6 +159,11 @@ const UxDesignPortfolioRoute = UxDesignPortfolioRouteImport.update({
   path: '/ux-design-portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EmbedCodeRoute = EmbedCodeRouteImport.update({
+  id: '/embed/$code',
+  path: '/embed/$code',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PSlugRoute = PSlugRouteImport.update({
   id: '/p/$slug',
   path: '/p/$slug',
@@ -200,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/student-portfolio': typeof StudentPortfolioRoute
   '/terms': typeof TermsRoute
   '/ux-design-portfolio': typeof UxDesignPortfolioRoute
+  '/embed/$code': typeof EmbedCodeRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -229,6 +236,7 @@ export interface FileRoutesByTo {
   '/student-portfolio': typeof StudentPortfolioRoute
   '/terms': typeof TermsRoute
   '/ux-design-portfolio': typeof UxDesignPortfolioRoute
+  '/embed/$code': typeof EmbedCodeRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -259,6 +267,7 @@ export interface FileRoutesById {
   '/student-portfolio': typeof StudentPortfolioRoute
   '/terms': typeof TermsRoute
   '/ux-design-portfolio': typeof UxDesignPortfolioRoute
+  '/embed/$code': typeof EmbedCodeRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -290,6 +299,7 @@ export interface FileRouteTypes {
     | '/student-portfolio'
     | '/terms'
     | '/ux-design-portfolio'
+    | '/embed/$code'
     | '/p/$slug'
     | '/u/$username'
     | '/api/public/payments/webhook'
@@ -319,6 +329,7 @@ export interface FileRouteTypes {
     | '/student-portfolio'
     | '/terms'
     | '/ux-design-portfolio'
+    | '/embed/$code'
     | '/p/$slug'
     | '/u/$username'
     | '/api/public/payments/webhook'
@@ -348,6 +359,7 @@ export interface FileRouteTypes {
     | '/student-portfolio'
     | '/terms'
     | '/ux-design-portfolio'
+    | '/embed/$code'
     | '/p/$slug'
     | '/u/$username'
     | '/api/public/payments/webhook'
@@ -378,6 +390,7 @@ export interface RootRouteChildren {
   StudentPortfolioRoute: typeof StudentPortfolioRoute
   TermsRoute: typeof TermsRoute
   UxDesignPortfolioRoute: typeof UxDesignPortfolioRoute
+  EmbedCodeRoute: typeof EmbedCodeRoute
   PSlugRoute: typeof PSlugRoute
   UUsernameRoute: typeof UUsernameRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
@@ -553,6 +566,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UxDesignPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/embed/$code': {
+      id: '/embed/$code'
+      path: '/embed/$code'
+      fullPath: '/embed/$code'
+      preLoaderRoute: typeof EmbedCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/p/$slug': {
       id: '/p/$slug'
       path: '/p/$slug'
@@ -602,6 +622,7 @@ const rootRouteChildren: RootRouteChildren = {
   StudentPortfolioRoute: StudentPortfolioRoute,
   TermsRoute: TermsRoute,
   UxDesignPortfolioRoute: UxDesignPortfolioRoute,
+  EmbedCodeRoute: EmbedCodeRoute,
   PSlugRoute: PSlugRoute,
   UUsernameRoute: UUsernameRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
