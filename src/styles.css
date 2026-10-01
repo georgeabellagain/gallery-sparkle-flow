@@ -428,22 +428,86 @@
   88%, 100% { transform: translateX(0); }
 }
 @keyframes hero-book-cover {
-  0%, 20% { transform: rotateY(0); }
-  27%, 73% { transform: rotateY(-178deg); }
-  80%, 100% { transform: rotateY(0); }
+  0%, 20% { transform: rotateY(0); z-index: 6; }
+  27%, 73% { transform: rotateY(-178deg); z-index: 1; }
+  80%, 100% { transform: rotateY(0); z-index: 6; }
 }
 @keyframes hero-book-leaf-1 {
-  0%, 31% { transform: rotateY(0); }
-  36%, 64% { transform: rotateY(-178deg); }
-  69%, 100% { transform: rotateY(0); }
+  0%, 31% { transform: rotateY(0); z-index: 5; }
+  36%, 64% { transform: rotateY(-178deg); z-index: 2; }
+  69%, 100% { transform: rotateY(0); z-index: 5; }
 }
 @keyframes hero-book-leaf-2 {
-  0%, 39% { transform: rotateY(0); }
-  44%, 56% { transform: rotateY(-178deg); }
-  61%, 100% { transform: rotateY(0); }
+  0%, 39% { transform: rotateY(0); z-index: 4; }
+  44%, 56% { transform: rotateY(-178deg); z-index: 3; }
+  61%, 100% { transform: rotateY(0); z-index: 4; }
 }
 @keyframes hero-book-leaf-3 {
-  0%, 47% { transform: rotateY(0); }
-  51%, 53% { transform: rotateY(-178deg); }
-  57%, 100% { transform: rotateY(0); }
+  0%, 47% { transform: rotateY(0); z-index: 3; }
+  51%, 53% { transform: rotateY(-178deg); z-index: 4; }
+  57%, 100% { transform: rotateY(0); z-index: 3; }
 }
+
+/* Reading controls stay legible over every photographic surface. */
+.pf-book-reader { color: #252b28; background: #efeeea; }
+.pf-book-reader[data-look="simple"] { background: #e8e7e3; }
+.pf-book-options { position: relative; z-index: 2; display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; padding: .85rem 1.25rem; background: #fbfaf6; border-bottom: 1px solid #deded7; }
+.pf-book-switch { display: inline-flex; padding: 3px; border: 1px solid #cfcfc7; border-radius: 999px; }
+.pf-book-switch button { padding: .35rem 1rem; border-radius: 999px; font-size: .75rem; }
+.pf-book-switch button[aria-pressed="true"] { background: #2e3b33; color: white; }
+.pf-studio-controls { display: flex; flex: 1; align-items: center; gap: .8rem 1.25rem; flex-wrap: wrap; }
+.pf-studio-controls label { display: flex; align-items: center; gap: .5rem; font-size: .7rem; color: #50564f; }
+.pf-studio-controls select { padding: .4rem .5rem; border: 1px solid #d8dad1; border-radius: .4rem; background: white; color: #252b28; font-size: .75rem; }
+.pf-studio-controls input { width: 80px; accent-color: #45634c; }
+.pf-backdrops { display: flex; flex-wrap: wrap; gap: .5rem; padding: .65rem 1.25rem; background: #fbfaf6; }
+.pf-backdrops button { display: flex; gap: .4rem; align-items: center; padding: .25rem .6rem .25rem .25rem; border: 1px solid transparent; border-radius: 7px; font-size: .7rem; }
+.pf-backdrops button[aria-pressed="true"] { border-color: #687963; background: #eef0e9; }
+.pf-backdrops span { display: block; width: 32px; height: 25px; border-radius: 4px; background-color: #d8d4ca; background-size: cover; }
+.pf-book-viewport { position: relative; width: 100%; height: clamp(340px, 66vh, 820px); background-size: cover; background-position: center; overflow: hidden; touch-action: pan-y pinch-zoom; isolation: isolate; }
+.pf-book-canvas { position: absolute; inset: 0; }
+.pf-book-canvas canvas { width: 100%; height: 100%; display: block; }
+.pf-book-navigation { display: flex; justify-content: center; align-items: center; gap: 1rem; padding: 1rem .65rem; background: #fbfaf6; font-size: .75rem; }
+.pf-book-navigation button { display: inline-flex; align-items: center; gap: .4rem; padding: .5rem .8rem; border-radius: 999px; border: 1px solid #d6d9cf; background: white; }
+.pf-book-navigation button:disabled { opacity: .35; }
+.pf-book-navigation span { min-width: 8rem; text-align: center; font-variant-numeric: tabular-nums; }
+.pf-book-navigation-quiet { opacity: .7; }
+.pf-book-navigation-quiet:focus-within, .pf-book-navigation-quiet:hover { opacity: 1; }
+.pf-book-hint { font-size: .7rem; text-align: center; padding: 0 1rem 1rem; background: #fbfaf6; color: #656b62; }
+.pf-book-status { position: absolute; left: 50%; bottom: 1rem; transform: translateX(-50%); border-radius: .5rem; padding: .6rem 1rem; font-size: .75rem; background: #fbfaf6ed; box-shadow: 0 2px 12px #0001; text-align: center; }
+.pf-book-fallback { position: absolute; inset: 1rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; }
+.pf-book-fallback canvas { max-height: 90%; max-width: 95%; object-fit: contain; box-shadow: 0 5px 18px #0002; }
+.pf-book-fallback p { font-size: .7rem; background: #fff; padding: .4rem; }
+/* Generous invisible targets; the folded cue itself only appears on approach. */
+.pf-corner-zone { position: absolute; bottom: 14%; width: 15%; height: 30%; perspective: 400px; }
+.pf-corner-left { left: 8%; }
+.pf-corner-right { right: 8%; }
+.pf-corner-fold { position: absolute; bottom: 0; width: 42px; height: 42px; background: linear-gradient(135deg, #fff, #d5d5ce); filter: drop-shadow(0 3px 3px #0003); opacity: 0; transition: transform 110ms ease-in, opacity 100ms ease-in; }
+.pf-corner-right .pf-corner-fold { right: 0; clip-path: polygon(100% 0, 100% 100%, 0 100%); transform-origin: bottom right; transform: rotate3d(1,-1,0,100deg) scale(.3); }
+.pf-corner-left .pf-corner-fold { left: 0; clip-path: polygon(0 0, 100% 100%, 0 100%); transform-origin: bottom left; transform: rotate3d(1,1,0,100deg) scale(.3); }
+.pf-corner-zone[data-revealed="true"] .pf-corner-fold { opacity: 1; transform: rotate3d(1,1,0,0deg) scale(1); transition-duration: 220ms; transition-timing-function: ease-out; }
+.pf-corner-zone:disabled { pointer-events: none; }
+.pf-book-reader button:focus-visible, .pf-studio-controls select:focus-visible, .pf-studio-controls input:focus-visible { outline: 2px solid #466c45; outline-offset: 3px; }
+@media (max-width: 719px) {
+  .pf-book-viewport { height: clamp(350px, 66svh, 740px); }
+  .pf-book-options { padding: .7rem; gap: .65rem; }
+  .pf-studio-controls { gap: .5rem; }
+  .pf-studio-controls label { font-size: .65rem; }
+  .pf-backdrops { padding: .5rem .7rem; gap: .2rem; }
+  .pf-book-navigation { gap: .5rem; }
+}
+@media (hover: none) { .pf-corner-zone { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .pf-corner-fold { transition: none !important; }
+  .pf-hero-book, .pf-hero-book-page-turn { animation: none !important; }
+  .pf-hero-book-cover { transform: rotateY(-178deg); }
+}
+/* Two-sided leaves are essential: hiding the whole leaf hid the left page. */
+.pf-hero-book-page { backface-visibility: visible; border: 0; background: transparent; }
+.pf-hero-book-page-turn { padding: 0; display: block; box-shadow: none; }
+.pf-hero-face { position: absolute; inset: 0; display: flex; flex-direction: column; gap: .7rem; padding: 1.4rem; border: 1px solid var(--color-border); border-radius: 2px; background: var(--color-background); backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 3px 10px #0000000a; }
+.pf-hero-face-reverse { transform: rotateY(180deg); }
+.pf-hero-face-reverse .pf-hero-book-image { background: linear-gradient(145deg, #e6e8df 48%, #cbd0c2 49%, #f1f1eb 75%); }
+/* Anchor cues to the projected corners so they follow book framing and zoom. */
+.pf-corner-zone { bottom: auto; width: 20%; height: 32%; transform: translate(-50%, -50%); }
+.pf-corner-right .pf-corner-fold { right: 50%; bottom: 50%; }
+.pf-corner-left .pf-corner-fold { left: 50%; bottom: 50%; }

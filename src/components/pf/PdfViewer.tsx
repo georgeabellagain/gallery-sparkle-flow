@@ -1,11 +1,10 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Download, LayoutGrid, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { CurvedPage, type TurnerHandle } from "@/components/pf/CurvedPage";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { BookView } from "@/components/pf/BookView";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 
 type Source = { blob: Blob } | { url: string };
@@ -35,7 +34,7 @@ export function PdfViewer({
   viewer?: ViewerSettings;
   startPage?: number;
 }) {
-  const view = { ...DEFAULT_VIEWER, ...viewer, look: "clean" as const };
+  const view = { ...DEFAULT_VIEWER, ...viewer };
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
   const [progress, setProgress] = useState(0);
@@ -299,272 +298,6 @@ export function PdfViewer({
 
 const noop = () => {};
 
-/** Responsive flipbook: desktop spreads and single-page mobile turns. */
-function BookView({
-  doc,
-  sizes,
-  zoom,
-  jump,
-  onPage,
-  controlsHidden,
-  viewer,
-}: {
-  doc: PDFDocumentProxy;
-  sizes: { w: number; h: number }[];
-  zoom: number;
-  jump: { page: number; t: number } | null;
-  onPage: (n: number) => void;
-  controlsHidden: boolean;
-  viewer: ViewerSettings;
-}) {
-  const mobile = useIsMobile();
-  const readySpread = !mobile && viewer.spreads === "ready";
-  // Ready-made spreads remain one intact PDF page. PDFs made from single
-  // pages become a true two-page book on desktop and one page on phones.
-  const narrow = mobile || viewer.spreads === "ready";
-  const spreads = useMemo(() => {
-    const n = sizes.length;
-    if (narrow) return Array.from({ length: n }, (_, i) => [i + 1]);
-    const out: number[][] = [[1]];
-    for (let i = 2; i <= n; i += 2) out.push(i + 1 <= n ? [i, i + 1] : [i]);
-    return out;
-  }, [sizes.length, narrow]);
-  const [idx, setIdx] = useState(0);
-  // Explicit turn state: set once when a turn starts and once when it ends.
-  const [turn, setTurn] = useState<{ dir: 1 | -1; from: number; to: number } | null>(null);
-  const turning = useRef(false);
-  const turner = useRef<TurnerHandle>(null);
-  const stage = useRef<HTMLDivElement>(null);
-  const dragState = useRef<{ dir: 1 | -1; x: number; w: number; started: boolean; p: number } | null>(null);
-  const suppressClick = useRef(false);
-  const touchX = useRef<number | null>(null);
-  const safeIdx = Math.min(idx, spreads.length - 1);
-  const spread = spreads[safeIdx] ?? [1];
-  const slotsFor = (value: number[]) => narrow
-    ? [value[0] ?? null]
-    : value.length === 2
-      ? value
-      : value[0] === 1
-        ? [null, 1]
-        : [value[0] ?? null, null];
-  /** Horizontal offset (in % of the full spread) that centres standalone pages. */
-  const shiftFor = (value: number[]) => {
-    if (narrow) return 0;
-    const sl = slotsFor(value);
-    return !sl[0] ? -25 : !sl[1] ? 25 : 0;
-  };
-  const [shift, setShift] = useState(() => shiftFor(spread));
-  const shiftRef = useRef(shift);
-  shiftRef.current = shift;
-  const sliding = useRef(false);
-  const afterSlide = useRef<(() => void) | null>(null);
-  // Re-centre when not animating (jumps, layout changes).
-  useEffect(() => {
-    if (!turning.current && !sliding.current) setShift(shiftFor(spread));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spread, narrow]);
-  const onSlideEnd = (e: React.TransitionEvent) => {
-    if (e.target !== e.currentTarget || e.propertyName !== "transform") return;
-    sliding.current = false;
-    const next = afterSlide.current;
-    afterSlide.current = null;
-    next?.();
-  };
-  useEffect(() => onPage(spread[0]!), [spread, onPage]);
-  useEffect(() => {
-    if (!jump || turning.current) return;
-    const i = spreads.findIndex((s) => s.includes(jump.page));
-    if (i >= 0) setIdx(i);
-  }, [jump, spreads]);
-
-  /** Starts a turn only when both faces are already rendered. */
-  const turnFace = (page: number | null | undefined, side?: "left" | "right") => {
-    if (!page) return null;
-    const cached = getCached(doc, page);
-    if (!cached) return null;
-    return side ? cropCanvasHalf(cached, side) : cached;
-  };
-  const startTurn = (d: 1 | -1): boolean => {
-    if (turning.current) return false;
-    const next = safeIdx + d;
-    if (next < 0 || next >= spreads.length) return false;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const fromSlots = slotsFor(spreads[safeIdx]!);
-    const toSlots = slotsFor(spreads[next]!);
-    const frontN = narrow ? fromSlots[0] : fromSlots[d > 0 ? 1 : 0];
-    const backN = narrow ? toSlots[0] : toSlots[d > 0 ? 0 : 1];
-    // A ready-made spread is one PDF page, but the physical leaf is only half
-    // of it: right-to-left when advancing and left-to-right when returning.
-    const front = turnFace(frontN, readySpread ? (d > 0 ? "right" : "left") : undefined);
-    const back = turnFace(backN, readySpread ? (d > 0 ? "left" : "right") : undefined);
-    if (reduced || !turner.current?.ready() || !front || (backN && !back)) {
-      // Immediate change keeps the current spread until the next is shown.
-      setIdx(next);
-      return false;
-    }
-    turning.current = true;
-    turner.current.begin(front, back, d);
-    setTurn({ dir: d, from: safeIdx, to: next });
-    return true;
-  };
-  const endTurn = (to: number) => (completed: boolean) => {
-    if (completed) setIdx(to);
-    setTurn(null);
-    turning.current = false;
-    // Step 2 of closing onto a standalone page: the turn is complete, now
-    // slide the remaining page to the centre (as one unit).
-    const target = shiftFor(spreads[completed ? to : safeIdx] ?? [1]);
-    if (target !== shiftRef.current) {
-      sliding.current = true;
-      setShift(target);
-    }
-  };
-  const flip = (d: 1 | -1) => {
-    if (suppressClick.current) {
-      suppressClick.current = false;
-      return;
-    }
-    if (turning.current || sliding.current) return;
-    const to = safeIdx + d;
-    if (to < 0 || to >= spreads.length) return;
-    // A centred standalone cover first moves into its physical half of the
-    // open book. Only once that slide settles does the leaf begin to turn.
-    if (!narrow && shiftRef.current !== 0) {
-      sliding.current = true;
-      afterSlide.current = () => {
-        if (startTurn(d)) turner.current?.release(true, endTurn(to));
-        else setShift(shiftFor(spreads[to] ?? [1]));
-      };
-      setShift(0);
-      return;
-    }
-    if (startTurn(d)) turner.current?.release(true, endTurn(to));
-    else setShift(shiftFor(spreads[to] ?? [1]));
-  };
-  const flipRef = useRef(flip);
-    flipRef.current = flip;
-
-  const cornerDown = (d: 1 | -1) => (e: React.PointerEvent) => {
-    suppressClick.current = false;
-    if (turning.current || sliding.current || e.button !== 0) return;
-    const w = stage.current?.clientWidth ?? 1;
-    dragState.current = { dir: d, x: e.clientX, w, started: false, p: 0 };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  };
-  const cornerMove = (e: React.PointerEvent) => {
-    const s = dragState.current;
-    if (!s) return;
-    const dx = (e.clientX - s.x) * -s.dir;
-    if (!s.started) {
-      if (dx < 6) return;
-      if (!startTurn(s.dir)) {
-        dragState.current = null;
-        suppressClick.current = true;
-        return;
-      }
-      s.started = true;
-    }
-    s.p = Math.max(0, Math.min(1, dx / s.w));
-    turner.current?.drag(s.p);
-  };
-  const cornerUp = () => {
-    const s = dragState.current;
-    dragState.current = null;
-    if (!s?.started) return;
-    suppressClick.current = true;
-    turner.current?.release(s.p > 0.5, endTurn(safeIdx + s.dir));
-  };
-
-  useEffect(() => {
-    const on = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest("input, textarea, [contenteditable]")) return;
-      if (e.key === "ArrowRight" || e.key === "PageDown") flipRef.current(1);
-      if (e.key === "ArrowLeft" || e.key === "PageUp") flipRef.current(-1);
-    };
-    window.addEventListener("keydown", on);
-    return () => window.removeEventListener("keydown", on);
-  }, []);
-
-  // Keep the source spread in place until the moving sheet has fully landed.
-  // Only the page underneath the moving sheet is revealed; the landing page
-  // remains on the sheet, so a complete two-page spread cannot flash early.
-  const destinationSpread = turn ? spreads[turn.to] ?? spread : spread;
-  const sourceSpread = turn ? spreads[turn.from] ?? spread : spread;
-  const destinationSlots = slotsFor(destinationSpread);
-  const sourceSlots = slotsFor(sourceSpread);
-  const movingSlot = turn && !narrow ? (turn.dir > 0 ? 1 : 0) : turn ? 0 : null;
-  // Ready-made spreads keep the complete source visible behind their turning
-  // half. The full destination is committed only after the leaf has landed.
-  const slots = turn && !readySpread ? sourceSlots.map((n, i) => i === movingSlot ? destinationSlots[i] : n) : sourceSlots;
-  const ref = sizes[0] ?? { w: 1, h: 1 };
-  const atStart = safeIdx === 0;
-  const atEnd = safeIdx === spreads.length - 1;
-  const label = spread.length === 2 ? `Pages ${spread[0]}–${spread[1]} of ${sizes.length}` : `Page ${spread[0]} of ${sizes.length}`;
-
-  return (
-    <div className={zoom > 1 ? "relative z-0 isolate overflow-x-auto" : "relative z-0 isolate overflow-x-clip"}>
-      <div aria-hidden className="pointer-events-none invisible absolute left-0 top-0 -z-10 w-1/2 max-w-[700px]">
-        {[...(spreads[safeIdx + 1] ?? []), ...(spreads[safeIdx - 1] ?? [])].map((n) => (
-          <PdfPage key={`warm-${n}`} doc={doc} n={n} size={sizes[n - 1] ?? ref} zoom={zoom} onVisible={noop} eager thumb />
-        ))}
-      </div>
-      <div
-        className="mx-auto px-4 pb-8 pt-10 sm:px-10 sm:pt-12"
-        style={{ width: `${zoom * 94}%`, maxWidth: zoom <= 1 ? 1240 : undefined, minWidth: zoom > 1 ? `${zoom * 94}%` : undefined }}
-        onTouchStart={(e) => (touchX.current = e.touches.length === 1 && zoom <= 1 ? e.touches[0]?.clientX ?? null : null)}
-        onTouchMove={(e) => e.touches.length > 1 && (touchX.current = null)}
-        onTouchEnd={(e) => {
-          const x = touchX.current;
-          touchX.current = null;
-          const end = e.changedTouches[0]?.clientX;
-          if (x == null || end == null || Math.abs(end - x) < 50 || dragState.current) return;
-          if ((e.target as HTMLElement).closest("button")) return;
-          flip(end < x ? 1 : -1);
-        }}
-      >
-        <div className="relative" style={{ aspectRatio: narrow ? `${ref.w} / ${ref.h}` : `${ref.w * 2} / ${ref.h}` }} aria-label={label}>
-          <div
-            ref={stage}
-            className={cn(
-              "pf-book-stage absolute inset-0 grid transition-transform duration-[650ms] ease-[cubic-bezier(.4,0,.2,1)] motion-reduce:transition-none",
-              narrow ? "grid-cols-1" : "grid-cols-2",
-            )}
-            style={{ transform: `translateX(${shift}%)` }}
-            onTransitionEnd={onSlideEnd}
-            onTransitionCancel={onSlideEnd}
-          >
-            {slots.map((n, i) => (
-              <div key={`base-${i}`} className={cn("relative min-w-0 overflow-hidden", n && "pf-sheet bg-background")}>
-                {n && <PdfPage doc={doc} n={n} size={sizes[n - 1] ?? ref} zoom={zoom} onVisible={noop} eager />}
-              </div>
-            ))}
-            <CurvedPage ref={turner} ratio={readySpread ? ref.h / (ref.w / 2) : ref.h / ref.w} fullStage={mobile} />
-            {!atEnd && (
-              <button type="button" onClick={() => flip(1)} onPointerDown={cornerDown(1)} onPointerMove={cornerMove} onPointerUp={cornerUp} onPointerCancel={cornerUp} aria-label="Turn to next page" title="Next page — click or drag" className="group absolute bottom-0 right-0 z-[4] size-16 touch-none overflow-hidden">
-                <span className="absolute bottom-0 right-0 size-7 bg-muted shadow-md [clip-path:polygon(100%_0,0_100%,0_0)] transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
-              </button>
-            )}
-            {!atStart && (
-              <button type="button" onClick={() => flip(-1)} onPointerDown={cornerDown(-1)} onPointerMove={cornerMove} onPointerUp={cornerUp} onPointerCancel={cornerUp} aria-label="Turn to previous page" title="Previous page — click or drag" className="group absolute bottom-0 left-0 z-[4] size-16 touch-none overflow-hidden">
-                <span className="absolute bottom-0 left-0 size-7 bg-muted shadow-md [clip-path:polygon(0_0,100%_0,100%_100%)] transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-      <div className={cn("flex items-center justify-center gap-3 pb-6 text-xs transition-opacity duration-200", controlsHidden && "pointer-events-none opacity-0")}>
-        <button type="button" onClick={() => flip(-1)} disabled={atStart || !!turn} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
-          <ChevronLeft className="size-3.5" /> Previous
-        </button>
-        <span aria-live="polite" className="min-w-32 text-center tabular-nums text-background/70">{label}</span>
-        <button type="button" onClick={() => flip(1)} disabled={atEnd || !!turn} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
-          Next <ChevronRight className="size-3.5" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function ToolBtn(props: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
   return (
     <button
@@ -614,15 +347,7 @@ function cachedCopy(doc: object, n: number) {
   c.getContext("2d")!.drawImage(src, 0, 0);
   return c;
 }
-function cropCanvasHalf(src: HTMLCanvasElement, side: "left" | "right") {
-  const c = document.createElement("canvas");
-  const half = Math.max(1, Math.floor(src.width / 2));
-  c.width = half;
-  c.height = src.height;
-  const ctx = c.getContext("2d");
-  if (ctx) ctx.drawImage(src, side === "left" ? 0 : src.width - half, 0, half, src.height, 0, 0, half, src.height);
-  return c;
-}
+
 function storePage(doc: object, n: number, canvas: HTMLCanvasElement) {
   let m = pageCache.get(doc);
   if (!m) pageCache.set(doc, (m = new Map()));
@@ -716,10 +441,6 @@ function PdfPage({
         if (thumb) {
           const copy = cachedCopy(doc, n);
           el.replaceChildren(copy ?? canvas);
-          return;
-        }
-        if (false) {
-          el.replaceChildren(canvas);
           return;
         }
         const text = document.createElement("div");
