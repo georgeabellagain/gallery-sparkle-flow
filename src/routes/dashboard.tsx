@@ -135,7 +135,13 @@ function Dashboard() {
         {switcher}
         <div className="grid gap-10 lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] lg:gap-14">
           <div>
-            <Thumb blobKey={p.pdf?.blobKey} />
+            {published ? (
+              personalPath
+                ? <Link to="/$username" params={{ username: p.username ?? "" }} aria-label="Open your published portfolio" className="block rounded-2xl transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><Thumb blobKey={p.pdf?.blobKey} /></Link>
+                : <Link to="/p/$slug" params={{ slug: p.code }} aria-label="Open your published portfolio" className="block rounded-2xl transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><Thumb blobKey={p.pdf?.blobKey} /></Link>
+            ) : (
+              <Link to="/p/$slug" params={{ slug: p.code }} search={{ preview: "1" }} aria-label="Preview your portfolio" className="block rounded-2xl transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><Thumb blobKey={p.pdf?.blobKey} /></Link>
+            )}
             <p className="mt-3 text-sm font-medium">{p.profile.name}</p>
             <p className="text-xs text-muted-foreground">{p.pdf ? `${p.pdf.name} · ${p.pdf.pages} pages · ${formatBytes(p.pdf.bytes)}` : "No PDF"}</p>
           </div>

@@ -8,8 +8,10 @@ import { getRequestOrigin } from "@/lib/origin.functions";
 
 export const Route = createFileRoute("/p/$slug")({
   staticData: { sitemap: false },
-  validateSearch: (s: Record<string, unknown>): { preview?: string } =>
-    typeof s["preview"] === "string" && s["preview"] ? { preview: s["preview"] } : {},
+  validateSearch: (s: Record<string, unknown>): { preview?: string; demo?: "book" | "studio" } => ({
+    ...(typeof s["preview"] === "string" && s["preview"] ? { preview: s["preview"] } : {}),
+    ...(s["demo"] === "book" || s["demo"] === "studio" ? { demo: s["demo"] } : {}),
+  }),
   loader: async ({ params }) => ({
     origin: await getRequestOrigin(),
     data: params.slug === "sample" ? null : await getPublicPortfolio({ data: { by: "code", value: params.slug } }),
@@ -48,11 +50,11 @@ export const Route = createFileRoute("/p/$slug")({
 
 function Page() {
   const { slug } = Route.useParams();
-  const { preview } = Route.useSearch();
+  const { preview, demo } = Route.useSearch();
   const { data } = Route.useLoaderData();
   const p = useOwn((x) => x.code === slug);
   const hydrated = useHydrated();
-  if (slug === SAMPLE.code) return <SampleVisitor />;
+  if (slug === SAMPLE.code) return <SampleVisitor demo={demo} />;
   if (preview) {
     if (!hydrated) return null;
     if (!p || p.code !== slug) return <Missing title="No portfolio here" body="Sign in on this device to preview your draft." />;

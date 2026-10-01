@@ -75,7 +75,7 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
           <SettingSelect label="Default reading mode" value={viewer.mode} onChange={(value) => setViewer({ mode: value as ViewerSettings["mode"] })} options={[["scroll", "Scroll"], ["paged", "Page by page"], ["book", "Flipbook"]]} />
           <SettingSelect label="My PDF contains" value={viewer.spreads} onChange={(value) => setViewer({ spreads: value as ViewerSettings["spreads"] })} options={[["single", "Single pages"], ["ready", "Ready-made spreads"]]} />
           <SettingSelect label="Look" value={viewer.look} onChange={(value) => setViewer({ look: value as ViewerSettings["look"] })} options={[["clean", "Clean"], ["studio", "Studio"]]} />
-          <SettingSelect label="Viewer background" value={viewer.background} onChange={(value) => setViewer({ background: value as ViewerSettings["background"] })} options={[["black", "Black"], ["paper", "Paper"], ["soft", "Soft grey"]]} />
+          <SettingSelect label="Viewer background" value={viewer.background} onChange={(value) => setViewer({ background: value as ViewerSettings["background"] })} options={[["black", "Black"], ["paper", "Paper"], ["soft", "Soft grey"], ["oak", "Light oak table"], ["walnut", "Dark walnut table"]]} />
           <label className="flex items-center justify-between gap-3"><span>Show profile header</span><input type="checkbox" checked={viewer.showHeader} onChange={(e) => setViewer({ showHeader: e.target.checked })} /></label>
           {viewer.look === "studio" && (
             <details className="rounded-lg border border-border p-3">

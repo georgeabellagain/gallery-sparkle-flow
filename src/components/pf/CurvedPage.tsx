@@ -8,11 +8,14 @@ const SIDE_ROOM = 0.7;
 const VERTICAL_ROOM = 0.55;
 const SEGMENTS = 40;
 
+/** Studio surface for the moving sheet: neutral-grey relief tile plus sheen. */
+export type SheetMaterial = { surface: HTMLCanvasElement; sheen: number; repeat: number };
+
 export type TurnerHandle = {
   /** False when 3D is unavailable; callers then change page without a turn. */
   ready: () => boolean;
   /** Uploads both faces and shows the sheet at progress 0. */
-  begin: (front: HTMLCanvasElement, back: HTMLCanvasElement | null, dir: 1 | -1) => void;
+  begin: (front: HTMLCanvasElement, back: HTMLCanvasElement | null, dir: 1 | -1, material?: SheetMaterial) => void;
   /** Sets drag progress (0–1) directly; no React updates. */
   drag: (p: number) => void;
   /** Animates to 1 (complete) or 0 (cancel) and hides the sheet. */
@@ -93,14 +96,20 @@ export const CurvedPage = forwardRef<TurnerHandle, { ratio: number }>(function C
     const material = new THREE.ShaderMaterial({
       side: THREE.DoubleSide,
       toneMapped: false,
-      uniforms: { frontPage: { value: blank }, backPage: { value: blank }, direction: { value: 1 }, turnProgress: { value: 0 } },
+      uniforms: { frontPage: { value: blank }, backPage: { value: blank }, surface: { value: blank }, surfaceOn: { value: 0 }, surfaceRepeat: { value: 4 }, sheen: { value: 0 }, direction: { value: 1 }, turnProgress: { value: 0 } },
       vertexShader: "varying vec2 vUv; varying float vFold; uniform float turnProgress; void main() { vUv = uv; vFold = sin(3.14159265 * uv.x) * sin(3.14159265 * turnProgress); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
-      fragmentShader: `uniform sampler2D frontPage; uniform sampler2D backPage; uniform float direction;
+      fragmentShader: `uniform sampler2D frontPage; uniform sampler2D backPage; uniform sampler2D surface; uniform float surfaceOn; uniform float surfaceRepeat; uniform float sheen; uniform float direction;
         varying vec2 vUv; varying float vFold;
         void main() {
           vec2 frontUv = vec2(direction > 0.0 ? vUv.x : 1.0 - vUv.x, vUv.y);
           vec2 backUv = vec2(direction > 0.0 ? 1.0 - vUv.x : vUv.x, vUv.y);
           vec4 page = gl_FrontFacing ? texture2D(frontPage, frontUv) : texture2D(backPage, backUv);
+          if (surfaceOn > 0.5) {
+            float b = texture2D(surface, fract(vUv * vec2(surfaceRepeat, surfaceRepeat * 1.4))).r;
+            page.rgb = mix(page.rgb, (1.0 - 2.0 * b) * page.rgb * page.rgb + 2.0 * b * page.rgb, 0.22);
+            // Satin catches a restrained moving highlight along the bend.
+            page.rgb += sheen * pow(vFold, 3.0) * 0.12;
+          }
           page.rgb *= 1.0 - 0.045 * vFold;
           gl_FragColor = page;
           #include <colorspace_fragment>
@@ -150,9 +159,10 @@ export const CurvedPage = forwardRef<TurnerHandle, { ratio: number }>(function C
       return t;
     };
     let progress = 0;
+    const surfaceTextures = new Map<HTMLCanvasElement, THREE.Texture>();
     api.current = {
       ready: () => true,
-      begin: (front, back, d) => {
+      begin: (front, back, d, mat) => {
         cancelAnimationFrame(frame);
         textures.forEach((t) => t.dispose());
         dir = d;
@@ -162,6 +172,18 @@ export const CurvedPage = forwardRef<TurnerHandle, { ratio: number }>(function C
         material.uniforms["frontPage"]!.value = f;
         material.uniforms["backPage"]!.value = b;
         material.uniforms["direction"]!.value = d;
+        if (mat) {
+          let st = surfaceTextures.get(mat.surface);
+          if (!st) {
+            st = new THREE.CanvasTexture(mat.surface);
+            st.wrapS = st.wrapT = THREE.RepeatWrapping;
+            surfaceTextures.set(mat.surface, st);
+          }
+          material.uniforms["surface"]!.value = st;
+          material.uniforms["surfaceRepeat"]!.value = mat.repeat;
+          material.uniforms["sheen"]!.value = mat.sheen;
+        }
+        material.uniforms["surfaceOn"]!.value = mat ? 1 : 0;
         geometry.setIndex(d > 0 ? fwdIndex : bwdIndex);
         progress = 0;
         shape(0);
@@ -199,6 +221,7 @@ export const CurvedPage = forwardRef<TurnerHandle, { ratio: number }>(function C
       ro.disconnect();
       textures.forEach((t) => t.dispose());
       blank.dispose();
+      surfaceTextures.forEach((t) => t.dispose());
       geometry.dispose();
       material.dispose();
       renderer.dispose();

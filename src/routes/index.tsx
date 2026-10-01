@@ -2,6 +2,9 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, Check, Mail, Sparkles } from "lucide-react";
 import samplePage from "@/assets/sample-page.jpg";
+import showSpread from "@/assets/showcase-spread.jpg";
+import showStudio from "@/assets/showcase-studio.jpg";
+import showMobile from "@/assets/showcase-mobile.jpg";
 import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
 import { CvIcon } from "@/components/pf/CvIcon";
 import { DropZone } from "@/components/pf/DropZone";
@@ -122,6 +125,28 @@ function Landing() {
                 <img src={samplePage} alt="Start of the first page in the example PDF portfolio" width={1648} height={1168} loading="lazy" className="mx-auto w-full rounded-sm" />
               </div>
               <div className="preview-fade pointer-events-none absolute inset-x-0 bottom-0 h-40" aria-hidden />
+            </div>
+          </div>
+        </section>
+
+        <section className="rule-t">
+          <div className="shell py-16">
+            <div className="mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-medium">Flipbook reading</h2>
+                <p className="mt-2 max-w-xl text-sm text-muted-foreground">Your PDF as a page-turning book: clean spreads, an optional Studio look on a wooden table, and single pages on phones. Captured from the real viewer.</p>
+              </div>
+              <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="inline-flex items-center gap-1.5 text-sm font-medium text-leaf underline-offset-4 hover:underline">Try the flipbook <ArrowRight className="size-4" aria-hidden /></Link>
+            </div>
+            <div className="mx-auto mt-7 grid max-w-5xl gap-5 sm:grid-cols-[1fr_1fr_0.42fr]">
+              {([[showSpread, "Clean two-page spread", "book", 1400, 555], [showStudio, "Studio book on light oak", "studio", 1400, 555], [showMobile, "Single page on a phone", "book", 647, 960]] as const).map(([src, label, demo, w, h]) => (
+                <Link key={label} to="/p/$slug" params={{ slug: "sample" }} search={{ demo }} className="group block focus-visible:outline-none">
+                  <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-transform group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-ring">
+                    <img src={src} alt={`${label} — screenshot of the Portfolia flipbook viewer`} width={w} height={h} loading="lazy" decoding="async" sizes="(min-width: 640px) 40vw, 100vw" className="h-56 w-full object-cover object-top" />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">{label}</p>
+                </Link>
+              ))}
             </div>
           </div>
         </section>

@@ -389,21 +389,15 @@
 
 .pf-book-stage { isolation: isolate; }
 
-.pf-book-studio { transform-style: preserve-3d; }
-.pf-book-shadow-none { box-shadow: none; }
-.pf-book-shadow-subtle { box-shadow: 0 12px 28px oklch(0 0 0 / 0.16); }
-.pf-book-shadow-grounded { box-shadow: 0 22px 48px oklch(0 0 0 / 0.25); }
-.pf-book-thickness-medium { border-bottom: 2px solid var(--color-border-strong); }
-.pf-book-thickness-thick { border-bottom: 4px solid var(--color-border-strong); }
-.pf-book-finish-satin { filter: saturate(1.025) contrast(1.015); }
-.pf-book-finish-textured::after,
-.pf-book-paper-natural::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 3;
-  opacity: 0.025;
-  background-image: repeating-linear-gradient(90deg, var(--color-foreground) 0 1px, transparent 1px 4px);
-}
-.pf-book-light-bright { filter: brightness(1.025); }
+.pf-book-shadow-none { filter: none; }
+/* Contact shadow (tight) plus soft cast shadow; follows the page shapes. */
+.pf-book-shadow-subtle { filter: drop-shadow(0 1px 1px oklch(0 0 0 / 0.28)) drop-shadow(0 10px 18px oklch(0 0 0 / 0.18)); }
+.pf-book-shadow-grounded { filter: drop-shadow(0 2px 2px oklch(0 0 0 / 0.35)) drop-shadow(0 22px 36px oklch(0 0 0 / 0.3)); }
+.pf-book-thickness-medium .pf-sheet { box-shadow: 0 1px 0 oklch(0.92 0.01 85), 0 2px 0 oklch(0.82 0.01 85); }
+.pf-book-thickness-thick .pf-sheet { box-shadow: 0 1px 0 oklch(0.93 0.01 85), 0 2px 0 oklch(0.86 0.01 85), 0 3px 0 oklch(0.93 0.01 85), 0 4px 0 oklch(0.8 0.01 85); }
+/* Lit relief tile: neutral grey soft-light keeps artwork colour intact. */
+.pf-surface { position: absolute; inset: 0; pointer-events: none; z-index: 1; background-size: 256px 256px; mix-blend-mode: soft-light; opacity: 0.22; }
+.pf-light { position: absolute; inset: 0; pointer-events: none; z-index: 1; mix-blend-mode: soft-light; }
+.pf-light-soft { background: linear-gradient(135deg, oklch(1 0 0 / 0.08), transparent 55%, oklch(0 0 0 / 0.06)); }
+.pf-light-bright { background: linear-gradient(135deg, oklch(1 0 0 / 0.16), transparent 50%, oklch(0 0 0 / 0.08)); }
+.pf-light-satin::after { content: ""; position: absolute; inset: 0; mix-blend-mode: screen; background: linear-gradient(115deg, transparent 30%, oklch(1 0 0 / 0.07) 42%, transparent 54%); }
