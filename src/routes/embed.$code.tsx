@@ -5,11 +5,12 @@ import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
 export const Route = createFileRoute("/embed/$code")({
   staticData: { sitemap: false },
   validateSearch: (search: Record<string, unknown>): { page?: number; mode?: "scroll" | "paged" | "book"; look?: "clean" | "studio"; background?: "black" | "paper" | "soft" } => {
+    const rawPage = typeof search["page"] === "string" ? Number(search["page"]) : search["page"];
     const mode = search["mode"];
     const look = search["look"];
     const background = search["background"];
     return {
-      page: typeof search["page"] === "number" ? Math.max(1, Math.floor(search["page"])) : undefined,
+      page: typeof rawPage === "number" && Number.isFinite(rawPage) ? Math.max(1, Math.floor(rawPage)) : undefined,
       mode: mode === "scroll" || mode === "paged" || mode === "book" ? mode : undefined,
       look: look === "clean" || look === "studio" ? look : undefined,
       background: background === "black" || background === "paper" || background === "soft" ? background : undefined,

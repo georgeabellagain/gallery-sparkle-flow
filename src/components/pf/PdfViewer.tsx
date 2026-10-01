@@ -299,7 +299,7 @@ export function PdfViewer({
 
 const noop = () => {};
 
-/** Two-page spread flipbook with a continuous curved page turn. */
+/** Responsive flipbook: desktop spreads and single-page mobile turns. */
 function BookView({
   doc,
   sizes,
