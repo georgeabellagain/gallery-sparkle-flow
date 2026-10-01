@@ -4,7 +4,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { CurvedPage } from "@/components/pf/CurvedPage";
+import { CurvedPage, type TurnerHandle } from "@/components/pf/CurvedPage";
 
 type Source = { blob: Blob } | { url: string };
 
@@ -374,6 +374,7 @@ function BookView({
   flipRef.current = flip;
 
   const cornerDown = (d: 1 | -1) => (e: React.PointerEvent) => {
+    suppressClick.current = false;
     if (turning.current || e.button !== 0) return;
     const w = stage.current?.clientWidth ?? 1;
     dragState.current = { dir: d, x: e.clientX, w, started: false, p: 0 };
@@ -486,7 +487,7 @@ function BookView({
         <button type="button" onClick={() => flip(-1)} disabled={atStart || !!turn} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
           <ChevronLeft className="size-3.5" /> Previous
         </button>
-        <span className="min-w-32 text-center tabular-nums text-background/70">{label}</span>
+        <span aria-live="polite" className="min-w-32 text-center tabular-nums text-background/70">{label}</span>
         <button type="button" onClick={() => flip(1)} disabled={atEnd || !!turn} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
           Next <ChevronRight className="size-3.5" />
         </button>
