@@ -80,7 +80,7 @@ export function CloudVisitor({ data }: { data: NonNullable<PublicPortfolio> }) {
 }
 
 /** Compact published viewer for embedding on another website. */
-export function EmbeddedVisitor({ data }: { data: NonNullable<PublicPortfolio> }) {
+export function EmbeddedVisitor({ data, startPage, mode, background, look }: { data: NonNullable<PublicPortfolio>; startPage?: number; mode?: "scroll" | "paged" | "book"; background?: "black" | "paper" | "soft"; look?: "clean" | "studio" }) {
   registerPublicUrls(data.urls);
   const p = data.portfolio;
   const { pdf } = useStoredMedia(p.pdf?.blobKey);
@@ -93,7 +93,8 @@ export function EmbeddedVisitor({ data }: { data: NonNullable<PublicPortfolio> }
       showCredit={false}
       onDownload={() => recordDownload(p.code)}
       pageStyle={p.plan === "personal" ? p.style : undefined}
-      viewer={{ ...p.viewer, showHeader: false }}
+      viewer={{ ...p.viewer, ...(mode ? { mode } : {}), ...(background ? { background } : {}), ...(look ? { look } : {}), showHeader: false }}
+      startPage={startPage}
       immersive
       embed
     />

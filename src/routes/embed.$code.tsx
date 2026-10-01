@@ -4,6 +4,12 @@ import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
 
 export const Route = createFileRoute("/embed/$code")({
   staticData: { sitemap: false },
+  validateSearch: (search: Record<string, unknown>) => ({
+    page: typeof search["page"] === "number" ? Math.max(1, Math.floor(search["page"])) : undefined,
+    mode: search["mode"] === "scroll" || search["mode"] === "paged" || search["mode"] === "book" ? search["mode"] : undefined,
+    look: search["look"] === "clean" || search["look"] === "studio" ? search["look"] : undefined,
+    background: search["background"] === "black" || search["background"] === "paper" || search["background"] === "soft" ? search["background"] : undefined,
+  }),
   loader: ({ params }) => getPublicPortfolio({ data: { by: "code", value: params.code } }),
   head: () => ({
     meta: [
@@ -22,6 +28,7 @@ export const Route = createFileRoute("/embed/$code")({
 
 function EmbedPage() {
   const data = Route.useLoaderData();
+  const options = Route.useSearch();
   if (!data) return <Missing title="No portfolio here" body={LOCAL_MISSING} />;
-  return <EmbeddedVisitor data={data} />;
+  return <EmbeddedVisitor data={data} startPage={options.page} mode={options.mode} look={options.look} background={options.background} />;
 }

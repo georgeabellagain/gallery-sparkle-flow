@@ -19,6 +19,7 @@ export function PortfolioPage({
   pageStyle,
   viewer,
   embed,
+  startPage,
 }: {
   profile: Profile;
   pdf: { blob: Blob } | { url: string } | null;
@@ -32,6 +33,7 @@ export function PortfolioPage({
   pageStyle?: PageStyle;
   viewer?: ViewerSettings;
   embed?: boolean;
+  startPage?: number;
 }) {
   const view = { ...DEFAULT_VIEWER, ...viewer };
   const bannerBlob = useBlob(pageStyle?.bannerKey);
@@ -77,7 +79,7 @@ export function PortfolioPage({
         </div>
       </header>}
       <div className="flex-1">
-        <PdfViewer source={pdf} fileName={`${profile.name || "portfolio"}.pdf`} allowDownload={allowDownload} onDownload={onDownload} compact={compact} immersive={immersive} backdrop={pageStyle?.backdrop} viewer={view} />
+        <PdfViewer source={pdf} fileName={`${profile.name || "portfolio"}.pdf`} allowDownload={allowDownload} onDownload={onDownload} compact={compact} immersive={immersive} backdrop={pageStyle?.backdrop} viewer={view} startPage={startPage} />
       </div>
       {showCredit && (
         <footer className="py-5 text-center text-xxs text-muted-foreground">

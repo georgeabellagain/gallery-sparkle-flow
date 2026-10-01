@@ -23,6 +23,7 @@ export function PdfViewer({
   immersive,
   backdrop,
   viewer,
+  startPage = 1,
 }: {
   source: Source | null;
   fileName: string;
@@ -32,6 +33,7 @@ export function PdfViewer({
   immersive?: boolean;
   backdrop?: string;
   viewer?: ViewerSettings;
+  startPage?: number;
 }) {
   const view = { ...DEFAULT_VIEWER, ...viewer };
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
@@ -135,6 +137,14 @@ export function PdfViewer({
     setJump({ page: n, t: Date.now() });
     if (mode === "scroll") rootRef.current?.querySelector(`[data-page="${n}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  useEffect(() => setMode(view.mode), [view.mode]);
+  useEffect(() => {
+    if (!total) return;
+    const page = Math.min(total, Math.max(1, startPage));
+    setCurrent(page);
+    setJump({ page, t: Date.now() });
+  }, [startPage, total]);
 
   useEffect(() => {
     if (mode !== "paged" || !total) return;
@@ -375,7 +385,7 @@ function BookView({
       return;
     }
     const to = safeIdx + d;
-    if (startTurn(d)) turner.current!.release(true, endTurn(to));
+    if (startTurn(d)) turner.current?.release(true, endTurn(to));
   };
   const flipRef = useRef(flip);
   flipRef.current = flip;
