@@ -18,7 +18,6 @@ import { getPaddleEnvironment } from "@/lib/paddle";
 import { submitFeedback } from "@/lib/feedback.functions";
 import {
   allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, switchPortfolio,
-  allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, switchPortfolio,
   startPortfolio, personalActive, update, uploadLimitMb, useDoc, type Analytics,
 } from "@/lib/portfolia/store";
 

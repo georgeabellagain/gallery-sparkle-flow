@@ -410,17 +410,6 @@ function BookView({
       setShift(target);
     }
   };
-  /** Waits for the book to reach the spread position, then runs next. */
-  const slideThen = (target: number, next: () => void) => {
-    if (target === shiftRef.current || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setShift(target);
-      next();
-      return;
-    }
-    sliding.current = true;
-    afterSlide.current = next;
-    setShift(target);
-  };
   const flip = (d: 1 | -1) => {
     if (suppressClick.current) {
       suppressClick.current = false;
