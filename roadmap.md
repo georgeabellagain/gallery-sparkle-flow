@@ -13,7 +13,7 @@
 
 ## Queued flipbook work — resume when credits are available
 
-- [ ] Targeted reader refinements (complete together before later stages):
+- [x] Targeted reader refinements (complete together before later stages):
   - Use single-page Flipbook viewing on mobile while retaining desktop spreads.
   - Increase the existing page curvature so the bend is more visible.
   - Keep artwork colours consistent throughout turns; remove whole-page darkening and retain only subtle fold shadows.
@@ -22,8 +22,8 @@
   - Centre standalone first and last pages.
   - Smoothly centre the full spread when moving from a standalone page to two pages, and reverse that motion when returning.
   - Reuse existing components and dependencies; avoid unrelated refactoring, redesigns and extra features.
-- [ ] Stage 2: Add the creator setting for PDFs containing single pages or ready-made spreads.
-- [ ] Stage 3: Add the Clean and Studio appearance panel and save settings per portfolio.
-- [ ] Stage 4: Add the published-only embed viewer, embed code/options and sharing cover preview.
-- [ ] Stage 5: Complete accessibility work and one focused verification pass covering all queued changes.
-- [ ] Run focused checks once after the related implementation is batched; provide a brief completion summary.
+- [x] Stage 2: Add the creator setting for PDFs containing single pages or ready-made spreads.
+- [x] Stage 3: Add the Clean and Studio appearance panel and save settings per portfolio.
+- [x] Stage 4: Add the published-only embed viewer, embed code/options and sharing cover preview.
+- [x] Stage 5: Complete accessibility work and one focused verification pass covering all queued changes.
+- [x] Run focused checks once after the related implementation is batched; provide a brief completion summary.
