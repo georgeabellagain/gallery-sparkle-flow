@@ -106,7 +106,7 @@ export const CurvedPage = forwardRef<TurnerHandle, { ratio: number }>(function C
           vec4 page = gl_FrontFacing ? texture2D(frontPage, frontUv) : texture2D(backPage, backUv);
           if (surfaceOn > 0.5) {
             float b = texture2D(surface, fract(vUv * vec2(surfaceRepeat, surfaceRepeat * 1.4))).r;
-            page.rgb = (1.0 - 2.0 * b) * page.rgb * page.rgb + 2.0 * b * page.rgb;
+            page.rgb = mix(page.rgb, (1.0 - 2.0 * b) * page.rgb * page.rgb + 2.0 * b * page.rgb, 0.4);
             // Satin catches a restrained moving highlight along the bend.
             page.rgb += sheen * pow(vFold, 3.0) * 0.12;
           }

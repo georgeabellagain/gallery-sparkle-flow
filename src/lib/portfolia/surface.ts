@@ -29,13 +29,13 @@ function noise(x: number, y: number, p: number, s: number) {
 type Spec = { octaves: [scale: number, amp: number][]; stretch: number; bump: number; shine: number; spec: number };
 const SPECS: Record<SurfaceKind, Spec> = {
   // Fine, dense tooth; no specular response.
-  matte: { octaves: [[64, 0.6], [128, 0.4]], stretch: 1, bump: 2.2, shine: 0, spec: 0 },
+  matte: { octaves: [[64, 0.6], [128, 0.4]], stretch: 1, bump: 1.2, shine: 0, spec: 0 },
   // Nearly flat with a smooth, tight sheen.
   satin: { octaves: [[16, 0.7], [64, 0.3]], stretch: 1, bump: 0.6, shine: 36, spec: 0.22 },
   // Pronounced pebbled grain for covers.
-  textured: { octaves: [[24, 0.55], [48, 0.3], [128, 0.15]], stretch: 1, bump: 5.5, shine: 8, spec: 0.05 },
+  textured: { octaves: [[24, 0.55], [48, 0.3], [128, 0.15]], stretch: 1, bump: 3.5, shine: 8, spec: 0.05 },
   // Uncoated stock: soft, slightly fibrous.
-  natural: { octaves: [[32, 0.5], [96, 0.5]], stretch: 2.4, bump: 3.2, shine: 0, spec: 0 },
+  natural: { octaves: [[32, 0.5], [96, 0.5]], stretch: 2.4, bump: 1.8, shine: 0, spec: 0 },
 };
 
 export function surfaceCanvas(kind: SurfaceKind, light: Light): HTMLCanvasElement {
@@ -105,8 +105,8 @@ export function woodUrl(kind: "oak" | "walnut") {
     : [[52, 33, 22], [96, 64, 44]];
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
-      const warp = noise(x / 160, y / 40, 1 << 20, 3) * 9 + noise(x / 40, y / 12, 1 << 20, 4) * 1.5;
-      const ring = 0.5 + 0.5 * Math.sin((y / 7 + warp) * 1.3);
+      const warp = noise(x / 260, y / 60, 1 << 20, 3) * 3.5 + noise(x / 40, y / 12, 1 << 20, 4) * 1.5;
+      const ring = 0.5 + 0.5 * Math.sin((y / 2.6 + warp) * 1.3);
       const fibre = noise(x / 3, y / 0.9, 1 << 20, 5);
       const pores = noise(x / 1.5, y / 1.5, 1 << 20, 6) > 0.9 ? -0.08 : 0;
       let t = 0.35 + 0.4 * Math.pow(ring, 2.2) + 0.2 * fibre + pores;
