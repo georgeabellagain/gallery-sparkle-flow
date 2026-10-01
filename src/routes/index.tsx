@@ -142,7 +142,7 @@ function Landing() {
               {([[showSpread, "Clean two-page spread", "book", 1400, 555], [showStudio, "Studio book on light oak", "studio", 1400, 555], [showMobile, "Single page on a phone", "book", 647, 960]] as const).map(([src, label, demo, w, h]) => (
                 <Link key={label} to="/p/$slug" params={{ slug: "sample" }} search={{ demo }} className="group block focus-visible:outline-none">
                   <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-transform group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-ring">
-                    <img src={src} alt={`${label} — screenshot of the Portfolia flipbook viewer`} width={w} height={h} loading="lazy" decoding="async" sizes="(min-width: 640px) 40vw, 100vw" className="h-full max-h-64 w-full object-cover object-top" />
+                    <img src={src} alt={`${label} — screenshot of the Portfolia flipbook viewer`} width={w} height={h} loading="lazy" decoding="async" sizes="(min-width: 640px) 40vw, 100vw" className="h-56 w-full object-cover object-top" />
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">{label}</p>
                 </Link>

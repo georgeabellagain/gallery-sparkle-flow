@@ -27,3 +27,11 @@
 - [x] Stage 4: Add the published-only embed viewer, embed code/options and sharing cover preview.
 - [x] Stage 5: Complete accessibility work and one focused verification pass covering all queued changes.
 - [x] Run focused checks once after the related implementation is batched; provide a brief completion summary.
+
+## Flipbook polish (Oct 1)
+- [x] Sequential slide → turn (open) and turn → slide (close); no overlapping animations
+- [x] Studio materials via lit relief maps (matte/satin/textured/natural)
+- [x] Oak and walnut tabletop backgrounds with contact shadows
+- [x] Centre seam removed
+- [x] Dashboard preview opens the portfolio
+- [x] Homepage flipbook showcase from real viewer captures
