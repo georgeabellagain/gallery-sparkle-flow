@@ -56,14 +56,14 @@ function Create() {
       <SiteHeader right={<span className="text-xs text-muted-foreground">{saveErr || sync.status === "error" ? <>Couldn’t save · <button className="underline" onClick={retrySync}>Retry</button></> : !doc.account.signedIn ? "Draft — sign in to save to your account" : sync.status === "saving" ? "Saving…" : "Saved to your account"}</span>} />
       <div className="grid flex-1 lg:grid-cols-[380px_1fr]">
         <aside className="border-border p-5 lg:border-r lg:p-7">
-          <h1 className="display-title text-2xl">Add your details</h1>
+           <h1 className="display-title text-2xl">Edit profile</h1>
           <p className="mt-1 text-xs text-muted-foreground">{p.pdf.name} · {p.pdf.pages} pages</p>
           <div className="mt-6"><ProfileForm p={p} onSaveError={setSaveErr} /></div>
           {saveErr && <p role="alert" className="mt-4 text-sm text-destructive">{saveErr}</p>}
           <div className="mt-8 rule-t pt-5">
             <p className="text-xs text-muted-foreground">Will be published at <span className="font-mono text-foreground">/p/{p.code}</span>. Unlisted: anyone with your link can view. Your portfolio will not appear in a public directory.</p>
-            {p.status === "published" ? (
-              <Button asChild className="mt-4 w-full"><Link to="/dashboard">Back to dashboard</Link></Button>
+             {p.status === "published" ? (
+               <div className="mt-4 grid gap-2"><Button asChild className="w-full"><Link to="/edit">Edit portfolio</Link></Button><Button asChild className="w-full" variant="line"><Link to="/dashboard">Back to dashboard</Link></Button></div>
             ) : (
               <Button className="mt-4 w-full" disabled={!canPublish} onClick={publish}>Publish portfolio</Button>
             )}

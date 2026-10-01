@@ -30,17 +30,16 @@
 
 ## Flipbook polish (Oct 1)
 - [x] Sequential slide → turn (open) and turn → slide (close); no overlapping animations
-- [x] Studio materials via lit relief maps (matte/satin/textured/natural)
-- [x] Oak and walnut tabletop backgrounds with contact shadows
+- [x] Studio materials and tabletop options built, then removed from the active settings to restore a simpler viewer
 - [x] Centre seam removed
 - [x] Dashboard preview opens the portfolio
 - [x] Homepage flipbook showcase from real viewer captures
 
 ## Flipbook and workspace refinement
-- [ ] Fix forward turns for ready-made spreads and reveal destination spreads only after turns complete
-- [ ] Double flip duration with a faster midpoint and focused forward/backward checks
-- [ ] Add owner return navigation and route own-portfolio clicks to portfolio editing unless explicitly previewing
-- [ ] Separate profile editing from portfolio editing
-- [ ] Simplify viewer appearance controls, retain background colour, and add Personal image uploads
-- [ ] Overhaul the homepage around the flipbook with a restrained monochrome book animation
-- [ ] Modernise the site toward a clean white gallery aesthetic without unrelated feature changes
+- [x] Fix forward turns for ready-made spreads and reveal destination spreads only after turns complete
+- [x] Double flip duration with a faster midpoint and focused forward/backward checks
+- [x] Add owner return navigation and route own-portfolio clicks to portfolio editing unless explicitly previewing
+- [x] Separate profile editing from portfolio editing
+- [x] Simplify viewer appearance controls, retain background colour, and add Personal image uploads
+- [x] Overhaul the homepage around the flipbook with a restrained monochrome book animation
+- [x] Modernise the site toward a clean white gallery aesthetic without unrelated feature changes

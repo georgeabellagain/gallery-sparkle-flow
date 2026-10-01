@@ -4,8 +4,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { CurvedPage, type SheetMaterial, type TurnerHandle } from "@/components/pf/CurvedPage";
-import { surfaceCanvas, surfaceUrl, woodUrl, type SurfaceKind } from "@/lib/portfolia/surface";
+import { CurvedPage, type TurnerHandle } from "@/components/pf/CurvedPage";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 
@@ -36,7 +35,7 @@ export function PdfViewer({
   viewer?: ViewerSettings;
   startPage?: number;
 }) {
-  const view = { ...DEFAULT_VIEWER, ...viewer };
+  const view = { ...DEFAULT_VIEWER, ...viewer, look: "clean" as const };
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
   const [progress, setProgress] = useState(0);
@@ -159,13 +158,8 @@ export function PdfViewer({
     return () => window.removeEventListener("keydown", on);
   }, [mode, total]);
 
-  const [woodBg, setWoodBg] = useState<string | null>(null);
-  useEffect(() => {
-    setWoodBg(view.background === "oak" || view.background === "walnut" ? woodUrl(view.background) : null);
-  }, [view.background]);
-
   return (
-    <div ref={rootRef} onPointerMove={(e) => revealControls(e.pointerType)} style={woodBg ? { backgroundImage: `url(${woodBg})`, backgroundSize: "cover", backgroundPosition: "center" } : backdrop ? { background: backdrop } : undefined} className={cn("relative bg-foreground", !backdrop && view.background === "paper" && "bg-background", !backdrop && view.background === "soft" && "bg-muted", immersive && "min-h-[calc(100vh-5rem)]", full && "overflow-auto")}>
+    <div ref={rootRef} onPointerMove={(e) => revealControls(e.pointerType)} style={backdrop ? { background: backdrop } : undefined} className={cn("relative bg-foreground", !backdrop && view.background === "paper" && "bg-background", !backdrop && view.background === "soft" && "bg-muted", immersive && "min-h-[calc(100vh-5rem)]", full && "overflow-auto")}>
       <div className={cn(
         "sticky top-0 z-50 isolate flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-1.5 text-xs backdrop-blur transition-opacity duration-200",
         immersive && "opacity-100 focus-within:opacity-100",
@@ -372,12 +366,6 @@ function BookView({
     afterSlide.current = null;
     next?.();
   };
-  const sheetMaterial = (n: number): SheetMaterial | undefined => {
-    if (viewer.look !== "studio") return undefined;
-    const kind: SurfaceKind = n === 1 || n === sizes.length ? viewer.finish : viewer.paper === "natural" ? "natural" : "matte";
-    return { surface: surfaceCanvas(kind, viewer.light), sheen: kind === "satin" ? 1 : 0, repeat: 3 };
-  };
-
   useEffect(() => onPage(spread[0]!), [spread, onPage]);
   useEffect(() => {
     if (!jump || turning.current) return;
@@ -393,8 +381,8 @@ function BookView({
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const fromSlots = slotsFor(spreads[safeIdx]!);
     const toSlots = slotsFor(spreads[next]!);
-    const frontN = fromSlots[d > 0 ? 1 : 0];
-    const backN = toSlots[d > 0 ? 0 : 1];
+    const frontN = narrow ? fromSlots[0] : fromSlots[d > 0 ? 1 : 0];
+    const backN = narrow ? toSlots[0] : toSlots[d > 0 ? 0 : 1];
     const front = frontN ? getCached(doc, frontN) : null;
     const back = backN ? getCached(doc, backN) ?? null : null;
     if (reduced || !turner.current?.ready() || !front || (backN && !back)) {
@@ -403,7 +391,7 @@ function BookView({
       return false;
     }
     turning.current = true;
-    turner.current.begin(front, back, d, sheetMaterial(frontN!));
+    turner.current.begin(front, back, d);
     setTurn({ dir: d, from: safeIdx, to: next });
     return true;
   };
@@ -496,27 +484,19 @@ function BookView({
     return () => window.removeEventListener("keydown", on);
   }, []);
 
-  // While turning, the destination sits underneath the moving sheet. The
-  // stationary half of the old spread remains above it until the turn ends.
-  const destination = turn ? spreads[turn.to] ?? spread : spread;
+  // Keep the source spread in place until the moving sheet has fully landed.
+  // Only the page underneath the moving sheet is revealed; the landing page
+  // remains on the sheet, so a complete two-page spread cannot flash early.
+  const destinationSpread = turn ? spreads[turn.to] ?? spread : spread;
   const sourceSpread = turn ? spreads[turn.from] ?? spread : spread;
-  const slots = slotsFor(destination);
+  const destinationSlots = slotsFor(destinationSpread);
   const sourceSlots = slotsFor(sourceSpread);
+  const movingSlot = turn && !narrow ? (turn.dir > 0 ? 1 : 0) : turn ? 0 : null;
+  const slots = turn ? sourceSlots.map((n, i) => i === movingSlot ? destinationSlots[i] : n) : slotsFor(spread);
   const ref = sizes[0] ?? { w: 1, h: 1 };
   const atStart = safeIdx === 0;
   const atEnd = safeIdx === spreads.length - 1;
   const label = spread.length === 2 ? `Pages ${spread[0]}–${spread[1]} of ${sizes.length}` : `Page ${spread[0]} of ${sizes.length}`;
-  const stationarySlot = turn && !narrow ? (turn.dir > 0 ? 0 : 1) : null;
-  const studio = viewer.look === "studio";
-  const wood = viewer.background === "oak" || viewer.background === "walnut";
-  const isCover = (n: number) => n === 1 || n === sizes.length;
-  const surfaceKind = (n: number): SurfaceKind => (isCover(n) ? viewer.finish : viewer.paper === "natural" ? "natural" : "matte");
-  const overlay = (n: number) => studio ? (
-    <>
-      <div aria-hidden className="pf-surface" style={{ backgroundImage: `url(${surfaceUrl(surfaceKind(n), viewer.light)})` }} />
-      <div aria-hidden className={cn("pf-light", `pf-light-${viewer.light}`, surfaceKind(n) === "satin" && "pf-light-satin")} />
-    </>
-  ) : null;
 
   return (
     <div className={zoom > 1 ? "relative z-0 isolate overflow-x-auto" : "relative z-0 isolate overflow-x-clip"}>
@@ -545,8 +525,6 @@ function BookView({
             className={cn(
               "pf-book-stage absolute inset-0 grid transition-transform duration-[420ms] ease-[cubic-bezier(.4,0,.2,1)] motion-reduce:transition-none",
               narrow ? "grid-cols-1" : "grid-cols-2",
-              studio && `pf-book-shadow-${wood && viewer.shadow === "none" ? "subtle" : viewer.shadow}`,
-              studio && `pf-book-thickness-${viewer.thickness}`,
             )}
             style={{ transform: `translateX(${shift}%)` }}
             onTransitionEnd={onSlideEnd}
@@ -555,21 +533,8 @@ function BookView({
             {slots.filter((n) => narrow ? Boolean(n) : true).map((n, i) => (
               <div key={`base-${i}`} className={cn("relative min-w-0 overflow-hidden", n && "pf-sheet bg-background")}>
                 {n && <PdfPage doc={doc} n={n} size={sizes[n - 1] ?? ref} zoom={zoom} onVisible={noop} eager />}
-                {n && overlay(n)}
               </div>
             ))}
-            {turn && stationarySlot !== null && sourceSlots[stationarySlot] && (
-              <div
-                aria-hidden
-                className="pf-sheet absolute inset-y-0 z-[2] overflow-hidden bg-background"
-                style={{ left: stationarySlot === 0 ? 0 : "50%", width: "50%" }}
-              >
-                {sourceSlots[stationarySlot] && (
-                  <PdfPage doc={doc} n={sourceSlots[stationarySlot] ?? 1} size={sizes[(sourceSlots[stationarySlot] ?? 1) - 1] ?? ref} zoom={zoom} onVisible={noop} eager />
-                )}
-                {overlay(sourceSlots[stationarySlot] ?? 1)}
-              </div>
-            )}
             <CurvedPage ref={turner} ratio={ref.h / ref.w} />
             {!atEnd && (
               <button type="button" onClick={() => flip(1)} onPointerDown={cornerDown(1)} onPointerMove={cornerMove} onPointerUp={cornerUp} onPointerCancel={cornerUp} aria-label="Turn to next page" title="Next page — click or drag" className="group absolute bottom-0 right-0 z-[4] size-16 touch-none overflow-hidden">
@@ -588,7 +553,7 @@ function BookView({
         <button type="button" onClick={() => flip(-1)} disabled={atStart || !!turn} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
           <ChevronLeft className="size-3.5" /> Previous
         </button>
-        <span aria-live="polite" className={cn("min-w-32 text-center tabular-nums text-background/70", wood && "rounded-full bg-background/90 px-3 py-1 text-foreground")}>{label}</span>
+        <span aria-live="polite" className="min-w-32 text-center tabular-nums text-background/70">{label}</span>
         <button type="button" onClick={() => flip(1)} disabled={atEnd || !!turn} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
           Next <ChevronRight className="size-3.5" />
         </button>

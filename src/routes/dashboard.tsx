@@ -135,13 +135,7 @@ function Dashboard() {
         {switcher}
         <div className="grid gap-10 lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] lg:gap-14">
           <div>
-            {published ? (
-              personalPath
-                ? <Link to="/$username" params={{ username: p.username ?? "" }} aria-label="Open your published portfolio" className="block rounded-2xl transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><Thumb blobKey={p.pdf?.blobKey} /></Link>
-                : <Link to="/p/$slug" params={{ slug: p.code }} aria-label="Open your published portfolio" className="block rounded-2xl transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><Thumb blobKey={p.pdf?.blobKey} /></Link>
-            ) : (
-              <Link to="/p/$slug" params={{ slug: p.code }} search={{ preview: "1" }} aria-label="Preview your portfolio" className="block rounded-2xl transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><Thumb blobKey={p.pdf?.blobKey} /></Link>
-            )}
+            <Link to="/edit" aria-label="Edit your portfolio" className="block rounded-2xl transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><Thumb blobKey={p.pdf?.blobKey} /></Link>
             <p className="mt-3 text-sm font-medium">{p.profile.name}</p>
             <p className="text-xs text-muted-foreground">{p.pdf ? `${p.pdf.name} · ${p.pdf.pages} pages · ${formatBytes(p.pdf.bytes)}` : "No PDF"}</p>
           </div>
@@ -168,6 +162,7 @@ function Dashboard() {
               <p className="mt-3 text-xs text-muted-foreground">Anyone with your link can view. Your portfolio will not appear in a public directory. This is not password protection. Search indexing is off.</p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <Button size="sm" variant="line" onClick={() => setDialog("replace")}>Replace PDF</Button>
+                <Button size="sm" variant="line" asChild><Link to="/edit">Edit portfolio</Link></Button>
                 <Button size="sm" variant="line" asChild><Link to="/create">Edit profile</Link></Button>
                 {published && <Button size="sm" variant="line" onClick={() => setDialog("unpublish")}>Unpublish</Button>}
                 <Button size="sm" variant="quiet" onClick={() => setDialog("delete")}>Delete portfolio</Button>
@@ -257,9 +252,8 @@ function EmbedModal({ open, onClose, url, title }: { open: boolean; onClose: () 
   const [copied, setCopied] = useState(false);
   const [page, setPage] = useState(1);
   const [mode, setMode] = useState<"scroll" | "paged" | "book">("book");
-  const [look, setLook] = useState<"clean" | "studio">("clean");
   const [background, setBackground] = useState<"black" | "paper" | "soft">("black");
-  const params = new URLSearchParams({ page: String(page), mode, look, background });
+  const params = new URLSearchParams({ page: String(page), mode, background });
   const embedUrl = `${url}?${params}`;
   const safeTitle = title.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
   const code = `<iframe src="${embedUrl}" title="${safeTitle} portfolio" loading="lazy" allow="fullscreen" style="width:100%;aspect-ratio:16/10;border:0"></iframe><p><a href="${url.replace("/embed/", "/p/")}">View ${safeTitle} portfolio</a></p>`;
@@ -269,7 +263,6 @@ function EmbedModal({ open, onClose, url, title }: { open: boolean; onClose: () 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="text-xs">Starting page<input type="number" min={1} value={page} onChange={(e) => setPage(Math.max(1, Number(e.target.value) || 1))} className="mt-1 w-full rounded-full border border-input bg-background px-3 py-1.5" /></label>
         <label className="text-xs">Reading mode<select value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} className="mt-1 w-full rounded-full border border-input bg-background px-3 py-1.5"><option value="scroll">Scroll</option><option value="paged">Page by page</option><option value="book">Flipbook</option></select></label>
-        <label className="text-xs">Look<select value={look} onChange={(e) => setLook(e.target.value as typeof look)} className="mt-1 w-full rounded-full border border-input bg-background px-3 py-1.5"><option value="clean">Clean</option><option value="studio">Studio</option></select></label>
         <label className="text-xs">Background<select value={background} onChange={(e) => setBackground(e.target.value as typeof background)} className="mt-1 w-full rounded-full border border-input bg-background px-3 py-1.5"><option value="black">Black</option><option value="paper">Paper</option><option value="soft">Soft grey</option></select></label>
       </div>
       <div className="mt-4 overflow-hidden rounded-xl border border-border bg-muted">

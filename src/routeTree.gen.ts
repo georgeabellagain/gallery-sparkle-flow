@@ -15,6 +15,7 @@ import { Route as ArchitecturePortfolioRouteImport } from './routes/architecture
 import { Route as ArtPortfolioRouteImport } from './routes/art-portfolio'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as EditRouteImport } from './routes/edit'
 import { Route as FashionPortfolioRouteImport } from './routes/fashion-portfolio'
 import { Route as FreePdfPortfolioRouteImport } from './routes/free-pdf-portfolio'
 import { Route as FreePortfolioWebsiteRouteImport } from './routes/free-portfolio-website'
@@ -66,6 +67,11 @@ const CreateRoute = CreateRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EditRoute = EditRouteImport.update({
+  id: '/edit',
+  path: '/edit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FashionPortfolioRoute = FashionPortfolioRouteImport.update({
@@ -188,6 +194,7 @@ export interface FileRoutesByFullPath {
   '/art-portfolio': typeof ArtPortfolioRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/edit': typeof EditRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
@@ -218,6 +225,7 @@ export interface FileRoutesByTo {
   '/art-portfolio': typeof ArtPortfolioRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/edit': typeof EditRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
@@ -249,6 +257,7 @@ export interface FileRoutesById {
   '/art-portfolio': typeof ArtPortfolioRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/edit': typeof EditRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
@@ -281,6 +290,7 @@ export interface FileRouteTypes {
     | '/art-portfolio'
     | '/create'
     | '/dashboard'
+    | '/edit'
     | '/fashion-portfolio'
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
@@ -311,6 +321,7 @@ export interface FileRouteTypes {
     | '/art-portfolio'
     | '/create'
     | '/dashboard'
+    | '/edit'
     | '/fashion-portfolio'
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
@@ -341,6 +352,7 @@ export interface FileRouteTypes {
     | '/art-portfolio'
     | '/create'
     | '/dashboard'
+    | '/edit'
     | '/fashion-portfolio'
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
@@ -372,6 +384,7 @@ export interface RootRouteChildren {
   ArtPortfolioRoute: typeof ArtPortfolioRoute
   CreateRoute: typeof CreateRoute
   DashboardRoute: typeof DashboardRoute
+  EditRoute: typeof EditRoute
   FashionPortfolioRoute: typeof FashionPortfolioRoute
   FreePdfPortfolioRoute: typeof FreePdfPortfolioRoute
   FreePortfolioWebsiteRoute: typeof FreePortfolioWebsiteRoute
@@ -438,6 +451,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/edit': {
+      id: '/edit'
+      path: '/edit'
+      fullPath: '/edit'
+      preLoaderRoute: typeof EditRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/fashion-portfolio': {
@@ -604,6 +624,7 @@ const rootRouteChildren: RootRouteChildren = {
   ArtPortfolioRoute: ArtPortfolioRoute,
   CreateRoute: CreateRoute,
   DashboardRoute: DashboardRoute,
+  EditRoute: EditRoute,
   FashionPortfolioRoute: FashionPortfolioRoute,
   FreePdfPortfolioRoute: FreePdfPortfolioRoute,
   FreePortfolioWebsiteRoute: FreePortfolioWebsiteRoute,

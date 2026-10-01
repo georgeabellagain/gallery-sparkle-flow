@@ -37,11 +37,11 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
   return (
     <div className="rule-t pt-4">
       <p className="flex items-center gap-2 text-xs font-medium">
-        <Palette className="size-4 text-leaf" aria-hidden /> Page style
+        <Palette className="size-4 text-leaf" aria-hidden /> Portfolio appearance
         {!paid && <span className="rounded-full bg-leaf-soft px-2 py-0.5 text-xxs text-leaf">Personal plan</span>}
       </p>
       {!paid ? (
-        <p className="mt-1 text-xs text-muted-foreground">Choose your own font, colours and banner with the Personal plan.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Personal adds custom colours, typography and a cover image.</p>
       ) : (
         <div className="mt-3 space-y-3 text-xs">
           <label className="flex items-center justify-between gap-3">
@@ -57,10 +57,10 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
             </label>
           ))}
           <div className="flex items-center justify-between gap-3">
-            <span>Banner</span>
+            <span><span className="block">Cover image</span><span className="block text-xxs text-muted-foreground">Shown above your profile</span></span>
             <span className="flex gap-2">
                <input ref={input} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => { onBanner(e.target.files?.[0]); e.currentTarget.value = ""; }} />
-              <Button size="xs" variant="line" onClick={() => input.current?.click()}>{style.bannerKey ? "Replace" : "Upload banner"}</Button>
+               <Button size="xs" variant="line" onClick={() => input.current?.click()}>{style.bannerKey ? "Replace" : "Upload image"}</Button>
               {style.bannerKey && <Button size="xs" variant="quiet" onClick={() => { const k = style.bannerKey; set({ bannerKey: undefined }); if (k) void deleteBlob(k); }}>Remove</Button>}
             </span>
           </div>
@@ -74,21 +74,8 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
         <div className="mt-3 space-y-3 text-xs">
           <SettingSelect label="Default reading mode" value={viewer.mode} onChange={(value) => setViewer({ mode: value as ViewerSettings["mode"] })} options={[["scroll", "Scroll"], ["paged", "Page by page"], ["book", "Flipbook"]]} />
           <SettingSelect label="My PDF contains" value={viewer.spreads} onChange={(value) => setViewer({ spreads: value as ViewerSettings["spreads"] })} options={[["single", "Single pages"], ["ready", "Ready-made spreads"]]} />
-          <SettingSelect label="Look" value={viewer.look} onChange={(value) => setViewer({ look: value as ViewerSettings["look"] })} options={[["clean", "Clean"], ["studio", "Studio"]]} />
-          <SettingSelect label="Viewer background" value={viewer.background} onChange={(value) => setViewer({ background: value as ViewerSettings["background"] })} options={[["black", "Black"], ["paper", "Paper"], ["soft", "Soft grey"], ["oak", "Light oak table"], ["walnut", "Dark walnut table"]]} />
+          <SettingSelect label="Viewer background" value={viewer.background === "oak" || viewer.background === "walnut" ? "black" : viewer.background} onChange={(value) => setViewer({ background: value as ViewerSettings["background"], look: "clean" })} options={[["black", "Black"], ["paper", "White"], ["soft", "Soft grey"]]} />
           <label className="flex items-center justify-between gap-3"><span>Show profile header</span><input type="checkbox" checked={viewer.showHeader} onChange={(e) => setViewer({ showHeader: e.target.checked })} /></label>
-          {viewer.look === "studio" && (
-            <details className="rounded-lg border border-border p-3">
-              <summary className="cursor-pointer font-medium">Advanced Studio details</summary>
-              <div className="mt-3 space-y-3">
-                <SettingSelect label="Cover finish" value={viewer.finish} onChange={(value) => setViewer({ finish: value as ViewerSettings["finish"] })} options={[["matte", "Matte"], ["satin", "Satin"], ["textured", "Textured"]]} />
-                <SettingSelect label="Paper" value={viewer.paper} onChange={(value) => setViewer({ paper: value as ViewerSettings["paper"] })} options={[["smooth", "Smooth"], ["natural", "Natural"]]} />
-                <SettingSelect label="Lighting" value={viewer.light} onChange={(value) => setViewer({ light: value as ViewerSettings["light"] })} options={[["soft", "Soft"], ["bright", "Bright"]]} />
-                <SettingSelect label="Shadow" value={viewer.shadow} onChange={(value) => setViewer({ shadow: value as ViewerSettings["shadow"] })} options={[["none", "None"], ["subtle", "Subtle"], ["grounded", "Grounded"]]} />
-                <SettingSelect label="Page thickness" value={viewer.thickness} onChange={(value) => setViewer({ thickness: value as ViewerSettings["thickness"] })} options={[["thin", "Thin"], ["medium", "Medium"], ["thick", "Thick"]]} />
-              </div>
-            </details>
-          )}
         </div>
       </div>
     </div>
