@@ -413,13 +413,6 @@ function BookView({
     return () => window.removeEventListener("keydown", on);
   }, []);
 
-  const slotsFor = (value: number[]) => narrow
-    ? [value[0] ?? null]
-    : value.length === 2
-      ? value
-      : value[0] === 1
-        ? [null, 1]
-        : [value[0] ?? null, null];
   // While turning, the destination sits underneath the moving sheet. The
   // stationary half of the old spread remains above it until the turn ends.
   const destination = turn ? spreads[turn.to] ?? spread : spread;
@@ -430,8 +423,6 @@ function BookView({
   const atStart = safeIdx === 0;
   const atEnd = safeIdx === spreads.length - 1;
   const label = spread.length === 2 ? `Pages ${spread[0]}–${spread[1]} of ${sizes.length}` : `Page ${spread[0]} of ${sizes.length}`;
-  const turningFront = turn ? sourceSlots[turn.dir > 0 && !narrow ? 1 : 0] : null;
-  const turningBack = turn ? slots[turn.dir > 0 ? 0 : narrow ? 0 : 1] : null;
   const stationarySlot = turn && !narrow ? (turn.dir > 0 ? 0 : 1) : null;
 
   return (
@@ -444,19 +435,21 @@ function BookView({
       <div
         className="mx-auto px-3 py-6 sm:px-8"
         style={{ width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? 1400 : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
-        onTouchStart={(e) => (touchX.current = e.touches[0]?.clientX ?? null)}
+        onTouchStart={(e) => (touchX.current = e.touches.length === 1 && zoom <= 1 ? e.touches[0]?.clientX ?? null : null)}
+        onTouchMove={(e) => e.touches.length > 1 && (touchX.current = null)}
         onTouchEnd={(e) => {
           const x = touchX.current;
           touchX.current = null;
           const end = e.changedTouches[0]?.clientX;
-          if (x == null || end == null || Math.abs(end - x) < 50) return;
+          if (x == null || end == null || Math.abs(end - x) < 50 || dragState.current) return;
+          if ((e.target as HTMLElement).closest("button")) return;
           flip(end < x ? 1 : -1);
         }}
       >
         <div
+          ref={stage}
           className={cn("pf-book-stage relative grid", narrow ? "grid-cols-1" : "grid-cols-2")}
           style={{ aspectRatio: narrow ? `${ref.w} / ${ref.h}` : `${ref.w * 2} / ${ref.h}` }}
-          aria-live="polite"
           aria-label={label}
         >
           {slots.map((n, i) => (
@@ -476,22 +469,14 @@ function BookView({
               )}
             </div>
           )}
-          {turn && turningFront && pageCache.get(doc)?.get(turningFront) && (
-            <CurvedPage
-              front={pageCache.get(doc)?.get(turningFront) ?? pageCache.get(doc)?.get(1) ?? document.createElement("canvas")}
-              back={turningBack ? pageCache.get(doc)?.get(turningBack) ?? null : null}
-              direction={turn.dir}
-              ratio={ref.h / ref.w}
-              onFinish={finishTurn}
-            />
-          )}
+          <CurvedPage ref={turner} ratio={ref.h / ref.w} />
           {!atEnd && (
-            <button type="button" onClick={() => flip(1)} disabled={!!turn} aria-label="Turn to next page" title="Next page" className="group absolute bottom-0 right-0 z-[4] size-14 overflow-hidden disabled:pointer-events-none">
+            <button type="button" onClick={() => flip(1)} onPointerDown={cornerDown(1)} onPointerMove={cornerMove} onPointerUp={cornerUp} onPointerCancel={cornerUp} aria-label="Turn to next page" title="Next page — click or drag" className="group absolute bottom-0 right-0 z-[4] size-16 touch-none overflow-hidden">
               <span className="absolute bottom-0 right-0 size-7 bg-muted shadow-md [clip-path:polygon(100%_0,0_100%,0_0)] transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
             </button>
           )}
           {!atStart && (
-            <button type="button" onClick={() => flip(-1)} disabled={!!turn} aria-label="Turn to previous page" title="Previous page" className="group absolute bottom-0 left-0 z-[4] size-14 overflow-hidden disabled:pointer-events-none">
+            <button type="button" onClick={() => flip(-1)} onPointerDown={cornerDown(-1)} onPointerMove={cornerMove} onPointerUp={cornerUp} onPointerCancel={cornerUp} aria-label="Turn to previous page" title="Previous page — click or drag" className="group absolute bottom-0 left-0 z-[4] size-16 touch-none overflow-hidden">
               <span className="absolute bottom-0 left-0 size-7 bg-muted shadow-md [clip-path:polygon(0_0,100%_0,100%_100%)] transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
             </button>
           )}
