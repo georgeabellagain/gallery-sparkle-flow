@@ -381,7 +381,8 @@ function BookView({
   const turnFace = (page: number | null | undefined, side?: "left" | "right") => {
     if (!page) return null;
     const cached = getCached(doc, page);
-    return cached && side ? cropCanvasHalf(cached, side) : cached;
+    if (!cached) return null;
+    return side ? cropCanvasHalf(cached, side) : cached;
   };
   const startTurn = (d: 1 | -1): boolean => {
     if (turning.current) return false;
