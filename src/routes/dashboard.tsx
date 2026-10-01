@@ -46,6 +46,12 @@ function Dashboard() {
   const { user, sub, loading, refresh } = useAccount();
   const portal = useServerFn(getPortalUrl);
   const checkoutDone = typeof window !== "undefined" && window.location.search.includes("checkout=success");
+  const all = allPortfolios(doc);
+  const paid = isPaid(doc);
+  const pdfLimitMb = uploadLimitMb(doc);
+  const profile = p?.profile ?? all[0]?.profile;
+  const profilePhoto = useBlob(profile?.photoKey);
+  const profilePhotoUrl = useObjectUrl(profilePhoto);
 
   if (!hydrated || loading) return null;
 
@@ -73,13 +79,6 @@ function Dashboard() {
       </div>
     );
   }
-
-  const all = allPortfolios(doc);
-  const paid = isPaid(doc);
-  const pdfLimitMb = uploadLimitMb(doc);
-  const profile = p?.profile ?? all[0]?.profile;
-  const profilePhoto = useBlob(profile?.photoKey);
-  const profilePhotoUrl = useObjectUrl(profilePhoto);
 
   if (!p) {
     return (
