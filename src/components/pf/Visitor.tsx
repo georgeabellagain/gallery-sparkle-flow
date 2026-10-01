@@ -6,7 +6,7 @@ import { Wordmark } from "./Chrome";
 import { SAMPLE } from "@/lib/portfolia/sample";
 import { registerPublicUrls } from "@/lib/portfolia/assets";
 import type { PublicPortfolio } from "@/lib/portfolia/public.functions";
-import { DEFAULT_VIEWER, findPortfolio, recordDownload, recordVisit, useDoc, type Portfolio } from "@/lib/portfolia/store";
+import { type ViewerSettings, DEFAULT_VIEWER, findPortfolio, recordDownload, recordVisit, useDoc, type Portfolio } from "@/lib/portfolia/store";
 
 export function SampleVisitor() {
   return (
@@ -80,7 +80,7 @@ export function CloudVisitor({ data }: { data: NonNullable<PublicPortfolio> }) {
 }
 
 /** Compact published viewer for embedding on another website. */
-export function EmbeddedVisitor({ data, startPage, mode, background, look }: { data: NonNullable<PublicPortfolio>; startPage?: number; mode?: "scroll" | "paged" | "book"; background?: "black" | "paper" | "soft"; look?: "clean" | "studio" }) {
+export function EmbeddedVisitor({ data, startPage, mode, background, look }: { data: NonNullable<PublicPortfolio>; startPage?: number; mode?: "scroll" | "paged" | "book"; background?: ViewerSettings["background"]; look?: "clean" | "studio" }) {
   registerPublicUrls(data.urls);
   const p = data.portfolio;
   const { pdf } = useStoredMedia(p.pdf?.blobKey);

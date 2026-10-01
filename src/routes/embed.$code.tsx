@@ -4,7 +4,7 @@ import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
 
 export const Route = createFileRoute("/embed/$code")({
   staticData: { sitemap: false },
-  validateSearch: (search: Record<string, unknown>): { page?: number; mode?: "scroll" | "paged" | "book"; look?: "clean" | "studio"; background?: "black" | "paper" | "soft" } => {
+  validateSearch: (search: Record<string, unknown>): { page?: number; mode?: "scroll" | "paged" | "book"; look?: "clean" | "studio"; background?: "black" | "paper" | "soft" | "oak" | "walnut" } => {
     const rawPage = typeof search["page"] === "string" ? Number(search["page"]) : search["page"];
     const mode = search["mode"];
     const look = search["look"];
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/embed/$code")({
       page: typeof rawPage === "number" && Number.isFinite(rawPage) ? Math.max(1, Math.floor(rawPage)) : undefined,
       mode: mode === "scroll" || mode === "paged" || mode === "book" ? mode : undefined,
       look: look === "clean" || look === "studio" ? look : undefined,
-      background: background === "black" || background === "paper" || background === "soft" ? background : undefined,
+      background: background === "black" || background === "paper" || background === "soft" || background === "oak" || background === "walnut" ? background : undefined,
     };
   },
   loader: ({ params }) => getPublicPortfolio({ data: { by: "code", value: params.code } }),

@@ -159,8 +159,13 @@ export function PdfViewer({
     return () => window.removeEventListener("keydown", on);
   }, [mode, total]);
 
+  const [woodBg, setWoodBg] = useState<string | null>(null);
+  useEffect(() => {
+    setWoodBg(view.background === "oak" || view.background === "walnut" ? woodUrl(view.background) : null);
+  }, [view.background]);
+
   return (
-    <div ref={rootRef} onPointerMove={(e) => revealControls(e.pointerType)} style={backdrop ? { background: backdrop } : undefined} className={cn("relative bg-foreground", !backdrop && view.background === "paper" && "bg-background", !backdrop && view.background === "soft" && "bg-muted", immersive && "min-h-[calc(100vh-5rem)]", full && "overflow-auto")}>
+    <div ref={rootRef} onPointerMove={(e) => revealControls(e.pointerType)} style={woodBg ? { backgroundImage: `url(${woodBg})`, backgroundSize: "1024px auto" } : backdrop ? { background: backdrop } : undefined} className={cn("relative bg-foreground", !backdrop && view.background === "paper" && "bg-background", !backdrop && view.background === "soft" && "bg-muted", immersive && "min-h-[calc(100vh-5rem)]", full && "overflow-auto")}>
       <div className={cn(
         "sticky top-0 z-50 isolate flex items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-1.5 text-xs backdrop-blur transition-opacity duration-200",
         immersive && "opacity-100 focus-within:opacity-100",
@@ -583,7 +588,7 @@ function BookView({
         <button type="button" onClick={() => flip(-1)} disabled={atStart || !!turn} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
           <ChevronLeft className="size-3.5" /> Previous
         </button>
-        <span aria-live="polite" className="min-w-32 text-center tabular-nums text-background/70">{label}</span>
+        <span aria-live="polite" className={cn("min-w-32 text-center tabular-nums text-background/70", wood && "rounded-full bg-background/90 px-3 py-1 text-foreground")}>{label}</span>
         <button type="button" onClick={() => flip(1)} disabled={atEnd || !!turn} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
           Next <ChevronRight className="size-3.5" />
         </button>

@@ -30,7 +30,7 @@ export interface PageStyle {
 export interface ViewerSettings {
   mode: "scroll" | "paged" | "book";
   look: "clean" | "studio";
-  background: "black" | "paper" | "soft";
+  background: "black" | "paper" | "soft" | "oak" | "walnut";
   finish: "matte" | "satin" | "textured";
   paper: "smooth" | "natural";
   light: "soft" | "bright";
