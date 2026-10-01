@@ -1,25 +1,24 @@
 import { createFileRoute, Link, useHydrated, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Code2, Copy, ExternalLink, QrCode } from "lucide-react";
-import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE, Modal, useBlob } from "@/components/pf/Chrome";
+import { Code2, Copy, Eye, Pencil, QrCode, Share2 } from "lucide-react";
+import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE, Modal, useBlob, useObjectUrl } from "@/components/pf/Chrome";
 import { DropZone } from "@/components/pf/DropZone";
 import { PdfViewer } from "@/components/pf/PdfViewer";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
 import { PortfolioQrCode } from "@/components/pf/PortfolioQrCode";
 import { Button } from "@/components/ui/button";
-import { deleteBlob, formatBytes } from "@/lib/portfolia/assets";
+import { formatBytes } from "@/lib/portfolia/assets";
 import { sampleAnalytics } from "@/lib/portfolia/sample";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { useAccount } from "@/hooks/useAccount";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
-import { getPortalUrl, keepSubscription, switchBilling } from "@/lib/payments.functions";
+import { getPortalUrl } from "@/lib/payments.functions";
 import { getPaddleEnvironment } from "@/lib/paddle";
 import { submitFeedback } from "@/lib/feedback.functions";
 import {
   allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, switchPortfolio,
-  deletePortfolio, startPortfolio, graceEnds, GRACE_DAYS, patchPortfolio, personalActive, replacePdf, update, uploadLimitMb, useDoc,
-  type Analytics, type PdfFile,
+  startPortfolio, personalActive, update, uploadLimitMb, useDoc, type Analytics,
 } from "@/lib/portfolia/store";
 
 export const Route = createFileRoute("/dashboard")({
@@ -41,15 +40,18 @@ function Dashboard() {
   const hydrated = useHydrated();
   const navigate = useNavigate();
   const p = doc.portfolio;
-  const [dialog, setDialog] = useState<null | "replace" | "unpublish" | "delete" | "upgrade" | "cancel" | "qr" | "embed">(null);
+  const [dialog, setDialog] = useState<null | "share" | "upgrade" | "cancel" | "qr" | "embed">(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const { user, sub, loading, refresh } = useAccount();
-  const keepFn = useServerFn(keepSubscription);
   const portal = useServerFn(getPortalUrl);
-  const switchFn = useServerFn(switchBilling);
-  const [billingBusy, setBillingBusy] = useState(false);
   const checkoutDone = typeof window !== "undefined" && window.location.search.includes("checkout=success");
+  const all = allPortfolios(doc);
+  const paid = isPaid(doc);
+  const pdfLimitMb = uploadLimitMb(doc);
+  const profile = p?.profile ?? all[0]?.profile;
+  const profilePhoto = useBlob(profile?.photoKey);
+  const profilePhotoUrl = useObjectUrl(profilePhoto);
 
   if (!hydrated || loading) return null;
 
@@ -78,35 +80,13 @@ function Dashboard() {
     );
   }
 
-  const all = allPortfolios(doc);
-  const paid = isPaid(doc);
-  const pdfLimitMb = uploadLimitMb(doc);
-  const switcher = (all.length > 1 || paid) && (
-    <nav aria-label="Your portfolios" className="mb-8 flex flex-wrap items-center gap-2">
-      <span className="label-xs mr-1">Portfolios {all.length}/{MAX_PORTFOLIOS}</span>
-      {all.map((x) => (
-        <button key={x.code} onClick={() => switchPortfolio(x.code)} aria-current={x.code === p?.code ? "true" : undefined}
-          className={`rounded-full border px-3.5 py-1.5 text-xs ${x.code === p?.code ? "border-foreground bg-card shadow-soft" : "border-border text-muted-foreground hover:border-border-strong"}`}>
-          {x.profile.name || x.pdf?.name || "Untitled"}{x.status !== "published" && " · draft"}
-        </button>
-      ))}
-      {!p && <span className="rounded-full border border-dashed border-foreground px-3.5 py-1.5 text-xs">New portfolio</span>}
-      {p && (canAddPortfolio(doc)
-        ? <Button size="xs" variant="line" onClick={() => beginNewPortfolio()}>+ New portfolio</Button>
-        : paid && <span className="text-xs text-muted-foreground">You’ve reached {MAX_PORTFOLIOS} portfolios.</span>)}
-    </nav>
-  );
-
   if (!p) {
     return (
       <div className="min-h-screen">{header}
         <main className="shell max-w-[90rem] py-14">
-          {switcher}
           <h1 className="display-title text-3xl">{all.length ? "Upload your next portfolio" : "No portfolio yet"}</h1>
-          {all.length > 0 && <Button size="sm" variant="quiet" className="mt-3" onClick={() => switchPortfolio(all[0]!.code)}>Cancel</Button>}
+          {all.length > 0 && <Button size="sm" variant="quiet" className="mt-3" onClick={() => switchPortfolio(all[0]?.code ?? "")}>Cancel</Button>}
           <div className="mt-6 max-w-2xl"><DropZone limitMb={pdfLimitMb} onAccepted={(pdf) => { if (startPortfolio(pdf)) void navigate({ to: "/create" }); }} /></div>
-          <div className="mt-14"><AnalyticsPanel data={sampleAnalytics()} sample /></div>
-          <div className="mt-14 max-w-2xl"><FeedbackBox /></div>
         </main>
         <SiteFooter />
       </div>
@@ -127,125 +107,113 @@ function Dashboard() {
       setMsg("Couldn’t copy automatically — select the address and copy it manually.");
     }
   };
-  const published = p.status === "published";
+  const openFor = (code: string, action: "share" | "embed" | "qr" | "upgrade" | "cancel") => {
+    if (code !== p.code) switchPortfolio(code);
+    setCopied(false);
+    setDialog(action);
+  };
+  const editPortfolio = (code: string) => {
+    if (code !== p.code) switchPortfolio(code);
+    void navigate({ to: "/edit" });
+  };
 
   return (
     <div className="min-h-screen"><PaymentTestModeBanner />{header}
-      <main className="shell max-w-[90rem] py-10">
-        {switcher}
-        <div className="grid gap-10 lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] lg:gap-14">
+      <main className="shell max-w-[90rem] py-10 sm:py-14">
+        <section className="flex flex-col gap-5 border-b border-border pb-10 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-4">
+            {profilePhotoUrl ? <img src={profilePhotoUrl} alt={profile?.name || "Profile"} className="size-16 shrink-0 rounded-full object-cover sm:size-20" /> : <div className="flex size-16 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-xl font-medium sm:size-20">{profile?.name?.trim().charAt(0).toUpperCase() || "P"}</div>}
+            <div className="min-w-0">
+              <p className="label-xs">Profile</p>
+              <h1 className="display-title mt-1 truncate text-3xl">{profile?.name || "Your profile"}</h1>
+              {profile?.title && <p className="mt-1 text-sm text-muted-foreground">{profile.title}</p>}
+            </div>
+          </div>
+          <Button asChild variant="line"><Link to="/create"><Pencil /> Edit profile</Link></Button>
+        </section>
+
+        <section className="py-10">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div><p className="label-xs">Library</p><h2 className="display-title mt-1 text-4xl">Portfolios</h2></div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-muted-foreground">{all.length}/{MAX_PORTFOLIOS}</span>
+              {canAddPortfolio(doc) && <Button size="sm" onClick={() => beginNewPortfolio()}>New portfolio</Button>}
+            </div>
+          </div>
+
+          <div className="mt-8 grid gap-x-7 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {all.map((portfolio) => {
+              const isPublished = portfolio.status === "published";
+              return <article key={portfolio.code} className="group min-w-0">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <span className={`text-xxs font-semibold uppercase ${isPublished ? "text-info" : "text-muted-foreground"}`}>{isPublished ? "Published" : "Unpublished"}</span>
+                  <span className="truncate text-xxs text-muted-foreground">{portfolio.pdf?.pages ?? 0} pages</span>
+                </div>
+                <div role="button" tabIndex={0} onClick={() => editPortfolio(portfolio.code)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); editPortfolio(portfolio.code); } }} className="block w-full cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <CatalogueCover blobKey={portfolio.pdf?.blobKey} />
+                </div>
+                <div className="pt-4">
+                  <h3 className="truncate text-sm font-medium">{portfolio.pdf?.name?.replace(/\.pdf$/i, "") || portfolio.profile.name || "Untitled portfolio"}</h3>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">{portfolio.username && personalActive(portfolio) ? `portfolia.site/${portfolio.username}` : `/p/${portfolio.code}`}</p>
+                  <div className="mt-4 grid grid-cols-3 gap-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                    <Button size="sm" variant="line" onClick={() => openFor(portfolio.code, "share")}><Share2 /> Share</Button>
+                    <Button size="sm" variant="line" asChild><Link to="/p/$slug" params={{ slug: portfolio.code }} search={{ preview: "1" }}><Eye /> Preview</Link></Button>
+                    <Button size="sm" variant="line" onClick={() => editPortfolio(portfolio.code)}><Pencil /> Edit</Button>
+                  </div>
+                </div>
+              </article>;
+            })}
+          </div>
+        </section>
+
+        <section className="grid gap-10 border-t border-border py-10 lg:grid-cols-2">
           <div>
-            <Link to="/edit" aria-label="Edit your portfolio" className="block rounded-2xl transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"><Thumb blobKey={p.pdf?.blobKey} /></Link>
-            <p className="mt-3 text-sm font-medium">{p.profile.name}</p>
-            <p className="text-xs text-muted-foreground">{p.pdf ? `${p.pdf.name} · ${p.pdf.pages} pages · ${formatBytes(p.pdf.bytes)}` : "No PDF"}</p>
+            <h2 className="text-sm font-medium">Plan and account</h2>
+            <p className="mt-2 text-sm">{p.plan === "personal" ? `Personal — billed ${p.billing === "month" ? "monthly" : "yearly"}` : "Free"}</p>
+            {checkoutDone && !sub && <p role="status" className="mt-1 text-xs text-muted-foreground">Payment received — confirming your plan…</p>}
+            {sub?.status === "past_due" && <p role="alert" className="mt-1 text-xs text-destructive">Your last payment didn’t go through. Please update your card.</p>}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {p.plan === "free" ? <Button size="sm" onClick={() => setDialog("upgrade")}>See Personal plan</Button> : <>
+                <Button size="sm" variant="line" onClick={() => setDialog("upgrade")}>Change address</Button>
+                {sub && sub.status !== "canceled" && <Button size="sm" variant="quiet" onClick={() => setDialog("cancel")}>{sub.status === "past_due" ? "Update card" : "Manage billing"}</Button>}
+              </>}
+            </div>
           </div>
-
-          <div className="space-y-10">
-            <section>
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="display-title text-3xl">{all.length > 1 ? p.profile.name || "Your portfolio" : "Your portfolio"}</h1>
-                <span className={`rounded-full border px-2.5 py-0.5 text-xxs uppercase tracking-wider ${published ? "border-foreground" : "border-border text-muted-foreground"}`}>{published ? "Published · Unlisted" : "Not published"}</span>
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-2">
-                <code className="rounded-full border border-border px-3.5 py-1.5 text-xs select-all">{origin.replace(/^https?:\/\//, "")}{sharePath}</code>
-                <Button size="sm" variant="line" onClick={() => void copy()}><Copy /> {copied ? "Copied" : "Copy link"}</Button>
-                <Button size="sm" variant="line" onClick={() => setDialog("qr")}><QrCode /> QR code</Button>
-                {published && <Button size="sm" variant="line" onClick={() => setDialog("embed")}><Code2 /> Embed</Button>}
-                {published ? (
-                  personalPath ? <Button size="sm" variant="line" asChild><Link to="/$username" params={{ username: p.username ?? "" }}><ExternalLink /> Open portfolio</Link></Button>
-                    : <Button size="sm" variant="line" asChild><Link to="/p/$slug" params={{ slug: p.code }}><ExternalLink /> Open portfolio</Link></Button>
-                ) : (
-                  <Button size="sm" onClick={() => setMsg(patchPortfolio({ status: "published", publishedAt: Date.now() }) ? null : "Publishing failed — nothing changed.")}>Publish portfolio</Button>
-                )}
-                <Button size="sm" variant="quiet" asChild><Link to="/p/$slug" params={{ slug: p.code }} search={{ preview: "1" }}>Preview</Link></Button>
-              </div>
-              <p className="mt-3 text-xs text-muted-foreground">Anyone with your link can view. Your portfolio will not appear in a public directory. This is not password protection. Search indexing is off.</p>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <Button size="sm" variant="line" onClick={() => setDialog("replace")}>Replace PDF</Button>
-                <Button size="sm" variant="line" asChild><Link to="/edit">Edit portfolio</Link></Button>
-                <Button size="sm" variant="line" asChild><Link to="/create">Edit profile</Link></Button>
-                {published && <Button size="sm" variant="line" onClick={() => setDialog("unpublish")}>Unpublish</Button>}
-                <Button size="sm" variant="quiet" onClick={() => setDialog("delete")}>Delete portfolio</Button>
-              </div>
-              {msg && <p role="alert" className="mt-3 text-sm text-destructive">{msg}</p>}
-            </section>
-
-            <section className="rule-t pt-8">
-              <h2 className="text-sm font-medium">Plan and address</h2>
-              <p className="mt-2 text-sm">{p.plan === "personal" ? `Personal — billed ${p.billing === "month" ? "monthly" : "yearly"}` : "Free"}</p>
-              {checkoutDone && !sub && <p role="status" className="mt-1 text-xs text-muted-foreground">Payment received — confirming your plan, this takes a few seconds…</p>}
-              {sub?.cancel_at_period_end && sub.current_period_end && <p className="mt-1 text-xs text-muted-foreground">Cancelled. Personal stays active until {new Date(sub.current_period_end).toLocaleDateString()}, then your personalised address is kept for {GRACE_DAYS} more days.</p>}
-              {sub?.status === "past_due" && <p role="alert" className="mt-1 text-xs text-destructive">Your last payment didn’t go through. Please update your card to keep Personal.</p>}
-              <ul className="mt-2 space-y-1 text-sm">
-                <li>Free address: <span className="font-mono text-xs">{freePath}</span> — always works</li>
-                {p.username && (
-                  <li>
-                    Personalised: {active && published ? <Link to="/$username" params={{ username: p.username }} className="font-mono text-xs underline">portfolia.site/{p.username}</Link> : <span className="font-mono text-xs">portfolia.site/{p.username}</span>}
-                  </li>
-                )}
-                {p.cancelledAt && active && <li className="text-xs text-muted-foreground">Cancelled. Personalised address stays active until {graceEnds(p)!.toLocaleDateString()}; the name won’t be reassigned straight away.</li>}
-              </ul>
-              <div className="mt-4 flex gap-2">
-                {p.plan === "free" ? (
-                  <Button size="sm" onClick={() => setDialog("upgrade")}>Get a personalised address</Button>
-                ) : (
-                  <>
-                    <Button size="sm" variant="line" onClick={() => setDialog("upgrade")}>Change address</Button>
-                    {sub && sub.status !== "canceled" && !sub.cancel_at_period_end && (
-                      <Button size="sm" variant="line" disabled={billingBusy} onClick={async () => {
-                        setBillingBusy(true); setMsg(null);
-                        try { await switchFn({ data: { environment: getPaddleEnvironment(), priceId: p.billing === "month" ? "personal_yearly" : "personal_monthly" } }); setMsg("Billing switched. The difference has been charged or credited."); setTimeout(refresh, 3000); }
-                        catch (e) { setMsg(`Couldn’t switch billing — nothing changed. ${e instanceof Error ? e.message : ""}`); }
-                        finally { setBillingBusy(false); }
-                      }}>Switch to {p.billing === "month" ? "yearly" : "monthly"}</Button>
-                    )}
-                    {sub && sub.status !== "canceled" && sub.cancel_at_period_end && (
-                      <Button size="sm" disabled={billingBusy} onClick={async () => {
-                        setBillingBusy(true); setMsg(null);
-                        try { await keepFn({ data: { environment: getPaddleEnvironment() } }); setMsg("Your plan will renew as normal."); setTimeout(refresh, 3000); }
-                        catch { setMsg("Couldn’t undo the cancellation — please try again."); }
-                        finally { setBillingBusy(false); }
-                      }}>Keep my plan</Button>
-                    )}
-                    {sub && sub.status !== "canceled" && <Button size="sm" variant="quiet" onClick={() => setDialog("cancel")}>{sub.status === "past_due" ? "Update card" : "Manage or cancel"}</Button>}
-                  </>
-                )}
-              </div>
-            </section>
-
-            {!paid && (
-              <section className="rule-t pt-8">
-                <h2 className="text-sm font-medium">More portfolios</h2>
-                <p className="mt-2 text-sm text-muted-foreground">The Personal plan lets you keep up to {MAX_PORTFOLIOS} portfolios, each with its own link, and add a CV to your details.</p>
-                <Button size="sm" variant="line" className="mt-4" onClick={() => setDialog("upgrade")}>See Personal plan</Button>
-              </section>
-            )}
-            <section className="rule-t pt-8"><AnalyticsPanel data={doc.analytics} /></section>
-            <DemoNote>{LOCAL_NOTE}</DemoNote>
-            <section className="rule-t pt-8"><FeedbackBox /></section>
-          </div>
-        </div>
+          <AnalyticsPanel data={doc.analytics} />
+        </section>
+        <DemoNote className="max-w-2xl">{LOCAL_NOTE}</DemoNote>
+        <div className="mt-10 max-w-2xl"><FeedbackBox /></div>
       </main>
       <SiteFooter />
 
-      <ReplaceModal open={dialog === "replace"} onClose={() => setDialog(null)} current={p.pdf} limitMb={pdfLimitMb} />
+      <Modal open={dialog === "share"} onClose={() => setDialog(null)} title="Share portfolio">
+        <p className="text-muted-foreground">Share the published version by link, embed or personal QR code.</p>
+        <code className="mt-4 block overflow-x-auto rounded-xl border border-border bg-muted p-3 text-xs select-all">{origin}{sharePath}</code>
+        {msg && <p role="alert" className="mt-3 text-sm text-destructive">{msg}</p>}
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Button onClick={() => void copy()}><Copy /> {copied ? "Copied" : "Copy link"}</Button>
+          <Button variant="line" onClick={() => setDialog("qr")}><QrCode /> QR code</Button>
+          {p.status === "published" && <Button variant="line" onClick={() => setDialog("embed")}><Code2 /> Embed</Button>}
+        </div>
+        {p.status !== "published" && <p className="mt-4 text-xs text-muted-foreground">Publish this portfolio from Edit before sharing it with visitors.</p>}
+      </Modal>
       <PortfolioQrCode open={dialog === "qr"} onClose={() => setDialog(null)} url={origin + sharePath} name={p.profile.name} />
       <EmbedModal open={dialog === "embed"} onClose={() => setDialog(null)} url={`${origin}/embed/${p.code}`} title={p.profile.name || "Portfolio"} />
       <UpgradeModal open={dialog === "upgrade"} onClose={() => setDialog(null)} />
-      <Modal open={dialog === "unpublish"} onClose={() => setDialog(null)} title="Unpublish portfolio?">
-        <p className="text-muted-foreground">Visitors will see “No portfolio here” at your link. Your PDF, details and link are kept, so you can publish again later.</p>
-        <Confirm onCancel={() => setDialog(null)} label="Unpublish" onConfirm={() => { setMsg(patchPortfolio({ status: "draft" }) ? null : "Couldn’t unpublish — nothing changed."); setDialog(null); }} />
-      </Modal>
-      <Modal open={dialog === "delete"} onClose={() => setDialog(null)} title="Delete portfolio?">
-        <p className="text-muted-foreground">This permanently removes this portfolio’s PDF, details and statistics from your account. It can’t be undone.</p>
-        <Confirm onCancel={() => setDialog(null)} label="Delete permanently" onConfirm={() => { void deletePortfolio(); setDialog(null); }} />
-      </Modal>
-      <Modal open={dialog === "cancel"} onClose={() => setDialog(null)} title="Cancel Personal?">
-        <p className="text-muted-foreground">Every portfolio stays available at its free address (this one: {freePath}) — nothing is deleted. You won’t be able to add new portfolios and CVs are hidden from visitors. Personal stays active until the end of the period you’ve paid for, then your personalised address remains for {GRACE_DAYS} more days. The Portfolia credit returns after that. Cancelling, card details and invoices open in a secure billing page.</p>
+      <Modal open={dialog === "cancel"} onClose={() => setDialog(null)} title="Manage Personal">
+        <p className="text-muted-foreground">Your portfolios remain available at their free addresses if you cancel. Nothing is deleted immediately.</p>
         <Confirm onCancel={() => setDialog(null)} label="Open billing page" onConfirm={async () => { setDialog(null); const w = window.open("", "_blank"); try { const url = await portal({ data: { environment: getPaddleEnvironment() } }); if (w) w.location.href = url; else window.location.href = url; } catch { w?.close(); setMsg("Couldn’t open the billing page — try again."); } }} />
       </Modal>
     </div>
   );
+}
+
+function CatalogueCover({ blobKey }: { blobKey?: string }) {
+  const blob = useBlob(blobKey);
+  const src = useMemo(() => (blob ? { blob } : null), [blob]);
+  return <div className="relative aspect-[4/5] overflow-hidden bg-muted shadow-[10px_12px_0_var(--color-muted),20px_24px_0_var(--color-border)] transition-transform duration-300 group-hover:-translate-y-1">
+    <div className="pointer-events-none h-full overflow-hidden bg-background" aria-hidden><PdfViewer source={src} fileName="" compact viewer={{ mode: "paged", look: "clean", background: "paper", finish: "matte", paper: "smooth", light: "soft", shadow: "none", thickness: "thin", spreads: "single", showHeader: false }} /></div>
+  </div>;
 }
 
 function EmbedModal({ open, onClose, url, title }: { open: boolean; onClose: () => void; url: string; title: string }) {
@@ -280,53 +248,6 @@ function Confirm({ onCancel, onConfirm, label }: { onCancel: () => void; onConfi
       <Button variant="line" onClick={onCancel}>Keep as is</Button>
       <Button variant="destructive" onClick={onConfirm}>{label}</Button>
     </div>
-  );
-}
-
-function Thumb({ blobKey }: { blobKey?: string }) {
-  const blob = useBlob(blobKey);
-  const src = useMemo(() => (blob ? { blob } : null), [blob]);
-  return (
-    <div className="h-80 overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
-      <div className="pointer-events-none h-full overflow-hidden rounded-2xl" aria-hidden><PdfViewer source={src} fileName="" compact /></div>
-    </div>
-  );
-}
-
-function ReplaceModal({ open, onClose, current, limitMb }: { open: boolean; onClose: () => void; current: PdfFile | null; limitMb: number }) {
-  const [next, setNext] = useState<PdfFile | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const blob = useBlob(next?.blobKey);
-  const src = useMemo(() => (blob ? { blob } : null), [blob]);
-  const close = () => {
-    if (next) void deleteBlob(next.blobKey);
-    setNext(null);
-    setErr(null);
-    onClose();
-  };
-  return (
-    <Modal open={open} onClose={close} title="Replace PDF">
-      <p className="text-muted-foreground">Your link and profile stay the same. {current ? `The current PDF (${current.name}) stays published until you confirm.` : ""}</p>
-      <div className="mt-4">
-        {!next ? (
-          <DropZone small label="Choose replacement PDF" limitMb={limitMb} onAccepted={setNext} />
-        ) : (
-          <>
-            <p className="text-xs">{next.name} · {next.pages} pages · {formatBytes(next.bytes)}</p>
-            <div className="mt-2 h-72 overflow-auto border border-border"><PdfViewer source={src} fileName={next.name} compact /></div>
-            {err && <p role="alert" className="mt-2 text-sm text-destructive">{err}</p>}
-            <div className="mt-4 flex justify-end gap-2">
-              <Button variant="line" onClick={close}>Cancel</Button>
-              <Button onClick={async () => {
-                if (!(await replacePdf(next))) return setErr("Couldn’t save — your current PDF is still published.");
-                setNext(null);
-                onClose();
-              }}>Confirm replacement</Button>
-            </div>
-          </>
-        )}
-      </div>
-    </Modal>
   );
 }
 

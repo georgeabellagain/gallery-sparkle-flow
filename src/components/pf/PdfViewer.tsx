@@ -160,7 +160,7 @@ export function PdfViewer({
 
   return (
     <div ref={rootRef} onPointerMove={(e) => revealControls(e.pointerType)} style={backdrop ? { background: backdrop } : undefined} className={cn("relative bg-foreground", !backdrop && view.background === "paper" && "bg-background", !backdrop && view.background === "soft" && "bg-muted", immersive && "min-h-[calc(100vh-5rem)]", full && "overflow-auto")}>
-      <div className={cn(
+      {!compact && <div className={cn(
         "sticky top-0 z-50 isolate flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-1.5 text-xs backdrop-blur transition-opacity duration-200",
         immersive && "opacity-100 focus-within:opacity-100",
         immersive && canHover && !controlsVisible && "pointer-events-none opacity-0",
@@ -227,7 +227,7 @@ export function PdfViewer({
             </a>
           )}
         </div>
-      </div>
+      </div>}
 
       {doc && thumbs && (
         <nav aria-label="Pages" className={cn("sticky z-40 isolate flex gap-2 overflow-x-auto border-b border-border bg-background/95 px-3 py-2 backdrop-blur", immersive ? "top-10" : "top-[41px]")}>
@@ -317,7 +317,10 @@ function BookView({
   controlsHidden: boolean;
   viewer: ViewerSettings;
 }) {
-  const narrow = useIsMobile() || viewer.spreads === "ready";
+  const mobile = useIsMobile();
+  // Ready-made spreads remain one intact PDF page. PDFs made from single
+  // pages become a true two-page book on desktop and one page on phones.
+  const narrow = mobile || viewer.spreads === "ready";
   const spreads = useMemo(() => {
     const n = sizes.length;
     if (narrow) return Array.from({ length: n }, (_, i) => [i + 1]);
@@ -407,17 +410,6 @@ function BookView({
       setShift(target);
     }
   };
-  /** Waits for the book to reach the spread position, then runs next. */
-  const slideThen = (target: number, next: () => void) => {
-    if (target === shiftRef.current || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setShift(target);
-      next();
-      return;
-    }
-    sliding.current = true;
-    afterSlide.current = next;
-    setShift(target);
-  };
   const flip = (d: 1 | -1) => {
     if (suppressClick.current) {
       suppressClick.current = false;
@@ -426,11 +418,8 @@ function BookView({
     if (turning.current || sliding.current) return;
     const to = safeIdx + d;
     if (to < 0 || to >= spreads.length) return;
-    // Step 1 of opening: slide the closed book into the spread position first.
-    slideThen(0, () => {
-      if (startTurn(d)) turner.current?.release(true, endTurn(to));
-      else setShift(shiftFor(spreads[to] ?? [1]));
-    });
+    if (startTurn(d)) turner.current?.release(true, endTurn(to));
+    else setShift(shiftFor(spreads[to] ?? [1]));
   };
   const flipRef = useRef(flip);
     flipRef.current = flip;
@@ -448,14 +437,6 @@ function BookView({
     const dx = (e.clientX - s.x) * -s.dir;
     if (!s.started) {
       if (dx < 6) return;
-      if (shiftRef.current !== 0) {
-        // The book must slide before a turn can begin; finish as a click turn.
-        dragState.current = null;
-        suppressClick.current = false;
-        flip(s.dir);
-        suppressClick.current = true;
-        return;
-      }
       if (!startTurn(s.dir)) {
         dragState.current = null;
         suppressClick.current = true;
@@ -523,14 +504,14 @@ function BookView({
           <div
             ref={stage}
             className={cn(
-              "pf-book-stage absolute inset-0 grid transition-transform duration-[420ms] ease-[cubic-bezier(.4,0,.2,1)] motion-reduce:transition-none",
+              "pf-book-stage absolute inset-0 grid transition-transform duration-[650ms] ease-[cubic-bezier(.4,0,.2,1)] motion-reduce:transition-none",
               narrow ? "grid-cols-1" : "grid-cols-2",
             )}
             style={{ transform: `translateX(${shift}%)` }}
             onTransitionEnd={onSlideEnd}
             onTransitionCancel={onSlideEnd}
           >
-            {slots.filter((n) => narrow ? Boolean(n) : true).map((n, i) => (
+            {slots.map((n, i) => (
               <div key={`base-${i}`} className={cn("relative min-w-0 overflow-hidden", n && "pf-sheet bg-background")}>
                 {n && <PdfPage doc={doc} n={n} size={sizes[n - 1] ?? ref} zoom={zoom} onVisible={noop} eager />}
               </div>
