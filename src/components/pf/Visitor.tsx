@@ -6,7 +6,7 @@ import { Wordmark } from "./Chrome";
 import { SAMPLE } from "@/lib/portfolia/sample";
 import { registerPublicUrls } from "@/lib/portfolia/assets";
 import type { PublicPortfolio } from "@/lib/portfolia/public.functions";
-import { findPortfolio, recordDownload, recordVisit, useDoc, type Portfolio } from "@/lib/portfolia/store";
+import { DEFAULT_VIEWER, findPortfolio, recordDownload, recordVisit, useDoc, type Portfolio } from "@/lib/portfolia/store";
 
 export function SampleVisitor() {
   return (
@@ -93,7 +93,7 @@ export function EmbeddedVisitor({ data, startPage, mode, background, look }: { d
       showCredit={false}
       onDownload={() => recordDownload(p.code)}
       pageStyle={p.plan === "personal" ? p.style : undefined}
-      viewer={{ ...p.viewer, ...(mode ? { mode } : {}), ...(background ? { background } : {}), ...(look ? { look } : {}), showHeader: false }}
+      viewer={{ ...DEFAULT_VIEWER, ...p.viewer, ...(mode ? { mode } : {}), ...(background ? { background } : {}), ...(look ? { look } : {}), showHeader: false }}
       startPage={startPage}
       immersive
       embed

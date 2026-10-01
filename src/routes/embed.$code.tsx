@@ -4,12 +4,17 @@ import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
 
 export const Route = createFileRoute("/embed/$code")({
   staticData: { sitemap: false },
-  validateSearch: (search: Record<string, unknown>) => ({
-    page: typeof search["page"] === "number" ? Math.max(1, Math.floor(search["page"])) : undefined,
-    mode: search["mode"] === "scroll" || search["mode"] === "paged" || search["mode"] === "book" ? search["mode"] : undefined,
-    look: search["look"] === "clean" || search["look"] === "studio" ? search["look"] : undefined,
-    background: search["background"] === "black" || search["background"] === "paper" || search["background"] === "soft" ? search["background"] : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { page?: number; mode?: "scroll" | "paged" | "book"; look?: "clean" | "studio"; background?: "black" | "paper" | "soft" } => {
+    const mode = search["mode"];
+    const look = search["look"];
+    const background = search["background"];
+    return {
+      page: typeof search["page"] === "number" ? Math.max(1, Math.floor(search["page"])) : undefined,
+      mode: mode === "scroll" || mode === "paged" || mode === "book" ? mode : undefined,
+      look: look === "clean" || look === "studio" ? look : undefined,
+      background: background === "black" || background === "paper" || background === "soft" ? background : undefined,
+    };
+  },
   loader: ({ params }) => getPublicPortfolio({ data: { by: "code", value: params.code } }),
   head: () => ({
     meta: [
