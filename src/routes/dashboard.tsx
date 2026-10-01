@@ -7,19 +7,19 @@ import { PdfViewer } from "@/components/pf/PdfViewer";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
 import { PortfolioQrCode } from "@/components/pf/PortfolioQrCode";
 import { Button } from "@/components/ui/button";
-import { deleteBlob, formatBytes } from "@/lib/portfolia/assets";
+import { formatBytes } from "@/lib/portfolia/assets";
 import { sampleAnalytics } from "@/lib/portfolia/sample";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { useAccount } from "@/hooks/useAccount";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
-import { getPortalUrl, keepSubscription, switchBilling } from "@/lib/payments.functions";
+import { getPortalUrl } from "@/lib/payments.functions";
 import { getPaddleEnvironment } from "@/lib/paddle";
 import { submitFeedback } from "@/lib/feedback.functions";
 import {
   allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, switchPortfolio,
-  deletePortfolio, startPortfolio, graceEnds, GRACE_DAYS, patchPortfolio, personalActive, replacePdf, update, uploadLimitMb, useDoc,
-  type Analytics, type PdfFile,
+  allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, switchPortfolio,
+  startPortfolio, personalActive, update, uploadLimitMb, useDoc, type Analytics,
 } from "@/lib/portfolia/store";
 
 export const Route = createFileRoute("/dashboard")({
@@ -41,14 +41,11 @@ function Dashboard() {
   const hydrated = useHydrated();
   const navigate = useNavigate();
   const p = doc.portfolio;
-  const [dialog, setDialog] = useState<null | "replace" | "unpublish" | "delete" | "upgrade" | "cancel" | "qr" | "embed">(null);
+  const [dialog, setDialog] = useState<null | "share" | "upgrade" | "cancel" | "qr" | "embed">(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const { user, sub, loading, refresh } = useAccount();
-  const keepFn = useServerFn(keepSubscription);
   const portal = useServerFn(getPortalUrl);
-  const switchFn = useServerFn(switchBilling);
-  const [billingBusy, setBillingBusy] = useState(false);
   const checkoutDone = typeof window !== "undefined" && window.location.search.includes("checkout=success");
 
   if (!hydrated || loading) return null;

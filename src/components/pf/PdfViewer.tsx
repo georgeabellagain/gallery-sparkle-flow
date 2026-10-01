@@ -429,11 +429,8 @@ function BookView({
     if (turning.current || sliding.current) return;
     const to = safeIdx + d;
     if (to < 0 || to >= spreads.length) return;
-    // Step 1 of opening: slide the closed book into the spread position first.
-    slideThen(0, () => {
-      if (startTurn(d)) turner.current?.release(true, endTurn(to));
-      else setShift(shiftFor(spreads[to] ?? [1]));
-    });
+    if (startTurn(d)) turner.current?.release(true, endTurn(to));
+    else setShift(shiftFor(spreads[to] ?? [1]));
   };
   const flipRef = useRef(flip);
     flipRef.current = flip;
@@ -451,14 +448,6 @@ function BookView({
     const dx = (e.clientX - s.x) * -s.dir;
     if (!s.started) {
       if (dx < 6) return;
-      if (shiftRef.current !== 0) {
-        // The book must slide before a turn can begin; finish as a click turn.
-        dragState.current = null;
-        suppressClick.current = false;
-        flip(s.dir);
-        suppressClick.current = true;
-        return;
-      }
       if (!startTurn(s.dir)) {
         dragState.current = null;
         suppressClick.current = true;
@@ -526,7 +515,7 @@ function BookView({
           <div
             ref={stage}
             className={cn(
-              "pf-book-stage absolute inset-0 grid transition-transform duration-[420ms] ease-[cubic-bezier(.4,0,.2,1)] motion-reduce:transition-none",
+              "pf-book-stage absolute inset-0 grid transition-transform duration-[650ms] ease-[cubic-bezier(.4,0,.2,1)] motion-reduce:transition-none",
               narrow ? "grid-cols-1" : "grid-cols-2",
             )}
             style={{ transform: `translateX(${shift}%)` }}
