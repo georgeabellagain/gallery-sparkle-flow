@@ -211,7 +211,7 @@ function Dashboard() {
 function CatalogueCover({ blobKey }: { blobKey?: string }) {
   const blob = useBlob(blobKey);
   const src = useMemo(() => (blob ? { blob } : null), [blob]);
-  return <div className="relative aspect-[4/5] overflow-hidden bg-muted shadow-[10px_12px_0_var(--color-muted),20px_24px_0_var(--color-border)] transition-transform duration-300 group-hover:-translate-y-1">
+  return <div className="relative aspect-[4/5] overflow-hidden rounded-[3px] bg-background shadow-lift transition-transform duration-300 group-hover:-translate-y-1">
     <div className="pointer-events-none h-full overflow-hidden bg-background" aria-hidden><PdfViewer source={src} fileName="" compact viewer={{ mode: "paged", look: "clean", background: "paper", finish: "matte", paper: "smooth", light: "soft", shadow: "none", thickness: "thin", spreads: "single", showHeader: false }} /></div>
   </div>;
 }

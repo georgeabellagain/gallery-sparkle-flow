@@ -45,10 +45,18 @@
 - [x] Modernise the site toward a clean white gallery aesthetic without unrelated feature changes
 
 ## Homepage animation, reader repair and dashboard catalogue
-- [ ] Animate the homepage book from cover through multiple spreads to the back cover, then loop smoothly
-- [ ] Restore correct desktop two-page spreads without splitting standalone pages and slow page turns
-- [ ] Place the account profile and Edit profile action at the top of the dashboard
-- [ ] Replace the portfolio switcher/detail split with catalogue covers, status labels and hover actions
-- [ ] Consolidate copy link, embed and QR code inside one Share sheet per portfolio
-- [ ] Keep replace, delete, publish state and appearance controls together on the portfolio edit page
-- [ ] Verify homepage animation, desktop/mobile flipbook turns and dashboard portfolio actions
+- [x] Animate the homepage book from cover through multiple spreads to the back cover, then loop smoothly
+- [x] Restore correct desktop two-page spreads without splitting standalone pages and slow page turns
+- [x] Place the account profile and Edit profile action at the top of the dashboard
+- [x] Replace the portfolio switcher/detail split with catalogue covers, status labels and hover actions
+- [x] Consolidate copy link, embed and QR code inside one Share sheet per portfolio
+- [x] Keep replace, delete, publish state and appearance controls together on the portfolio edit page
+- [x] Verify homepage animation, desktop/mobile flipbook turns and dashboard portfolio actions
+
+## Final flipbook sequencing polish
+- [ ] Prevent the previous page flashing after a turn and keep destinations hidden until landing
+- [ ] Slide the cover into spread position before opening, then reverse the order when closing
+- [ ] Crop ready-made spreads to the turning half instead of squeezing the full spread onto one leaf
+- [ ] Replace grey catalogue backplates with subtle shadows and lightly rounded covers
+- [ ] Make the homepage book follow the reader sequence: centred cover, slide, open, flip, close, centre, reverse
+- [ ] Preview the revised catalogue and homepage animation at desktop size
