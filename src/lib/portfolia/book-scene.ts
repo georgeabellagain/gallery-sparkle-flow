@@ -1,12 +1,12 @@
 import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { surfaceCanvas, type SurfaceKind } from "./surface";
 
 export type StudioSettings = {
   studio: boolean;
   material: SurfaceKind;
   lighting: "soft" | "bright" | "warm";
-  direction: number;
-  intensity: number;
+  backdrop: string;
 };
 export type BookFaces = [HTMLCanvasElement | null, HTMLCanvasElement | null];
 const ease = (t: number) => t * t * (3 - 2 * t);
@@ -18,10 +18,18 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NoToneMapping;
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.setAttribute("aria-hidden", "true");
   host.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
+  // A floating-point, prefiltered room environment supplies broad window and
+  // softbox illumination to every physical surface, including the backdrop.
+  const room = new RoomEnvironment();
+  room.rotation.x = Math.PI / 2;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const environment = pmrem.fromScene(room, 0.08);
+  room.dispose();
+  pmrem.dispose();
   const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 50);
   const book = new THREE.Group();
   scene.add(book);
@@ -40,7 +48,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   scene.add(ambient, light);
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(20, 20),
-    new THREE.ShadowMaterial({ opacity: 0.24 }),
+    new THREE.MeshStandardMaterial({ color: 0xe8e3da, roughness: 0.88 }),
   );
   ground.position.z = -0.065;
   ground.receiveShadow = true;
@@ -50,9 +58,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     studio: false,
     material: "matte",
     lighting: "soft",
-    direction: -35,
-    intensity: 1,
+    backdrop: "/studio/warm-wood.jpg",
   };
+  const backdropTextures = new Map<string, THREE.Texture>();
+  const textureLoader = new THREE.TextureLoader();
+  let backdropRequest = 0;
   let focus = 0.5,
     narrow = false,
     zoom = 1,
@@ -153,8 +163,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const visibleWidth = narrow ? 1.12 : 2.55;
     const visibleHeight = Math.max(ratio * 1.22, visibleWidth / camera.aspect) / zoom;
     const distance = visibleHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
-    const tilt = settings.studio ? 0.16 : 0;
-    camera.position.set(focus, -distance * tilt, distance);
+    camera.position.set(focus, 0, distance);
     camera.lookAt(focus, 0, 0);
     camera.updateProjectionMatrix();
   };
@@ -172,12 +181,48 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   renderer.domElement.addEventListener("webglcontextlost", lost);
   const configure = (next: StudioSettings) => {
     settings = next;
-    const angle = THREE.MathUtils.degToRad(next.direction);
-    light.position.set(5 * Math.sin(angle), 5 * Math.cos(angle), 6);
-    light.color.set(next.lighting === "warm" ? 0xffe4bf : 0xffffff);
-    light.intensity = next.studio ? (next.lighting === "bright" ? 3 : 2) * next.intensity : 0;
-    ambient.intensity = next.studio ? 1.6 : Math.PI;
-    ambient.groundColor.set(next.studio ? 0xd5cfbf : 0xffffff);
+    renderer.toneMapping = next.studio ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    const warm = next.lighting === "warm";
+    const bright = next.lighting === "bright";
+    scene.environment = next.studio ? environment.texture : null;
+    scene.environmentIntensity = bright ? 1.3 : warm ? 0.75 : 1;
+    scene.environmentRotation.set(0, 0, warm ? -0.65 : bright ? 0.7 : 0);
+    light.position.set(warm ? 4 : -3, bright ? -2 : 4, 6);
+    light.color.set(warm ? 0xffd5a0 : 0xffffff);
+    light.intensity = next.studio ? (bright ? 1.2 : warm ? 0.8 : 0.65) : 0;
+    ambient.intensity = next.studio ? 0.18 : Math.PI;
+    ambient.color.set(warm ? 0xffe4c2 : 0xffffff);
+    ambient.groundColor.set(next.studio ? 0xb7bdca : 0xffffff);
+    ground.material.color.set(warm ? 0xffe4c7 : 0xffffff);
+    const request = ++backdropRequest;
+    const applyBackdrop = (map: THREE.Texture | null) => {
+      if (disposed || request !== backdropRequest) return;
+      ground.material.map = map;
+      ground.material.needsUpdate = true;
+      paint();
+    };
+    if (!next.backdrop) applyBackdrop(null);
+    else if (backdropTextures.has(next.backdrop))
+      applyBackdrop(backdropTextures.get(next.backdrop)!);
+    else
+      textureLoader.load(
+        next.backdrop,
+        (map) => {
+          if (disposed) {
+            map.dispose();
+            return;
+          }
+          map.colorSpace = THREE.SRGBColorSpace;
+          map.wrapS = map.wrapT = THREE.RepeatWrapping;
+          map.repeat.set(4, 4);
+          map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+          backdropTextures.set(next.backdrop, map);
+          applyBackdrop(map);
+        },
+        undefined,
+        () => applyBackdrop(null),
+      );
     ground.visible = next.studio;
     light.castShadow = next.studio;
     let bump: THREE.CanvasTexture | null = null;
@@ -209,14 +254,14 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     frameCamera();
     paint();
   };
-  const show = (next: BookFaces) => {
+  const show = (next: BookFaces, render = true) => {
     faces = next;
     [left, right].forEach((mesh, i) => {
       mesh.visible = !!next[i];
       setMap(mesh.material, next[i] ?? null);
       blocks[i]!.visible = settings.studio && !!next[i];
     });
-    paint();
+    if (render) paint();
   };
   const animate = (duration: number, update: (t: number) => void) =>
     new Promise<void>((resolve) => {
@@ -302,11 +347,19 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const landing = dir === 1 ? 0 : 1;
       setMap(frontMat, from[moving], dir === -1);
       setMap(backMat, to[landing], dir === 1);
-      show(dir === 1 ? [from[0], to[1]] : [to[0], from[1]]);
+      show(dir === 1 ? [from[0], to[1]] : [to[0], from[1]], false);
       sheet.visible = true;
       shape(0, dir);
+      paint();
+      let landingUpdated = false;
       const startFocus = focus;
       await animate(1050, (t) => {
+        // Once the turning back faces the reader, replace the old landing
+        // page underneath it. Curl must never uncover the previous spread.
+        if (t >= 0.5 && !landingUpdated) {
+          setMap(landing === 0 ? left.material : right.material, to[landing]);
+          landingUpdated = true;
+        }
         shape(t, dir);
         if (narrow) {
           focus = THREE.MathUtils.lerp(startFocus, destinationFocus, t);
@@ -315,7 +368,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       });
       if (disposed) return;
       sheet.visible = false;
-      show(to);
+      show(to, false);
+      paint();
       await pan(destinationFocus, narrow ? 0 : 360);
     },
     dispose() {
@@ -326,6 +380,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       renderer.domElement.removeEventListener("webglcontextlost", lost);
       textures.forEach((t) => t.dispose());
       bumps.forEach((t) => t.dispose());
+      backdropTextures.forEach((t) => t.dispose());
+      environment.dispose();
       const geometries = new Set<THREE.BufferGeometry>();
       scene.traverse((o) => {
         if (o instanceof THREE.Mesh) geometries.add(o.geometry);

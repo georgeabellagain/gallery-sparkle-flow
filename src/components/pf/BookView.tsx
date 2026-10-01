@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils";
 const BACKDROPS = [
   { id: "warm-wood", label: "Warm wood", image: "/studio/warm-wood.jpg" },
   { id: "light-wood", label: "Light wood", image: "/studio/light-wood.jpg" },
-  { id: "stone", label: "Stone", image: "/studio/stone.jpg" },
   { id: "plain", label: "Plain", image: "" },
 ];
 
@@ -149,8 +148,7 @@ export function BookView({
     studio: viewer.look === "studio",
     material: viewer.finish,
     lighting: viewer.light,
-    direction: -35,
-    intensity: 1,
+    backdrop: "/studio/warm-wood.jpg",
   });
   const [backdrop, setBackdrop] = useState("warm-wood");
   const [cue, setCue] = useState<"left" | "right" | null>(null);
@@ -166,7 +164,6 @@ export function BookView({
     narrow || new Set(pages).size === 1
       ? `Page ${current.page} of ${doc.numPages}${narrow && current.half ? ` · ${current.half}` : ""}`
       : `Pages ${pages[0]}–${pages[1]} of ${doc.numPages}`;
-  const background = BACKDROPS.find((b) => b.id === backdrop)!;
 
   useEffect(() => {
     alive.current = true;
@@ -213,8 +210,11 @@ export function BookView({
     if (found >= 0 && !lock.current) setLeaf(found);
   }, [jump, layout]);
   useEffect(() => {
-    scene.current?.configure(settings);
-  }, [settings, ready]);
+    scene.current?.configure({
+      ...settings,
+      backdrop: BACKDROPS.find((b) => b.id === backdrop)!.image,
+    });
+  }, [settings, backdrop, ready]);
   useEffect(() => {
     if (!busy && scene.current) {
       scene.current.viewport(narrow, zoom, focus);
@@ -350,30 +350,6 @@ export function BookView({
                 <option value="warm">Warm evening</option>
               </select>
             </label>
-            <label>
-              Direction
-              <input
-                aria-label="Light direction"
-                type="range"
-                min="-90"
-                max="90"
-                step="5"
-                value={settings.direction}
-                onChange={(e) => update({ direction: Number(e.target.value) })}
-              />
-            </label>
-            <label>
-              Brightness
-              <input
-                aria-label="Light brightness"
-                type="range"
-                min="0.3"
-                max="1.8"
-                step="0.1"
-                value={settings.intensity}
-                onChange={(e) => update({ intensity: Number(e.target.value) })}
-              />
-            </label>
           </div>
         )}
       </div>
@@ -399,10 +375,6 @@ export function BookView({
         className="pf-book-viewport"
         data-busy={busy || loading}
         data-narrow={narrow}
-        style={{
-          backgroundImage:
-            settings.studio && background.image ? `url(${background.image})` : undefined,
-        }}
         onPointerMove={(e) => {
           if (e.pointerType !== "mouse" || busy || narrow) return;
           const r = e.currentTarget.getBoundingClientRect();
