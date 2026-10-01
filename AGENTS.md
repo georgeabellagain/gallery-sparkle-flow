@@ -18,3 +18,4 @@
 - Payments: Paddle via connector gateway; subscriptions table synced by webhook at /api/public/payments/webhook; useAccount mirrors subscription into the portfolio plan field, which syncs to the account.
 - Portfolio QR codes are generated locally in the browser from the active public link and downloaded as high-resolution PNGs; no third-party QR service receives portfolio URLs.
 - Flipbook turns use one persistent WebGL sheet with colour-space-correct textures and fold-only shading; mobile uses single pages and desktop uses spreads. Why: this avoids seams, preserves artwork colour and keeps turns smooth.
+- Published embeds use `/embed/<code>` and receive route-specific framing and no-index response headers in the server entry. Why: only the compact viewer should be frameable and excluded from search.

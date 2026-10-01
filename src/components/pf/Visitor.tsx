@@ -78,3 +78,24 @@ export function CloudVisitor({ data }: { data: NonNullable<PublicPortfolio> }) {
   registerPublicUrls(data.urls);
   return <OwnVisitor p={data.portfolio} preview={false} />;
 }
+
+/** Compact published viewer for embedding on another website. */
+export function EmbeddedVisitor({ data }: { data: NonNullable<PublicPortfolio> }) {
+  registerPublicUrls(data.urls);
+  const p = data.portfolio;
+  const { pdf } = useStoredMedia(p.pdf?.blobKey);
+  useEffect(() => recordVisit(p.code), [p.code]);
+  return (
+    <PortfolioPage
+      profile={p.profile}
+      pdf={pdf}
+      allowDownload={p.allowDownload}
+      showCredit={false}
+      onDownload={() => recordDownload(p.code)}
+      pageStyle={p.plan === "personal" ? p.style : undefined}
+      viewer={{ ...p.viewer, showHeader: false }}
+      immersive
+      embed
+    />
+  );
+}
