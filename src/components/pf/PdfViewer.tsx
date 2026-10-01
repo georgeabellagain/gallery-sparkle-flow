@@ -318,6 +318,7 @@ function BookView({
   viewer: ViewerSettings;
 }) {
   const mobile = useIsMobile();
+  const readySpread = !mobile && viewer.spreads === "ready";
   // Ready-made spreads remain one intact PDF page. PDFs made from single
   // pages become a true two-page book on desktop and one page on phones.
   const narrow = mobile || viewer.spreads === "ready";
@@ -377,6 +378,11 @@ function BookView({
   }, [jump, spreads]);
 
   /** Starts a turn only when both faces are already rendered. */
+  const turnFace = (page: number | null | undefined, side?: "left" | "right") => {
+    if (!page) return null;
+    const cached = getCached(doc, page);
+    return cached && side ? cropCanvasHalf(cached, side) : cached;
+  };
   const startTurn = (d: 1 | -1): boolean => {
     if (turning.current) return false;
     const next = safeIdx + d;
@@ -386,8 +392,10 @@ function BookView({
     const toSlots = slotsFor(spreads[next]!);
     const frontN = narrow ? fromSlots[0] : fromSlots[d > 0 ? 1 : 0];
     const backN = narrow ? toSlots[0] : toSlots[d > 0 ? 0 : 1];
-    const front = frontN ? getCached(doc, frontN) : null;
-    const back = backN ? getCached(doc, backN) ?? null : null;
+    // A ready-made spread is one PDF page, but the physical leaf is only half
+    // of it: right-to-left when advancing and left-to-right when returning.
+    const front = turnFace(frontN, readySpread ? (d > 0 ? "right" : "left") : undefined);
+    const back = turnFace(backN, readySpread ? (d > 0 ? "left" : "right") : undefined);
     if (reduced || !turner.current?.ready() || !front || (backN && !back)) {
       // Immediate change keeps the current spread until the next is shown.
       setIdx(next);
@@ -418,6 +426,17 @@ function BookView({
     if (turning.current || sliding.current) return;
     const to = safeIdx + d;
     if (to < 0 || to >= spreads.length) return;
+    // A centred standalone cover first moves into its physical half of the
+    // open book. Only once that slide settles does the leaf begin to turn.
+    if (!narrow && shiftRef.current !== 0) {
+      sliding.current = true;
+      afterSlide.current = () => {
+        if (startTurn(d)) turner.current?.release(true, endTurn(to));
+        else setShift(shiftFor(spreads[to] ?? [1]));
+      };
+      setShift(0);
+      return;
+    }
     if (startTurn(d)) turner.current?.release(true, endTurn(to));
     else setShift(shiftFor(spreads[to] ?? [1]));
   };
@@ -473,7 +492,9 @@ function BookView({
   const destinationSlots = slotsFor(destinationSpread);
   const sourceSlots = slotsFor(sourceSpread);
   const movingSlot = turn && !narrow ? (turn.dir > 0 ? 1 : 0) : turn ? 0 : null;
-  const slots = turn ? sourceSlots.map((n, i) => i === movingSlot ? destinationSlots[i] : n) : slotsFor(spread);
+  // Ready-made spreads keep the complete source visible behind their turning
+  // half. The full destination is committed only after the leaf has landed.
+  const slots = turn && !readySpread ? sourceSlots.map((n, i) => i === movingSlot ? destinationSlots[i] : n) : sourceSlots;
   const ref = sizes[0] ?? { w: 1, h: 1 };
   const atStart = safeIdx === 0;
   const atEnd = safeIdx === spreads.length - 1;
@@ -516,7 +537,7 @@ function BookView({
                 {n && <PdfPage doc={doc} n={n} size={sizes[n - 1] ?? ref} zoom={zoom} onVisible={noop} eager />}
               </div>
             ))}
-            <CurvedPage ref={turner} ratio={ref.h / ref.w} />
+            <CurvedPage ref={turner} ratio={readySpread ? ref.h / (ref.w / 2) : ref.h / ref.w} fullStage={mobile} />
             {!atEnd && (
               <button type="button" onClick={() => flip(1)} onPointerDown={cornerDown(1)} onPointerMove={cornerMove} onPointerUp={cornerUp} onPointerCancel={cornerUp} aria-label="Turn to next page" title="Next page — click or drag" className="group absolute bottom-0 right-0 z-[4] size-16 touch-none overflow-hidden">
                 <span className="absolute bottom-0 right-0 size-7 bg-muted shadow-md [clip-path:polygon(100%_0,0_100%,0_0)] transition-all duration-200 group-hover:size-12 group-focus-visible:size-12" />
@@ -592,6 +613,15 @@ function cachedCopy(doc: object, n: number) {
   c.getContext("2d")!.drawImage(src, 0, 0);
   return c;
 }
+function cropCanvasHalf(src: HTMLCanvasElement, side: "left" | "right") {
+  const c = document.createElement("canvas");
+  const half = Math.max(1, Math.floor(src.width / 2));
+  c.width = half;
+  c.height = src.height;
+  const ctx = c.getContext("2d");
+  if (ctx) ctx.drawImage(src, side === "left" ? 0 : src.width - half, 0, half, src.height, 0, 0, half, src.height);
+  return c;
+}
 function storePage(doc: object, n: number, canvas: HTMLCanvasElement) {
   let m = pageCache.get(doc);
   if (!m) pageCache.set(doc, (m = new Map()));
@@ -633,6 +663,7 @@ function PdfPage({
   eager?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const shownPage = useRef<number | null>(null);
   const [near, setNear] = useState(eager || n <= 2);
   const [failed, setFailed] = useState(false);
 
@@ -650,9 +681,10 @@ function PdfPage({
 
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el || el.firstChild) return;
+    if (!el || shownPage.current === n) return;
+    shownPage.current = n;
     const copy = cachedCopy(doc, n);
-    if (copy) el.replaceChildren(copy);
+    el.replaceChildren(...(copy ? [copy] : []));
   }, [doc, n]);
 
   useEffect(() => {

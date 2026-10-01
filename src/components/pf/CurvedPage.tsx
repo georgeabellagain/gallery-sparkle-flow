@@ -27,7 +27,7 @@ export type TurnerHandle = {
  * created once when Flipbook opens, so a turn only uploads two textures.
  * It draws only while a turn or drag is in progress.
  */
-export const CurvedPage = forwardRef<TurnerHandle, { ratio: number }>(function CurvedPage({ ratio }, handle) {
+export const CurvedPage = forwardRef<TurnerHandle, { ratio: number; fullStage?: boolean }>(function CurvedPage({ ratio, fullStage = false }, handle) {
   const mount = useRef<HTMLDivElement>(null);
   const api = useRef<TurnerHandle | null>(null);
   useImperativeHandle(handle, () => ({
@@ -60,10 +60,11 @@ export const CurvedPage = forwardRef<TurnerHandle, { ratio: number }>(function C
 
     const scene = new THREE.Scene();
     const distance = 3;
+    const pageUnits = fullStage ? 1 : 2;
     const viewHeight = ratio + 2 * VERTICAL_ROOM;
     const camera = new THREE.PerspectiveCamera(
       2 * Math.atan(viewHeight / (2 * distance)) * 180 / Math.PI,
-      (2 + 2 * SIDE_ROOM) / viewHeight,
+      (pageUnits + 2 * SIDE_ROOM) / viewHeight,
       0.01,
       20,
     );
@@ -228,7 +229,7 @@ export const CurvedPage = forwardRef<TurnerHandle, { ratio: number }>(function C
       renderer.forceContextLoss();
       renderer.domElement.remove();
     };
-  }, [ratio]);
+  }, [ratio, fullStage]);
 
   return (
     <div
@@ -237,8 +238,8 @@ export const CurvedPage = forwardRef<TurnerHandle, { ratio: number }>(function C
       className="pointer-events-none absolute z-[3]"
       style={{
         visibility: "hidden",
-        left: `${-SIDE_ROOM * 50}%`,
-        width: `${(2 + 2 * SIDE_ROOM) * 50}%`,
+        left: `${-SIDE_ROOM * (fullStage ? 100 : 50)}%`,
+        width: `${((fullStage ? 1 : 2) + 2 * SIDE_ROOM) * (fullStage ? 100 : 50)}%`,
         top: `${-VERTICAL_ROOM / ratio * 100}%`,
         height: `${(1 + 2 * VERTICAL_ROOM / ratio) * 100}%`,
       }}
