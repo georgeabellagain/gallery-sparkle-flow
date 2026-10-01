@@ -162,7 +162,7 @@ export function PdfViewer({
     <div ref={rootRef} onPointerMove={(e) => revealControls(e.pointerType)} style={backdrop ? { background: backdrop } : undefined} className={cn("relative bg-foreground", !backdrop && view.background === "paper" && "bg-background", !backdrop && view.background === "soft" && "bg-muted", immersive && "min-h-[calc(100vh-5rem)]", full && "overflow-auto")}>
       <div className={cn(
         "sticky top-0 z-50 isolate flex items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-1.5 text-xs backdrop-blur transition-opacity duration-200",
-        immersive && "-mb-10 opacity-100 focus-within:opacity-100",
+        immersive && "opacity-100 focus-within:opacity-100",
         immersive && canHover && !controlsVisible && "pointer-events-none opacity-0",
       )}>
         <div className="flex items-center gap-3">
