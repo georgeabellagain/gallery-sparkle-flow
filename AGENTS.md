@@ -17,4 +17,4 @@
 - Personalised portfolios use root paths (`/name`); `/p/code` remains the permanent free address and `/u/name` remains compatible with old links.
 - Payments: Paddle via connector gateway; subscriptions table synced by webhook at /api/public/payments/webhook; useAccount mirrors subscription into the portfolio plan field, which syncs to the account.
 - Portfolio QR codes are generated locally in the browser from the active public link and downloaded as high-resolution PNGs; no third-party QR service receives portfolio URLs.
-- Flipbook turns render a single curved PDF texture on a transient WebGL sheet; separate CSS strips create visible seams and excessive per-frame compositing.
+- Flipbook turns use one persistent WebGL sheet with colour-space-correct textures and fold-only shading; mobile uses single pages and desktop uses spreads. Why: this avoids seams, preserves artwork colour and keeps turns smooth.

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Mail } from "lucide-react";
-import type { PageStyle, Profile } from "@/lib/portfolia/store";
+import { DEFAULT_VIEWER, type PageStyle, type Profile, type ViewerSettings } from "@/lib/portfolia/store";
 import { PdfViewer } from "./PdfViewer";
 import { CvIcon } from "./CvIcon";
 import { useBlob, useObjectUrl } from "./Chrome";
@@ -17,6 +17,8 @@ export function PortfolioPage({
   immersive,
   cvBlobKey,
   pageStyle,
+  viewer,
+  embed,
 }: {
   profile: Profile;
   pdf: { blob: Blob } | { url: string } | null;
@@ -28,7 +30,10 @@ export function PortfolioPage({
   immersive?: boolean;
   cvBlobKey?: string;
   pageStyle?: PageStyle;
+  viewer?: ViewerSettings;
+  embed?: boolean;
 }) {
+  const view = { ...DEFAULT_VIEWER, ...viewer };
   const bannerBlob = useBlob(pageStyle?.bannerKey);
   const bannerUrl = useObjectUrl(bannerBlob);
   const cvBlob = useBlob(cvBlobKey);
@@ -37,8 +42,8 @@ export function PortfolioPage({
   const links = profile.links.filter((l) => l.url.trim());
   return (
     <div className="flex min-h-full flex-col bg-background" style={pageStyle ? { background: pageStyle.background, color: pageStyle.text } : undefined}>
-      {bannerUrl && <img src={bannerUrl} alt={profile.name ? `${profile.name} portfolio banner` : "Portfolio banner"} className={immersive ? "h-28 w-full object-cover sm:h-40" : "h-24 w-full object-cover"} />}
-      <header className={immersive ? "px-4 py-3 sm:px-6 sm:py-4" : compact ? "px-4 py-4" : "px-5 py-5 sm:px-8 sm:py-8"}>
+      {view.showHeader && !embed && bannerUrl && <img src={bannerUrl} alt={profile.name ? `${profile.name} portfolio banner` : "Portfolio banner"} className={immersive ? "h-28 w-full object-cover sm:h-40" : "h-24 w-full object-cover"} />}
+      {view.showHeader && !embed && <header className={immersive ? "px-4 py-3 sm:px-6 sm:py-4" : compact ? "px-4 py-4" : "px-5 py-5 sm:px-8 sm:py-8"}>
         <div className="mx-auto flex max-w-[1100px] items-start gap-4">
           {photoUrl ? (
             <img src={photoUrl} alt={profile.name || "Profile photo"} className={immersive ? "size-10 shrink-0 rounded-full object-cover" : "size-11 shrink-0 rounded-full object-cover sm:size-14"} />
@@ -70,9 +75,9 @@ export function PortfolioPage({
             )}
           </div>
         </div>
-      </header>
+      </header>}
       <div className="flex-1">
-        <PdfViewer source={pdf} fileName={`${profile.name || "portfolio"}.pdf`} allowDownload={allowDownload} onDownload={onDownload} compact={compact} immersive={immersive} backdrop={pageStyle?.backdrop} />
+        <PdfViewer source={pdf} fileName={`${profile.name || "portfolio"}.pdf`} allowDownload={allowDownload} onDownload={onDownload} compact={compact} immersive={immersive} backdrop={pageStyle?.backdrop} viewer={view} />
       </div>
       {showCredit && (
         <footer className="py-5 text-center text-xxs text-muted-foreground">
