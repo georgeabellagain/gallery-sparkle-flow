@@ -308,10 +308,12 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const u = uv.getX(i),
         v = uv.getY(i);
       const a = Math.PI * progress;
-      const curl = Math.sin(a) * 0.26 * Math.sin(Math.PI * u);
+      const curl = Math.sin(a) * 0.16 * Math.sin(Math.PI * u);
       const x = dir * (u * Math.cos(a) + curl * Math.sin(a));
       const z = u * Math.sin(a) - curl * Math.cos(a);
-      attr.setXYZ(i, x, (v - 0.5) * ratio, z + 0.004);
+      // Match the resting page spine relief, with clearance to prevent intersection.
+      const spineRelief = 0.014 * Math.pow(1 - u, 6);
+      attr.setXYZ(i, x, (v - 0.5) * ratio, z + spineRelief + 0.006);
     }
     // Reversing travel reverses winding; preserve the physical front face.
     frontMat.side = dir === 1 ? THREE.FrontSide : THREE.BackSide;
@@ -353,7 +355,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       paint();
       let landingUpdated = false;
       const startFocus = focus;
-      await animate(1050, (t) => {
+      await animate(700, (t) => {
         // Once the turning back faces the reader, replace the old landing
         // page underneath it. Curl must never uncover the previous spread.
         if (t >= 0.5 && !landingUpdated) {
@@ -370,7 +372,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       sheet.visible = false;
       show(to, false);
       paint();
-      await pan(destinationFocus, narrow ? 0 : 360);
+      await pan(destinationFocus, narrow ? 0 : 260);
     },
     dispose() {
       disposed = true;
