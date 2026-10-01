@@ -336,14 +336,6 @@ function BookView({
   const touchX = useRef<number | null>(null);
   const safeIdx = Math.min(idx, spreads.length - 1);
   const spread = spreads[safeIdx] ?? [1];
-
-  useEffect(() => onPage(spread[0]!), [spread, onPage]);
-  useEffect(() => {
-    if (!jump || turning.current) return;
-    const i = spreads.findIndex((s) => s.includes(jump.page));
-    if (i >= 0) setIdx(i);
-  }, [jump, spreads]);
-
   const slotsFor = (value: number[]) => narrow
     ? [value[0] ?? null]
     : value.length === 2
@@ -351,6 +343,41 @@ function BookView({
       : value[0] === 1
         ? [null, 1]
         : [value[0] ?? null, null];
+  /** Horizontal offset (in % of the full spread) that centres standalone pages. */
+  const shiftFor = (value: number[]) => {
+    if (narrow) return 0;
+    const sl = slotsFor(value);
+    return !sl[0] ? -25 : !sl[1] ? 25 : 0;
+  };
+  const [shift, setShift] = useState(() => shiftFor(spread));
+  const shiftRef = useRef(shift);
+  shiftRef.current = shift;
+  const sliding = useRef(false);
+  const afterSlide = useRef<(() => void) | null>(null);
+  // Re-centre when not animating (jumps, layout changes).
+  useEffect(() => {
+    if (!turning.current && !sliding.current) setShift(shiftFor(spread));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spread, narrow]);
+  const onSlideEnd = (e: React.TransitionEvent) => {
+    if (e.target !== e.currentTarget || e.propertyName !== "transform") return;
+    sliding.current = false;
+    const next = afterSlide.current;
+    afterSlide.current = null;
+    next?.();
+  };
+  const sheetMaterial = (n: number): SheetMaterial | undefined => {
+    if (viewer.look !== "studio") return undefined;
+    const kind: SurfaceKind = n === 1 || n === sizes.length ? viewer.finish : viewer.paper === "natural" ? "natural" : "matte";
+    return { surface: surfaceCanvas(kind, viewer.light), sheen: kind === "satin" ? 1 : 0, repeat: 3 };
+  };
+
+  useEffect(() => onPage(spread[0]!), [spread, onPage]);
+  useEffect(() => {
+    if (!jump || turning.current) return;
+    const i = spreads.findIndex((s) => s.includes(jump.page));
+    if (i >= 0) setIdx(i);
+  }, [jump, spreads]);
 
   /** Starts a turn only when both faces are already rendered. */
   const startTurn = (d: 1 | -1): boolean => {
@@ -370,7 +397,7 @@ function BookView({
       return false;
     }
     turning.current = true;
-    turner.current.begin(front, back, d);
+    turner.current.begin(front, back, d, sheetMaterial(frontN!));
     setTurn({ dir: d, from: safeIdx, to: next });
     return true;
   };
@@ -378,21 +405,45 @@ function BookView({
     if (completed) setIdx(to);
     setTurn(null);
     turning.current = false;
+    // Step 2 of closing onto a standalone page: the turn is complete, now
+    // slide the remaining page to the centre (as one unit).
+    const target = shiftFor(spreads[completed ? to : safeIdx] ?? [1]);
+    if (target !== shiftRef.current) {
+      sliding.current = true;
+      setShift(target);
+    }
+  };
+  /** Waits for the book to reach the spread position, then runs next. */
+  const slideThen = (target: number, next: () => void) => {
+    if (target === shiftRef.current || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setShift(target);
+      next();
+      return;
+    }
+    sliding.current = true;
+    afterSlide.current = next;
+    setShift(target);
   };
   const flip = (d: 1 | -1) => {
     if (suppressClick.current) {
       suppressClick.current = false;
       return;
     }
+    if (turning.current || sliding.current) return;
     const to = safeIdx + d;
-    if (startTurn(d)) turner.current?.release(true, endTurn(to));
+    if (to < 0 || to >= spreads.length) return;
+    // Step 1 of opening: slide the closed book into the spread position first.
+    slideThen(0, () => {
+      if (startTurn(d)) turner.current?.release(true, endTurn(to));
+      else setShift(shiftFor(spreads[to] ?? [1]));
+    });
   };
   const flipRef = useRef(flip);
-  flipRef.current = flip;
+    flipRef.current = flip;
 
   const cornerDown = (d: 1 | -1) => (e: React.PointerEvent) => {
     suppressClick.current = false;
-    if (turning.current || e.button !== 0) return;
+    if (turning.current || sliding.current || e.button !== 0) return;
     const w = stage.current?.clientWidth ?? 1;
     dragState.current = { dir: d, x: e.clientX, w, started: false, p: 0 };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -403,6 +454,14 @@ function BookView({
     const dx = (e.clientX - s.x) * -s.dir;
     if (!s.started) {
       if (dx < 6) return;
+      if (shiftRef.current !== 0) {
+        // The book must slide before a turn can begin; finish as a click turn.
+        dragState.current = null;
+        suppressClick.current = false;
+        flip(s.dir);
+        suppressClick.current = true;
+        return;
+      }
       if (!startTurn(s.dir)) {
         dragState.current = null;
         suppressClick.current = true;
@@ -442,8 +501,16 @@ function BookView({
   const atEnd = safeIdx === spreads.length - 1;
   const label = spread.length === 2 ? `Pages ${spread[0]}–${spread[1]} of ${sizes.length}` : `Page ${spread[0]} of ${sizes.length}`;
   const stationarySlot = turn && !narrow ? (turn.dir > 0 ? 0 : 1) : null;
-  const standalone = slots.filter(Boolean).length === 1;
   const studio = viewer.look === "studio";
+  const wood = viewer.background === "oak" || viewer.background === "walnut";
+  const isCover = (n: number) => n === 1 || n === sizes.length;
+  const surfaceKind = (n: number): SurfaceKind => (isCover(n) ? viewer.finish : viewer.paper === "natural" ? "natural" : "matte");
+  const overlay = (n: number) => studio ? (
+    <>
+      <div aria-hidden className="pf-surface" style={{ backgroundImage: `url(${surfaceUrl(surfaceKind(n), viewer.light)})` }} />
+      <div aria-hidden className={cn("pf-light", `pf-light-${viewer.light}`, surfaceKind(n) === "satin" && "pf-light-satin")} />
+    </>
+  ) : null;
 
   return (
     <div className={zoom > 1 ? "relative z-0 isolate overflow-x-auto" : "relative z-0 isolate overflow-visible"}>
@@ -470,31 +537,30 @@ function BookView({
           <div
             ref={stage}
             className={cn(
-              "pf-book-stage absolute inset-y-0 grid transition-[left,width] duration-300 ease-out",
-              narrow ? "left-0 w-full grid-cols-1" : standalone ? "left-1/4 w-1/2 grid-cols-1" : "left-0 w-full grid-cols-2",
-              studio && "pf-book-studio",
-              studio && `pf-book-shadow-${viewer.shadow}`,
+              "pf-book-stage absolute inset-0 grid transition-transform duration-[420ms] ease-[cubic-bezier(.4,0,.2,1)] motion-reduce:transition-none",
+              narrow ? "grid-cols-1" : "grid-cols-2",
+              studio && `pf-book-shadow-${wood && viewer.shadow === "none" ? "subtle" : viewer.shadow}`,
               studio && `pf-book-thickness-${viewer.thickness}`,
-              studio && `pf-book-finish-${viewer.finish}`,
-              studio && `pf-book-paper-${viewer.paper}`,
-              studio && `pf-book-light-${viewer.light}`,
             )}
+            style={{ transform: `translateX(${shift}%)` }}
+            onTransitionEnd={onSlideEnd}
           >
             {slots.filter((n) => narrow ? Boolean(n) : true).map((n, i) => (
-              <div key={`base-${i}`} className="relative min-w-0 overflow-hidden bg-foreground">
+              <div key={`base-${i}`} className={cn("relative min-w-0 overflow-hidden", n && "pf-sheet bg-background")}>
                 {n && <PdfPage doc={doc} n={n} size={sizes[n - 1] ?? ref} zoom={zoom} onVisible={noop} eager />}
-                {!narrow && !standalone && n && <div aria-hidden className={cn("pointer-events-none absolute inset-y-0 w-px bg-foreground/20", i === 0 ? "right-0" : "left-0")} />}
+                {n && overlay(n)}
               </div>
             ))}
-            {turn && stationarySlot !== null && !standalone && (
+            {turn && stationarySlot !== null && sourceSlots[stationarySlot] && (
               <div
                 aria-hidden
-                className="absolute inset-y-0 z-[2] overflow-hidden bg-foreground"
+                className="pf-sheet absolute inset-y-0 z-[2] overflow-hidden bg-background"
                 style={{ left: stationarySlot === 0 ? 0 : "50%", width: "50%" }}
               >
                 {sourceSlots[stationarySlot] && (
                   <PdfPage doc={doc} n={sourceSlots[stationarySlot] ?? 1} size={sizes[(sourceSlots[stationarySlot] ?? 1) - 1] ?? ref} zoom={zoom} onVisible={noop} eager />
                 )}
+                {overlay(sourceSlots[stationarySlot] ?? 1)}
               </div>
             )}
             <CurvedPage ref={turner} ratio={ref.h / ref.w} />
