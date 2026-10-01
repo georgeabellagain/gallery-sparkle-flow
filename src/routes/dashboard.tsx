@@ -149,9 +149,9 @@ function Dashboard() {
                   <span className={`text-xxs font-semibold uppercase ${isPublished ? "text-info" : "text-muted-foreground"}`}>{isPublished ? "Published" : "Unpublished"}</span>
                   <span className="truncate text-xxs text-muted-foreground">{portfolio.pdf?.pages ?? 0} pages</span>
                 </div>
-                <button type="button" onClick={() => editPortfolio(portfolio.code)} className="block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <div role="button" tabIndex={0} onClick={() => editPortfolio(portfolio.code)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); editPortfolio(portfolio.code); } }} className="block w-full cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <CatalogueCover blobKey={portfolio.pdf?.blobKey} />
-                </button>
+                </div>
                 <div className="pt-4">
                   <h3 className="truncate text-sm font-medium">{portfolio.pdf?.name?.replace(/\.pdf$/i, "") || portfolio.profile.name || "Untitled portfolio"}</h3>
                   <p className="mt-1 truncate text-xs text-muted-foreground">{portfolio.username && personalActive(portfolio) ? `portfolia.site/${portfolio.username}` : `/p/${portfolio.code}`}</p>
