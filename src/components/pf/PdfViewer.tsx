@@ -4,7 +4,8 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import { CurvedPage, type TurnerHandle } from "@/components/pf/CurvedPage";
+import { CurvedPage, type SheetMaterial, type TurnerHandle } from "@/components/pf/CurvedPage";
+import { surfaceCanvas, surfaceUrl, woodUrl, type SurfaceKind } from "@/lib/portfolia/surface";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 
@@ -544,6 +545,7 @@ function BookView({
             )}
             style={{ transform: `translateX(${shift}%)` }}
             onTransitionEnd={onSlideEnd}
+            onTransitionCancel={onSlideEnd}
           >
             {slots.filter((n) => narrow ? Boolean(n) : true).map((n, i) => (
               <div key={`base-${i}`} className={cn("relative min-w-0 overflow-hidden", n && "pf-sheet bg-background")}>
