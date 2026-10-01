@@ -21,11 +21,11 @@ export const Route = createFileRoute("/")({
     const img = o ? [{ property: "og:image", content: `${o}/og-image.jpg` }, { name: "twitter:image", content: `${o}/og-image.jpg` }] : [];
     return {
       meta: [
-        { title: "Portfolia — PDF Portfolio Hosting. One Simple Link." },
-        { name: "description", content: "Host your PDF portfolio online and share it with one simple link or downloadable QR code. A clean viewer for architects, designers and creatives. Free to start." },
+        { title: "Free PDF Portfolio Hosting & Flipbooks | Portfolia" },
+        { name: "description", content: "Host your PDF portfolio free with a professional flipbook or simple scrolling viewer. Share one link or QR code with clients, studios and recruiters." },
         { name: "keywords", content: "pdf portfolio, pdf portfolio hosting, online portfolio, portfolio website, architecture portfolio website, design portfolio, share portfolio link, portfolio for designers" },
-        { property: "og:title", content: "Portfolia — PDF Portfolio Hosting. One Simple Link." },
-        { property: "og:description", content: "Turn your PDF portfolio into a personal link and downloadable QR code. A clean viewer for architects, designers and creatives." },
+        { property: "og:title", content: "Free PDF Portfolio Hosting & Flipbooks | Portfolia" },
+        { property: "og:description", content: "Turn your PDF into a professional online portfolio with flipbook viewing, one simple link and a downloadable QR code. Free to start." },
         { property: "og:url", content: "https://portfolia.site/" },
         { property: "og:site_name", content: "Portfolia" },
         ...img,

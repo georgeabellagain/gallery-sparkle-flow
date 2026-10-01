@@ -17,16 +17,19 @@ import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EditRouteImport } from './routes/edit'
 import { Route as FashionPortfolioRouteImport } from './routes/fashion-portfolio'
+import { Route as FreePdfFlipbookRouteImport } from './routes/free-pdf-flipbook'
 import { Route as FreePdfPortfolioRouteImport } from './routes/free-pdf-portfolio'
 import { Route as FreePortfolioWebsiteRouteImport } from './routes/free-portfolio-website'
 import { Route as GraphicDesignPortfolioRouteImport } from './routes/graphic-design-portfolio'
 import { Route as IllustrationPortfolioRouteImport } from './routes/illustration-portfolio'
 import { Route as InteriorDesignPortfolioRouteImport } from './routes/interior-design-portfolio'
+import { Route as IssuuAlternativeRouteImport } from './routes/issuu-alternative'
 import { Route as LandscapeArchitecturePortfolioRouteImport } from './routes/landscape-architecture-portfolio'
 import { Route as PhotographyPortfolioRouteImport } from './routes/photography-portfolio'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProductDesignPortfolioRouteImport } from './routes/product-design-portfolio'
+import { Route as ProfessionalPortfolioRouteImport } from './routes/professional-portfolio'
 import { Route as RefundRouteImport } from './routes/refund'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SigninRouteImport } from './routes/signin'
@@ -79,6 +82,11 @@ const FashionPortfolioRoute = FashionPortfolioRouteImport.update({
   path: '/fashion-portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FreePdfFlipbookRoute = FreePdfFlipbookRouteImport.update({
+  id: '/free-pdf-flipbook',
+  path: '/free-pdf-flipbook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FreePdfPortfolioRoute = FreePdfPortfolioRouteImport.update({
   id: '/free-pdf-portfolio',
   path: '/free-pdf-portfolio',
@@ -102,6 +110,11 @@ const IllustrationPortfolioRoute = IllustrationPortfolioRouteImport.update({
 const InteriorDesignPortfolioRoute = InteriorDesignPortfolioRouteImport.update({
   id: '/interior-design-portfolio',
   path: '/interior-design-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IssuuAlternativeRoute = IssuuAlternativeRouteImport.update({
+  id: '/issuu-alternative',
+  path: '/issuu-alternative',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LandscapeArchitecturePortfolioRoute =
@@ -128,6 +141,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const ProductDesignPortfolioRoute = ProductDesignPortfolioRouteImport.update({
   id: '/product-design-portfolio',
   path: '/product-design-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfessionalPortfolioRoute = ProfessionalPortfolioRouteImport.update({
+  id: '/professional-portfolio',
+  path: '/professional-portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RefundRoute = RefundRouteImport.update({
@@ -196,16 +214,19 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
+  '/free-pdf-flipbook': typeof FreePdfFlipbookRoute
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
   '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
   '/illustration-portfolio': typeof IllustrationPortfolioRoute
   '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
+  '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/product-design-portfolio': typeof ProductDesignPortfolioRoute
+  '/professional-portfolio': typeof ProfessionalPortfolioRoute
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signin': typeof SigninRoute
@@ -227,16 +248,19 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
+  '/free-pdf-flipbook': typeof FreePdfFlipbookRoute
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
   '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
   '/illustration-portfolio': typeof IllustrationPortfolioRoute
   '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
+  '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/product-design-portfolio': typeof ProductDesignPortfolioRoute
+  '/professional-portfolio': typeof ProfessionalPortfolioRoute
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signin': typeof SigninRoute
@@ -259,16 +283,19 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
+  '/free-pdf-flipbook': typeof FreePdfFlipbookRoute
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
   '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
   '/illustration-portfolio': typeof IllustrationPortfolioRoute
   '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
+  '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/product-design-portfolio': typeof ProductDesignPortfolioRoute
+  '/professional-portfolio': typeof ProfessionalPortfolioRoute
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signin': typeof SigninRoute
@@ -292,16 +319,19 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/edit'
     | '/fashion-portfolio'
+    | '/free-pdf-flipbook'
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
     | '/graphic-design-portfolio'
     | '/illustration-portfolio'
     | '/interior-design-portfolio'
+    | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
     | '/photography-portfolio'
     | '/pricing'
     | '/privacy'
     | '/product-design-portfolio'
+    | '/professional-portfolio'
     | '/refund'
     | '/reset-password'
     | '/signin'
@@ -323,16 +353,19 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/edit'
     | '/fashion-portfolio'
+    | '/free-pdf-flipbook'
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
     | '/graphic-design-portfolio'
     | '/illustration-portfolio'
     | '/interior-design-portfolio'
+    | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
     | '/photography-portfolio'
     | '/pricing'
     | '/privacy'
     | '/product-design-portfolio'
+    | '/professional-portfolio'
     | '/refund'
     | '/reset-password'
     | '/signin'
@@ -354,16 +387,19 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/edit'
     | '/fashion-portfolio'
+    | '/free-pdf-flipbook'
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
     | '/graphic-design-portfolio'
     | '/illustration-portfolio'
     | '/interior-design-portfolio'
+    | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
     | '/photography-portfolio'
     | '/pricing'
     | '/privacy'
     | '/product-design-portfolio'
+    | '/professional-portfolio'
     | '/refund'
     | '/reset-password'
     | '/signin'
@@ -386,16 +422,19 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   EditRoute: typeof EditRoute
   FashionPortfolioRoute: typeof FashionPortfolioRoute
+  FreePdfFlipbookRoute: typeof FreePdfFlipbookRoute
   FreePdfPortfolioRoute: typeof FreePdfPortfolioRoute
   FreePortfolioWebsiteRoute: typeof FreePortfolioWebsiteRoute
   GraphicDesignPortfolioRoute: typeof GraphicDesignPortfolioRoute
   IllustrationPortfolioRoute: typeof IllustrationPortfolioRoute
   InteriorDesignPortfolioRoute: typeof InteriorDesignPortfolioRoute
+  IssuuAlternativeRoute: typeof IssuuAlternativeRoute
   LandscapeArchitecturePortfolioRoute: typeof LandscapeArchitecturePortfolioRoute
   PhotographyPortfolioRoute: typeof PhotographyPortfolioRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   ProductDesignPortfolioRoute: typeof ProductDesignPortfolioRoute
+  ProfessionalPortfolioRoute: typeof ProfessionalPortfolioRoute
   RefundRoute: typeof RefundRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SigninRoute: typeof SigninRoute
@@ -467,6 +506,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FashionPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/free-pdf-flipbook': {
+      id: '/free-pdf-flipbook'
+      path: '/free-pdf-flipbook'
+      fullPath: '/free-pdf-flipbook'
+      preLoaderRoute: typeof FreePdfFlipbookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/free-pdf-portfolio': {
       id: '/free-pdf-portfolio'
       path: '/free-pdf-portfolio'
@@ -502,6 +548,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InteriorDesignPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/issuu-alternative': {
+      id: '/issuu-alternative'
+      path: '/issuu-alternative'
+      fullPath: '/issuu-alternative'
+      preLoaderRoute: typeof IssuuAlternativeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/landscape-architecture-portfolio': {
       id: '/landscape-architecture-portfolio'
       path: '/landscape-architecture-portfolio'
@@ -535,6 +588,13 @@ declare module '@tanstack/react-router' {
       path: '/product-design-portfolio'
       fullPath: '/product-design-portfolio'
       preLoaderRoute: typeof ProductDesignPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/professional-portfolio': {
+      id: '/professional-portfolio'
+      path: '/professional-portfolio'
+      fullPath: '/professional-portfolio'
+      preLoaderRoute: typeof ProfessionalPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/refund': {
@@ -626,16 +686,19 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   EditRoute: EditRoute,
   FashionPortfolioRoute: FashionPortfolioRoute,
+  FreePdfFlipbookRoute: FreePdfFlipbookRoute,
   FreePdfPortfolioRoute: FreePdfPortfolioRoute,
   FreePortfolioWebsiteRoute: FreePortfolioWebsiteRoute,
   GraphicDesignPortfolioRoute: GraphicDesignPortfolioRoute,
   IllustrationPortfolioRoute: IllustrationPortfolioRoute,
   InteriorDesignPortfolioRoute: InteriorDesignPortfolioRoute,
+  IssuuAlternativeRoute: IssuuAlternativeRoute,
   LandscapeArchitecturePortfolioRoute: LandscapeArchitecturePortfolioRoute,
   PhotographyPortfolioRoute: PhotographyPortfolioRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   ProductDesignPortfolioRoute: ProductDesignPortfolioRoute,
+  ProfessionalPortfolioRoute: ProfessionalPortfolioRoute,
   RefundRoute: RefundRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SigninRoute: SigninRoute,

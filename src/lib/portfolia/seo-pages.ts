@@ -149,6 +149,9 @@ export const DISCIPLINE_PAGES: Record<string, Page> = {
 };
 
 export const SEO_LINKS: { to: string; label: string }[] = [
+  { to: "/free-pdf-flipbook", label: "Free PDF flipbook" },
+  { to: "/issuu-alternative", label: "Issuu alternative" },
+  { to: "/professional-portfolio", label: "Professional portfolio" },
   { to: "/free-pdf-portfolio", label: "Free PDF portfolio hosting" },
   { to: "/free-portfolio-website", label: "Free portfolio website" },
   { to: "/architecture-portfolio", label: "Architecture portfolio" },

@@ -4,7 +4,7 @@ import { SeoLanding, seoHead, type SeoContent } from "@/components/pf/SeoLanding
 const c: SeoContent = {
   path: "/free-portfolio-website",
   title: "Free Portfolio Website from Your PDF — No Builder Needed | Portfolia",
-  description: "Get a free portfolio website in minutes. Upload your PDF, add your details, then share a personal link or downloadable QR code.",
+  description: "Create a simple, professional portfolio website free from your PDF. Choose flipbook or scrolling views, add your profile and share a link or QR code.",
   h1: "A free portfolio website,",
   h1Accent: "made from your PDF.",
   intro: "Skip templates and drag-and-drop builders. Portfolia turns the portfolio you already have into a focused online page with your details and contact links.",

@@ -30,6 +30,9 @@ export function SiteFooter({ className }: { className?: string }) {
       <div className="shell flex flex-wrap items-center gap-x-6 gap-y-2 py-6 text-xs text-muted-foreground">
         <span>© {new Date().getFullYear()} George Bell</span>
         <Link to="/pricing" className="hover:underline underline-offset-4">Pricing</Link>
+        <Link to="/free-pdf-flipbook" className="hover:underline underline-offset-4">Free PDF flipbook</Link>
+        <Link to="/issuu-alternative" className="hover:underline underline-offset-4">Issuu alternative</Link>
+        <Link to="/professional-portfolio" className="hover:underline underline-offset-4">Professional portfolio</Link>
         <Link to="/free-pdf-portfolio" className="hover:underline underline-offset-4">Free PDF portfolio</Link>
         <Link to="/terms" className="hover:underline underline-offset-4">Terms</Link>
         <Link to="/privacy" className="hover:underline underline-offset-4">Privacy</Link>
