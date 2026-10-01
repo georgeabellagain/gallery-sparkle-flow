@@ -309,51 +309,99 @@ function BookView({
     return out;
   }, [sizes.length, narrow]);
   const [idx, setIdx] = useState(0);
+  // Explicit turn state: set once when a turn starts and once when it ends.
   const [turn, setTurn] = useState<{ dir: 1 | -1; from: number; to: number } | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const turning = useRef(false);
+  const turner = useRef<TurnerHandle>(null);
+  const stage = useRef<HTMLDivElement>(null);
+  const dragState = useRef<{ dir: 1 | -1; x: number; w: number; started: boolean; p: number } | null>(null);
+  const suppressClick = useRef(false);
   const touchX = useRef<number | null>(null);
   const safeIdx = Math.min(idx, spreads.length - 1);
   const spread = spreads[safeIdx] ?? [1];
 
   useEffect(() => onPage(spread[0]!), [spread, onPage]);
   useEffect(() => {
-    if (!jump) return;
+    if (!jump || turning.current) return;
     const i = spreads.findIndex((s) => s.includes(jump.page));
-    if (i >= 0) {
-      setTurn(null);
-      setIdx(i);
-    }
+    if (i >= 0) setIdx(i);
   }, [jump, spreads]);
-  useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
 
-  const finishTurn = () => {
-    if (!turn) return;
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-    setIdx(turn.to);
-    setTurn(null);
-  };
+  const slotsFor = (value: number[]) => narrow
+    ? [value[0] ?? null]
+    : value.length === 2
+      ? value
+      : value[0] === 1
+        ? [null, 1]
+        : [value[0] ?? null, null];
 
-  const flip = (d: 1 | -1) => {
-    if (turn) return;
+  /** Starts a turn only when both faces are already rendered. */
+  const startTurn = (d: 1 | -1): boolean => {
+    if (turning.current) return false;
     const next = safeIdx + d;
-    if (next < 0 || next >= spreads.length) return;
+    if (next < 0 || next >= spreads.length) return false;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduced) {
+    const fromSlots = slotsFor(spreads[safeIdx]!);
+    const toSlots = slotsFor(spreads[next]!);
+    const frontN = fromSlots[d > 0 ? 1 : 0];
+    const backN = toSlots[d > 0 ? 0 : 1];
+    const front = frontN ? getCached(doc, frontN) : null;
+    const back = backN ? getCached(doc, backN) ?? null : null;
+    if (reduced || !turner.current?.ready() || !front || (backN && !back)) {
+      // Immediate change keeps the current spread until the next is shown.
       setIdx(next);
+      return false;
+    }
+    turning.current = true;
+    turner.current.begin(front, back, d);
+    setTurn({ dir: d, from: safeIdx, to: next });
+    return true;
+  };
+  const endTurn = (to: number) => (completed: boolean) => {
+    if (completed) setIdx(to);
+    setTurn(null);
+    turning.current = false;
+  };
+  const flip = (d: 1 | -1) => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
       return;
     }
-    setTurn({ dir: d, from: safeIdx, to: next });
-    if (timer.current) clearTimeout(timer.current);
-    // Safety net only: the visible sheet commits the spread on its final frame.
-    timer.current = setTimeout(() => {
-      setIdx(next);
-      setTurn(null);
-      timer.current = null;
-    }, 1500);
+    const to = safeIdx + d;
+    if (startTurn(d)) turner.current!.release(true, endTurn(to));
   };
   const flipRef = useRef(flip);
   flipRef.current = flip;
+
+  const cornerDown = (d: 1 | -1) => (e: React.PointerEvent) => {
+    if (turning.current || e.button !== 0) return;
+    const w = stage.current?.clientWidth ?? 1;
+    dragState.current = { dir: d, x: e.clientX, w, started: false, p: 0 };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const cornerMove = (e: React.PointerEvent) => {
+    const s = dragState.current;
+    if (!s) return;
+    const dx = (e.clientX - s.x) * -s.dir;
+    if (!s.started) {
+      if (dx < 6) return;
+      if (!startTurn(s.dir)) {
+        dragState.current = null;
+        suppressClick.current = true;
+        return;
+      }
+      s.started = true;
+    }
+    s.p = Math.max(0, Math.min(1, dx / s.w));
+    turner.current?.drag(s.p);
+  };
+  const cornerUp = () => {
+    const s = dragState.current;
+    dragState.current = null;
+    if (!s?.started) return;
+    suppressClick.current = true;
+    turner.current?.release(s.p > 0.5, endTurn(safeIdx + s.dir));
+  };
 
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
@@ -479,9 +527,28 @@ function ToolBtn(props: { label: string; onClick: () => void; disabled?: boolean
 
 // Rendered pages are cached per document so a page that appears in a new
 // place (turning sheet, stationary half, next spread) paints instantly.
+// A shared byte budget evicts the least recently used pages.
 const pageCache = new WeakMap<object, Map<number, HTMLCanvasElement>>();
+const lru = new Map<HTMLCanvasElement, { doc: object; n: number }>();
+let cacheBytes = 0;
+function cacheBudget() {
+  if (typeof window === "undefined") return 0;
+  const mem = (navigator as { deviceMemory?: number }).deviceMemory ?? 8;
+  return (mem <= 4 || window.innerWidth < 768 ? 60 : 150) * 1024 * 1024;
+}
+function getCached(doc: object, n: number) {
+  const c = pageCache.get(doc)?.get(n);
+  if (c) {
+    const meta = lru.get(c);
+    if (meta) {
+      lru.delete(c);
+      lru.set(c, meta);
+    }
+  }
+  return c;
+}
 function cachedCopy(doc: object, n: number) {
-  const src = pageCache.get(doc)?.get(n);
+  const src = getCached(doc, n);
   if (!src) return null;
   const c = document.createElement("canvas");
   c.width = src.width;
@@ -496,8 +563,22 @@ function storePage(doc: object, n: number, canvas: HTMLCanvasElement) {
   let m = pageCache.get(doc);
   if (!m) pageCache.set(doc, (m = new Map()));
   const prev = m.get(n);
-  if (!prev || prev.width < canvas.width) {
-    m.set(n, canvas);
+  if (prev && prev.width >= canvas.width) return;
+  if (prev) {
+    lru.delete(prev);
+    cacheBytes -= prev.width * prev.height * 4;
+  }
+  m.set(n, canvas);
+  lru.set(canvas, { doc, n });
+  cacheBytes += canvas.width * canvas.height * 4;
+  const budget = cacheBudget();
+  for (const [c, meta] of lru) {
+    if (cacheBytes <= budget || lru.size <= 6) break;
+    lru.delete(c);
+    cacheBytes -= c.width * c.height * 4;
+    const dm = pageCache.get(meta.doc);
+    if (dm?.get(meta.n) === c) dm.delete(meta.n);
+    c.width = c.height = 0; // release pixel memory
   }
 }
 
