@@ -43,3 +43,12 @@
 - [x] Simplify viewer appearance controls, retain background colour, and add Personal image uploads
 - [x] Overhaul the homepage around the flipbook with a restrained monochrome book animation
 - [x] Modernise the site toward a clean white gallery aesthetic without unrelated feature changes
+
+## Homepage animation, reader repair and dashboard catalogue
+- [ ] Animate the homepage book from cover through multiple spreads to the back cover, then loop smoothly
+- [ ] Restore correct desktop two-page spreads without splitting standalone pages and slow page turns
+- [ ] Place the account profile and Edit profile action at the top of the dashboard
+- [ ] Replace the portfolio switcher/detail split with catalogue covers, status labels and hover actions
+- [ ] Consolidate copy link, embed and QR code inside one Share sheet per portfolio
+- [ ] Keep replace, delete, publish state and appearance controls together on the portfolio edit page
+- [ ] Verify homepage animation, desktop/mobile flipbook turns and dashboard portfolio actions
