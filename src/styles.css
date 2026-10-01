@@ -36,6 +36,7 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
+  --color-info: var(--info);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-input: var(--input);
@@ -89,6 +90,7 @@
   --destructive: oklch(0.51 0.17 25);
   --destructive-foreground: oklch(0.99 0 0);
   --success: oklch(0.52 0.1 155);
+  --info: oklch(0.52 0.16 255);
   --border: oklch(0.91 0.003 90);
   --border-strong: oklch(0.8 0.004 90);
   --input: oklch(0.89 0.003 90);
@@ -403,15 +405,24 @@
 .pf-light-satin::after { content: ""; position: absolute; inset: 0; mix-blend-mode: screen; background: linear-gradient(115deg, transparent 30%, oklch(1 0 0 / 0.07) 42%, transparent 54%); }
 
 /* Homepage book: monochrome, editorial, and deliberately slower than decorative UI motion. */
-.pf-hero-book { position: relative; width: min(48vw, 13rem); aspect-ratio: 3 / 4; perspective: 1200px; transform: translateX(10%); }
-.pf-hero-book-shadow { position: absolute; inset: auto 4% -8% -4%; height: 8%; border-radius: 999px; background: oklch(0.2 0 0 / 0.08); filter: blur(14px); }
-.pf-hero-book-page { position: absolute; inset: 0; border: 1px solid var(--color-border); border-radius: 2px; background: var(--color-background); }
+.pf-hero-book { position: relative; width: min(42vw, 12rem); aspect-ratio: 3 / 4; perspective: 1400px; transform: translateX(25%); }
+.pf-hero-book-shadow { position: absolute; inset: auto -48% -8% -12%; height: 8%; border-radius: 999px; background: oklch(0.2 0 0 / 0.08); filter: blur(14px); }
+.pf-hero-book-page { position: absolute; inset: 0; border: 1px solid var(--color-border); border-radius: 2px; background: var(--color-background); transform-origin: left center; transform-style: preserve-3d; backface-visibility: hidden; }
 .pf-hero-book-page-back { display: flex; flex-direction: column; gap: .65rem; padding: 1.4rem; box-shadow: var(--shadow-soft); }
-.pf-hero-book-page-mid { transform: translate(.35rem, .35rem); background: var(--color-muted); }
-.pf-hero-book-page-turn { z-index: 2; display: flex; transform-origin: left center; transform-style: preserve-3d; backface-visibility: hidden; flex-direction: column; gap: .7rem; padding: 1.4rem; box-shadow: var(--shadow-lift); animation: hero-book-turn 6s cubic-bezier(.65,.05,.35,1) infinite; }
+.pf-hero-book-page-mid { transform: translate(.25rem, .25rem); background: var(--color-muted); }
+.pf-hero-book-page-turn { display: flex; flex-direction: column; gap: .7rem; padding: 1.4rem; box-shadow: var(--shadow-soft); animation: hero-book-sequence 14s cubic-bezier(.72,0,.28,1) infinite; }
+.pf-hero-book-cover { z-index: 6; animation-delay: 0s; }
+.pf-hero-book-leaf-1 { z-index: 5; animation-delay: .7s; }
+.pf-hero-book-leaf-2 { z-index: 4; animation-delay: 1.4s; }
+.pf-hero-book-leaf-3 { z-index: 3; animation-delay: 2.1s; }
+.pf-hero-book-back-cover { z-index: 1; }
 .pf-hero-book-kicker { font-family: var(--font-mono); font-size: .42rem; color: var(--color-muted-foreground); }
 .pf-hero-book-image { display: block; flex: 1; border: 1px solid var(--color-border); background: var(--color-muted); }
 .pf-hero-book-line { display: block; height: 1px; width: 100%; background: var(--color-border); }
 .pf-hero-book-line-short { width: 42%; background: var(--color-leaf); }
 .pf-hero-book-spine { position: absolute; inset: 0 auto 0 0; z-index: 3; width: 2px; background: var(--color-border); }
-@keyframes hero-book-turn { 0%, 15% { transform: rotateY(0); } 48%, 68% { transform: rotateY(-178deg); } 100% { transform: rotateY(-360deg); } }
+@keyframes hero-book-sequence {
+  0%, 9% { transform: rotateY(0); }
+  18%, 66% { transform: rotateY(-178deg); }
+  76%, 100% { transform: rotateY(0); }
+}

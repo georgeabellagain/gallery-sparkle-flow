@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle, useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 
-export const TURN_DURATION = 976;
+export const TURN_DURATION = 1400;
 // World units: one page is 1 wide; overscan keeps the lifted sheet visible
 // beyond the original two-page frame without changing the book's layout.
 const SIDE_ROOM = 0.7;

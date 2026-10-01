@@ -1,10 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
+import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE, Modal, useBlob } from "@/components/pf/Chrome";
 import { StyleForm } from "@/components/pf/StyleForm";
 import { PortfolioPage, useStoredMedia } from "@/components/pf/PortfolioPage";
+import { DropZone } from "@/components/pf/DropZone";
+import { PdfViewer } from "@/components/pf/PdfViewer";
 import { Button } from "@/components/ui/button";
-import { useDoc } from "@/lib/portfolia/store";
+import { deleteBlob, formatBytes } from "@/lib/portfolia/assets";
+import { deletePortfolio, patchPortfolio, replacePdf, uploadLimitMb, useDoc, type PdfFile } from "@/lib/portfolia/store";
 import { retrySync, useSyncStatus } from "@/lib/portfolia/cloud";
 
 export const Route = createFileRoute("/edit")({
@@ -28,6 +31,7 @@ function EditPortfolio() {
   const p = doc.portfolio;
   const navigate = useNavigate();
   const [saveErr, setSaveErr] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<null | "replace" | "unpublish" | "delete">(null);
   const sync = useSyncStatus();
   const { pdf, photoUrl } = useStoredMedia(p?.pdf?.blobKey, p?.profile.photoKey);
 
@@ -47,6 +51,15 @@ function EditPortfolio() {
           <h1 className="display-title text-2xl">Edit portfolio</h1>
           <p className="mt-1 text-xs text-muted-foreground">Style and experience settings</p>
           <div className="mt-6"><StyleForm p={p} onSaveError={setSaveErr} /></div>
+          <section className="mt-7 rule-t pt-5">
+            <h2 className="text-sm font-medium">Portfolio file and publishing</h2>
+            <p className="mt-1 text-xs text-muted-foreground">{p.pdf.name} · {p.pdf.pages} pages · {formatBytes(p.pdf.bytes)}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button size="sm" variant="line" onClick={() => setDialog("replace")}>Replace PDF</Button>
+              {p.status === "published" ? <Button size="sm" variant="line" onClick={() => setDialog("unpublish")}>Unpublish</Button> : <Button size="sm" onClick={() => setSaveErr(patchPortfolio({ status: "published", publishedAt: Date.now() }) ? null : "Publishing failed — nothing changed.")}>Publish</Button>}
+              <Button size="sm" variant="quiet" onClick={() => setDialog("delete")}>Delete</Button>
+            </div>
+          </section>
           {saveErr && <p role="alert" className="mt-4 text-sm text-destructive">{saveErr}</p>}
           <div className="mt-8 rule-t pt-5 space-y-3">
             <Button asChild className="w-full" variant="line"><Link to="/dashboard">Back to dashboard</Link></Button>
@@ -65,6 +78,31 @@ function EditPortfolio() {
         </section>
       </div>
       <SiteFooter />
+      <EditReplaceModal open={dialog === "replace"} onClose={() => setDialog(null)} current={p.pdf} limitMb={uploadLimitMb(doc)} />
+      <Modal open={dialog === "unpublish"} onClose={() => setDialog(null)} title="Unpublish portfolio?">
+        <p className="text-muted-foreground">Its public link will stop working, but your PDF, details and address will be kept.</p>
+        <div className="mt-6 flex justify-end gap-2"><Button variant="line" onClick={() => setDialog(null)}>Cancel</Button><Button variant="destructive" onClick={() => { setSaveErr(patchPortfolio({ status: "draft" }) ? null : "Couldn’t unpublish — nothing changed."); setDialog(null); }}>Unpublish</Button></div>
+      </Modal>
+      <Modal open={dialog === "delete"} onClose={() => setDialog(null)} title="Delete portfolio?">
+        <p className="text-muted-foreground">This permanently removes the PDF, details and statistics. It cannot be undone.</p>
+        <div className="mt-6 flex justify-end gap-2"><Button variant="line" onClick={() => setDialog(null)}>Cancel</Button><Button variant="destructive" onClick={() => { void deletePortfolio().then(() => navigate({ to: "/dashboard" })); }}>Delete permanently</Button></div>
+      </Modal>
     </div>
   );
+}
+
+function EditReplaceModal({ open, onClose, current, limitMb }: { open: boolean; onClose: () => void; current: PdfFile; limitMb: number }) {
+  const [next, setNext] = useState<PdfFile | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const blob = useBlob(next?.blobKey);
+  const close = () => { if (next) void deleteBlob(next.blobKey); setNext(null); setErr(null); onClose(); };
+  return <Modal open={open} onClose={close} title="Replace PDF">
+    <p className="text-muted-foreground">{current.name} stays published until you confirm its replacement.</p>
+    <div className="mt-4">{!next ? <DropZone small label="Choose replacement PDF" limitMb={limitMb} onAccepted={setNext} /> : <>
+      <p className="text-xs">{next.name} · {next.pages} pages · {formatBytes(next.bytes)}</p>
+      <div className="mt-2 h-72 overflow-hidden border border-border"><PdfViewer source={blob ? { blob } : null} fileName={next.name} compact viewer={{ mode: "paged", look: "clean", background: "paper", finish: "matte", paper: "smooth", light: "soft", shadow: "none", thickness: "thin", spreads: "single", showHeader: false }} /></div>
+      {err && <p role="alert" className="mt-2 text-sm text-destructive">{err}</p>}
+      <div className="mt-4 flex justify-end gap-2"><Button variant="line" onClick={close}>Cancel</Button><Button onClick={async () => { if (!(await replacePdf(next))) return setErr("Couldn’t save — your current PDF is still published."); setNext(null); onClose(); }}>Confirm replacement</Button></div>
+    </>}</div>
+  </Modal>;
 }
