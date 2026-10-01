@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle, useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 
-export const TURN_DURATION = 488;
+export const TURN_DURATION = 976;
 // World units: one page is 1 wide; overscan keeps the lifted sheet visible
 // beyond the original two-page frame without changing the book's layout.
 const SIDE_ROOM = 0.7;
@@ -201,8 +201,8 @@ export const CurvedPage = forwardRef<TurnerHandle, { ratio: number }>(function C
         const start = performance.now();
         const step = (now: number) => {
           const t = Math.min(1, (now - start) / duration);
-          // Ease-in-out from a full turn; ease-out when continuing a drag.
-          const e = from === 0 ? (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2) : 1 - Math.pow(1 - t, 3);
+          // A pronounced ramp keeps the page calm at each edge and quick through the middle.
+          const e = from === 0 ? (t < .5 ? 16 * Math.pow(t, 5) : 1 - Math.pow(-2 * t + 2, 5) / 2) : 1 - Math.pow(1 - t, 3);
           progress = from + (to - from) * e;
           shape(progress);
           if (t < 1) frame = requestAnimationFrame(step);

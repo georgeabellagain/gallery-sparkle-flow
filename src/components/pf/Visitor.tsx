@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useHydrated } from "@tanstack/react-router";
 import { Eye } from "lucide-react";
 import { PortfolioPage, useStoredMedia } from "./PortfolioPage";
 import { Wordmark } from "./Chrome";
@@ -9,8 +9,8 @@ import type { PublicPortfolio } from "@/lib/portfolia/public.functions";
 import { type ViewerSettings, DEFAULT_VIEWER, findPortfolio, recordDownload, recordVisit, useDoc, type Portfolio } from "@/lib/portfolia/store";
 
 /** Example portfolio; `demo` opens straight into a flipbook preset. */
-export function SampleVisitor({ demo }: { demo?: "book" | "studio" }) {
-  const viewer = demo ? { ...DEFAULT_VIEWER, mode: "book" as const, ...(demo === "studio" ? { look: "studio" as const, background: "oak" as const, finish: "satin" as const, shadow: "grounded" as const, thickness: "medium" as const } : {}) } : undefined;
+export function SampleVisitor({ demo }: { demo?: "book" }) {
+  const viewer = demo ? { ...DEFAULT_VIEWER, mode: "book" as const } : undefined;
   return (
     <div className="min-h-screen">
       <PortfolioPage profile={SAMPLE.profile} pdf={SAMPLE_SRC} allowDownload showCredit immersive viewer={viewer} />
@@ -78,11 +78,23 @@ export const LOCAL_MISSING = "Nothing is published at this address. Check the li
 /** A published portfolio loaded from the server. */
 export function CloudVisitor({ data }: { data: NonNullable<PublicPortfolio> }) {
   registerPublicUrls(data.urls);
-  return <OwnVisitor p={data.portfolio} preview={false} />;
+  const hydrated = useHydrated();
+  const own = useOwn((p) => p.code === data.portfolio.code);
+  return (
+    <div className="relative">
+      {hydrated && own && (
+        <div className="fixed right-3 top-3 z-[70] flex gap-2 rounded-full border border-border bg-background/95 p-1 shadow-soft backdrop-blur">
+          <Link to="/edit" className="rounded-full px-3 py-1.5 text-xs font-medium hover:bg-muted">Edit portfolio</Link>
+          <Link to="/dashboard" className="rounded-full px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">Dashboard</Link>
+        </div>
+      )}
+      <OwnVisitor p={data.portfolio} preview={false} />
+    </div>
+  );
 }
 
 /** Compact published viewer for embedding on another website. */
-export function EmbeddedVisitor({ data, startPage, mode, background, look }: { data: NonNullable<PublicPortfolio>; startPage?: number; mode?: "scroll" | "paged" | "book"; background?: ViewerSettings["background"]; look?: "clean" | "studio" }) {
+export function EmbeddedVisitor({ data, startPage, mode, background }: { data: NonNullable<PublicPortfolio>; startPage?: number; mode?: "scroll" | "paged" | "book"; background?: ViewerSettings["background"] }) {
   registerPublicUrls(data.urls);
   const p = data.portfolio;
   const { pdf } = useStoredMedia(p.pdf?.blobKey);
@@ -95,7 +107,7 @@ export function EmbeddedVisitor({ data, startPage, mode, background, look }: { d
       showCredit={false}
       onDownload={() => recordDownload(p.code)}
       pageStyle={p.plan === "personal" ? p.style : undefined}
-      viewer={{ ...DEFAULT_VIEWER, ...p.viewer, ...(mode ? { mode } : {}), ...(background ? { background } : {}), ...(look ? { look } : {}), showHeader: false }}
+      viewer={{ ...DEFAULT_VIEWER, ...p.viewer, look: "clean", ...(mode ? { mode } : {}), ...(background ? { background } : {}), showHeader: false }}
       startPage={startPage}
       immersive
       embed

@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useHydrated, useNavigate } from "@tanstack/react-router";
 import { useHydrated } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { CloudVisitor, LOCAL_MISSING, Missing, OwnVisitor, SampleVisitor, useOwn } from "@/components/pf/Visitor";
 import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
 import { portfolioHead } from "@/lib/portfolia/head";
@@ -8,9 +9,9 @@ import { getRequestOrigin } from "@/lib/origin.functions";
 
 export const Route = createFileRoute("/p/$slug")({
   staticData: { sitemap: false },
-  validateSearch: (s: Record<string, unknown>): { preview?: string; demo?: "book" | "studio" } => ({
+  validateSearch: (s: Record<string, unknown>): { preview?: string; demo?: "book" } => ({
     ...(typeof s["preview"] === "string" && s["preview"] ? { preview: s["preview"] } : {}),
-    ...(s["demo"] === "book" || s["demo"] === "studio" ? { demo: s["demo"] } : {}),
+    ...(s["demo"] === "book" ? { demo: s["demo"] } : {}),
   }),
   loader: async ({ params }) => ({
     origin: await getRequestOrigin(),
@@ -54,12 +55,17 @@ function Page() {
   const { data } = Route.useLoaderData();
   const p = useOwn((x) => x.code === slug);
   const hydrated = useHydrated();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (hydrated && p && !preview && slug !== SAMPLE.code) void navigate({ to: "/edit", replace: true });
+  }, [hydrated, navigate, p, preview, slug]);
   if (slug === SAMPLE.code) return <SampleVisitor demo={demo} />;
   if (preview) {
     if (!hydrated) return null;
     if (!p || p.code !== slug) return <Missing title="No portfolio here" body="Sign in on this device to preview your draft." />;
     return <OwnVisitor p={p} preview />;
   }
+  if (hydrated && p) return null;
   if (!data) return <Missing title="No portfolio here" body={LOCAL_MISSING} />;
   return <CloudVisitor data={data} />;
 }

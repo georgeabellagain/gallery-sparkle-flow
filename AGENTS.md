@@ -19,4 +19,4 @@
 - Portfolio QR codes are generated locally in the browser from the active public link and downloaded as high-resolution PNGs; no third-party QR service receives portfolio URLs.
 - Flipbook turns use one persistent WebGL sheet with colour-space-correct textures and fold-only shading; mobile uses single pages and desktop uses spreads. Why: this avoids seams, preserves artwork colour and keeps turns smooth.
 - Published embeds use `/embed/<code>` and receive route-specific framing and no-index response headers in the server entry. Why: only the compact viewer should be frameable and excluded from search.
-- Studio flipbook materials and tabletops are procedural (src/lib/portfolia/surface.ts): lit height-map tiles soft-light blended over pages and into the WebGL sheet. Why: no licensed image assets needed and artwork colour is preserved.
+- Profile details and portfolio appearance are edited on separate routes; own portfolio cards open the appearance editor while explicit Preview opens the visitor view. Why: creator navigation should distinguish identity from presentation.
