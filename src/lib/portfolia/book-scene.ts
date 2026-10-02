@@ -1,5 +1,4 @@
 import * as THREE from "three";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { surfaceCanvas, type SurfaceKind } from "./surface";
 
 export type StudioSettings = {
@@ -7,6 +6,7 @@ export type StudioSettings = {
   material: SurfaceKind;
   lighting: "soft" | "bright" | "warm";
   backdrop: string;
+  diffusion: number;
 };
 export type BookFaces = [HTMLCanvasElement | null, HTMLCanvasElement | null];
 const ease = (t: number) => t * t * (3 - 2 * t);
@@ -14,7 +14,7 @@ const ease = (t: number) => t * t * (3 - 2 * t);
 /** One persistent, demand-rendered scene. Static and moving pages share lights/materials. */
 export function createBookScene(host: HTMLElement, ratio: number, onLost: () => void) {
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 3));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NoToneMapping;
   renderer.shadowMap.enabled = true;
@@ -22,13 +22,30 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   renderer.domElement.setAttribute("aria-hidden", "true");
   host.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
-  // A floating-point, prefiltered room environment supplies broad window and
-  // softbox illumination to every physical surface, including the backdrop.
-  const room = new RoomEnvironment();
-  room.rotation.x = Math.PI / 2;
+  // Self-contained floating-point HDR window environment, prefiltered for
+  // diffuse paper. Radiance above 1 preserves a real high dynamic range;
+  // no third-party environment request can leave the viewer unlit.
+  const envWidth = 512, envHeight = 256;
+  const radiance = new Float32Array(envWidth * envHeight * 4);
+  for (let y = 0; y < envHeight; y++) {
+    for (let x = 0; x < envWidth; x++) {
+      const u = x / envWidth, v = y / envHeight;
+      const windowRadiance = Math.exp(-((u - 0.28) ** 2 / 0.012 + (v - 0.42) ** 2 / 0.035));
+      const foliage = 0.85 + 0.15 * Math.sin(x * 0.12) * Math.cos(y * 0.19);
+      const value = 0.28 + 3.2 * windowRadiance * foliage;
+      const i = (y * envWidth + x) * 4;
+      radiance[i] = value;
+      radiance[i + 1] = value;
+      radiance[i + 2] = value * 1.02;
+      radiance[i + 3] = 1;
+    }
+  }
+  const hdr = new THREE.DataTexture(radiance, envWidth, envHeight, THREE.RGBAFormat, THREE.FloatType);
+  hdr.mapping = THREE.EquirectangularReflectionMapping;
+  hdr.needsUpdate = true;
   const pmrem = new THREE.PMREMGenerator(renderer);
-  const environment = pmrem.fromScene(room, 0.08);
-  room.dispose();
+  const environment = pmrem.fromEquirectangular(hdr);
+  hdr.dispose();
   pmrem.dispose();
   const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 50);
   const book = new THREE.Group();
@@ -37,7 +54,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const light = new THREE.DirectionalLight(0xffffff, 2.3);
   light.position.set(-3, 4, 6);
   light.castShadow = true;
-  light.shadow.mapSize.set(1024, 1024);
+  light.shadow.mapSize.set(2048, 2048);
   light.shadow.camera.left = -4;
   light.shadow.camera.right = 4;
   light.shadow.camera.top = 4;
@@ -45,17 +62,47 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   light.shadow.normalBias = 0.012;
   light.shadow.bias = -0.0001;
   light.shadow.radius = 3;
-  scene.add(ambient, light);
+  // A projected window/foliage pattern adds soft daylight variation without
+  // baking shadows or colour into the PDF artwork.
+  const windowLight = new THREE.SpotLight(0xffffff, 1.5, 30, 0.65, 0.9, 0);
+  windowLight.position.set(-2.5, 3, 6);
+  windowLight.target.position.set(0, 0, -0.1);
+  const windowMap = document.createElement("canvas");
+  windowMap.width = windowMap.height = 512;
+  const windowTexture = new THREE.CanvasTexture(windowMap);
+  windowLight.map = windowTexture;
+  const paintWindow = (diffusion: number) => {
+    const ctx = windowMap.getContext("2d")!;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, 512, 512);
+    ctx.save();
+    ctx.filter = `blur(${4 + diffusion * 24}px)`;
+    ctx.fillStyle = "#aaa";
+    ctx.fillRect(244, 0, 24, 512);
+    ctx.fillRect(0, 244, 512, 24);
+    // Deterministic foliage silhouettes keep slider changes visually stable.
+    for (let i = 0; i < 45; i++) {
+      const x = (Math.sin(i * 73.1) * 0.5 + 0.5) * 512;
+      const y = (Math.cos(i * 37.7) * 0.5 + 0.5) * 512;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 12 + i % 19, 8 + i % 11, i, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    windowTexture.needsUpdate = true;
+  };
+  scene.add(ambient, light, windowLight, windowLight.target);
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(20, 20),
     new THREE.MeshStandardMaterial({ color: 0xe8e3da, roughness: 0.88 }),
   );
-  ground.position.z = -0.065;
+  ground.position.z = -0.13;
   ground.receiveShadow = true;
   scene.add(ground);
 
   let settings: StudioSettings = {
     studio: false,
+    diffusion: 0.65,
     material: "matte",
     lighting: "soft",
     backdrop: "/studio/warm-wood.jpg",
@@ -79,6 +126,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       color: 0xffffff,
       side,
       roughness: 0.95,
+      specularIntensity: 0.12,
       metalness: 0,
     });
     pageMaterials.push(mat);
@@ -105,13 +153,19 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const edgeMat = new THREE.MeshStandardMaterial({ color: 0xe7e2d8, roughness: 1 });
   const blocks = [-0.5, 0.5].map((x) => {
     const group = new THREE.Group();
-    const cover = new THREE.Mesh(new THREE.BoxGeometry(1.025, ratio + 0.03, 0.012), coverMat);
-    cover.position.z = -0.048;
-    const pages = new THREE.Mesh(new THREE.BoxGeometry(0.994, ratio - 0.006, 0.035), edgeMat);
-    pages.position.z = -0.024;
+    const cover = new THREE.Mesh(new THREE.BoxGeometry(1.025, ratio + 0.04, 0.018), coverMat);
+    cover.position.z = -0.105;
+    const pages = new THREE.Mesh(new THREE.BoxGeometry(0.994, ratio - 0.006, 0.085), edgeMat);
+    pages.position.z = -0.052;
     cover.castShadow = pages.castShadow = true;
     group.position.x = x;
     group.add(cover, pages);
+    // Separate sheet edges make the block read as a bound booklet.
+    for (let i = 1; i < 15; i++) {
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(0.998, ratio - 0.004, 0.0008), coverMat);
+      edge.position.z = -0.009 - i * 0.0055;
+      group.add(edge);
+    }
     book.add(group);
     return group;
   });
@@ -135,8 +189,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const t = new THREE.CanvasTexture(canvas);
     t.colorSpace = THREE.SRGBColorSpace;
     t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-    t.generateMipmaps = false;
-    t.minFilter = THREE.LinearFilter;
+    t.generateMipmaps = true;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
     if (mirrored) {
       t.repeat.x = -1;
       t.offset.x = 1;
@@ -154,6 +208,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       mat.map.dispose();
     }
     mat.map = canvas ? texture(canvas, mirror) : null;
+    mat.emissiveMap = settings.studio ? null : mat.map;
     mat.needsUpdate = true;
   };
   const paint = () => {
@@ -190,16 +245,21 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const configure = (next: StudioSettings) => {
     settings = next;
     renderer.toneMapping = next.studio ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
-    renderer.toneMappingExposure = 1.15;
-    const warm = next.lighting === "warm";
+    renderer.toneMappingExposure = 1;
+    const warm = next.studio && next.lighting === "warm";
     const bright = next.lighting === "bright";
     scene.environment = next.studio ? environment.texture : null;
-    scene.environmentIntensity = bright ? 1.3 : warm ? 0.75 : 1;
+    scene.environmentIntensity = next.studio ? (bright ? 0.65 : 0.5) : 0;
     scene.environmentRotation.set(0, 0, warm ? -0.65 : bright ? 0.7 : 0);
     light.position.set(warm ? 4 : -3, bright ? -2 : 4, 6);
     light.color.set(warm ? 0xffd5a0 : 0xffffff);
-    light.intensity = next.studio ? (bright ? 1.2 : warm ? 0.8 : 0.65) : 0;
-    ambient.intensity = next.studio ? 0.18 : Math.PI;
+    const diffusion = THREE.MathUtils.clamp(next.diffusion, 0, 1);
+    paintWindow(diffusion);
+    windowLight.intensity = next.studio ? (0.65 - diffusion * 0.35) : 0;
+    windowLight.color.set(warm ? 0xfff0dd : 0xffffff);
+    light.shadow.radius = 2 + diffusion * 6;
+    light.intensity = next.studio ? (bright ? 0.65 : 0.45) : 0;
+    ambient.intensity = next.studio ? 0.65 : Math.PI;
     ambient.color.set(warm ? 0xffe4c2 : 0xffffff);
     ambient.groundColor.set(next.studio ? 0xb7bdca : 0xffffff);
     ground.material.color.set(warm ? 0xffe4c7 : 0xffffff);
@@ -207,6 +267,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const applyBackdrop = (map: THREE.Texture | null) => {
       if (disposed || request !== backdropRequest) return;
       ground.material.map = map;
+      // Use the photographic grain as height relief under the studio lights.
+      ground.material.bumpMap = map;
+      ground.material.bumpScale = map ? 0.018 : 0;
+      ground.material.roughness = 0.9;
       ground.material.needsUpdate = true;
       paint();
     };
@@ -223,7 +287,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
           }
           map.colorSpace = THREE.SRGBColorSpace;
           map.wrapS = map.wrapT = THREE.RepeatWrapping;
-          map.repeat.set(4, 4);
+          map.repeat.set(2, 2);
           map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
           backdropTextures.set(next.backdrop, map);
           applyBackdrop(map);
@@ -247,10 +311,14 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     for (const m of pageMaterials) {
       m.bumpMap = bump;
       m.bumpScale =
-        next.material === "textured" ? 0.012 : next.material === "natural" ? 0.006 : 0.0015;
-      m.roughness = next.material === "satin" ? 0.35 : 0.96;
-      m.clearcoat = next.studio && next.material === "satin" ? 0.22 : 0;
+        next.studio ? (next.material === "textured" ? 0.0015 : next.material === "natural" ? 0.0008 : 0.0003) : 0;
+      m.roughness = next.studio && next.material === "satin" ? 0.78 : 0.96;
+      m.clearcoat = next.studio && next.material === "satin" ? 0.035 : 0;
       m.clearcoatRoughness = 0.4;
+      // Simple mode reproduces the source artwork independently of studio light.
+      m.emissive.set(next.studio ? 0x000000 : 0xffffff);
+      m.emissiveMap = next.studio ? null : m.map;
+      m.color.set(next.studio ? 0xffffff : 0x000000);
       m.needsUpdate = true;
     }
     coverMat.color.set(
@@ -336,7 +404,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     show,
     viewport(isNarrow: boolean, scale: number, target: number) {
       narrow = isNarrow;
-      zoom = scale;
+      zoom = THREE.MathUtils.clamp(scale, 0.8, 3);
       focus = target;
       frameCamera();
       paint();
@@ -346,7 +414,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const delta = cameraHeight(zoom) - cameraHeight(scale);
       panX += (x - 0.5) * delta * aspect;
       panY += (0.5 - y) * delta;
-      zoom = scale;
+      zoom = THREE.MathUtils.clamp(scale, 0.8, 3);
       frameCamera();
       paint();
     },
@@ -443,6 +511,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       textures.forEach((t) => t.dispose());
       bumps.forEach((t) => t.dispose());
       backdropTextures.forEach((t) => t.dispose());
+      windowTexture.dispose();
       environment.dispose();
       const geometries = new Set<THREE.BufferGeometry>();
       scene.traverse((o) => {
@@ -460,3 +529,4 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   };
 }
 export type BookScene = ReturnType<typeof createBookScene>;
+
