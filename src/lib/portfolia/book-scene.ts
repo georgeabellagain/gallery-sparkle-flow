@@ -129,6 +129,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   sheet.visible = false;
   book.add(sheet);
   let faces: BookFaces = [null, null];
+  let draggedTurn: { from: BookFaces; to: BookFaces; dir: 1 | -1; destinationFocus: number; progress: number; landingUpdated: boolean } | null = null;
 
   const texture = (canvas: HTMLCanvasElement, mirrored = false) => {
     const t = new THREE.CanvasTexture(canvas);
@@ -349,6 +350,13 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       frameCamera();
       paint();
     },
+    dragPan(dx: number, dy: number) {
+      const height = cameraHeight(zoom);
+      panX -= (dx / Math.max(1, host.clientHeight)) * height;
+      panY += (dy / Math.max(1, host.clientHeight)) * height;
+      frameCamera();
+      paint();
+    },
     async resetZoom() {
       if (zoom === 1 && panX === 0 && panY === 0) return;
       const startZoom = zoom, startX = panX, startY = panY;
@@ -367,7 +375,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       });
     },
     pan,
-    async turn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number) {
+    async prepareTurn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number) {
       // A cover first aligns with the open spread. The sheet then turns.
       if (!narrow && focus !== 0) await pan(0);
       if (disposed) return;
@@ -379,26 +387,51 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       sheet.visible = true;
       shape(0, dir);
       paint();
-      let landingUpdated = false;
+      draggedTurn = { from, to, dir, destinationFocus, progress: 0, landingUpdated: false };
+    },
+    dragTurn(progress: number) {
+      const turn = draggedTurn;
+      if (!turn || disposed) return;
+      turn.progress = THREE.MathUtils.clamp(progress, 0, 1);
+      const landing = turn.dir === 1 ? 0 : 1;
+      if (turn.progress >= 0.5 && !turn.landingUpdated) {
+        setMap(landing === 0 ? left.material : right.material, turn.to[landing]);
+        turn.landingUpdated = true;
+      }
+      shape(turn.progress, turn.dir);
+      paint();
+    },
+    async settleTurn(complete: boolean) {
+      const turn = draggedTurn;
+      if (!turn || disposed) return;
+      const { from, to, dir, destinationFocus } = turn;
+      const start = turn.progress;
       const startFocus = focus;
-      await animate(700, (t) => {
-        // Once the turning back faces the reader, replace the old landing
-        // page underneath it. Curl must never uncover the previous spread.
-        if (t >= 0.5 && !landingUpdated) {
+      const end = complete ? 1 : 0;
+      await animate(Math.max(120, 700 * Math.abs(end - start)), (t) => {
+        const progress = THREE.MathUtils.lerp(start, end, t);
+        turn.progress = progress;
+        const landing = dir === 1 ? 0 : 1;
+        if (progress >= 0.5 && !turn.landingUpdated) {
           setMap(landing === 0 ? left.material : right.material, to[landing]);
-          landingUpdated = true;
+          turn.landingUpdated = true;
         }
-        shape(t, dir);
-        if (narrow) {
-          focus = THREE.MathUtils.lerp(startFocus, destinationFocus, t);
+        shape(progress, dir);
+        if (narrow && complete) {
+          focus = THREE.MathUtils.lerp(startFocus, destinationFocus, progress);
           frameCamera();
         }
       });
       if (disposed) return;
       sheet.visible = false;
-      show(to, false);
+      show(complete ? to : from, false);
+      draggedTurn = null;
       paint();
-      await pan(destinationFocus, narrow ? 0 : 260);
+      await pan(complete ? destinationFocus : bookFocusForCancel(from), narrow ? 0 : 260);
+    },
+    async turn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number) {
+      await this.prepareTurn(from, to, dir, destinationFocus);
+      await this.settleTurn(true);
     },
     dispose() {
       disposed = true;
