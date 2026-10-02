@@ -29,35 +29,68 @@ const BACKDROPS = [
 /** The studio options a visitor can change. Backdrop settings are derived separately. */
 type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri" | "hdriRotation">;
 type CustomBackdrop = { url: string; aspect: number };
+type BackdropFit = { scale: number; x: number; y: number };
 
 /**
- * A bounded per-view cache. All turn faces finish rendering before motion starts.
- * Every page is rendered up front (within a memory budget) so turning never waits.
+ * Renders every page once into a ready-to-use face and keeps them in a bounded
+ * cache. A turn then only hands existing canvases to the scene, with no
+ * rendering or copying at the moment the page moves. Pages are rendered up
+ * front, within a memory budget, so turning never waits.
  */
-function pageLoader(doc: PDFDocumentProxy, ratio: number) {
-  const cache = new Map<number, HTMLCanvasElement>();
-  const pending = new Map<number, Promise<HTMLCanvasElement>>();
+function pageLoader(doc: PDFDocumentProxy, ratio: number, layout: ReturnType<typeof bookLayout>) {
+  const faces = new Map<number, HTMLCanvasElement>();
+  const pending = new Map<number, Promise<void>>();
   const tasks = new Set<RenderTask>();
   let closed = false;
 
+  const leavesOf = new Map<number, number[]>();
+  layout.leaves.forEach((leaf, index) => {
+    const list = leavesOf.get(leaf.page);
+    if (list) list.push(index);
+    else leavesOf.set(leaf.page, [index]);
+  });
+
   // Keep every page in memory when it fits. Longer documents render each page
   // a little smaller so they still fit instead of exhausting the device.
+  const split = layout.leaves.some((leaf) => leaf.half) ? 0.5 : 1;
+  const perPage = split === 0.5 ? 2 : 1;
+  const count = layout.leaves.length;
   const budget = (window.innerWidth < 720 ? 160 : 360) * 1024 * 1024;
   const ideal = Math.min(
     4096,
     Math.max(2560, window.innerWidth * Math.min(devicePixelRatio || 1, 3)),
   );
-  const fitted = Math.sqrt(budget / (3 * Math.min(doc.numPages, 60)));
+  const fitted = Math.sqrt(budget / (3 * split * Math.min(count, 60)));
   const target = Math.max(1200, Math.min(ideal, fitted));
-  const keep = Math.max(8, Math.min(doc.numPages, Math.floor(budget / (3 * target * target))));
+  const keep = Math.max(8, Math.min(count, Math.floor(budget / (3 * split * target * target))));
 
-  const load = (page: number): Promise<HTMLCanvasElement> => {
-    const hit = cache.get(page);
-    if (hit) {
-      cache.delete(page);
-      cache.set(page, hit);
-      return Promise.resolve(hit);
-    }
+  const compose = (raw: HTMLCanvasElement, leaf: Leaf) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = leaf.half ? Math.floor(raw.width / 2) : raw.width;
+    canvas.height = Math.round(canvas.width * ratio);
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const sw = leaf.half ? raw.width / 2 : raw.width;
+    const sx = leaf.half === "right" ? raw.width / 2 : 0;
+    const scale = Math.min(canvas.width / sw, canvas.height / raw.height);
+    const w = sw * scale,
+      h = raw.height * scale;
+    ctx.drawImage(
+      raw,
+      sx,
+      0,
+      sw,
+      raw.height,
+      (canvas.width - w) / 2,
+      (canvas.height - h) / 2,
+      w,
+      h,
+    );
+    return canvas;
+  };
+
+  const render = (page: number): Promise<void> => {
     const existing = pending.get(page);
     if (existing) return existing;
     const promise = (async () => {
@@ -78,20 +111,22 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number) {
         tasks.delete(task);
       }
       if (closed) throw new Error("Viewer closed");
-      cache.set(page, raw);
-      while (cache.size > keep) cache.delete(cache.keys().next().value!);
-      return raw;
+      for (const index of leavesOf.get(page) ?? []) faces.set(index, compose(raw, layout.leaves[index]!));
+      // The faces hold the pixels now; release the full-size render straight away.
+      raw.width = raw.height = 0;
+      while (faces.size > keep) faces.delete(faces.keys().next().value!);
     })().finally(() => pending.delete(page));
     pending.set(page, promise);
     return promise;
   };
+
   return {
     /**
      * Renders pages in the background. Resolves once the first `gate` pages are
      * ready; any remaining pages keep loading afterwards.
      */
     preload(onProgress: (done: number, total: number) => void): Promise<void> {
-      const total = Math.min(doc.numPages, keep);
+      const total = Math.min(doc.numPages, Math.floor(keep / perPage));
       const gate = Math.min(total, 40);
       return new Promise<void>((resolve) => {
         let next = 1;
@@ -101,7 +136,7 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number) {
             const page = next++;
             if (page > total) return;
             try {
-              await load(page);
+              await render(page);
             } catch {
               /* a page that fails here is retried when it is opened */
             }
@@ -113,37 +148,22 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number) {
         void Promise.all([worker(), worker()]).then(() => resolve());
       });
     },
-    async face(leaf: Leaf | undefined): Promise<HTMLCanvasElement | null> {
-      if (!leaf) return null;
-      const raw = await load(leaf.page);
-      const canvas = document.createElement("canvas");
-      canvas.width = leaf.half ? Math.floor(raw.width / 2) : raw.width;
-      canvas.height = Math.round(canvas.width * ratio);
-      const ctx = canvas.getContext("2d")!;
-      ctx.fillStyle = "white";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      const sw = leaf.half ? raw.width / 2 : raw.width;
-      const sx = leaf.half === "right" ? raw.width / 2 : 0;
-      const scale = Math.min(canvas.width / sw, canvas.height / raw.height);
-      const w = sw * scale,
-        h = raw.height * scale;
-      ctx.drawImage(
-        raw,
-        sx,
-        0,
-        sw,
-        raw.height,
-        (canvas.width - w) / 2,
-        (canvas.height - h) / 2,
-        w,
-        h,
-      );
-      return canvas;
+    async face(index: number | null): Promise<HTMLCanvasElement | null> {
+      if (index === null) return null;
+      let hit = faces.get(index);
+      if (!hit) {
+        await render(layout.leaves[index]!.page);
+        hit = faces.get(index);
+        if (!hit) throw new Error("Page unavailable");
+      }
+      faces.delete(index);
+      faces.set(index, hit);
+      return hit;
     },
     dispose() {
       closed = true;
       tasks.forEach((task) => task.cancel());
-      cache.clear();
+      faces.clear();
     },
   };
 }
@@ -155,7 +175,6 @@ export function BookView({
   onZoomChange,
   jump,
   onPage,
-  controlsHidden,
   viewer,
 }: {
   doc: PDFDocumentProxy;
@@ -164,7 +183,7 @@ export function BookView({
   onZoomChange: (zoom: number) => void;
   jump: { page: number; t: number } | null;
   onPage: (page: number) => void;
-  controlsHidden: boolean;
+  controlsHidden?: boolean;
   viewer: ViewerSettings;
 }) {
   const layout = useMemo(
@@ -176,6 +195,7 @@ export function BookView({
   const host = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const wheelZoom = useRef(zoom);
+  const zoomFrame = useRef(0);
   const scene = useRef<BookScene | null>(null);
   const loader = useRef<ReturnType<typeof pageLoader> | null>(null);
   const lock = useRef(false);
@@ -206,11 +226,12 @@ export function BookView({
   });
   const [backdrop, setBackdrop] = useState("midnight");
   const [custom, setCustom] = useState<CustomBackdrop | null>(null);
+  const [fit, setFit] = useState<BackdropFit>({ scale: 1, x: 0, y: 0 });
   const customRef = useRef<CustomBackdrop | null>(null);
-  const [cue, setCue] = useState<"left" | "right" | null>(null);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
   const panning = useRef<{ id: number; x: number; y: number } | null>(null);
+  const prefetchToken = useRef(0);
   const index = spreadIndex(layout.spreads, leaf);
   const spread = layout.spreads[index]!;
   const focus = bookFocus(spread, leaf, narrow);
@@ -232,6 +253,9 @@ export function BookView({
         backdropColor: "#ffffff",
         backdropKind: "photo" as const,
         backdropAspect: custom.aspect,
+        backdropScale: fit.scale,
+        backdropX: fit.x,
+        backdropY: fit.y,
       };
     }
     const preset = BACKDROPS.find((b) => b.id === backdrop) ?? BACKDROPS[0]!;
@@ -240,8 +264,11 @@ export function BookView({
       backdropColor: preset.color,
       backdropKind: "tile" as const,
       backdropAspect: 1,
+      backdropScale: 1,
+      backdropX: 0,
+      backdropY: 0,
     };
-  }, [backdrop, custom]);
+  }, [backdrop, custom, fit]);
 
   useEffect(() => {
     alive.current = true;
@@ -251,7 +278,7 @@ export function BookView({
     const observer = new ResizeObserver(() => setNarrow(element.clientWidth < 720));
     observer.observe(element);
     setNarrow(element.clientWidth < 720);
-    const source = pageLoader(doc, ratio);
+    const source = pageLoader(doc, ratio, layout);
     loader.current = source;
     setWarm(false);
     setWarmProgress({ done: 0, total: 0 });
@@ -277,15 +304,13 @@ export function BookView({
       scene.current?.dispose();
       scene.current = null;
     };
-  }, [doc, ratio]);
+  }, [doc, ratio, layout]);
 
   const faces = useCallback(
     async (value: Spread): Promise<BookFaces> => {
-      return Promise.all(
-        value.map((n) => loader.current!.face(n === null ? undefined : layout.leaves[n])),
-      ) as Promise<BookFaces>;
+      return Promise.all(value.map((n) => loader.current!.face(n))) as Promise<BookFaces>;
     },
-    [layout],
+    [],
   );
 
   useEffect(() => {
@@ -301,10 +326,11 @@ export function BookView({
   }, [settings, backdropSettings, ready]);
   useEffect(() => {
     if (!busy && scene.current) {
-      scene.current.viewport(narrow, zoom, focus);
+      // A wheel gesture that has not reached the parent yet owns the zoom.
+      scene.current.viewport(narrow, zoomFrame.current ? wheelZoom.current : zoom, focus);
       setCorners(scene.current.corners());
     }
-    wheelZoom.current = zoom;
+    if (!zoomFrame.current) wheelZoom.current = zoom;
   }, [narrow, zoom, focus, busy, ready, settings]);
 
   useEffect(() => {
@@ -319,11 +345,21 @@ export function BookView({
       const rect = element.getBoundingClientRect();
       scene.current.zoomAt(next, (event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height);
       wheelZoom.current = next;
-      onZoomChange(next);
-      setCorners(scene.current.corners());
+      // Tell React once per frame instead of on every wheel tick.
+      if (!zoomFrame.current) {
+        zoomFrame.current = requestAnimationFrame(() => {
+          zoomFrame.current = 0;
+          onZoomChange(wheelZoom.current);
+          if (scene.current) setCorners(scene.current.corners());
+        });
+      }
     };
     element.addEventListener("wheel", onWheel, { passive: false });
-    return () => element.removeEventListener("wheel", onWheel);
+    return () => {
+      element.removeEventListener("wheel", onWheel);
+      if (zoomFrame.current) cancelAnimationFrame(zoomFrame.current);
+      zoomFrame.current = 0;
+    };
   }, [busy, wait, fallback, onZoomChange]);
 
   useEffect(() => {
@@ -361,6 +397,33 @@ export function BookView({
       });
   }, [faces, spread, leaf, ready, fallback]);
 
+  // While the book is at rest, upload the neighbouring spreads to the GPU one
+  // page at a time, so the next turn starts instantly.
+  useEffect(() => {
+    if (!ready || !warm || busy || loading || fallback) return;
+    const token = ++prefetchToken.current;
+    const targets = [index + 1, index - 1]
+      .flatMap((i) => layout.spreads[i] ?? [])
+      .filter((n): n is number => n !== null);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let k = 0;
+    const step = async () => {
+      if (!alive.current || token !== prefetchToken.current || k >= targets.length) return;
+      try {
+        const canvas = await loader.current?.face(targets[k++]!);
+        if (alive.current && token === prefetchToken.current && !lock.current) scene.current?.prefetch(canvas);
+      } catch {
+        /* a page that cannot be prepared reports its own error when opened */
+      }
+      timer = setTimeout(() => void step(), 90);
+    };
+    timer = setTimeout(() => void step(), 200);
+    return () => {
+      prefetchToken.current++;
+      if (timer) clearTimeout(timer);
+    };
+  }, [index, ready, warm, busy, loading, fallback, layout]);
+
   const move = useCallback(
     async (direction: 1 | -1) => {
       if (lock.current || wait || (direction === 1 ? atEnd : atStart)) return;
@@ -370,13 +433,12 @@ export function BookView({
       const target = bookFocus(nextSpread, nextLeaf, narrow);
       lock.current = true;
       setBusy(true);
-      setCue(null);
       setError(null);
       try {
         const [from, to] = await Promise.all([faces(spread), faces(nextSpread)]);
         // Let the corner fold away before moving the book itself.
         if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-          await new Promise((r) => setTimeout(r, 40));
+          await new Promise((r) => setTimeout(r, 120));
         if (!alive.current) return;
         if (!fallback && scene.current) {
           await scene.current.resetZoom();
@@ -403,7 +465,6 @@ export function BookView({
     e.currentTarget.setPointerCapture(e.pointerId);
     lock.current = true;
     setBusy(true);
-    setCue(null);
     setError(null);
     const nextIndex = index + direction;
     const nextSpread = layout.spreads[nextIndex];
@@ -503,6 +564,7 @@ export function BookView({
             if (old) URL.revokeObjectURL(old.url);
             return { url, aspect: canvas.width / canvas.height };
           });
+          setFit({ scale: 1, x: 0, y: 0 });
           setBackdrop("custom");
         },
         "image/jpeg",
@@ -578,23 +640,48 @@ export function BookView({
           </div>
         )}
       </div>
-      {settings.studio && (
-        <div className="pf-backdrops" role="group" aria-label="Studio lighting">
-          {HDRI_PRESETS.map((h) => (
-            <button
-              key={h.id}
-              type="button"
-              aria-pressed={settings.hdri === h.id}
-              onClick={() => update({ hdri: h.id })}
+      {settings.studio &&
+        (["Daylight", "Interior"] as const).map((group) => (
+          <div key={group} className="pf-backdrops" role="group" aria-label={`${group} lighting`}>
+            <span
+              style={{
+                alignSelf: "center",
+                width: "4.75rem",
+                fontSize: ".65rem",
+                letterSpacing: ".06em",
+                textTransform: "uppercase",
+                color: "#656b62",
+              }}
             >
-              <span aria-hidden style={{ backgroundImage: h.preview }} />
-              {h.label}
-            </button>
-          ))}
-        </div>
-      )}
+              {group}
+            </span>
+            {HDRI_PRESETS.filter((h) => h.group === group).map((h) => (
+              <button
+                key={h.id}
+                type="button"
+                aria-pressed={settings.hdri === h.id}
+                onClick={() => update({ hdri: h.id })}
+              >
+                <span aria-hidden style={{ backgroundImage: h.preview }} />
+                {h.label}
+              </button>
+            ))}
+          </div>
+        ))}
       {settings.studio && (
         <div className="pf-backdrops" role="group" aria-label="Studio backdrop">
+          <span
+            style={{
+              alignSelf: "center",
+              width: "4.75rem",
+              fontSize: ".65rem",
+              letterSpacing: ".06em",
+              textTransform: "uppercase",
+              color: "#656b62",
+            }}
+          >
+            Backdrop
+          </span>
           {BACKDROPS.map((b) => (
             <button
               key={b.id}
@@ -645,41 +732,78 @@ export function BookView({
           />
         </div>
       )}
+      {settings.studio && backdrop === "custom" && custom && (
+        <div className="pf-book-options">
+          <div className="pf-studio-controls">
+            <label>
+              Image size
+              <input
+                type="range"
+                aria-label="Background image size"
+                min="100"
+                max="300"
+                step="5"
+                value={Math.round(fit.scale * 100)}
+                onChange={(e) => setFit((f) => ({ ...f, scale: Number(e.target.value) / 100 }))}
+              />
+              <span className="tabular-nums">{Math.round(fit.scale * 100)}%</span>
+            </label>
+            <label>
+              Left / right
+              <input
+                type="range"
+                aria-label="Move background image left or right"
+                min="-100"
+                max="100"
+                step="2"
+                value={Math.round(fit.x * 100)}
+                onChange={(e) => setFit((f) => ({ ...f, x: Number(e.target.value) / 100 }))}
+              />
+            </label>
+            <label>
+              Up / down
+              <input
+                type="range"
+                aria-label="Move background image up or down"
+                min="-100"
+                max="100"
+                step="2"
+                value={Math.round(fit.y * 100)}
+                onChange={(e) => setFit((f) => ({ ...f, y: Number(e.target.value) / 100 }))}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() => setFit({ scale: 1, x: 0, y: 0 })}
+              style={{ fontSize: ".7rem", textDecoration: "underline" }}
+            >
+              Reset image
+            </button>
+          </div>
+        </div>
+      )}
       <div
         ref={viewportRef}
         className="pf-book-viewport"
+        style={zoom > 1 ? { touchAction: "none" } : undefined}
         data-busy={busy || wait}
         data-narrow={narrow}
         data-panning={panning.current !== null}
         onPointerDown={(e) => {
           if (e.target !== e.currentTarget && e.target !== host.current && e.target !== host.current?.firstChild) return;
-          if (e.pointerType !== "mouse" || e.button !== 0 || zoom === 1 || busy || wait || !scene.current) return;
+          if (e.pointerType === "mouse" && e.button !== 0) return;
+          if (zoom <= 1 || busy || wait || !scene.current) return;
           panning.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
           e.currentTarget.setPointerCapture(e.pointerId);
         }}
         onPointerMove={(e) => {
           const pan = panning.current;
-          if (pan && pan.id === e.pointerId) {
-            scene.current?.dragPan(e.clientX - pan.x, e.clientY - pan.y);
-            pan.x = e.clientX;
-            pan.y = e.clientY;
-            if (scene.current) setCorners(scene.current.corners());
-            return;
-          }
-          if (e.pointerType !== "mouse" || busy || narrow) return;
-          const r = e.currentTarget.getBoundingClientRect();
-          const x = ((e.clientX - r.left) / r.width) * 100,
-            y = ((e.clientY - r.top) / r.height) * 100;
-          setCue(
-            Math.abs(x - corners[0]!.x) < 15 && Math.abs(y - corners[0]!.y) < 18 && !atStart
-              ? "left"
-              : Math.abs(x - corners[1]!.x) < 15 && Math.abs(y - corners[1]!.y) < 18 && !atEnd
-                ? "right"
-                : null,
-          );
-        }}
-        onPointerLeave={() => {
-          setCue(null);
+          if (!pan || pan.id !== e.pointerId) return;
+          // The scene keeps the view inside the initial framing.
+          scene.current?.dragPan(e.clientX - pan.x, e.clientY - pan.y);
+          pan.x = e.clientX;
+          pan.y = e.clientY;
+          if (scene.current) setCorners(scene.current.corners());
         }}
         onPointerUp={(e) => {
           if (panning.current?.id === e.pointerId) panning.current = null;
@@ -713,6 +837,7 @@ export function BookView({
             <p>3D is unavailable on this device. You can still read every page.</p>
           </div>
         )}
+        {/* Invisible but fully working: click a bottom corner, or drag it to turn. */}
         {!narrow &&
           !fallback &&
           (
@@ -731,11 +856,6 @@ export function BookView({
               }}
               aria-label={d === 1 ? "Turn to next page" : "Turn to previous page"}
               disabled={busy || wait || (d === 1 ? atEnd : atStart)}
-              data-revealed={cue === side && !busy}
-              onFocus={() => {
-                setCue(side);
-              }}
-              onBlur={() => setCue(null)}
               onPointerDown={(e) => beginCornerDrag(e, d)}
               onPointerMove={(e) => {
                 const gesture = drag.current;
@@ -748,9 +868,7 @@ export function BookView({
               onPointerUp={(e) => void finishCornerDrag(e)}
               onPointerCancel={(e) => void finishCornerDrag(e, true)}
               onClick={(e) => { if (e.detail === 0) void move(d); }}
-            >
-              <span className="pf-corner-fold" />
-            </button>
+            />
           ))}
         {wait && !error && (
           <p className="pf-book-status" role="status">
@@ -765,14 +883,7 @@ export function BookView({
           </p>
         )}
       </div>
-      {/* The bar is invisible but stays clickable; it appears on hover or keyboard focus. */}
-      <nav
-        aria-label="Book pages"
-        className={cn(
-          "pf-book-navigation opacity-0 transition-opacity duration-200 hover:opacity-100 focus-within:opacity-100",
-          controlsHidden && "pf-book-navigation-quiet",
-        )}
-      >
+      <nav aria-label="Book pages" className="pf-book-navigation">
         <button type="button" onClick={() => void move(-1)} disabled={busy || wait || atStart}>
           <ChevronLeft size={15} />
           Previous
@@ -785,7 +896,7 @@ export function BookView({
       </nav>
       {narrow && (
         <p className="pf-book-hint">
-          Swipe to read. The camera follows each page.
+          Swipe or use the arrows to read. The camera follows each page.
         </p>
       )}
     </section>

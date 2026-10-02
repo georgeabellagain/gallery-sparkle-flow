@@ -3,7 +3,7 @@ import { Mail } from "lucide-react";
 import { DEFAULT_VIEWER, type PageStyle, type Profile, type ViewerSettings } from "@/lib/portfolia/store";
 import { PdfViewer } from "./PdfViewer";
 import { CvIcon } from "./CvIcon";
-import { useBlob, useObjectUrl } from "./Chrome";
+import { useBlob, useObjectUrl, Wordmark } from "./Chrome";
 
 /** The visitor-facing page: compact profile, then the PDF. No editor controls. */
 export function PortfolioPage({
@@ -44,6 +44,14 @@ export function PortfolioPage({
   const links = profile.links.filter((l) => l.url.trim());
   return (
     <div className="flex min-h-full flex-col bg-background" style={pageStyle ? { background: pageStyle.background, color: pageStyle.text } : undefined}>
+      {/* A small way home on every public page. Hidden inside embeds and editor previews. */}
+      {!embed && !compact && (
+        <div className="px-4 pt-3 sm:px-6">
+          <div className="mx-auto flex max-w-[1100px]">
+            <Wordmark className="rounded-full bg-white/90 px-3 py-1.5 opacity-80 shadow-soft transition-opacity hover:opacity-100 focus-visible:opacity-100 [&>img]:h-4" />
+          </div>
+        </div>
+      )}
       {view.showHeader && !embed && bannerUrl && <img src={bannerUrl} alt={profile.name ? `${profile.name} portfolio banner` : "Portfolio banner"} className={immersive ? "h-28 w-full object-cover sm:h-40" : "h-24 w-full object-cover"} />}
       {view.showHeader && !embed && <header className={immersive ? "px-4 py-3 sm:px-6 sm:py-4" : compact ? "px-4 py-4" : "px-5 py-5 sm:px-8 sm:py-8"}>
         <div className="mx-auto flex max-w-[1100px] items-start gap-4">
@@ -54,7 +62,8 @@ export function PortfolioPage({
             <h1 style={pageStyle ? { fontFamily: pageStyle.font } : undefined} className={immersive ? "display-title text-xl leading-tight sm:text-2xl" : "display-title text-2xl leading-tight sm:text-3xl"}>{profile.name || "Your name"}</h1>
             {profile.title && <p className="text-sm text-muted-foreground">{profile.title}</p>}
             {profile.intro && (
-              <p className={immersive ? "mt-1 line-clamp-2 max-w-2xl text-xs leading-relaxed text-muted-foreground" : "mt-2 line-clamp-3 max-w-2xl text-sm leading-relaxed sm:line-clamp-none"}>{profile.intro}</p>
+              // With no profile photo the text uses the whole width instead of a narrow column.
+              <p className={`${immersive ? "mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground" : "mt-2 line-clamp-3 text-sm leading-relaxed sm:line-clamp-none"} ${photoUrl ? "max-w-2xl" : "max-w-none"}`}>{profile.intro}</p>
             )}
             {(profile.email || links.length > 0 || cv) && (
               <div className={immersive ? "mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs" : "mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm"}>

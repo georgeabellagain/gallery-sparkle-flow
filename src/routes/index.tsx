@@ -1,17 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Check, Mail } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import samplePage from "@/assets/sample-page.jpg";
-import showSpread from "@/assets/showcase-spread.jpg";
-import showMobile from "@/assets/showcase-mobile.jpg";
 import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
 import { BookAnimation } from "@/components/pf/BookAnimation";
-import { CvIcon } from "@/components/pf/CvIcon";
 import { DropZone } from "@/components/pf/DropZone";
+import { StudioDemo } from "@/components/pf/StudioDemo";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
 import { Button } from "@/components/ui/button";
 import { PRICE, startPortfolio, uploadLimitMb, useDoc } from "@/lib/portfolia/store";
 import { getRequestOrigin } from "@/lib/origin.functions";
+
+const MIDNIGHT = "#191d3a";
 
 export const Route = createFileRoute("/")({
   staticData: { sitemap: true },
@@ -101,47 +101,47 @@ function Landing() {
 
         <section className="rule-t">
           <div className="shell py-16">
-            <h2 className="text-sm font-medium">What visitors see</h2>
-            <p className="mt-2 max-w-xl text-sm text-muted-foreground">Your details and contact links sit directly above your original PDF on a focused dark background.</p>
-            <div aria-label="Static preview of a published portfolio" className="relative mx-auto mt-7 h-[34rem] w-full max-w-5xl overflow-hidden rounded-3xl border border-border bg-card shadow-soft sm:h-[42rem]">
-              <div className="px-4 py-3 sm:px-6 sm:py-4">
-                <div className="mx-auto max-w-[1100px]">
-                  <h3 className="display-title text-xl leading-tight sm:text-2xl">Marta Oyelaran</h3>
-                  <p className="text-sm text-muted-foreground">Architect ARB</p>
-                  <p className="mt-1 line-clamp-2 max-w-2xl text-xs leading-relaxed text-muted-foreground">Small public buildings, reading rooms and landscape structures. Currently working between Bristol and Lagos.</p>
-                  <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                    <span className="inline-flex items-center gap-1.5"><Mail className="size-3.5" aria-hidden /> studio@example.com</span>
-                    <span>LinkedIn</span>
-                    <span className="inline-flex items-center gap-1.5"><CvIcon className="size-3.5" /> CV</span>
-                  </div>
-                </div>
+            <div className="mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-4">
+              <div>
+                <h2 className="text-sm font-medium">The flipbook, in studio mode</h2>
+                <p className="mt-2 max-w-xl text-sm text-muted-foreground">Satin paper, studio lighting and a midnight blue stage. Your own pages turn just like this.</p>
               </div>
-              <div className="bg-foreground px-3 py-5 sm:px-6 sm:py-7">
-                <img src={samplePage} alt="Start of the first page in the example PDF portfolio" width={1648} height={1168} loading="lazy" className="mx-auto w-full rounded-sm" />
-              </div>
-              <div className="preview-fade pointer-events-none absolute inset-x-0 bottom-0 h-40" aria-hidden />
+              <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="inline-flex items-center gap-1.5 text-sm font-medium text-leaf underline-offset-4 hover:underline">Try the flipbook <ArrowRight className="size-4" aria-hidden /></Link>
+            </div>
+            <div className="mt-7">
+              <StudioDemo />
             </div>
           </div>
         </section>
 
         <section className="rule-t">
           <div className="shell py-16">
-            <div className="mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-4">
-              <div>
-                <h2 className="text-sm font-medium">Flipbook reading</h2>
-                <p className="mt-2 max-w-xl text-sm text-muted-foreground">Your PDF as a clean page-turning book, with full spreads on larger screens and single pages on phones.</p>
-              </div>
-              <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="inline-flex items-center gap-1.5 text-sm font-medium text-leaf underline-offset-4 hover:underline">Try the flipbook <ArrowRight className="size-4" aria-hidden /></Link>
-            </div>
-            <div className="mx-auto mt-7 grid max-w-5xl gap-5 sm:grid-cols-[1fr_0.42fr]">
-              {([[showSpread, "Clean two-page spread", 1400, 555], [showMobile, "Single page on a phone", 647, 960]] as const).map(([src, label, w, h]) => (
-                <Link key={label} to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="group block focus-visible:outline-none">
-                  <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition-transform group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-ring">
-                    <img src={src} alt={`${label} — screenshot of the Portfolia flipbook viewer`} width={w} height={h} loading="lazy" decoding="async" sizes="(min-width: 640px) 40vw, 100vw" className="h-56 w-full object-cover object-top" />
+            <h2 className="text-sm font-medium">Other ways to read</h2>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground">Visitors can switch between styles at any time, so every viewer reads your work the way they prefer.</p>
+            <div className="mx-auto mt-7 grid max-w-5xl gap-5 sm:grid-cols-2">
+              <Link to="/p/$slug" params={{ slug: "sample" }} search={{}} className="group block focus-visible:outline-none">
+                <div className="relative h-64 overflow-hidden rounded-2xl border border-border shadow-soft transition-transform group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-ring" style={{ background: MIDNIGHT }}>
+                  <div className="mx-auto mt-5 w-[72%] space-y-3">
+                    <img src={samplePage} alt="" width={1648} height={1168} loading="lazy" decoding="async" className="w-full rounded-sm" />
+                    <img src={samplePage} alt="" width={1648} height={1168} loading="lazy" decoding="async" className="w-full rounded-sm" />
                   </div>
-                  <p className="mt-2 text-xs text-muted-foreground">{label}</p>
-                </Link>
-              ))}
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20" style={{ background: `linear-gradient(to bottom, transparent, ${MIDNIGHT})` }} aria-hidden />
+                </div>
+                <h3 className="mt-3 text-sm font-medium">Scroll</h3>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Every page in one smooth, continuous column. The simplest way to read, and it works well on any screen.</p>
+              </Link>
+              <Link to="/p/$slug" params={{ slug: "sample" }} search={{}} className="group block focus-visible:outline-none">
+                <div className="relative h-64 overflow-hidden rounded-2xl border border-border shadow-soft transition-transform group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-ring" style={{ background: MIDNIGHT }}>
+                  <img src={samplePage} alt="" width={1648} height={1168} loading="lazy" decoding="async" className="mx-auto mt-6 w-[66%] rounded-sm shadow-lift" />
+                  <div className="absolute inset-x-0 bottom-4 flex items-center justify-center gap-2 text-xxs" aria-hidden>
+                    <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-white/80">Previous</span>
+                    <span className="tabular-nums text-white/60">1 / 12</span>
+                    <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-white/80">Next</span>
+                  </div>
+                </div>
+                <h3 className="mt-3 text-sm font-medium">Page by page</h3>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">One page at a time with simple previous and next controls, so each page gets the whole screen.</p>
+              </Link>
             </div>
           </div>
         </section>
