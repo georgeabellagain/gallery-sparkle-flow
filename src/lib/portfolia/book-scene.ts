@@ -66,6 +66,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let focus = 0.5,
     narrow = false,
     zoom = 1,
+    panX = 0,
+    panY = 0,
     disposed = false;
   let frame = 0;
   let finishAnimation: (() => void) | null = null;
@@ -160,11 +162,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const w = Math.max(1, host.clientWidth),
       h = Math.max(1, host.clientHeight);
     camera.aspect = w / h;
-    const visibleWidth = narrow ? 1.12 : 2.55;
-    const visibleHeight = Math.max(ratio * 1.22, visibleWidth / camera.aspect) / zoom;
+    const visibleWidth = narrow ? 1.08 : 2.32;
+    const visibleHeight = Math.max(ratio * 1.12, visibleWidth / camera.aspect) / zoom;
     const distance = visibleHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
-    camera.position.set(focus, 0, distance);
-    camera.lookAt(focus, 0, 0);
+    camera.position.set(focus + panX, panY, distance);
+    camera.lookAt(focus + panX, panY, 0);
     camera.updateProjectionMatrix();
   };
   const resize = () => {
@@ -332,6 +334,26 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       focus = target;
       frameCamera();
       paint();
+    },
+    zoomAt(scale: number, x: number, y: number) {
+      const aspect = Math.max(1, host.clientWidth) / Math.max(1, host.clientHeight);
+      const base = Math.max(ratio * 1.12, (narrow ? 1.08 : 2.32) / aspect);
+      const delta = base / zoom - base / scale;
+      panX += (x - 0.5) * delta * aspect;
+      panY += (0.5 - y) * delta;
+      zoom = scale;
+      frameCamera();
+      paint();
+    },
+    async resetZoom() {
+      if (zoom === 1 && panX === 0 && panY === 0) return;
+      const startZoom = zoom, startX = panX, startY = panY;
+      await animate(360, (t) => {
+        zoom = THREE.MathUtils.lerp(startZoom, 1, t);
+        panX = THREE.MathUtils.lerp(startX, 0, t);
+        panY = THREE.MathUtils.lerp(startY, 0, t);
+        frameCamera();
+      });
     },
     corners() {
       camera.updateMatrixWorld();

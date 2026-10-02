@@ -107,6 +107,7 @@ export function BookView({
   doc,
   sizes,
   zoom,
+  onZoomChange,
   jump,
   onPage,
   controlsHidden,
@@ -115,6 +116,7 @@ export function BookView({
   doc: PDFDocumentProxy;
   sizes: { w: number; h: number }[];
   zoom: number;
+  onZoomChange: (zoom: number) => void;
   jump: { page: number; t: number } | null;
   onPage: (page: number) => void;
   controlsHidden: boolean;
@@ -127,6 +129,7 @@ export function BookView({
   const first = sizes[0] ?? { w: 1, h: 1.4 };
   const ratio = first.h / (viewer.spreads === "ready" ? first.w / 2 : first.w);
   const host = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
   const scene = useRef<BookScene | null>(null);
   const loader = useRef<ReturnType<typeof pageLoader> | null>(null);
   const lock = useRef(false);
@@ -223,6 +226,24 @@ export function BookView({
   }, [narrow, zoom, focus, busy, ready, settings]);
 
   useEffect(() => {
+    const element = viewportRef.current;
+    if (!element || fallback) return;
+    const onWheel = (event: WheelEvent) => {
+      if (busy || loading || !scene.current) return;
+      event.preventDefault();
+      const dy = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 100 : 1);
+      const next = Math.min(3, Math.max(0.5, zoom * Math.exp(-dy * 0.0015)));
+      if (Math.abs(next - zoom) < 0.001) return;
+      const rect = element.getBoundingClientRect();
+      scene.current.zoomAt(next, (event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height);
+      onZoomChange(next);
+      setCorners(scene.current.corners());
+    };
+    element.addEventListener("wheel", onWheel, { passive: false });
+    return () => element.removeEventListener("wheel", onWheel);
+  }, [busy, loading, fallback, zoom, onZoomChange]);
+
+  useEffect(() => {
     if (!ready) return;
     const token = ++epoch.current;
     setLoading(true);
@@ -268,6 +289,9 @@ export function BookView({
           await new Promise((r) => setTimeout(r, 120));
         if (!alive.current) return;
         if (!fallback && scene.current) {
+          await scene.current.resetZoom();
+          if (alive.current) onZoomChange(1);
+          if (!alive.current) return;
           if (index === nextIndex) await scene.current.pan(target);
           else await scene.current.turn(from, to, direction, target);
         }
@@ -279,7 +303,7 @@ export function BookView({
         if (alive.current) setBusy(false);
       }
     },
-    [loading, atEnd, atStart, narrow, layout, leaf, index, faces, spread, fallback],
+    [loading, atEnd, atStart, narrow, layout, leaf, index, faces, spread, fallback, onZoomChange],
   );
 
   useEffect(() => {
@@ -372,6 +396,7 @@ export function BookView({
         </div>
       )}
       <div
+        ref={viewportRef}
         className="pf-book-viewport"
         data-busy={busy || loading}
         data-narrow={narrow}
