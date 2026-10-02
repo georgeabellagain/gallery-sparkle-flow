@@ -157,6 +157,8 @@ export function BookView({
   const [backdrop, setBackdrop] = useState("warm-wood");
   const [cue, setCue] = useState<"left" | "right" | null>(null);
   const touch = useRef<{ x: number; y: number } | null>(null);
+  const drag = useRef<{ id: number; x: number; y: number; lastX: number; dir: 1 | -1; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
+  const panning = useRef<{ id: number; x: number; y: number } | null>(null);
   const index = spreadIndex(layout.spreads, leaf);
   const spread = layout.spreads[index]!;
   const focus = bookFocus(spread, leaf, narrow);
@@ -309,6 +311,61 @@ export function BookView({
     [loading, atEnd, atStart, narrow, layout, leaf, index, faces, spread, fallback, onZoomChange],
   );
 
+  const beginCornerDrag = (e: React.PointerEvent<HTMLButtonElement>, direction: 1 | -1) => {
+    if (lock.current || loading || (direction === 1 ? atEnd : atStart)) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    lock.current = true;
+    setBusy(true);
+    setCue(null);
+    setError(null);
+    const nextIndex = index + direction;
+    const nextSpread = layout.spreads[nextIndex];
+    if (!nextSpread) { lock.current = false; setBusy(false); return; }
+    const nextLeaf = nextSpread.find((n) => n !== null);
+    if (nextLeaf === undefined) { lock.current = false; setBusy(false); return; }
+    const target = bookFocus(nextSpread, nextLeaf, narrow);
+    const gesture = {
+      id: e.pointerId, x: e.clientX, y: e.clientY, lastX: e.clientX,
+      dir: direction, progress: 0, moved: false,
+      prepared: Promise.resolve(),
+    };
+    drag.current = gesture;
+    gesture.prepared = (async () => {
+      const [from, to] = await Promise.all([faces(spread), faces(nextSpread)]);
+      if (!alive.current || !scene.current) return;
+      await scene.current.resetZoom();
+      if (!alive.current || !scene.current) return;
+      onZoomChange(1);
+      await scene.current.prepareTurn(from, to, direction, target);
+      if (drag.current === gesture) scene.current.dragTurn(gesture.progress);
+    })();
+  };
+
+  const finishCornerDrag = async (e: React.PointerEvent<HTMLButtonElement>) => {
+    const gesture = drag.current;
+    if (!gesture || gesture.id !== e.pointerId) return;
+    drag.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+    const complete = !gesture.moved || gesture.progress > 0.45;
+    try {
+      await gesture.prepared;
+      if (!alive.current || !scene.current) return;
+      scene.current.dragTurn(gesture.progress);
+      await scene.current.settleTurn(complete);
+      if (alive.current && complete) {
+        const nextSpread = layout.spreads[index + gesture.dir];
+        const nextLeaf = nextSpread?.find((n) => n !== null);
+        if (nextLeaf !== undefined) setLeaf(nextLeaf);
+      }
+    } catch {
+      if (alive.current) setError("This page could not be rendered. Please try again.");
+    } finally {
+      lock.current = false;
+      if (alive.current) setBusy(false);
+    }
+  };
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).closest("input, textarea, select, button, [contenteditable]"))
@@ -403,7 +460,22 @@ export function BookView({
         className="pf-book-viewport"
         data-busy={busy || loading}
         data-narrow={narrow}
+        data-panning={panning.current !== null}
+        onPointerDown={(e) => {
+          if (e.target !== e.currentTarget && e.target !== host.current && e.target !== host.current?.firstChild) return;
+          if (e.pointerType !== "mouse" || e.button !== 0 || zoom <= 1 || busy || loading || !scene.current) return;
+          panning.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }}
         onPointerMove={(e) => {
+          const pan = panning.current;
+          if (pan && pan.id === e.pointerId) {
+            scene.current?.dragPan(e.clientX - pan.x, e.clientY - pan.y);
+            pan.x = e.clientX;
+            pan.y = e.clientY;
+            if (scene.current) setCorners(scene.current.corners());
+            return;
+          }
           if (e.pointerType !== "mouse" || busy || narrow) return;
           const r = e.currentTarget.getBoundingClientRect();
           const x = ((e.clientX - r.left) / r.width) * 100,
@@ -418,6 +490,12 @@ export function BookView({
         }}
         onPointerLeave={() => {
           setCue(null);
+        }}
+        onPointerUp={(e) => {
+          if (panning.current?.id === e.pointerId) panning.current = null;
+        }}
+        onPointerCancel={(e) => {
+          if (panning.current?.id === e.pointerId) panning.current = null;
         }}
         onTouchStart={(e) => {
           touch.current =
@@ -468,7 +546,19 @@ export function BookView({
                 setCue(side);
               }}
               onBlur={() => setCue(null)}
-              onClick={() => void move(d)}
+              onPointerDown={(e) => beginCornerDrag(e, d)}
+              onPointerMove={(e) => {
+                const gesture = drag.current;
+                if (!gesture || gesture.id !== e.pointerId) return;
+                gesture.lastX = e.clientX;
+                if (Math.abs(e.clientX - gesture.x) > 4 || Math.abs(e.clientY - gesture.y) > 4) gesture.moved = true;
+                const width = viewportRef.current?.clientWidth ?? 1;
+                gesture.progress = Math.min(1, Math.max(0, gesture.dir * (gesture.x - e.clientX) / (width * 0.66)));
+                scene.current?.dragTurn(gesture.progress);
+              }}
+              onPointerUp={(e) => void finishCornerDrag(e)}
+              onPointerCancel={(e) => void finishCornerDrag(e)}
+              onClick={(e) => e.preventDefault()}
             >
               <span className="pf-corner-fold" />
             </button>

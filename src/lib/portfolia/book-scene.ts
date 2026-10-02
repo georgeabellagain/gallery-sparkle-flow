@@ -427,7 +427,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       show(complete ? to : from, false);
       draggedTurn = null;
       paint();
-      await pan(complete ? destinationFocus : bookFocusForCancel(from), narrow ? 0 : 260);
+      await pan(complete ? destinationFocus : 0, narrow ? 0 : 260);
     },
     async turn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number) {
       await this.prepareTurn(from, to, dir, destinationFocus);

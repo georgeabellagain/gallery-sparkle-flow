@@ -64,3 +64,4 @@
 ## Reader zoom and framing
 - [x] Enlarge the book at its default scale and add cursor-anchored mouse-wheel zoom.
 - [x] Smoothly return to the full-book view before a next/previous page turn.
+- [x] Drag to position the zoomed book; shrink the corner fold and pull it across to turn a page.
