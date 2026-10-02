@@ -489,6 +489,7 @@
 .pf-corner-zone:active { cursor: grabbing; }
 .pf-book-viewport:has(.pf-corner-zone:active) .pf-corner-fold { opacity: 0; }
 .pf-book-viewport[data-panning="true"] { cursor: grabbing; }
+.pf-book-viewport:has(.pf-book-canvas) { cursor: grab; }
 .pf-corner-zone:disabled { pointer-events: none; }
 .pf-book-reader button:focus-visible, .pf-studio-controls select:focus-visible, .pf-studio-controls input:focus-visible { outline: 2px solid #466c45; outline-offset: 3px; }
 @media (max-width: 719px) {

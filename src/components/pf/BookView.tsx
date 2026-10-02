@@ -157,7 +157,7 @@ export function BookView({
   const [backdrop, setBackdrop] = useState("warm-wood");
   const [cue, setCue] = useState<"left" | "right" | null>(null);
   const touch = useRef<{ x: number; y: number } | null>(null);
-  const drag = useRef<{ id: number; x: number; y: number; lastX: number; dir: 1 | -1; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
+  const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
   const panning = useRef<{ id: number; x: number; y: number } | null>(null);
   const index = spreadIndex(layout.spreads, leaf);
   const spread = layout.spreads[index]!;
@@ -326,7 +326,7 @@ export function BookView({
     if (nextLeaf === undefined) { lock.current = false; setBusy(false); return; }
     const target = bookFocus(nextSpread, nextLeaf, narrow);
     const gesture = {
-      id: e.pointerId, x: e.clientX, y: e.clientY, lastX: e.clientX,
+      id: e.pointerId, x: e.clientX, y: e.clientY,
       dir: direction, progress: 0, moved: false,
       prepared: Promise.resolve(),
     };
@@ -463,7 +463,7 @@ export function BookView({
         data-panning={panning.current !== null}
         onPointerDown={(e) => {
           if (e.target !== e.currentTarget && e.target !== host.current && e.target !== host.current?.firstChild) return;
-          if (e.pointerType !== "mouse" || e.button !== 0 || zoom <= 1 || busy || loading || !scene.current) return;
+          if (e.pointerType !== "mouse" || e.button !== 0 || zoom === 1 || busy || loading || !scene.current) return;
           panning.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
           e.currentTarget.setPointerCapture(e.pointerId);
         }}
@@ -550,7 +550,6 @@ export function BookView({
               onPointerMove={(e) => {
                 const gesture = drag.current;
                 if (!gesture || gesture.id !== e.pointerId) return;
-                gesture.lastX = e.clientX;
                 if (Math.abs(e.clientX - gesture.x) > 4 || Math.abs(e.clientY - gesture.y) > 4) gesture.moved = true;
                 const width = viewportRef.current?.clientWidth ?? 1;
                 gesture.progress = Math.min(1, Math.max(0, gesture.dir * (gesture.x - e.clientX) / (width * 0.66)));
@@ -558,7 +557,7 @@ export function BookView({
               }}
               onPointerUp={(e) => void finishCornerDrag(e)}
               onPointerCancel={(e) => void finishCornerDrag(e)}
-              onClick={(e) => e.preventDefault()}
+              onClick={(e) => { if (e.detail === 0) void move(d); }}
             >
               <span className="pf-corner-fold" />
             </button>
