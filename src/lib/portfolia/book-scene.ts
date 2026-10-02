@@ -78,7 +78,7 @@ type HdriSpec = {
   blobs: { u: number; v: number; su: number; sv: number; power: number; tint: [number, number, number] }[];
   /** Adds the foliage flicker used by the window preset. */
   foliage?: boolean;
-  /** Key light direction (before rotation), height and colour. */
+  /** Key light position, height and colour. */
   key: { x: number; y: number; z: number; color: number; strength: number };
   /** Projected window/foliage light. 0 switches it off. */
   windowLight: number;
@@ -184,14 +184,12 @@ export type StudioSettings = {
   /** 0..1 overall studio brightness. */
   brightness: number;
   hdri: HdriId;
-  /** Degrees. Turns the key light (and so the shadow angle) and the reflections. */
-  hdriRotation: number;
-  /** Image URL behind the book. Empty for a flat colour. */
+  /** Image URL behind the book. Only used when `backdropKind` is "photo". */
   backdrop: string;
-  /** Flat colour behind the book (white when an image is used). */
+  /** The backdrop colour, shown exactly as chosen. */
   backdropColor: string;
-  /** "tile" repeats a texture (wood). "photo" fits one picture behind the book. */
-  backdropKind: "tile" | "photo";
+  /** "color" is a flat colour. "photo" fits one picture behind the book. */
+  backdropKind: "color" | "photo";
   /** width / height of the photo. */
   backdropAspect: number;
   /** Photo size, 1 = fills the usual view. */
@@ -202,28 +200,63 @@ export type StudioSettings = {
 };
 export type BookFaces = [HTMLCanvasElement | null, HTMLCanvasElement | null];
 const ease = (t: number) => t * t * (3 - 2 * t);
+const smooth = (t: number) => {
+  const c = Math.min(1, Math.max(0, t));
+  return c * c * (3 - 2 * c);
+};
+const fract = (x: number) => x - Math.floor(x);
 
 /** Page textures kept on the GPU at once (current, next and previous spreads). */
 const MAX_TEXTURES = 8;
+/** Gap between a turning sheet and the pages beneath it; larger than any page imperfection. */
+const SHEET_CLEARANCE = 0.01;
+
+/**
+ * Height of a page above the table at distance `d` from the spine (0..1) and
+ * height `v` (0 bottom .. 1 top). Pages rise from the gutter in a gentle dome
+ * and fall away towards the fore-edge. A little waviness and a slightly
+ * lifted corner differ for every page, so no two pages look machine-made.
+ */
+function pageRelief(d: number, v: number, seed: number) {
+  const spine = 0.014 * Math.pow(1 - d, 6);
+  const dome = 0.016 * Math.sin(Math.PI * Math.min(1, Math.max(0, d)));
+  // Imperfections fade out at the gutter so both pages meet cleanly there.
+  const s = seed * 12.9898;
+  const fade = Math.min(1, d / 0.18);
+  const ripple =
+    (Math.sin(d * 5.4 + s) * Math.sin(v * 4.3 + s * 1.7) * 0.0018 +
+      Math.sin(d * 12.1 + v * 3.3 + s * 2.3) * 0.0006) *
+    fade;
+  const k = 0.35 + 0.65 * fract(Math.sin(seed * 78.233) * 43758.5453);
+  const cu = Math.min(1, Math.max(0, (d - 0.55) / 0.45));
+  const cv = Math.min(1, Math.max(0, (0.4 - v) / 0.4));
+  const corner = 0.005 * k * cu * cu * cv * cv;
+  return spine + dome + ripple + corner;
+}
 
 /** One persistent, demand-rendered scene. Static and moving pages share lights/materials. */
 export function createBookScene(host: HTMLElement, ratio: number, onLost: () => void) {
   const compact = window.innerWidth < 720;
   const dpr = window.devicePixelRatio || 1;
-  // High pixel ratios multiply the cost of every lit pixel; 2 is sharp enough
-  // for paper and keeps turns smooth on dense phone and laptop screens.
+  // Render at least twice the CSS resolution on desktop (a sharp, smooth
+  // result even on standard screens) and never beyond what a phone can handle.
+  const pixelRatio = compact ? Math.min(Math.max(dpr, 1.5), 2) : Math.min(Math.max(dpr, 2), 2.5);
   const renderer = new THREE.WebGLRenderer({
     alpha: true,
-    antialias: dpr < 2,
+    antialias: pixelRatio < 2,
     powerPreference: "high-performance",
   });
-  renderer.setPixelRatio(Math.min(dpr, compact ? 1.5 : 2));
+  renderer.setPixelRatio(pixelRatio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NoToneMapping;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.setAttribute("aria-hidden", "true");
   host.appendChild(renderer.domElement);
+  const maxAnisotropy = Math.min(16, renderer.capabilities.getMaxAnisotropy());
+  // Neutral tone mapping keeps artwork colours true; ACES is the fallback.
+  const studioTone =
+    (THREE as unknown as { NeutralToneMapping?: THREE.ToneMapping }).NeutralToneMapping ?? THREE.ACESFilmicToneMapping;
   const scene = new THREE.Scene();
 
   // Self-contained floating-point HDR environments, prefiltered for diffuse
@@ -276,9 +309,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const light = new THREE.DirectionalLight(0xffffff, 2.3);
   light.position.set(-3, 4, 6);
   light.castShadow = true;
-  // A tight frustum keeps shadow detail high with a much smaller map.
+  // A tight frustum keeps shadow detail high.
   const shadowExtent = Math.hypot(1, ratio / 2) + 0.7;
-  light.shadow.mapSize.set(1024, 1024);
+  light.shadow.mapSize.set(2048, 2048);
   light.shadow.camera.left = -shadowExtent;
   light.shadow.camera.right = shadowExtent;
   light.shadow.camera.top = shadowExtent;
@@ -318,23 +351,28 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     windowTexture.needsUpdate = true;
   };
   scene.add(ambient, light, windowLight, windowLight.target);
+
+  // The backdrop is a flat, unlit colour (or picture), so it shows exactly what
+  // was chosen whatever the lighting. A separate catcher draws the book's shadow on top.
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(20, 20),
-    new THREE.MeshStandardMaterial({ color: 0xe8e3da, roughness: 0.88 }),
+    new THREE.MeshBasicMaterial({ color: 0x191d3a, toneMapped: false }),
   );
   ground.position.z = -0.13;
-  ground.receiveShadow = true;
   scene.add(ground);
+  const shadowCatcher = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.ShadowMaterial({ opacity: 0.38 }));
+  shadowCatcher.position.z = -0.129;
+  shadowCatcher.receiveShadow = true;
+  scene.add(shadowCatcher);
 
   let settings: StudioSettings = {
     studio: false,
     material: "satin",
     brightness: 0.65,
     hdri: "window",
-    hdriRotation: 0,
     backdrop: "",
     backdropColor: "#191d3a",
-    backdropKind: "tile",
+    backdropKind: "color",
     backdropAspect: 1,
     backdropScale: 1,
     backdropX: 0,
@@ -376,18 +414,38 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   // was uploaded ahead of time, costs nothing at the moment of a turn.
   const texCache = new Map<HTMLCanvasElement, THREE.CanvasTexture>();
 
-  const restingPage = (side: -1 | 1) => {
-    const page = new THREE.PlaneGeometry(1, ratio, 40, 1);
-    const positions = page.getAttribute("position") as THREE.BufferAttribute;
-    for (let i = 0; i < positions.count; i++) {
-      const distanceToSpine = 0.5 + side * positions.getX(i);
-      positions.setZ(i, 0.014 * Math.pow(1 - distanceToSpine, 6));
+  // Each page has its own seed (from its position in the book) so its
+  // imperfections are always the same, and different from its neighbours'.
+  const seeds = new WeakMap<HTMLCanvasElement, number>();
+  let seedCounter = 0;
+  const seedFor = (canvas: HTMLCanvasElement | null | undefined) => {
+    if (!canvas) return 0;
+    const fromBook = Number(canvas.dataset?.seed);
+    if (Number.isFinite(fromBook) && canvas.dataset?.seed !== undefined) return fromBook + 1;
+    let seed = seeds.get(canvas);
+    if (seed === undefined) {
+      seed = ++seedCounter;
+      seeds.set(canvas, seed);
     }
-    page.computeVertexNormals();
-    return page;
+    return seed;
   };
-  const left = new THREE.Mesh(restingPage(-1), material());
-  const right = new THREE.Mesh(restingPage(1), material());
+
+  /** Shapes a resting page: curved, with its own small imperfections. */
+  const shapePage = (mesh: THREE.Mesh, side: -1 | 1, seed: number) => {
+    const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
+    for (let i = 0; i < positions.count; i++) {
+      const d = 0.5 + side * positions.getX(i);
+      const v = positions.getY(i) / ratio + 0.5;
+      positions.setZ(i, pageRelief(d, v, seed));
+    }
+    positions.needsUpdate = true;
+    mesh.geometry.computeVertexNormals();
+    mesh.userData.seed = seed;
+  };
+  const left = new THREE.Mesh(new THREE.PlaneGeometry(1, ratio, 40, 24), material());
+  const right = new THREE.Mesh(new THREE.PlaneGeometry(1, ratio, 40, 24), material());
+  shapePage(left, -1, 0);
+  shapePage(right, 1, 0);
   left.position.set(-0.5, 0, 0);
   right.position.set(0.5, 0, 0);
   left.receiveShadow = right.receiveShadow = true;
@@ -397,7 +455,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   // The turning sheet shows its two faces through two views of one geometry.
   // The reverse view has mirrored texture coordinates, so the same texture
   // can be used on either side without a second mirrored GPU upload.
-  const geometry = new THREE.PlaneGeometry(1, ratio, 48, 8);
+  const geometry = new THREE.PlaneGeometry(1, ratio, 48, 24);
   const reverseGeometry = new THREE.BufferGeometry();
   reverseGeometry.setIndex(geometry.getIndex());
   reverseGeometry.setAttribute("position", geometry.getAttribute("position"));
@@ -421,7 +479,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   sheet.visible = false;
   book.add(sheet);
   for (const m of pageMaterials) m.map = placeholder;
-  let draggedTurn: { from: BookFaces; to: BookFaces; dir: 1 | -1; destinationFocus: number; originalFocus: number; progress: number } | null = null;
+  let sheetSeeds: [number, number] = [0, 0];
+  let draggedTurn: { from: BookFaces; to: BookFaces; dir: 1 | -1; destinationFocus: number; originalFocus: number; progress: number; speed: number } | null = null;
 
   const trimTextures = () => {
     if (texCache.size <= MAX_TEXTURES) return;
@@ -442,7 +501,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     const t = new THREE.CanvasTexture(canvas);
     t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    t.anisotropy = maxAnisotropy;
     t.generateMipmaps = true;
     t.minFilter = THREE.LinearMipmapLinearFilter;
     texCache.set(canvas, t);
@@ -533,17 +592,12 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     settings = next;
     const spec = HDRI_SPECS[next.hdri] ?? HDRI_SPECS.window;
     const brightness = THREE.MathUtils.clamp(next.brightness, 0, 1);
-    const angle = THREE.MathUtils.degToRad(next.hdriRotation || 0);
-    renderer.toneMapping = next.studio ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+    renderer.toneMapping = next.studio ? studioTone : THREE.NoToneMapping;
     // The brightness slider drives overall exposure so the change is obvious.
     renderer.toneMappingExposure = next.studio ? 0.55 + brightness * 1.6 : 1;
     scene.environment = next.studio ? environmentFor(next.hdri) : null;
     scene.environmentIntensity = next.studio ? 0.6 : 0;
-    scene.environmentRotation.set(0, 0, angle);
-    // Rotating the key light around the book moves the shadow it casts.
-    const kx = spec.key.x * Math.cos(angle) - spec.key.y * Math.sin(angle);
-    const ky = spec.key.x * Math.sin(angle) + spec.key.y * Math.cos(angle);
-    light.position.set(kx, ky, spec.key.z);
+    light.position.set(spec.key.x, spec.key.y, spec.key.z);
     light.color.set(spec.key.color);
     light.intensity = next.studio ? spec.key.strength : 0;
     light.shadow.radius = 2 + spec.soft * 6;
@@ -551,43 +605,36 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       paintWindow(spec.soft);
       paintedSoft = spec.soft;
     }
-    windowLight.position.set(kx * 0.85, ky * 0.75, 6);
+    windowLight.position.set(spec.key.x * 0.85, spec.key.y * 0.75, 6);
     windowLight.intensity = next.studio ? spec.windowLight : 0;
     windowLight.color.set(spec.warm ? 0xfff0dd : 0xffffff);
     ambient.intensity = next.studio ? 0.65 : Math.PI;
     ambient.color.set(spec.warm ? 0xffe4c2 : 0xffffff);
     ambient.groundColor.set(next.studio ? 0xb7bdca : 0xffffff);
-    ground.material.color.set(next.backdropColor || "#ffffff");
     const request = ++backdropRequest;
-    const photo = next.backdropKind === "photo";
+    const photo = next.backdropKind === "photo" && !!next.backdrop;
+    // A picture is shown as it is; a colour is applied directly.
+    ground.material.color.set(photo ? "#ffffff" : next.backdropColor || "#191d3a");
+    shadowCatcher.material.opacity = 0.3 + spec.soft * 0.1;
     const applyBackdrop = (map: THREE.Texture | null) => {
       if (disposed || request !== backdropRequest) return;
       if (map) {
-        map.wrapS = map.wrapT = photo ? THREE.MirroredRepeatWrapping : THREE.RepeatWrapping;
-        if (photo) {
-          // One picture behind the book. It starts centred and covering the
-          // usual view; size and position are then adjusted by the visitor.
-          const aspect = Math.max(0.2, next.backdropAspect || 1);
-          const scale = THREE.MathUtils.clamp(next.backdropScale || 1, 1, 4);
-          const tileW = Math.max(3.4, 2 * aspect) * scale;
-          const tileH = tileW / aspect;
-          const rx = 20 / tileW,
-            ry = 20 / tileH;
-          const px = THREE.MathUtils.clamp(next.backdropX || 0, -1, 1) * tileW * 0.5;
-          const py = THREE.MathUtils.clamp(next.backdropY || 0, -1, 1) * tileH * 0.5;
-          map.repeat.set(rx, ry);
-          map.offset.set(0.5 - (px / 20 + 0.5) * rx, 0.5 - (py / 20 + 0.5) * ry);
-        } else {
-          map.repeat.set(2, 2);
-          map.offset.set(0, 0);
-        }
+        // One picture behind the book. It starts centred and covering the
+        // usual view; size and position are then adjusted by the visitor.
+        map.wrapS = map.wrapT = THREE.MirroredRepeatWrapping;
+        const aspect = Math.max(0.2, next.backdropAspect || 1);
+        const scale = THREE.MathUtils.clamp(next.backdropScale || 1, 1, 4);
+        const tileW = Math.max(3.4, 2 * aspect) * scale;
+        const tileH = tileW / aspect;
+        const rx = 20 / tileW,
+          ry = 20 / tileH;
+        const px = THREE.MathUtils.clamp(next.backdropX || 0, -1, 1) * tileW * 0.5;
+        const py = THREE.MathUtils.clamp(next.backdropY || 0, -1, 1) * tileH * 0.5;
+        map.repeat.set(rx, ry);
+        map.offset.set(0.5 - (px / 20 + 0.5) * rx, 0.5 - (py / 20 + 0.5) * ry);
       }
+      if (!!ground.material.map !== !!map) ground.material.needsUpdate = true;
       ground.material.map = map;
-      // Use the photographic grain of wood as height relief under the studio lights.
-      ground.material.bumpMap = photo ? null : map;
-      ground.material.bumpScale = map && !photo ? 0.018 : 0;
-      ground.material.roughness = 0.9;
-      ground.material.needsUpdate = true;
       paint();
     };
     if (!photo && photoUrl) {
@@ -595,7 +642,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       backdropTextures.delete(photoUrl);
       photoUrl = "";
     }
-    if (!next.backdrop) applyBackdrop(null);
+    if (!photo) applyBackdrop(null);
     else if (backdropTextures.has(next.backdrop)) applyBackdrop(backdropTextures.get(next.backdrop)!);
     else
       textureLoader.load(
@@ -606,14 +653,12 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
             return;
           }
           map.colorSpace = THREE.SRGBColorSpace;
-          map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-          if (photo) {
-            if (photoUrl && photoUrl !== next.backdrop) {
-              backdropTextures.get(photoUrl)?.dispose();
-              backdropTextures.delete(photoUrl);
-            }
-            photoUrl = next.backdrop;
+          map.anisotropy = maxAnisotropy;
+          if (photoUrl && photoUrl !== next.backdrop) {
+            backdropTextures.get(photoUrl)?.dispose();
+            backdropTextures.delete(photoUrl);
           }
+          photoUrl = next.backdrop;
           backdropTextures.set(next.backdrop, map);
           applyBackdrop(map);
         },
@@ -621,6 +666,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         () => applyBackdrop(null),
       );
     ground.visible = next.studio;
+    shadowCatcher.visible = next.studio;
     light.castShadow = next.studio;
     let bump: THREE.CanvasTexture | null = null;
     if (next.studio) {
@@ -660,6 +706,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     [left, right].forEach((mesh, i) => {
       mesh.visible = !!next[i];
       setMap(mesh.material, next[i] ?? null);
+      const seed = seedFor(next[i]);
+      if (mesh.userData.seed !== seed) shapePage(mesh, i === 0 ? -1 : 1, seed);
     });
     if (render) paint();
   };
@@ -696,6 +744,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     });
   const pan = async (to: number, duration = 420) => {
     const from = focus;
+    // Nothing to move: finish at once so the next page can be turned immediately.
+    if (Math.abs(from - to) < 1e-6) return;
     await animate(duration, (t) => {
       focus = THREE.MathUtils.lerp(from, to, t);
       frameCamera();
@@ -704,6 +754,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const shape = (progress: number, dir: 1 | -1) => {
     const attr = geometry.getAttribute("position") as THREE.BufferAttribute;
     const uv = geometry.getAttribute("uv");
+    // Halfway through, the face the viewer sees changes from one page to the
+    // other, so the sheet's relief blends from the first page's to the second's.
+    const blend = smooth((progress - 0.3) / 0.4);
     for (let i = 0; i < attr.count; i++) {
       const u = uv.getX(i),
         v = uv.getY(i);
@@ -711,9 +764,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const curl = Math.sin(a) * 0.16 * Math.sin(Math.PI * u);
       const x = dir * (u * Math.cos(a) + curl * Math.sin(a));
       const z = u * Math.sin(a) - curl * Math.cos(a);
-      // Match the resting page spine relief, with clearance to prevent intersection.
-      const spineRelief = 0.014 * Math.pow(1 - u, 6);
-      attr.setXYZ(i, x, (v - 0.5) * ratio, z + spineRelief + 0.006);
+      // At rest the sheet matches the curved, imperfect page it came from or lands on.
+      const relief = pageRelief(u, v, sheetSeeds[0]) * (1 - blend) + pageRelief(u, v, sheetSeeds[1]) * blend;
+      attr.setXYZ(i, x, (v - 0.5) * ratio, z + relief + SHEET_CLEARANCE);
     }
     // Reversing travel reverses winding; preserve the physical front face.
     // The side is part of the shader, so refresh it only when it changes.
@@ -788,22 +841,24 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       });
     },
     pan,
-    async prepareTurn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number) {
+    /** `speed` 1 is the normal pace; smaller is quicker (used when pages are turned in quick succession). */
+    async prepareTurn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number, speed = 1) {
       const originalFocus = focus;
       // A cover first aligns with the open spread. The sheet then turns.
-      if (!narrow && focus !== 0) await pan(0);
+      if (!narrow && focus !== 0) await pan(0, 420 * speed);
       if (disposed) return;
       const moving = dir === 1 ? 1 : 0;
       const landing = dir === 1 ? 0 : 1;
       setMap(frontMat, from[moving]);
       setMap(backMat, to[landing]);
+      sheetSeeds = [seedFor(from[moving]), seedFor(to[landing])];
       // The page being revealed sits underneath the turning sheet from the
       // first frame; the page being covered stays unchanged until the end.
       show(dir === 1 ? [from[0], to[1]] : [to[0], from[1]], false);
       sheet.visible = true;
       shape(0, dir);
       paint();
-      draggedTurn = { from, to, dir, destinationFocus, originalFocus, progress: 0 };
+      draggedTurn = { from, to, dir, destinationFocus, originalFocus, progress: 0, speed };
     },
     dragTurn(progress: number) {
       const turn = draggedTurn;
@@ -815,11 +870,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     async settleTurn(complete: boolean) {
       const turn = draggedTurn;
       if (!turn || disposed) return;
-      const { from, to, dir, destinationFocus, originalFocus } = turn;
+      const { from, to, dir, destinationFocus, originalFocus, speed } = turn;
       const start = turn.progress;
       const startFocus = focus;
       const end = complete ? 1 : 0;
-      await animate(Math.max(120, 700 * Math.abs(end - start)), (t) => {
+      await animate(Math.max(120 * speed, 700 * speed * Math.abs(end - start)), (t) => {
         const progress = THREE.MathUtils.lerp(start, end, t);
         turn.progress = progress;
         shape(progress, dir);
@@ -835,10 +890,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       show(complete ? to : from, false);
       draggedTurn = null;
       paint();
-      await pan(complete ? destinationFocus : originalFocus, narrow ? 0 : 260);
+      await pan(complete ? destinationFocus : originalFocus, narrow ? 0 : 260 * speed);
     },
-    async turn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number) {
-      await this.prepareTurn(from, to, dir, destinationFocus);
+    async turn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number, speed = 1) {
+      await this.prepareTurn(from, to, dir, destinationFocus, speed);
       await this.settleTurn(true);
     },
     dispose() {
@@ -863,6 +918,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       geometries.forEach((g) => g.dispose());
       pageMaterials.forEach((m) => m.dispose());
       ground.material.dispose();
+      shadowCatcher.material.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
       renderer.domElement.remove();

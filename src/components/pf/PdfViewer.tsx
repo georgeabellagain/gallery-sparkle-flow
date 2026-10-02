@@ -262,7 +262,7 @@ export function PdfViewer({
           <Progress value={progress} className="mt-3 h-1" />
         </div>
       ) : mode === "book" ? (
-        <BookView doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} controlsHidden={!!immersive && canHover && !controlsVisible} viewer={view} />
+        <BookView doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} controlsHidden={!!immersive && canHover && !controlsVisible} viewer={view} stage={backdrop} />
       ) : mode === "paged" ? (
         <div className="overflow-x-auto">
           <div

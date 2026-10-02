@@ -20,16 +20,34 @@ import { cn } from "@/lib/utils";
 
 const MIDNIGHT = "#191d3a";
 
-const BACKDROPS = [
-  { id: "midnight", label: "Midnight blue", image: "", color: MIDNIGHT, swatch: MIDNIGHT },
-  { id: "warm-wood", label: "Warm wood", image: "/studio/warm-wood.jpg", color: "#ffffff", swatch: "" },
-  { id: "light-wood", label: "Light wood", image: "/studio/light-wood.jpg", color: "#ffffff", swatch: "" },
-];
+/** The colour behind the book for each viewer background choice. Matches the viewer itself. */
+const STAGE: Record<string, string> = {
+  midnight: MIDNIGHT,
+  black: "var(--foreground)",
+  paper: "var(--background)",
+  soft: "var(--muted)",
+  oak: MIDNIGHT,
+  walnut: MIDNIGHT,
+};
 
 /** The studio options a visitor can change. Backdrop settings are derived separately. */
-type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri" | "hdriRotation">;
+type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri">;
 type CustomBackdrop = { url: string; aspect: number };
 type BackdropFit = { scale: number; x: number; y: number };
+
+/** The most turns that can be queued up by clicking quickly. */
+const MAX_QUEUE = 12;
+
+/** Small caption above a row of options. A paragraph, because spans in this bar are styled as swatches. */
+const rowLabel = {
+  alignSelf: "center",
+  width: "4.75rem",
+  margin: 0,
+  fontSize: ".65rem",
+  letterSpacing: ".06em",
+  textTransform: "uppercase",
+  color: "#656b62",
+} as const;
 
 /**
  * Renders every page once into a ready-to-use face and keeps them in a bounded
@@ -64,11 +82,14 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number, layout: ReturnType<typ
   const target = Math.max(1200, Math.min(ideal, fitted));
   const keep = Math.max(8, Math.min(count, Math.floor(budget / (3 * split * target * target))));
 
-  const compose = (raw: HTMLCanvasElement, leaf: Leaf) => {
+  const compose = (raw: HTMLCanvasElement, leaf: Leaf, index: number) => {
     const canvas = document.createElement("canvas");
     canvas.width = leaf.half ? Math.floor(raw.width / 2) : raw.width;
     canvas.height = Math.round(canvas.width * ratio);
+    // Each page's position in the book gives it its own, repeatable imperfections.
+    canvas.dataset.seed = String(index);
     const ctx = canvas.getContext("2d")!;
+    ctx.imageSmoothingQuality = "high";
     ctx.fillStyle = "white";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     const sw = leaf.half ? raw.width / 2 : raw.width;
@@ -111,7 +132,7 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number, layout: ReturnType<typ
         tasks.delete(task);
       }
       if (closed) throw new Error("Viewer closed");
-      for (const index of leavesOf.get(page) ?? []) faces.set(index, compose(raw, layout.leaves[index]!));
+      for (const index of leavesOf.get(page) ?? []) faces.set(index, compose(raw, layout.leaves[index]!, index));
       // The faces hold the pixels now; release the full-size render straight away.
       raw.width = raw.height = 0;
       while (faces.size > keep) faces.delete(faces.keys().next().value!);
@@ -176,6 +197,7 @@ export function BookView({
   jump,
   onPage,
   viewer,
+  stage,
 }: {
   doc: PDFDocumentProxy;
   sizes: { w: number; h: number }[];
@@ -185,6 +207,8 @@ export function BookView({
   onPage: (page: number) => void;
   controlsHidden?: boolean;
   viewer: ViewerSettings;
+  /** The portfolio's own "behind the PDF" colour, when it has one. */
+  stage?: string;
 }) {
   const layout = useMemo(
     () => bookLayout(doc.numPages, viewer.spreads === "ready"),
@@ -199,6 +223,7 @@ export function BookView({
   const scene = useRef<BookScene | null>(null);
   const loader = useRef<ReturnType<typeof pageLoader> | null>(null);
   const lock = useRef(false);
+  const queued = useRef(0);
   const epoch = useRef(0);
   const alive = useRef(true);
   const shown = useRef<string | null>(null);
@@ -211,6 +236,13 @@ export function BookView({
     { x: 92, y: 86 },
   ]);
   const [leaf, setLeaf] = useState(0);
+  // The page the book is really on. Updated the instant a turn lands, so a very quick
+  // click never works from stale information while React is still catching up.
+  const leafRef = useRef(0);
+  const goTo = useCallback((next: number) => {
+    leafRef.current = next;
+    setLeaf(next);
+  }, []);
   const [narrow, setNarrow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -222,14 +254,13 @@ export function BookView({
     material: viewer.finish === "textured" ? "textured" : "satin",
     brightness: 0.65,
     hdri: "window",
-    hdriRotation: 0,
   });
-  const [backdrop, setBackdrop] = useState("midnight");
+  const [bgColor, setBgColor] = useState(MIDNIGHT);
   const [custom, setCustom] = useState<CustomBackdrop | null>(null);
   const [fit, setFit] = useState<BackdropFit>({ scale: 1, x: 0, y: 0 });
   const customRef = useRef<CustomBackdrop | null>(null);
   const touch = useRef<{ x: number; y: number } | null>(null);
-  const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
+  const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; from: number; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
   const panning = useRef<{ id: number; x: number; y: number } | null>(null);
   const prefetchToken = useRef(0);
   const index = spreadIndex(layout.spreads, leaf);
@@ -245,12 +276,14 @@ export function BookView({
     narrow || new Set(pages).size === 1
       ? `Page ${current.page} of ${doc.numPages}${narrow && current.half ? ` · ${current.half}` : ""}`
       : `Pages ${pages[0]}–${pages[1]} of ${doc.numPages}`;
+  /** The colour immediately behind the simple flipbook follows the viewer background setting. */
+  const stageColour = stage || STAGE[viewer.background] || MIDNIGHT;
 
   const backdropSettings = useMemo(() => {
-    if (backdrop === "custom" && custom) {
+    if (custom) {
       return {
         backdrop: custom.url,
-        backdropColor: "#ffffff",
+        backdropColor: bgColor,
         backdropKind: "photo" as const,
         backdropAspect: custom.aspect,
         backdropScale: fit.scale,
@@ -258,17 +291,16 @@ export function BookView({
         backdropY: fit.y,
       };
     }
-    const preset = BACKDROPS.find((b) => b.id === backdrop) ?? BACKDROPS[0]!;
     return {
-      backdrop: preset.image,
-      backdropColor: preset.color,
-      backdropKind: "tile" as const,
+      backdrop: "",
+      backdropColor: bgColor,
+      backdropKind: "color" as const,
       backdropAspect: 1,
       backdropScale: 1,
       backdropX: 0,
       backdropY: 0,
     };
-  }, [backdrop, custom, fit]);
+  }, [custom, bgColor, fit]);
 
   useEffect(() => {
     alive.current = true;
@@ -298,6 +330,7 @@ export function BookView({
     return () => {
       cancelled = true;
       alive.current = false;
+      queued.current = 0;
       generation.current++;
       observer.disconnect();
       source.dispose();
@@ -319,8 +352,8 @@ export function BookView({
   useEffect(() => {
     if (!jump) return;
     const found = layout.leaves.findIndex((l) => l.page === jump.page);
-    if (found >= 0 && !lock.current) setLeaf(found);
-  }, [jump, layout]);
+    if (found >= 0 && !lock.current) goTo(found);
+  }, [jump, layout, goTo]);
   useEffect(() => {
     scene.current?.configure({ ...settings, ...backdropSettings });
   }, [settings, backdropSettings, ready]);
@@ -424,31 +457,46 @@ export function BookView({
     };
   }, [index, ready, warm, busy, loading, fallback, layout]);
 
+  /** Remembers a click that arrives mid-turn, so quick clicking moves quickly through the pages. */
+  const queueStep = (direction: 1 | -1) => {
+    queued.current = Math.max(-MAX_QUEUE, Math.min(MAX_QUEUE, queued.current + direction));
+  };
+
   const move = useCallback(
-    async (direction: 1 | -1) => {
-      if (lock.current || wait || (direction === 1 ? atEnd : atStart)) return;
-      const nextIndex = narrow ? spreadIndex(layout.spreads, leaf + direction) : index + direction;
+    async (direction: 1 | -1, chained = false) => {
+      if (wait) return;
+      // A turn is in progress: keep the click and run it the moment the book is free.
+      if (lock.current) {
+        queueStep(direction);
+        return;
+      }
+      const fromLeaf = leafRef.current;
+      const fromIndex = spreadIndex(layout.spreads, fromLeaf);
+      const fromSpread = layout.spreads[fromIndex]!;
+      const isStart = narrow ? fromLeaf === 0 : fromIndex === 0;
+      const isEnd = narrow ? fromLeaf === layout.leaves.length - 1 : fromIndex === layout.spreads.length - 1;
+      if (direction === 1 ? isEnd : isStart) return;
+      // Turns that follow one another run faster so the pages keep up with the clicks.
+      const quick = chained || queued.current !== 0;
+      const nextIndex = narrow ? spreadIndex(layout.spreads, fromLeaf + direction) : fromIndex + direction;
       const nextSpread = layout.spreads[nextIndex]!;
-      const nextLeaf = narrow ? leaf + direction : nextSpread.find((n) => n !== null)!;
+      const nextLeaf = narrow ? fromLeaf + direction : nextSpread.find((n) => n !== null)!;
       const target = bookFocus(nextSpread, nextLeaf, narrow);
       lock.current = true;
       setBusy(true);
       setError(null);
       try {
-        const [from, to] = await Promise.all([faces(spread), faces(nextSpread)]);
-        // Let the corner fold away before moving the book itself.
-        if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-          await new Promise((r) => setTimeout(r, 120));
+        const [from, to] = await Promise.all([faces(fromSpread), faces(nextSpread)]);
         if (!alive.current) return;
         if (!fallback && scene.current) {
           await scene.current.resetZoom();
           if (alive.current) onZoomChange(1);
           if (!alive.current) return;
-          if (index === nextIndex) await scene.current.pan(target);
-          else await scene.current.turn(from, to, direction, target);
+          if (fromIndex === nextIndex) await scene.current.pan(target, quick ? 200 : 420);
+          else await scene.current.turn(from, to, direction, target, quick ? 0.5 : 1);
           shown.current = `${ready}|${nextSpread.join(",")}|`;
         }
-        if (alive.current) setLeaf(nextLeaf);
+        if (alive.current) goTo(nextLeaf);
       } catch {
         if (alive.current) setError("This page could not be rendered. Please try again.");
       } finally {
@@ -456,17 +504,35 @@ export function BookView({
         if (alive.current) setBusy(false);
       }
     },
-    [wait, atEnd, atStart, narrow, layout, leaf, index, faces, spread, fallback, onZoomChange, ready],
+    [wait, narrow, layout, faces, fallback, onZoomChange, ready, goTo],
   );
 
+  // When a turn ends, carry on with any clicks that arrived during it.
+  useEffect(() => {
+    if (busy || wait || queued.current === 0) return;
+    const direction: 1 | -1 = queued.current > 0 ? 1 : -1;
+    if (direction === 1 ? atEnd : atStart) {
+      queued.current = 0;
+      return;
+    }
+    queued.current -= direction;
+    void move(direction, true);
+  }, [busy, wait, atEnd, atStart, move]);
+
   const beginCornerDrag = (e: React.PointerEvent<HTMLButtonElement>, direction: 1 | -1) => {
-    if (lock.current || wait || (direction === 1 ? atEnd : atStart)) return;
+    if (lock.current) {
+      if (!wait) queueStep(direction);
+      return;
+    }
+    const fromIndex = spreadIndex(layout.spreads, leafRef.current);
+    const fromSpread = layout.spreads[fromIndex]!;
+    if (wait || (direction === 1 ? fromIndex === layout.spreads.length - 1 : fromIndex === 0)) return;
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
     lock.current = true;
     setBusy(true);
     setError(null);
-    const nextIndex = index + direction;
+    const nextIndex = fromIndex + direction;
     const nextSpread = layout.spreads[nextIndex];
     if (!nextSpread) { lock.current = false; setBusy(false); return; }
     const nextLeaf = nextSpread.find((n) => n !== null);
@@ -474,12 +540,12 @@ export function BookView({
     const target = bookFocus(nextSpread, nextLeaf, narrow);
     const gesture = {
       id: e.pointerId, x: e.clientX, y: e.clientY,
-      dir: direction, progress: 0, moved: false,
+      dir: direction, from: fromIndex, progress: 0, moved: false,
       prepared: Promise.resolve(),
     };
     drag.current = gesture;
     gesture.prepared = (async () => {
-      const [from, to] = await Promise.all([faces(spread), faces(nextSpread)]);
+      const [from, to] = await Promise.all([faces(fromSpread), faces(nextSpread)]);
       if (!alive.current || !scene.current) return;
       await scene.current.resetZoom();
       if (!alive.current || !scene.current) return;
@@ -501,11 +567,11 @@ export function BookView({
       scene.current.dragTurn(gesture.progress);
       await scene.current.settleTurn(complete);
       if (alive.current && complete) {
-        const nextSpread = layout.spreads[index + gesture.dir];
+        const nextSpread = layout.spreads[gesture.from + gesture.dir];
         const nextLeaf = nextSpread?.find((n) => n !== null);
         if (nextSpread && nextLeaf !== undefined) {
           shown.current = `${ready}|${nextSpread.join(",")}|`;
-          setLeaf(nextLeaf);
+          goTo(nextLeaf);
         }
       }
     } catch {
@@ -565,14 +631,20 @@ export function BookView({
             return { url, aspect: canvas.width / canvas.height };
           });
           setFit({ scale: 1, x: 0, y: 0 });
-          setBackdrop("custom");
         },
         "image/jpeg",
-        0.9,
+        0.92,
       );
     };
     image.onerror = () => URL.revokeObjectURL(source);
     image.src = source;
+  };
+  const removeBackground = () => {
+    setCustom((old) => {
+      if (old) URL.revokeObjectURL(old.url);
+      return null;
+    });
+    setFit({ scale: 1, x: 0, y: 0 });
   };
 
   return (
@@ -624,37 +696,13 @@ export function BookView({
               />
               <span className="tabular-nums">{Math.round(settings.brightness * 100)}%</span>
             </label>
-            <label>
-              Light angle
-              <input
-                type="range"
-                aria-label="Light and shadow angle"
-                min="0"
-                max="345"
-                step="15"
-                value={settings.hdriRotation}
-                onChange={(e) => update({ hdriRotation: Number(e.target.value) })}
-              />
-              <span className="tabular-nums">{settings.hdriRotation}°</span>
-            </label>
           </div>
         )}
       </div>
       {settings.studio &&
         (["Daylight", "Interior"] as const).map((group) => (
           <div key={group} className="pf-backdrops" role="group" aria-label={`${group} lighting`}>
-            <span
-              style={{
-                alignSelf: "center",
-                width: "4.75rem",
-                fontSize: ".65rem",
-                letterSpacing: ".06em",
-                textTransform: "uppercase",
-                color: "#656b62",
-              }}
-            >
-              {group}
-            </span>
+            <p style={rowLabel}>{group}</p>
             {HDRI_PRESETS.filter((h) => h.group === group).map((h) => (
               <button
                 key={h.id}
@@ -670,45 +718,35 @@ export function BookView({
         ))}
       {settings.studio && (
         <div className="pf-backdrops" role="group" aria-label="Studio backdrop">
-          <span
+          <p style={rowLabel}>Backdrop</p>
+          <label
             style={{
-              alignSelf: "center",
-              width: "4.75rem",
-              fontSize: ".65rem",
-              letterSpacing: ".06em",
-              textTransform: "uppercase",
-              color: "#656b62",
+              display: "flex",
+              alignItems: "center",
+              gap: ".45rem",
+              fontSize: ".7rem",
+              opacity: custom ? 0.5 : 1,
             }}
+            title={custom ? "Remove the image to use a colour" : undefined}
           >
-            Backdrop
-          </span>
-          {BACKDROPS.map((b) => (
-            <button
-              key={b.id}
-              type="button"
-              aria-pressed={backdrop === b.id}
-              onClick={() => setBackdrop(b.id)}
-            >
-              <span
-                aria-hidden
-                style={{
-                  backgroundImage: b.image ? `url(${b.image})` : undefined,
-                  backgroundColor: b.swatch || undefined,
-                }}
-              />
-              {b.label}
-            </button>
-          ))}
-          {custom && (
-            <button
-              type="button"
-              aria-pressed={backdrop === "custom"}
-              onClick={() => setBackdrop("custom")}
-            >
-              <span aria-hidden style={{ backgroundImage: `url(${custom.url})` }} />
-              Your image
-            </button>
-          )}
+            <input
+              type="color"
+              aria-label="Backdrop colour"
+              value={bgColor}
+              disabled={!!custom}
+              onChange={(e) => setBgColor(e.target.value)}
+              style={{
+                width: 38,
+                height: 28,
+                padding: 0,
+                border: "1px solid #cfcfc7",
+                borderRadius: 6,
+                background: "none",
+                cursor: custom ? "default" : "pointer",
+              }}
+            />
+            Colour
+          </label>
           <button type="button" onClick={() => fileInput.current?.click()}>
             <span
               aria-hidden
@@ -716,8 +754,14 @@ export function BookView({
             >
               +
             </span>
-            {custom ? "Change image" : "Upload image"}
+            {custom ? "Change image" : "Add image"}
           </button>
+          {custom && (
+            <button type="button" onClick={removeBackground}>
+              <span aria-hidden style={{ backgroundImage: `url(${custom.url})` }} />
+              Remove image
+            </button>
+          )}
           <input
             ref={fileInput}
             type="file"
@@ -732,7 +776,7 @@ export function BookView({
           />
         </div>
       )}
-      {settings.studio && backdrop === "custom" && custom && (
+      {settings.studio && custom && (
         <div className="pf-book-options">
           <div className="pf-studio-controls">
             <label>
@@ -785,7 +829,7 @@ export function BookView({
       <div
         ref={viewportRef}
         className="pf-book-viewport"
-        style={zoom > 1 ? { touchAction: "none" } : undefined}
+        style={{ background: stageColour, ...(zoom > 1 ? { touchAction: "none" } : {}) }}
         data-busy={busy || wait}
         data-narrow={narrow}
         data-panning={panning.current !== null}
@@ -855,7 +899,7 @@ export function BookView({
                 top: `${corners[side === "left" ? 0 : 1]!.y}%`,
               }}
               aria-label={d === 1 ? "Turn to next page" : "Turn to previous page"}
-              disabled={busy || wait || (d === 1 ? atEnd : atStart)}
+              disabled={wait || (d === 1 ? atEnd : atStart)}
               onPointerDown={(e) => beginCornerDrag(e, d)}
               onPointerMove={(e) => {
                 const gesture = drag.current;
@@ -884,12 +928,12 @@ export function BookView({
         )}
       </div>
       <nav aria-label="Book pages" className="pf-book-navigation">
-        <button type="button" onClick={() => void move(-1)} disabled={busy || wait || atStart}>
+        <button type="button" onClick={() => void move(-1)} disabled={wait || atStart}>
           <ChevronLeft size={15} />
           Previous
         </button>
         <span aria-live="polite">{label}</span>
-        <button type="button" onClick={() => void move(1)} disabled={busy || wait || atEnd}>
+        <button type="button" onClick={() => void move(1)} disabled={wait || atEnd}>
           Next
           <ChevronRight size={15} />
         </button>

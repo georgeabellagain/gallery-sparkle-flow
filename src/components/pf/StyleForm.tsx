@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import { deleteBlob, putBlob, uid } from "@/lib/portfolia/assets";
 import { DEFAULT_STYLE, DEFAULT_VIEWER, FONT_OPTIONS, patchPortfolio, type PageStyle, type Portfolio, type ViewerSettings } from "@/lib/portfolia/store";
 
+/** The colour each viewer background choice shows behind the PDF. */
+const BACKGROUND_COLOURS: Record<string, string> = { midnight: "#191d3a", black: "#111111", paper: "#ffffff", soft: "#f1f1ef" };
+
 /** Paid-plan page styling: heading font, colours and an optional banner. */
 export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg: string | null) => void }) {
   const style = p.style ?? DEFAULT_STYLE;
@@ -16,6 +19,17 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
   const viewer = { ...DEFAULT_VIEWER, ...p.viewer };
   const setViewer = (patch: Partial<ViewerSettings>) =>
     onSaveError(patchPortfolio({ viewer: { ...viewer, ...patch } }) ? null : "Couldn’t save that viewer change.");
+  // Personal portfolios also have a "Behind the PDF" colour, which the viewer uses in preference
+  // to this setting, so changing the background keeps the two in step.
+  const setBackground = (value: string) =>
+    onSaveError(
+      patchPortfolio({
+        viewer: { ...viewer, background: value as ViewerSettings["background"], look: "clean" },
+        ...(paid ? { style: { ...style, backdrop: BACKGROUND_COLOURS[value] ?? style.backdrop } } : {}),
+      })
+        ? null
+        : "Couldn’t save that viewer change.",
+    );
 
   const onBanner = (f?: File) => {
     setErr(null);
@@ -74,7 +88,7 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
         <div className="mt-3 space-y-3 text-xs">
           <SettingSelect label="Default reading mode" value={viewer.mode} onChange={(value) => setViewer({ mode: value as ViewerSettings["mode"] })} options={[["scroll", "Scroll"], ["paged", "Page by page"], ["book", "Flipbook"]]} />
           <SettingSelect label="My PDF contains" value={viewer.spreads} onChange={(value) => setViewer({ spreads: value as ViewerSettings["spreads"] })} options={[["single", "Single pages"], ["ready", "Ready-made spreads"]]} />
-          <SettingSelect label="Viewer background" value={viewer.background === "oak" || viewer.background === "walnut" ? "midnight" : viewer.background} onChange={(value) => setViewer({ background: value as ViewerSettings["background"], look: "clean" })} options={[["midnight", "Midnight blue"], ["black", "Black"], ["paper", "White"], ["soft", "Soft grey"]]} />
+          <SettingSelect label="Viewer background" value={viewer.background === "oak" || viewer.background === "walnut" ? "midnight" : viewer.background} onChange={setBackground} options={[["midnight", "Midnight blue"], ["black", "Black"], ["paper", "White"], ["soft", "Soft grey"]]} />
           <label className="flex items-center justify-between gap-3"><span>Show profile header</span><input type="checkbox" checked={viewer.showHeader} onChange={(e) => setViewer({ showHeader: e.target.checked })} /></label>
         </div>
       </div>

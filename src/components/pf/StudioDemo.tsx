@@ -4,11 +4,14 @@ import { bookFocus, bookLayout } from "@/lib/portfolia/book-layout";
 import { createBookScene, type BookFaces, type BookScene, type StudioSettings } from "@/lib/portfolia/book-scene";
 
 const MIDNIGHT = "#191d3a";
-const PAGE_W = 900;
-const PAGE_H = 1272;
-const RATIO = PAGE_H / PAGE_W;
+/** Pages are drawn in a 900 x 1272 space and scaled to the real canvas size. */
+const DESIGN_W = 900;
+const DESIGN_H = 1272;
+const RATIO = DESIGN_H / DESIGN_W;
 const PAGES = 10;
 const layout = bookLayout(PAGES, false);
+/** The most turns that can be queued by clicking quickly. */
+const MAX_QUEUE = 12;
 
 /** The same studio look a visitor gets in the real flipbook, on midnight blue. */
 const LOOK: StudioSettings = {
@@ -16,10 +19,9 @@ const LOOK: StudioSettings = {
   material: "satin",
   brightness: 0.7,
   hdri: "softbox",
-  hdriRotation: 0,
   backdrop: "",
   backdropColor: MIDNIGHT,
-  backdropKind: "tile",
+  backdropKind: "color",
   backdropAspect: 1,
   backdropScale: 1,
   backdropX: 0,
@@ -50,6 +52,28 @@ const TITLES = [
   "Motion",
   "Say hello",
 ];
+const CAPTIONS = [
+  "Portfolio 2026",
+  "A visual system for a coastal studio",
+  "Type-led posters for a music festival",
+  "Magazine layouts and art direction",
+  "Light, landscape and quiet places",
+  "Characters and pattern for children’s books",
+  "Packaging for small-batch ceramics",
+  "Residential interiors in warm tones",
+  "Titles and animation for short films",
+  "hello@yourname.com",
+];
+
+/** A small repeatable random source, so every page always looks the same. */
+function random(seed: number) {
+  let t = seed + 0x6d2b79f5;
+  return () => {
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 function circle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {
   ctx.beginPath();
@@ -68,14 +92,19 @@ function roundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: num
 }
 
 /** Draws one colourful portfolio page. Three layouts repeat so spreads feel varied. */
-function drawPage(n: number): HTMLCanvasElement {
+function drawPage(n: number, width: number): HTMLCanvasElement {
+  const scale = width / DESIGN_W;
   const canvas = document.createElement("canvas");
-  canvas.width = PAGE_W;
-  canvas.height = PAGE_H;
+  canvas.width = width;
+  canvas.height = Math.round(DESIGN_H * scale);
+  // Each page's position in the book gives it its own, repeatable imperfections.
+  canvas.dataset.seed = String(n);
   const ctx = canvas.getContext("2d")!;
+  ctx.imageSmoothingQuality = "high";
+  ctx.scale(scale, scale);
   const [a, b, c] = PALETTES[n % PALETTES.length]!;
   const kind = n % 3;
-  const diagonal = (from: string, to: string, x0 = 0, y0 = 0, x1 = PAGE_W, y1 = PAGE_H) => {
+  const diagonal = (from: string, to: string, x0 = 0, y0 = 0, x1 = DESIGN_W, y1 = DESIGN_H) => {
     const g = ctx.createLinearGradient(x0, y0, x1, y1);
     g.addColorStop(0, from);
     g.addColorStop(1, to);
@@ -84,7 +113,7 @@ function drawPage(n: number): HTMLCanvasElement {
 
   if (kind === 0) {
     ctx.fillStyle = diagonal(a, b);
-    ctx.fillRect(0, 0, PAGE_W, PAGE_H);
+    ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
     ctx.fillStyle = "#ffffff";
     ctx.globalAlpha = 0.22;
     circle(ctx, 700, 260, 280);
@@ -92,21 +121,47 @@ function drawPage(n: number): HTMLCanvasElement {
     ctx.globalAlpha = 0.45;
     ctx.fillStyle = c;
     circle(ctx, 330, 560, 170);
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = "#ffffff";
+    circle(ctx, 330, 560, 8);
+    ctx.globalAlpha = 0.35;
+    for (let i = 0; i < 6; i++) ctx.fillRect(70 + i * 22, 200, 3, 60);
     ctx.globalAlpha = 1;
   } else if (kind === 1) {
     ctx.fillStyle = "#fffaf3";
-    ctx.fillRect(0, 0, PAGE_W, PAGE_H);
+    ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
     ctx.save();
-    roundedRect(ctx, 70, 230, 760, 640, 30);
+    roundedRect(ctx, 70, 255, 760, 615, 30);
     ctx.clip();
-    ctx.fillStyle = diagonal(a, c, 70, 230, 830, 870);
-    ctx.fillRect(70, 230, 760, 640);
-    ctx.fillStyle = b;
-    circle(ctx, 560, 470, 190);
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = "#ffffff";
-    circle(ctx, 300, 700, 230);
+    // A stylised landscape photograph.
+    ctx.fillStyle = diagonal(a, c, 70, 255, 70, 870);
+    ctx.fillRect(70, 255, 760, 615);
+    ctx.fillStyle = "#fff4d6";
+    ctx.globalAlpha = 0.9;
+    circle(ctx, 610, 400, 92);
     ctx.globalAlpha = 1;
+    ctx.fillStyle = b;
+    ctx.beginPath();
+    ctx.moveTo(70, 760);
+    ctx.lineTo(300, 500);
+    ctx.lineTo(480, 700);
+    ctx.lineTo(650, 540);
+    ctx.lineTo(830, 740);
+    ctx.lineTo(830, 870);
+    ctx.lineTo(70, 870);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.beginPath();
+    ctx.moveTo(70, 820);
+    ctx.lineTo(260, 660);
+    ctx.lineTo(430, 800);
+    ctx.lineTo(600, 690);
+    ctx.lineTo(830, 830);
+    ctx.lineTo(830, 870);
+    ctx.lineTo(70, 870);
+    ctx.closePath();
+    ctx.fill();
     ctx.restore();
     [a, b, c].forEach((colour, i) => {
       ctx.fillStyle = colour;
@@ -118,22 +173,35 @@ function drawPage(n: number): HTMLCanvasElement {
     ctx.fillRect(70, 1130, 360, 6);
   } else {
     ctx.fillStyle = a;
-    ctx.fillRect(0, 0, PAGE_W, PAGE_H);
+    ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
     ctx.fillStyle = b;
-    ctx.fillRect(0, PAGE_H * 0.46, PAGE_W, PAGE_H);
+    ctx.fillRect(0, DESIGN_H * 0.46, DESIGN_W, DESIGN_H);
     ctx.fillStyle = c;
     ctx.beginPath();
-    ctx.arc(PAGE_W / 2, PAGE_H * 0.46, 250, Math.PI, 0);
+    ctx.arc(DESIGN_W / 2, DESIGN_H * 0.46, 250, Math.PI, 0);
     ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,0.28)";
     for (let i = 0; i < 4; i++) ctx.fillRect(70, 880 + i * 38, 760 - i * 120, 14);
+    ctx.fillStyle = "rgba(255,255,255,0.4)";
+    for (let y = 0; y < 5; y++) for (let x = 0; x < 3; x++) circle(ctx, 640 + x * 34, 120 + y * 34, 4);
+  }
+
+  // A fine print grain, so flat colour never looks digital.
+  const next = random(n + 1);
+  for (let i = 0; i < 9000; i++) {
+    ctx.fillStyle = next() > 0.5 ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)";
+    ctx.fillRect(next() * DESIGN_W, next() * DESIGN_H, 1.6, 1.6);
   }
 
   ctx.fillStyle = kind === 1 ? "#1b1b2f" : "#ffffff";
   ctx.font = "30px 'JetBrains Mono', ui-monospace, monospace";
-  ctx.fillText(`PORTFOLIA / ${String(n + 1).padStart(2, "0")}`, 70, 100);
+  ctx.fillText(`PORTFOLIA / ${String(n + 1).padStart(2, "0")}`, 70, 90);
   ctx.font = "104px 'Instrument Serif', Georgia, serif";
-  ctx.fillText(TITLES[n % TITLES.length]!, 70, kind === 1 ? 190 : PAGE_H - 120);
+  ctx.fillText(TITLES[n % TITLES.length]!, 70, kind === 1 ? 205 : DESIGN_H - 150);
+  ctx.font = "italic 38px 'Instrument Serif', Georgia, serif";
+  ctx.globalAlpha = 0.85;
+  ctx.fillText(CAPTIONS[n % CAPTIONS.length]!, 70, kind === 1 ? 1210 : DESIGN_H - 90);
+  ctx.globalAlpha = 1;
   return canvas;
 }
 
@@ -156,8 +224,10 @@ export function StudioDemo() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let visible = false;
     let busy = false;
+    let starting = false;
     let spread = 0;
     let direction: 1 | -1 = 1;
+    let queued = 0;
     let pages: HTMLCanvasElement[] = [];
 
     const facesOf = (index: number): BookFaces => {
@@ -174,12 +244,12 @@ export function StudioDemo() {
       facesOf(next).forEach((canvas) => scene?.prefetch(canvas));
     };
 
-    const go = async (dir: 1 | -1) => {
+    const go = async (dir: 1 | -1, speed = 1) => {
       const next = spread + dir;
       if (!scene || busy || next < 0 || next >= layout.spreads.length) return;
       busy = true;
       try {
-        await scene.turn(facesOf(spread), facesOf(next), dir, focusOf(next));
+        await scene.turn(facesOf(spread), facesOf(next), dir, focusOf(next), speed);
         spread = next;
       } finally {
         busy = false;
@@ -194,14 +264,31 @@ export function StudioDemo() {
         if (spread >= layout.spreads.length - 1) direction = -1;
         else if (spread <= 0) direction = 1;
         await go(direction);
-        schedule();
+        // A click made during this automatic turn is played straight after it.
+        await drain();
       }, 2600);
     };
 
-    const start = () => {
-      if (scene || disposed) return;
+    /** Clicks made during a turn are kept and played straight after it, a little quicker. */
+    async function drain() {
+      while (queued !== 0 && !disposed) {
+        const dir: 1 | -1 = queued > 0 ? 1 : -1;
+        queued -= dir;
+        await go(dir, 0.5);
+      }
+      schedule();
+    }
+
+    const start = async () => {
+      if (scene || starting || disposed) return;
+      starting = true;
       try {
-        pages = Array.from({ length: PAGES }, (_, i) => drawPage(i));
+        // Draw once the page fonts are ready, so the type on the pages is the real typeface.
+        if (document.fonts?.ready) await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 600))]);
+        if (disposed) return;
+        // Sharper pages on large screens; lighter ones on phones.
+        const pageWidth = window.innerWidth < 720 ? 1000 : 1400;
+        pages = Array.from({ length: PAGES }, (_, i) => drawPage(i, pageWidth));
         scene = createBookScene(element, RATIO, () => {
           if (!disposed) setFailed(true);
         });
@@ -209,17 +296,24 @@ export function StudioDemo() {
         scene.viewport(false, 1, focusOf(0));
         scene.show(facesOf(0));
         setReady(true);
+        schedule();
       } catch {
         scene?.dispose();
         scene = null;
         setFailed(true);
+      } finally {
+        starting = false;
       }
     };
 
     controls.current = {
       manual: (dir) => {
         if (timer) clearTimeout(timer);
-        void go(dir).then(schedule);
+        if (busy) {
+          queued = Math.max(-MAX_QUEUE, Math.min(MAX_QUEUE, queued + dir));
+          return;
+        }
+        void go(dir).then(drain);
       },
     };
 
@@ -227,7 +321,7 @@ export function StudioDemo() {
       ([entry]) => {
         visible = !!entry?.isIntersecting;
         if (visible) {
-          start();
+          void start();
           schedule();
         } else if (timer) clearTimeout(timer);
       },
@@ -248,7 +342,7 @@ export function StudioDemo() {
   return (
     <div ref={wrap} className="mx-auto w-full max-w-5xl">
       <div className="relative overflow-hidden rounded-3xl shadow-lift" style={{ background: MIDNIGHT }}>
-        <div ref={host} role="img" aria-label="A colourful example flipbook turning its pages in studio lighting" className="h-[22rem] w-full sm:h-[32rem]" />
+        <div ref={host} role="img" aria-label="A colourful example flipbook turning its pages in studio lighting" className="h-[22rem] w-full sm:h-[36rem]" />
         {!ready && !failed && (
           <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-white/60">Loading example…</p>
         )}

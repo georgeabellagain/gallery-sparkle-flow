@@ -42,19 +42,22 @@ export function PortfolioPage({
   const cvUrl = useObjectUrl(cvBlob);
   const cv = cvBlobKey ? profile.cv : undefined;
   const links = profile.links.filter((l) => l.url.trim());
+  // With no profile photo, the profile sits hard against the left edge instead of the centred column.
+  const flushLeft = !photoUrl && view.showHeader;
+  const column = flushLeft ? "max-w-none" : "mx-auto max-w-[1100px]";
   return (
     <div className="flex min-h-full flex-col bg-background" style={pageStyle ? { background: pageStyle.background, color: pageStyle.text } : undefined}>
       {/* A small way home on every public page. Hidden inside embeds and editor previews. */}
       {!embed && !compact && (
         <div className="px-4 pt-3 sm:px-6">
-          <div className="mx-auto flex max-w-[1100px]">
+          <div className={`flex ${column}`}>
             <Wordmark className="rounded-full bg-white/90 px-3 py-1.5 opacity-80 shadow-soft transition-opacity hover:opacity-100 focus-visible:opacity-100 [&>img]:h-4" />
           </div>
         </div>
       )}
       {view.showHeader && !embed && bannerUrl && <img src={bannerUrl} alt={profile.name ? `${profile.name} portfolio banner` : "Portfolio banner"} className={immersive ? "h-28 w-full object-cover sm:h-40" : "h-24 w-full object-cover"} />}
       {view.showHeader && !embed && <header className={immersive ? "px-4 py-3 sm:px-6 sm:py-4" : compact ? "px-4 py-4" : "px-5 py-5 sm:px-8 sm:py-8"}>
-        <div className="mx-auto flex max-w-[1100px] items-start gap-4">
+        <div className={`flex items-start gap-4 ${column}`}>
           {photoUrl ? (
             <img src={photoUrl} alt={profile.name || "Profile photo"} className={immersive ? "size-10 shrink-0 rounded-full object-cover" : "size-11 shrink-0 rounded-full object-cover sm:size-14"} />
           ) : null}
