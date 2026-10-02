@@ -30,7 +30,7 @@ export interface PageStyle {
 export interface ViewerSettings {
   mode: "scroll" | "paged" | "book";
   look: "clean" | "studio";
-  background: "black" | "paper" | "soft" | "oak" | "walnut";
+  background: "midnight" | "black" | "paper" | "soft" | "oak" | "walnut";
   finish: "matte" | "satin" | "textured";
   paper: "smooth" | "natural";
   light: "soft" | "bright";
@@ -43,7 +43,7 @@ export interface ViewerSettings {
 export const DEFAULT_VIEWER: ViewerSettings = {
   mode: "scroll",
   look: "clean",
-  background: "black",
+  background: "midnight",
   finish: "matte",
   paper: "smooth",
   light: "soft",
@@ -62,7 +62,7 @@ export const FONT_OPTIONS = [
   { label: "Archivo", css: '"Archivo", system-ui, sans-serif' },
 ];
 
-export const DEFAULT_STYLE: PageStyle = { font: FONT_OPTIONS[0]!.css, text: "#1f1d1a", background: "#fbfaf6", backdrop: "#111111" };
+export const DEFAULT_STYLE: PageStyle = { font: FONT_OPTIONS[0]!.css, text: "#1f1d1a", background: "#fbfaf6", backdrop: "#191d3a" };
 
 export interface Domain {
   name: string;
