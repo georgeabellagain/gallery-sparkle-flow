@@ -18,17 +18,32 @@ import {
 import { cn } from "@/lib/utils";
 
 const BACKDROPS = [
+  { id: "midnight-blue", label: "Midnight blue", image: "" },
   { id: "warm-wood", label: "Warm wood", image: "/studio/warm-wood.jpg" },
   { id: "light-wood", label: "Light wood", image: "/studio/light-wood.jpg" },
-  { id: "plain", label: "Plain", image: "" },
 ];
 
-/** A bounded per-view cache. All turn faces finish rendering before motion starts. */
+const HDRI_OPTIONS = [
+  { id: "studio-soft", label: "Studio soft", thumbnail: "/studio/hdri/studio-soft.jpg" },
+  { id: "studio-bright", label: "Studio bright", thumbnail: "/studio/hdri/studio-bright.jpg" },
+  { id: "outdoor-noon", label: "Outdoor noon", thumbnail: "/studio/hdri/outdoor-noon.jpg" },
+  { id: "outdoor-golden", label: "Golden hour", thumbnail: "/studio/hdri/outdoor-golden.jpg" },
+];
+
+/** A bounded per-view cache. Pre-loads all pages for instant access. */
 function pageLoader(doc: PDFDocumentProxy, ratio: number) {
   const cache = new Map<number, HTMLCanvasElement>();
   const pending = new Map<number, Promise<HTMLCanvasElement>>();
   const tasks = new Set<RenderTask>();
   let closed = false;
+  
+  // Pre-load all pages
+  const preloadAll = async () => {
+    for (let page = 1; page <= doc.numPages; page++) {
+      void load(page);
+    }
+  };
+  
   const load = (page: number): Promise<HTMLCanvasElement> => {
     const hit = cache.get(page);
     if (hit) {
@@ -61,13 +76,14 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number) {
       }
       if (closed) throw new Error("Viewer closed");
       cache.set(page, raw);
-      while (cache.size > 8) cache.delete(cache.keys().next().value!);
       return raw;
     })().finally(() => pending.delete(page));
     pending.set(page, promise);
     return promise;
   };
+  
   return {
+    preloadAll,
     async face(leaf: Leaf | undefined): Promise<HTMLCanvasElement | null> {
       if (!leaf) return null;
       const raw = await load(leaf.page);
@@ -151,11 +167,13 @@ export function BookView({
   const [settings, setSettings] = useState<StudioSettings>({
     studio: viewer.look === "studio",
     material: viewer.finish,
-    lighting: viewer.light,
-    diffusion: 0.65,
-    backdrop: "/studio/warm-wood.jpg",
+    brightness: 0.65,
+    backdrop: "",
   });
-  const [backdrop, setBackdrop] = useState("warm-wood");
+  const [backdrop, setBackdrop] = useState("midnight-blue");
+  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+  const [hdri, setHdri] = useState("studio-soft");
+  const [hdriRotation, setHdriRotation] = useState(0);
   const [cue, setCue] = useState<"left" | "right" | null>(null);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
@@ -181,6 +199,10 @@ export function BookView({
     setNarrow(element.clientWidth < 720);
     const source = pageLoader(doc, ratio);
     loader.current = source;
+    
+    // Pre-load all pages for smooth transitions
+    void source.preloadAll();
+    
     try {
       scene.current = createBookScene(element, ratio, () => {
         if (alive.current) setFallback(true);
@@ -217,11 +239,17 @@ export function BookView({
     if (found >= 0 && !lock.current) setLeaf(found);
   }, [jump, layout]);
   useEffect(() => {
+    const backdropImage = backdrop === "midnight-blue" 
+      ? "linear-gradient(135deg, #191d3a 0%, #2d1b4e 100%)"
+      : backgroundImage || (BACKDROPS.find((b) => b.id === backdrop)?.image || "");
+    
     scene.current?.configure({
       ...settings,
-      backdrop: BACKDROPS.find((b) => b.id === backdrop)!.image,
+      backdrop: backdropImage,
+      hdri,
+      hdriRotation,
     });
-  }, [settings, backdrop, ready]);
+  }, [settings, backdrop, backgroundImage, hdri, hdriRotation, ready]);
   useEffect(() => {
     if (!busy && scene.current) {
       scene.current.viewport(narrow, zoom, focus);
@@ -290,9 +318,9 @@ export function BookView({
       setError(null);
       try {
         const [from, to] = await Promise.all([faces(spread), faces(nextSpread)]);
-        // Let the corner fold away before moving the book itself.
+        // Faster page turn: reduced delay for snappier feel
         if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-          await new Promise((r) => setTimeout(r, 120));
+          await new Promise((r) => setTimeout(r, 50));
         if (!alive.current) return;
         if (!fallback && scene.current) {
           await scene.current.resetZoom();
@@ -385,11 +413,26 @@ export function BookView({
   }, [move]);
   const update = (patch: Partial<StudioSettings>) => setSettings((s) => ({ ...s, ...patch }));
 
+  const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setBackgroundImage(event.target?.result as string);
+        setBackdrop("custom");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <section
       className="pf-book-reader"
       aria-label="Interactive PDF book"
       data-look={settings.studio ? "studio" : "simple"}
+      style={{
+        backgroundColor: backdrop === "midnight-blue" ? "#191d3a" : undefined,
+      }}
     >
       <div className="pf-book-options">
         <div className="pf-book-switch" role="group" aria-label="Book appearance">
@@ -417,30 +460,39 @@ export function BookView({
                 value={settings.material}
                 onChange={(e) => update({ material: e.target.value as StudioSettings["material"] })}
               >
-                <option value="matte">Matte</option>
                 <option value="satin">Satin</option>
                 <option value="textured">Textured</option>
-                <option value="natural">Natural</option>
               </select>
             </label>
             <label>
-              Light
+              Brightness
+              <input type="range" aria-label="Lighting brightness" min="0" max="100" step="1"
+                value={Math.round(settings.brightness * 100)}
+                onChange={(e) => update({ brightness: Number(e.target.value) / 100 })} />
+              <span className="tabular-nums">{Math.round(settings.brightness * 100)}%</span>
+            </label>
+            <label>
+              HDRI
               <select
-                aria-label="Lighting style"
-                value={settings.lighting}
-                onChange={(e) => update({ lighting: e.target.value as StudioSettings["lighting"] })}
+                aria-label="HDRI lighting"
+                value={hdri}
+                onChange={(e) => setHdri(e.target.value)}
               >
-                <option value="soft">Soft daylight</option>
-                <option value="bright">Clear daylight</option>
-                <option value="warm">Warm evening</option>
+                {HDRI_OPTIONS.map((h) => (
+                  <option key={h.id} value={h.id}>{h.label}</option>
+                ))}
               </select>
             </label>
             <label>
-              Diffusion
-              <input type="range" aria-label="Lighting diffusion" min="0" max="100" step="1"
-                value={Math.round(settings.diffusion * 100)}
-                onChange={(e) => update({ diffusion: Number(e.target.value) / 100 })} />
-              <span className="tabular-nums">{Math.round(settings.diffusion * 100)}%</span>
+              HDRI Rotation
+              <input type="range" aria-label="HDRI rotation angle" min="0" max="360" step="15"
+                value={hdriRotation}
+                onChange={(e) => setHdriRotation(Number(e.target.value))} />
+              <span className="tabular-nums">{hdriRotation}°</span>
+            </label>
+            <label>
+              Background Image
+              <input type="file" accept="image/*" onChange={handleBackgroundImageUpload} aria-label="Upload background image" />
             </label>
           </div>
         )}
@@ -452,11 +504,18 @@ export function BookView({
               key={b.id}
               type="button"
               aria-pressed={backdrop === b.id}
-              onClick={() => setBackdrop(b.id)}
+              onClick={() => {
+                setBackdrop(b.id);
+                setBackgroundImage(null);
+              }}
             >
               <span
                 aria-hidden
-                style={{ backgroundImage: b.image ? `url(${b.image})` : undefined }}
+                style={{
+                  backgroundImage: b.id === "midnight-blue" 
+                    ? "linear-gradient(135deg, #191d3a 0%, #2d1b4e 100%)"
+                    : b.image ? `url(${b.image})` : undefined,
+                }}
               />
               {b.label}
             </button>
@@ -584,6 +643,7 @@ export function BookView({
       <nav
         aria-label="Book pages"
         className={cn("pf-book-navigation", controlsHidden && "pf-book-navigation-quiet")}
+        style={{ display: "none" }}
       >
         <button type="button" onClick={() => void move(-1)} disabled={busy || loading || atStart}>
           <ChevronLeft size={15} />
@@ -603,4 +663,3 @@ export function BookView({
     </section>
   );
 }
-
