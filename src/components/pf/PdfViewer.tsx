@@ -103,7 +103,7 @@ export function PdfViewer({
     else void rootRef.current?.requestFullscreen?.();
   };
 
-  const z = (d: number) => setZoom((v) => Math.min(3, Math.max(0.5, Math.round((v + d) * 100) / 100)));
+  const z = (d: number) => setZoom((v) => Math.min(3, Math.max(mode === "book" ? 0.8 : 0.5, Math.round((v + d) * 100) / 100)));
   const revealControls = (pointerType?: string) => {
     setControlsVisible(true);
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
@@ -138,6 +138,9 @@ export function PdfViewer({
   };
 
   useEffect(() => setMode(view.mode), [view.mode]);
+  useEffect(() => {
+    if (mode === "book") setZoom((value) => Math.max(0.8, value));
+  }, [mode]);
   useEffect(() => {
     if (!total) return;
     const page = Math.min(total, Math.max(1, startPage));
@@ -197,7 +200,7 @@ export function PdfViewer({
               <LayoutGrid className="size-3.5" /> Pages
             </button>
           )}
-          <ToolBtn label="Zoom out" onClick={() => z(-0.25)} disabled={zoom <= 0.5}>
+          <ToolBtn label="Zoom out" onClick={() => z(-0.25)} disabled={zoom <= (mode === "book" ? 0.8 : 0.5)}>
             <Minus className="size-3.5" />
           </ToolBtn>
           <button
@@ -498,3 +501,4 @@ function PdfPage({
     </div>
   );
 }
+

@@ -43,8 +43,8 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number) {
       if (closed) throw new Error("Viewer closed");
       const original = pdfPage.getViewport({ scale: 1 });
       const target = Math.min(
-        1800,
-        Math.max(1000, window.innerWidth * Math.min(devicePixelRatio || 1, 2)),
+        4096,
+        Math.max(2560, window.innerWidth * Math.min(devicePixelRatio || 1, 3)),
       );
       const viewport = pdfPage.getViewport({
         scale: target / Math.max(original.width, original.height),
@@ -152,6 +152,7 @@ export function BookView({
     studio: viewer.look === "studio",
     material: viewer.finish,
     lighting: viewer.light,
+    diffusion: 0.65,
     backdrop: "/studio/warm-wood.jpg",
   });
   const [backdrop, setBackdrop] = useState("warm-wood");
@@ -236,7 +237,7 @@ export function BookView({
       if (busy || loading || !scene.current) return;
       event.preventDefault();
       const dy = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 100 : 1);
-      const next = Math.min(3, Math.max(0.5, wheelZoom.current * Math.exp(-dy * 0.0015)));
+      const next = Math.min(3, Math.max(0.8, wheelZoom.current * Math.exp(-dy * 0.0015)));
       if (Math.abs(next - wheelZoom.current) < 0.001) return;
       const rect = element.getBoundingClientRect();
       scene.current.zoomAt(next, (event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height);
@@ -430,9 +431,16 @@ export function BookView({
                 onChange={(e) => update({ lighting: e.target.value as StudioSettings["lighting"] })}
               >
                 <option value="soft">Soft daylight</option>
-                <option value="bright">Bright studio</option>
+                <option value="bright">Clear daylight</option>
                 <option value="warm">Warm evening</option>
               </select>
+            </label>
+            <label>
+              Diffusion
+              <input type="range" aria-label="Lighting diffusion" min="0" max="100" step="1"
+                value={Math.round(settings.diffusion * 100)}
+                onChange={(e) => update({ diffusion: Number(e.target.value) / 100 })} />
+              <span className="tabular-nums">{Math.round(settings.diffusion * 100)}%</span>
             </label>
           </div>
         )}
@@ -595,3 +603,4 @@ export function BookView({
     </section>
   );
 }
+
