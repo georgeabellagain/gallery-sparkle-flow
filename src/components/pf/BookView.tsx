@@ -130,6 +130,7 @@ export function BookView({
   const ratio = first.h / (viewer.spreads === "ready" ? first.w / 2 : first.w);
   const host = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const wheelZoom = useRef(zoom);
   const scene = useRef<BookScene | null>(null);
   const loader = useRef<ReturnType<typeof pageLoader> | null>(null);
   const lock = useRef(false);
@@ -223,6 +224,7 @@ export function BookView({
       scene.current.viewport(narrow, zoom, focus);
       setCorners(scene.current.corners());
     }
+    wheelZoom.current = zoom;
   }, [narrow, zoom, focus, busy, ready, settings]);
 
   useEffect(() => {
@@ -232,16 +234,17 @@ export function BookView({
       if (busy || loading || !scene.current) return;
       event.preventDefault();
       const dy = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 100 : 1);
-      const next = Math.min(3, Math.max(0.5, zoom * Math.exp(-dy * 0.0015)));
-      if (Math.abs(next - zoom) < 0.001) return;
+      const next = Math.min(3, Math.max(0.5, wheelZoom.current * Math.exp(-dy * 0.0015)));
+      if (Math.abs(next - wheelZoom.current) < 0.001) return;
       const rect = element.getBoundingClientRect();
       scene.current.zoomAt(next, (event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height);
+      wheelZoom.current = next;
       onZoomChange(next);
       setCorners(scene.current.corners());
     };
     element.addEventListener("wheel", onWheel, { passive: false });
     return () => element.removeEventListener("wheel", onWheel);
-  }, [busy, loading, fallback, zoom, onZoomChange]);
+  }, [busy, loading, fallback, onZoomChange]);
 
   useEffect(() => {
     if (!ready) return;
