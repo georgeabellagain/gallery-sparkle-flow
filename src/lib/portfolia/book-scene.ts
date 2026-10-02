@@ -158,12 +158,17 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const paint = () => {
     if (!disposed) renderer.render(scene, camera);
   };
+  const cameraHeight = (scale: number) => {
+    const aspect = Math.max(1, host.clientWidth) / Math.max(1, host.clientHeight);
+    // Frame a lone cover as a page, but leave room for both pages once open.
+    const width = narrow ? 1.08 : THREE.MathUtils.lerp(2.32, 1.32, Math.min(1, Math.abs(focus) * 2));
+    return Math.max(ratio * 1.12, width / aspect) / scale;
+  };
   const frameCamera = () => {
     const w = Math.max(1, host.clientWidth),
       h = Math.max(1, host.clientHeight);
     camera.aspect = w / h;
-    const visibleWidth = narrow ? 1.08 : 2.32;
-    const visibleHeight = Math.max(ratio * 1.12, visibleWidth / camera.aspect) / zoom;
+    const visibleHeight = cameraHeight(zoom);
     const distance = visibleHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
     camera.position.set(focus + panX, panY, distance);
     camera.lookAt(focus + panX, panY, 0);
@@ -337,8 +342,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     },
     zoomAt(scale: number, x: number, y: number) {
       const aspect = Math.max(1, host.clientWidth) / Math.max(1, host.clientHeight);
-      const base = Math.max(ratio * 1.12, (narrow ? 1.08 : 2.32) / aspect);
-      const delta = base / zoom - base / scale;
+      const delta = cameraHeight(zoom) - cameraHeight(scale);
       panX += (x - 0.5) * delta * aspect;
       panY += (0.5 - y) * delta;
       zoom = scale;
