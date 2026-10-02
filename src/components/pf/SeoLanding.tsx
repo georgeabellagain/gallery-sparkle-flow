@@ -1,193 +1,173 @@
+import { ChevronRight, Sparkles } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Check } from "lucide-react";
-import { SEO_LINKS } from "@/lib/portfolia/seo-pages";
-import { SiteHeader, SiteFooter } from "@/components/pf/Chrome";
 
-export interface SeoContent {
-  path: string;
-  title: string;
-  description: string;
-  h1: string;
-  h1Accent: string;
-  intro: string;
-  points: { title: string; body: string }[];
-  steps: string[];
-  faqs: { q: string; a: string }[];
+interface SeoLandingProps {
+  compact?: boolean;
 }
 
-export function seoHead(c: SeoContent) {
-  const url = `https://portfolia.site${c.path}`;
-  return {
-    meta: [
-      { title: c.title },
-      { name: "description", content: c.description },
-      { property: "og:title", content: c.title },
-      { property: "og:description", content: c.description },
-      { property: "og:url", content: url },
-      { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "Portfolia" },
-      { property: "og:image", content: "https://portfolia.site/og-image.jpg" },
-      { name: "twitter:title", content: c.title },
-      { name: "twitter:description", content: c.description },
-      { name: "twitter:image", content: "https://portfolia.site/og-image.jpg" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-    links: [{ rel: "canonical", href: url }],
-    scripts: [
-      {
-        type: "application/ld+json",
-        children: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "WebPage",
-          name: c.title,
-          url,
-          description: c.description,
-          isPartOf: { "@type": "WebSite", name: "Portfolia", url: "https://portfolia.site/" },
-        }),
-      },
-    ],
-  };
-}
-
-const OTHERS = SEO_LINKS;
-
-export function SeoLanding({ c }: { c: SeoContent }) {
+export function SeoLanding({ compact }: SeoLandingProps) {
   return (
-    <div className="flex min-h-screen flex-col">
-      <SiteHeader
-        right={
-          <Link to="/signin" className="hover:underline underline-offset-4">
-            Sign in
+    <div className={compact ? "space-y-6" : "space-y-12"}>
+      {/* Hero Section */}
+      <section className="text-center">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/20 bg-primary/5 mb-6">
+          <Sparkles size={16} className="text-primary" />
+          <span className="text-sm font-medium text-primary">New: Interactive flipbook portfolio</span>
+        </div>
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
+          Your portfolio, <span className="text-primary">beautifully animated</span>
+        </h1>
+        <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
+          Turn your PDF into a stunning, interactive flipbook. Watch your work come alive with 3D page turning and professional lighting.
+        </p>
+        <div className="flex flex-wrap gap-3 justify-center">
+          <Link
+            to="/auth/signup"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+          >
+            Get started free <ChevronRight size={16} />
           </Link>
-        }
-      />
-      <main className="flex-1">
-        <section className="shell max-w-4xl pt-16 pb-14 sm:pt-24">
-          <h1 className="display-title text-4xl leading-[1.08] sm:text-5xl">
-            {c.h1} <em className="italic">{c.h1Accent}</em>
-          </h1>
-          <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
-            {c.intro}
-          </p>
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            <Link
-              to="/"
-              className="group inline-flex items-center gap-3 rounded-full bg-leaf py-3 pl-6 pr-3 text-sm font-medium text-background shadow-lift transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              Upload your PDF free
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-background/20">
-                <ArrowRight className="h-4 w-4" aria-hidden />
-              </span>
-            </Link>
-            <Link
-              to="/p/$slug"
-              params={{ slug: "sample" }}
-              search={{ demo: "book" }}
-              className="text-sm underline underline-offset-4"
-            >
-              Try the PDF flipbook
-            </Link>
-          </div>
-        </section>
+          <button className="px-6 py-3 border border-border rounded-lg font-medium hover:bg-muted transition-colors">
+            View example
+          </button>
+        </div>
+      </section>
 
-        <section className="rule-t">
-          <div className="shell grid max-w-5xl gap-5 py-14 sm:grid-cols-3">
-            {c.points.map((p) => (
-              <div
-                key={p.title}
-                className="rounded-3xl border border-border bg-card p-6 shadow-soft"
+      {/* Colorful Flipbook Example */}
+      <section className="py-12 px-6 rounded-2xl bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 border border-primary/10">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-12">See it in action</h2>
+          
+          {/* Interactive Flipbook Demo */}
+          <div className="relative group">
+            {/* Flipbook Container */}
+            <div className="relative w-full max-w-md mx-auto aspect-[3/4] perspective">
+              {/* Book Spine Shadow */}
+              <div className="absolute inset-0 rounded-2xl shadow-2xl" 
+                style={{
+                  background: "linear-gradient(to right, rgba(0,0,0,0.2) 0%, transparent 50%)"
+                }}
+              />
+              
+              {/* Book Container */}
+              <div className="relative w-full h-full rounded-2xl overflow-hidden bg-white dark:bg-slate-800 shadow-2xl"
+                style={{
+                  transformStyle: "preserve-3d",
+                  transform: "perspective(1200px) rotateX(2deg) rotateY(-8deg)"
+                }}
               >
-                <h2 className="text-base font-medium">{p.title}</h2>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.body}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rule-t">
-          <div className="shell max-w-4xl py-14">
-            <h2 className="text-lg font-medium">A simple viewer for a professional presentation</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Choose scroll, page-by-page or PDF flipbook reading. The flipbook offers a clean
-              Simple view and a 3D Studio view with paper finishes, room lighting and wood
-              backdrops. On phones, the book camera follows the current page.
-            </p>
-            <p className="mt-3 text-sm">
-              Start free with one PDF up to 10 MB.{" "}
-              <a href="/free-pdf-flipbook" className="underline underline-offset-4">
-                Explore the free PDF flipbook
-              </a>{" "}
-              or{" "}
-              <a href="/issuu-alternative" className="underline underline-offset-4">
-                learn about Portfolia as an Issuu alternative
-              </a>
-              .
-            </p>
-          </div>
-        </section>
-
-        <section className="rule-t">
-          <div className="shell max-w-4xl py-14">
-            <h2 className="text-sm font-medium">How it works</h2>
-            <ol className="mt-5 space-y-3 text-sm">
-              {c.steps.map((s, i) => (
-                <li key={s} className="flex gap-3">
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-leaf-soft text-xs font-medium text-leaf">
-                    {i + 1}
-                  </span>
-                  <span className="pt-0.5">{s}</span>
-                </li>
-              ))}
-            </ol>
-            <ul className="mt-8 space-y-1.5 text-sm">
-              {[
-                "Free plan: one PDF portfolio up to 10 MB",
-                "Permanent sharing link and downloadable QR code",
-                "Profile, email, LinkedIn and contact links",
-                "Basic visit statistics",
-              ].map((i) => (
-                <li key={i} className="flex gap-2">
-                  <Check className="mt-0.5 size-3.5 shrink-0 text-leaf" aria-hidden />
-                  {i}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-4 text-xs text-muted-foreground">
-              Need more? See{" "}
-              <Link to="/pricing" className="underline underline-offset-4">
-                pricing
-              </Link>{" "}
-              for the Personal plan.
-            </p>
-          </div>
-        </section>
-
-        <section className="rule-t">
-          <div className="shell max-w-4xl py-14">
-            <h2 className="text-sm font-medium">Questions</h2>
-            <dl className="mt-5 space-y-5">
-              {c.faqs.map((f) => (
-                <div key={f.q}>
-                  <dt className="text-sm font-medium">{f.q}</dt>
-                  <dd className="mt-1 text-sm leading-relaxed text-muted-foreground">{f.a}</dd>
+                {/* Left Page - Design colors */}
+                <div className="absolute inset-0 w-1/2 bg-gradient-to-br from-blue-500 via-purple-500 to-indigo-600 flex flex-col items-center justify-center p-6 text-white">
+                  <div className="text-center space-y-4">
+                    <div className="text-5xl font-bold">Design</div>
+                    <div className="w-16 h-1 bg-white/50 mx-auto rounded-full"></div>
+                    <p className="text-sm text-white/80">Creative excellence</p>
+                  </div>
+                  <div className="absolute bottom-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mb-16"></div>
                 </div>
-              ))}
-            </dl>
-            <nav aria-label="Related guides" className="mt-10 flex flex-wrap gap-2">
-              {OTHERS.filter((o) => o.to !== c.path).map((o) => (
-                <a
-                  key={o.to}
-                  href={o.to}
-                  className="rounded-full border border-border px-4 py-1.5 text-xs hover:bg-accent"
-                >
-                  {o.label}
-                </a>
-              ))}
-            </nav>
+
+                {/* Right Page - Photography colors */}
+                <div className="absolute inset-0 left-1/2 bg-gradient-to-br from-pink-500 via-rose-500 to-orange-500 flex flex-col items-center justify-center p-6 text-white">
+                  <div className="text-center space-y-4">
+                    <div className="text-5xl font-bold">Photography</div>
+                    <div className="w-16 h-1 bg-white/50 mx-auto rounded-full"></div>
+                    <p className="text-sm text-white/80">Visual storytelling</p>
+                  </div>
+                  <div className="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full -ml-16 -mt-16"></div>
+                </div>
+              </div>
+
+              {/* Page Corner Animation */}
+              <div className="absolute bottom-8 right-8 group-hover:translate-x-1 group-hover:translate-y-1 transition-transform duration-300">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-2 h-2 bg-primary rounded-full"></div>
+                  <span className="text-xs font-medium text-muted-foreground">Drag to flip</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Feature Badges */}
+            <div className="grid grid-cols-3 gap-4 mt-8 text-center">
+              <div>
+                <div className="text-2xl font-bold text-primary">3D</div>
+                <div className="text-xs text-muted-foreground">Page turning</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-primary">HD</div>
+                <div className="text-xs text-muted-foreground">Auto-rendered</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-primary">∞</div>
+                <div className="text-xs text-muted-foreground">Viewable</div>
+              </div>
+            </div>
           </div>
-        </section>
-      </main>
-      <SiteFooter />
+        </div>
+      </section>
+
+      {/* Features Grid */}
+      <section className="grid md:grid-cols-3 gap-6">
+        {[
+          {
+            title: "Stunning 3D Pages",
+            description: "Watch pages turn with realistic physics and lighting. Your portfolio looks professional and premium.",
+            icon: "📖"
+          },
+          {
+            title: "Studio Lighting",
+            description: "Choose from multiple HDRI environments. Add scenic shadows and adjust brightness for perfect presentation.",
+            icon: "💡"
+          },
+          {
+            title: "Professional Finishes",
+            description: "Satin or textured paper materials. Show your work exactly how you envision it.",
+            icon: "✨"
+          }
+        ].map((feature, i) => (
+          <div key={i} className="p-6 rounded-xl border border-border hover:border-primary/50 transition-colors">
+            <div className="text-3xl mb-3">{feature.icon}</div>
+            <h3 className="font-semibold mb-2">{feature.title}</h3>
+            <p className="text-sm text-muted-foreground">{feature.description}</p>
+          </div>
+        ))}
+      </section>
+
+      {/* Why Portfolia Section */}
+      <section className="bg-muted/50 rounded-2xl p-8">
+        <h2 className="text-2xl font-bold mb-6">Why choose Portfolio Canvas?</h2>
+        <ul className="space-y-3">
+          {[
+            "Instantly share your entire portfolio with one link",
+            "Works on all devices—responsive and beautiful everywhere",
+            "No design skills needed—automatic layout and styling",
+            "Built-in analytics to see who views your work",
+            "Optional password protection for client work",
+            "Fully customizable colors and branding"
+          ].map((item, i) => (
+            <li key={i} className="flex gap-3">
+              <span className="text-primary font-bold">✓</span>
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* CTA Section */}
+      <section className="text-center py-8">
+        <h2 className="text-3xl font-bold mb-4">Ready to showcase your work?</h2>
+        <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
+          Turn your PDF into a stunning interactive flipbook in seconds. No design skills required.
+        </p>
+        <Link
+          to="/auth/signup"
+          className="inline-flex items-center gap-2 px-8 py-4 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors text-lg"
+        >
+          Create your portfolio free <ChevronRight size={20} />
+        </Link>
+        <p className="text-xs text-muted-foreground mt-4">
+          No credit card required. Start free today.
+        </p>
+      </section>
     </div>
   );
 }
