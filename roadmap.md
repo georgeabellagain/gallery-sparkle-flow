@@ -60,3 +60,7 @@
 - [ ] Replace grey catalogue backplates with subtle shadows and lightly rounded covers
 - [ ] Make the homepage book follow the reader sequence: centred cover, slide, open, flip, close, centre, reverse
 - [ ] Preview the revised catalogue and homepage animation at desktop size
+
+## Reader zoom and framing
+- [x] Enlarge the book at its default scale and add cursor-anchored mouse-wheel zoom.
+- [x] Smoothly return to the full-book view before a next/previous page turn.
