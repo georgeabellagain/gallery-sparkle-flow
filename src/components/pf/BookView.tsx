@@ -342,12 +342,12 @@ export function BookView({
     })();
   };
 
-  const finishCornerDrag = async (e: React.PointerEvent<HTMLButtonElement>) => {
+  const finishCornerDrag = async (e: React.PointerEvent<HTMLButtonElement>, cancelled = false) => {
     const gesture = drag.current;
     if (!gesture || gesture.id !== e.pointerId) return;
     drag.current = null;
     if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
-    const complete = !gesture.moved || gesture.progress > 0.45;
+    const complete = !cancelled && (!gesture.moved || gesture.progress > 0.45);
     try {
       await gesture.prepared;
       if (!alive.current || !scene.current) return;
@@ -556,7 +556,7 @@ export function BookView({
                 scene.current?.dragTurn(gesture.progress);
               }}
               onPointerUp={(e) => void finishCornerDrag(e)}
-              onPointerCancel={(e) => void finishCornerDrag(e)}
+              onPointerCancel={(e) => void finishCornerDrag(e, true)}
               onClick={(e) => { if (e.detail === 0) void move(d); }}
             >
               <span className="pf-corner-fold" />

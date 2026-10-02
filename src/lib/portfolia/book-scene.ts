@@ -129,7 +129,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   sheet.visible = false;
   book.add(sheet);
   let faces: BookFaces = [null, null];
-  let draggedTurn: { from: BookFaces; to: BookFaces; dir: 1 | -1; destinationFocus: number; progress: number; landingUpdated: boolean } | null = null;
+  let draggedTurn: { from: BookFaces; to: BookFaces; dir: 1 | -1; destinationFocus: number; originalFocus: number; progress: number; landingUpdated: boolean } | null = null;
 
   const texture = (canvas: HTMLCanvasElement, mirrored = false) => {
     const t = new THREE.CanvasTexture(canvas);
@@ -376,6 +376,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     },
     pan,
     async prepareTurn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number) {
+      const originalFocus = focus;
       // A cover first aligns with the open spread. The sheet then turns.
       if (!narrow && focus !== 0) await pan(0);
       if (disposed) return;
@@ -387,7 +388,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       sheet.visible = true;
       shape(0, dir);
       paint();
-      draggedTurn = { from, to, dir, destinationFocus, progress: 0, landingUpdated: false };
+      draggedTurn = { from, to, dir, destinationFocus, originalFocus, progress: 0, landingUpdated: false };
     },
     dragTurn(progress: number) {
       const turn = draggedTurn;
@@ -404,7 +405,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     async settleTurn(complete: boolean) {
       const turn = draggedTurn;
       if (!turn || disposed) return;
-      const { from, to, dir, destinationFocus } = turn;
+      const { from, to, dir, destinationFocus, originalFocus } = turn;
       const start = turn.progress;
       const startFocus = focus;
       const end = complete ? 1 : 0;
@@ -427,7 +428,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       show(complete ? to : from, false);
       draggedTurn = null;
       paint();
-      await pan(complete ? destinationFocus : 0, narrow ? 0 : 260);
+      await pan(complete ? destinationFocus : originalFocus, narrow ? 0 : 260);
     },
     async turn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number) {
       await this.prepareTurn(from, to, dir, destinationFocus);
