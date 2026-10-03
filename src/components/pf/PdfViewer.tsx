@@ -1,14 +1,13 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { BookOpen, ChevronLeft, ChevronRight, Download, FileText, LayoutGrid, Maximize2, Minimize2, ScrollText, User, ZoomIn, ZoomOut } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
-import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { BookView } from "@/components/pf/BookView";
-import { Wordmark } from "@/components/pf/Chrome";
+import { BookLoader } from "@/components/pf/book-loader";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 import { backgroundColour, fitTransform } from "@/lib/portfolia/background";
-import { IconButton, Panel, iconClass, useDismiss, useTone } from "@/components/pf/viewer-ui";
+import { IconButton, LogoMark, Panel, iconClass, useDismiss, useTone } from "@/components/pf/viewer-ui";
 
 type Source = { blob: Blob } | { url: string };
 
@@ -60,6 +59,9 @@ export function PdfViewer({
   controls?: boolean;
 }) {
   const view = { ...DEFAULT_VIEWER, ...viewer };
+  // The creator chooses which reading modes visitors get, and which one opens first.
+  const availableModes = view.modes?.length ? view.modes : MODES.map(([m]) => m);
+  const startMode = availableModes.includes(view.mode) ? view.mode : availableModes[0] ?? "scroll";
   const colour = backgroundColour(view, backdrop);
   const tone = useTone(colour, backgroundUrl);
   const showControls = controls ?? !compact;
@@ -71,6 +73,7 @@ export function PdfViewer({
   const [current, setCurrent] = useState(1);
   const [full, setFull] = useState(false);
   const [panel, setPanel] = useState<"profile" | "pages" | null>(null);
+  const [contentReady, setContentReady] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const clusterRef = useRef<HTMLDivElement>(null);
   const [downloadUrl, setDownloadUrl] = useState<string>();
@@ -131,9 +134,9 @@ export function PdfViewer({
     else void rootRef.current?.requestFullscreen?.();
   };
 
-  const [mode, setMode] = useState<"scroll" | "paged" | "book">(view.mode);
+  const [mode, setMode] = useState<"scroll" | "paged" | "book">(startMode);
   const [jump, setJump] = useState<{ page: number; t: number } | null>(null);
-  const z = (d: number) => setZoom((v) => Math.min(3, Math.max(mode === "book" ? 0.8 : 0.5, Math.round((v + d) * 100) / 100)));
+  const z = (d: number) => setZoom((v) => Math.min(3, Math.max(1, Math.round((v + d) * 100) / 100)));
   const total = doc?.numPages ?? 0;
   const go = (d: number) => setCurrent((c) => Math.min(total, Math.max(1, c + d)));
 
@@ -143,9 +146,9 @@ export function PdfViewer({
     if (mode === "scroll") rootRef.current?.querySelector(`[data-page="${n}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  useEffect(() => setMode(view.mode), [view.mode]);
+  useEffect(() => setMode(startMode), [startMode]);
   useEffect(() => {
-    if (mode === "book") setZoom((value) => Math.max(0.8, value));
+    setZoom((value) => Math.max(1, value));
   }, [mode]);
   useEffect(() => {
     if (!total) return;
@@ -166,6 +169,55 @@ export function PdfViewer({
     return () => window.removeEventListener("keydown", on);
   }, [mode, total]);
 
+  // In the full portfolio and in full screen the icons rest out of sight and show when the mouse moves.
+  // On touch screens, which have no mouse to move, they stay.
+  const autoHide = showControls && (!!immersive || full);
+  const [awake, setAwake] = useState(true);
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverCapable = useRef(false);
+  const panelOpen = useRef(false);
+  panelOpen.current = panel !== null;
+  const wake = useCallback(() => {
+    setAwake(true);
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    if (autoHide && hoverCapable.current && !panelOpen.current) idleTimer.current = setTimeout(() => setAwake(false), 2200);
+  }, [autoHide]);
+  useEffect(() => {
+    hoverCapable.current = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    return () => {
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+    };
+  }, []);
+  useEffect(() => {
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    if (!autoHide || !hoverCapable.current) setAwake(true);
+    else if (full) wake();
+    else setAwake(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoHide, full]);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (panel) {
+      setAwake(true);
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+    } else if (wasOpen.current) wake();
+    wasOpen.current = panel !== null;
+  }, [panel, wake]);
+  const shown = awake || !autoHide;
+  const fade = shown ? "opacity-100" : "pointer-events-none opacity-0";
+
+  // Nothing is shown until it has rendered. Another PDF or another reading mode is prepared out of sight first.
+  const markReady = useCallback(() => setContentReady(true), []);
+  useEffect(() => {
+    setContentReady(false);
+  }, [mode, source]);
+  useEffect(() => {
+    if (contentReady || !doc) return;
+    // Safety net: never leave a visitor staring at the loader if something cannot finish.
+    const t = setTimeout(() => setContentReady(true), 20000);
+    return () => clearTimeout(t);
+  }, [contentReady, doc, mode]);
+
   const quiet = tone === "dark" ? "text-white/60" : "text-black/55";
   const togglePanel = (name: "profile" | "pages") => setPanel((p) => (p === name ? null : name));
   const pageArrow = (side: "left" | "right") => (
@@ -185,7 +237,16 @@ export function PdfViewer({
   );
 
   return (
-    <div ref={rootRef} style={{ background: colour }} className={cn("relative isolate overflow-clip", immersive && "min-h-[calc(100svh-3rem)]", full && "overflow-auto")}>
+    <div
+      ref={rootRef}
+      style={{ background: colour }}
+      className={cn("relative isolate overflow-clip", immersive && "min-h-[calc(100svh-3rem)]", !contentReady && !error && "min-h-[22rem]", full && "overflow-auto")}
+      onPointerMove={autoHide ? wake : undefined}
+      onPointerDown={autoHide ? wake : undefined}
+      onKeyDown={autoHide ? wake : undefined}
+      onFocusCapture={autoHide ? wake : undefined}
+      onTouchStart={autoHide ? wake : undefined}
+    >
       {backgroundUrl && mode !== "book" && (
         <div aria-hidden className="pointer-events-none sticky top-0 -z-10 -mb-[100svh] h-[100svh] w-full overflow-hidden">
           <img src={backgroundUrl} alt="" draggable={false} className="h-full w-full select-none object-cover" style={{ transform: fitTransform(view.backgroundFit) }} />
@@ -195,20 +256,20 @@ export function PdfViewer({
       {showControls && (
         <div className="pointer-events-none sticky top-0 z-50 h-0">
           {home && (
-            <div className="pointer-events-auto absolute left-3 top-3">
-              <Wordmark className={cn("opacity-55 transition-opacity hover:opacity-100 focus-visible:opacity-100 [&>img]:h-4", tone === "dark" && "[&>img]:brightness-0 [&>img]:invert")} />
+            <div className={cn("pointer-events-auto absolute left-3 top-3 transition-opacity duration-300", fade)}>
+              <LogoMark tone={tone} />
             </div>
           )}
-          <div ref={clusterRef} className="pointer-events-auto absolute right-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] flex-col items-end gap-2">
+          <div ref={clusterRef} className={cn("pointer-events-auto absolute right-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] flex-col items-end gap-2 transition-opacity duration-300", fade)}>
             <div role="toolbar" aria-label="Viewer controls" className="flex flex-wrap items-center justify-end gap-0.5">
               {profile && (
                 <IconButton label="Profile" tone={tone} pressed={panel === "profile"} onClick={() => togglePanel("profile")}>
                   <User className="size-[17px]" />
                 </IconButton>
               )}
-              {doc && (
+              {doc && availableModes.length > 1 && (
                 <div role="radiogroup" aria-label="Reading mode" className="flex items-center">
-                  {MODES.map(([m, label, Icon]) => (
+                  {MODES.filter(([m]) => availableModes.includes(m)).map(([m, label, Icon]) => (
                     <IconButton key={m} label={label} tone={tone} checked={mode === m} onClick={() => setMode(m)}>
                       <Icon className="size-[17px]" />
                     </IconButton>
@@ -226,7 +287,7 @@ export function PdfViewer({
                 </span>
               )}
               {doc && (
-                <IconButton label="Zoom out" tone={tone} onClick={() => z(-0.25)} disabled={zoom <= (mode === "book" ? 0.8 : 0.5)}>
+                <IconButton label="Zoom out" tone={tone} onClick={() => z(-0.25)} disabled={zoom <= 1}>
                   <ZoomOut className="size-[17px]" />
                 </IconButton>
               )}
@@ -287,13 +348,10 @@ export function PdfViewer({
           <p className={cn("font-medium", tone === "dark" ? "text-white" : "text-black")}>This portfolio couldn’t be displayed</p>
           <p className={cn("mt-1", quiet)}>{error}</p>
         </div>
-      ) : !doc ? (
-        <div className={cn("mx-auto max-w-xs px-6 py-24 text-center text-xs", quiet)}>
-          <p>Loading portfolio… {progress}%</p>
-          <Progress value={progress} className="mt-3 h-1" />
-        </div>
-      ) : mode === "book" ? (
-        <BookView doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} />
+      ) : !doc ? null : (
+        <div className={cn("transition-opacity duration-300", contentReady ? "opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!contentReady}>
+      {mode === "book" ? (
+        <BookView doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={setContentReady} />
       ) : mode === "paged" ? (
         <div className="relative">
           <div className="overflow-x-auto">
@@ -302,7 +360,7 @@ export function PdfViewer({
               style={{ width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? (compact ? 900 : 1100) : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
             >
               {sizes[current - 1] && (
-                <PdfPage key={current} doc={doc} n={current} size={sizes[current - 1]!} zoom={zoom} onVisible={noop} eager />
+                <PdfPage key={current} doc={doc} n={current} size={sizes[current - 1]!} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
               )}
             </div>
           </div>
@@ -320,8 +378,24 @@ export function PdfViewer({
             style={{ width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? (compact ? 900 : 1100) : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
           >
             {sizes.map((s, i) => (
-              <PdfPage key={i} doc={doc} n={i + 1} size={s} zoom={zoom} onVisible={setCurrent} />
+              <PdfPage key={i} doc={doc} n={i + 1} size={s} zoom={zoom} onVisible={setCurrent} onRendered={i === 0 ? markReady : undefined} />
             ))}
+          </div>
+        </div>
+      )}
+        </div>
+      )}
+
+      {!error && (
+        <div
+          aria-hidden={contentReady}
+          className={cn("absolute inset-0 z-40 transition-opacity duration-300", contentReady ? "pointer-events-none opacity-0" : "opacity-100")}
+          style={{ background: colour }}
+        >
+          {/* Pinned in view, so it is centred on screen even when the (hidden) pages below are very tall. */}
+          <div className="sticky top-0 flex h-[100svh] max-h-full items-center justify-center">
+            {/* Small covers (the library) show just the little book, without words. */}
+            <BookLoader tone={tone} label={compact && !controls ? "" : undefined} detail={!doc && progress > 0 && progress < 100 ? `${progress}%` : undefined} />
           </div>
         </div>
       )}
@@ -395,8 +469,11 @@ function PdfPage({
   onVisible,
   eager,
   thumb,
+  onRendered,
 }: {
   thumb?: boolean;
+  /** Called once the page has been drawn, so the viewer knows when it can show it. */
+  onRendered?: () => void;
   doc: PDFDocumentProxy;
   n: number;
   size: { w: number; h: number };
@@ -406,6 +483,8 @@ function PdfPage({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const shownPage = useRef<number | null>(null);
+  const rendered = useRef(onRendered);
+  rendered.current = onRendered;
   const [near, setNear] = useState(eager || n <= 2);
   const [failed, setFailed] = useState(false);
 
@@ -487,8 +566,12 @@ function PdfPage({
         el.replaceChildren(canvas, text, links);
         el.style.setProperty("--scale-factor", String(scale));
         el.style.setProperty("--total-scale-factor", String(scale));
+        rendered.current?.();
       } catch (e) {
-        if (!cancelled && (e as { name?: string })?.name !== "RenderingCancelledException") setFailed(true);
+        if (!cancelled && (e as { name?: string })?.name !== "RenderingCancelledException") {
+          setFailed(true);
+          rendered.current?.();
+        }
       }
     })();
     return () => {

@@ -65,51 +65,76 @@ function Landing() {
         }
       />
       <main className="flex-1">
-        <section className="shell flex flex-col items-center py-14 text-center sm:py-20">
-          <div className="inline-flex rounded-full border border-border px-4 py-1.5 text-xxs font-medium uppercase text-muted-foreground">PDF flipbook hosting</div>
-          <h1 className="display-title mt-7 max-w-3xl text-5xl leading-[1.02] sm:text-7xl">
-            Your portfolio, <em className="italic text-leaf">brought to life.</em>
-          </h1>
-          <p className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground">
-            Turn your finished PDF into a smooth page-turning portfolio and share it with one simple link.
-          </p>
-          <div className="mt-10 sm:mt-12"><BookAnimation /></div>
-          <div className="mt-12 w-full max-w-xl">
-            {published ? (
-              <div className="border border-border p-8 text-sm">
-                <p>Your portfolio is published.</p>
-                <Button asChild className="mt-4"><Link to="/dashboard">Open dashboard</Link></Button>
+        {/* The example comes first, with the pitch beside it. */}
+        <section className="shell py-12 sm:py-16">
+          <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.35fr)] lg:gap-14">
+            <div className="text-center lg:text-left">
+              <div className="inline-flex rounded-full border border-border px-4 py-1.5 text-xxs font-medium uppercase text-muted-foreground">PDF flipbook hosting</div>
+              <h1 className="display-title mt-6 text-5xl leading-[1.02] sm:text-6xl">
+                Your portfolio, <em className="italic text-leaf">brought to life.</em>
+              </h1>
+              <p className="mx-auto mt-5 max-w-md text-sm leading-relaxed text-muted-foreground lg:mx-0">
+                Turn your finished PDF into a smooth page-turning portfolio and share it with one simple link.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-5 lg:justify-start">
+                <Button asChild size="lg"><a href="#upload">Try for free <ArrowRight aria-hidden /></a></Button>
+                <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="inline-flex items-center gap-1.5 text-sm font-medium text-leaf hover:underline underline-offset-4">View a live example</Link>
               </div>
-            ) : (
-              <DropZone
-                limitMb={uploadLimitMb(doc)}
-                onAccepted={(pdf) => {
-                  if (!startPortfolio(pdf)) return setErr("Your browser refused to save. Free some storage and try again.");
-                  void navigate({ to: "/create" });
-                }}
-              />
-            )}
-            {err && <p role="alert" className="mt-3 text-sm text-destructive">{err}</p>}
-            <p className="mt-3 text-xs text-muted-foreground">Try for free — publish one portfolio at no cost.</p>
-            <div className="mt-6 flex items-center justify-center gap-5 text-xs">
-              <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="inline-flex items-center gap-1.5 font-medium text-leaf hover:underline underline-offset-4">View a live example <ArrowRight className="size-3.5" aria-hidden /></Link>
-              <span className="size-1 rounded-full bg-border" aria-hidden />
-              <Link to="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</Link>
+              <p className="mt-3 text-xs text-muted-foreground">Publish one portfolio at no cost.</p>
             </div>
+            <StudioDemo className="w-full" />
           </div>
         </section>
 
         <section className="rule-t">
           <div className="shell py-16">
-            <div className="mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-4">
+            <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
               <div>
-                <h2 className="text-sm font-medium">The flipbook, in studio mode</h2>
-                <p className="mt-2 max-w-xl text-sm text-muted-foreground">Satin paper, studio lighting and a midnight blue stage. Your own pages turn just like this.</p>
+                <h2 className="display-title text-3xl leading-tight sm:text-4xl">From a PDF to a portfolio people enjoy opening</h2>
+                <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">
+                  Keep the layout you spent weeks on. Portfolia adds the page turn, the lighting and a link that works everywhere, from a phone to a studio screen.
+                </p>
+                <ol className="mt-6 space-y-4 text-sm">
+                  {[
+                    ["Upload your PDF", "Drop in the file you already have. Your pages stay exactly as designed."],
+                    ["Choose how it is read", "Offer scroll, page by page, or a flipbook, and set the look of the book."],
+                    ["Share one link", "Send a link or a QR code. Visitors need no account and nothing to install."],
+                  ].map(([title, body], i) => (
+                    <li key={title} className="flex gap-3">
+                      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-leaf-soft text-xs font-medium text-leaf">{i + 1}</span>
+                      <span><span className="block font-medium">{title}</span><span className="text-muted-foreground">{body}</span></span>
+                    </li>
+                  ))}
+                </ol>
               </div>
-              <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="inline-flex items-center gap-1.5 text-sm font-medium text-leaf underline-offset-4 hover:underline">Try the flipbook <ArrowRight className="size-4" aria-hidden /></Link>
+              <div className="flex justify-center"><BookAnimation /></div>
             </div>
-            <div className="mt-7">
-              <StudioDemo />
+          </div>
+        </section>
+
+        <section id="upload" className="rule-t scroll-mt-6">
+          <div className="shell flex flex-col items-center py-16 text-center">
+            <h2 className="display-title text-3xl sm:text-4xl">Try it with your own PDF</h2>
+            <div className="mt-8 w-full max-w-xl">
+              {published ? (
+                <div className="border border-border p-8 text-sm">
+                  <p>Your portfolio is published.</p>
+                  <Button asChild className="mt-4"><Link to="/dashboard">Open dashboard</Link></Button>
+                </div>
+              ) : (
+                <DropZone
+                  limitMb={uploadLimitMb(doc)}
+                  onAccepted={(pdf) => {
+                    if (!startPortfolio(pdf)) return setErr("Your browser refused to save. Free some storage and try again.");
+                    void navigate({ to: "/create" });
+                  }}
+                />
+              )}
+              {err && <p role="alert" className="mt-3 text-sm text-destructive">{err}</p>}
+              <p className="mt-3 text-xs text-muted-foreground">Try for free — publish one portfolio at no cost.</p>
+              <div className="mt-6 flex items-center justify-center gap-5 text-xs">
+                <Link to="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</Link>
+              </div>
             </div>
           </div>
         </section>

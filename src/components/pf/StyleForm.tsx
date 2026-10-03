@@ -6,6 +6,7 @@ import { DEFAULT_STYLE, DEFAULT_VIEWER, FONT_OPTIONS, patchPortfolio, type PageS
 import { backgroundColour, DEFAULT_FIT } from "@/lib/portfolia/background";
 import { useBlob, useObjectUrl } from "@/components/pf/Chrome";
 import { Segmented } from "@/components/pf/viewer-ui";
+import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS } from "@/lib/portfolia/lighting";
 
 /** Shrinks a chosen picture to a size that looks sharp on a large screen but stays light to load. */
 async function prepareBackground(file: File): Promise<Blob> {
@@ -47,6 +48,24 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
   const wheelColour = backgroundColour(viewer, paid ? style.backdrop : undefined);
   const fit = { ...DEFAULT_FIT, ...viewer.backgroundFit };
   const setFit = (patch: Partial<typeof fit>) => setViewer({ backgroundFit: { ...fit, ...patch } });
+  // The creator chooses which reading modes and which flipbook appearances visitors get (always at least one of each).
+  const enabledModes = viewer.modes?.length ? viewer.modes : (["scroll", "paged", "book"] as const);
+  const enabledLooks = viewer.looks?.length ? viewer.looks : ([viewer.look] as const);
+  const modeLabel = { scroll: "Scroll", paged: "Page by page", book: "Flipbook" } as const;
+  const toggleMode = (mode: ViewerSettings["mode"], checked: boolean) => {
+    const modes = checked ? [...new Set([...enabledModes, mode])] : enabledModes.filter((item) => item !== mode);
+    if (!modes.length) return;
+    setViewer({ modes, mode: modes.includes(viewer.mode) ? viewer.mode : modes[0]! });
+  };
+  const toggleLook = (look: ViewerSettings["look"], checked: boolean) => {
+    const looks = checked ? [...new Set([...enabledLooks, look])] : enabledLooks.filter((item) => item !== look);
+    if (!looks.length) return;
+    setViewer({ looks, look: looks.includes(viewer.look) ? viewer.look : looks[0]! });
+  };
+  const shadowOn = viewer.simpleShadow ?? true;
+  const shadowOpacity = viewer.simpleShadowOpacity ?? DEFAULT_SIMPLE_SHADOW_OPACITY;
+  const studioBrightness = viewer.studioBrightness ?? 0.65;
+  const studioLighting = viewer.studioLighting ?? "1";
 
   const onBackgroundImage = async (f?: File) => {
     setBackgroundErr(null);
@@ -125,10 +144,94 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
       <div className="mt-5 rule-t pt-4">
         <p className="text-xs font-medium">Portfolio experience</p>
         <div className="mt-3 space-y-3 text-xs">
-          <div className="space-y-1.5">
-            <p>Default reading mode</p>
-            <Segmented label="Default reading mode" value={viewer.mode} options={[["scroll", "Scroll"], ["paged", "Page by page"], ["book", "Flipbook"]] as const} onChange={(mode) => setViewer({ mode })} />
+          <div className="space-y-2">
+            <p>Reading modes visitors can use</p>
+            <div className="grid gap-2">
+              {(["scroll", "paged", "book"] as const).map((mode) => (
+                <label key={mode} className="flex items-center gap-2">
+                  <input type="checkbox" checked={enabledModes.includes(mode)} disabled={enabledModes.length === 1 && enabledModes.includes(mode)} onChange={(e) => toggleMode(mode, e.target.checked)} />
+                  <span>{modeLabel[mode]}</span>
+                  {enabledModes.length > 1 && viewer.mode === mode && <span className="text-xxs text-muted-foreground">Opens first</span>}
+                </label>
+              ))}
+            </div>
+            {enabledModes.length > 1 && (
+              <div className="space-y-1.5 pt-1">
+                <p>Opens with</p>
+                <Segmented label="Opens with" value={viewer.mode} options={enabledModes.map((mode) => [mode, modeLabel[mode]] as const)} onChange={(mode) => setViewer({ mode })} />
+              </div>
+            )}
           </div>
+          {enabledModes.includes("book") && (
+            <div className="space-y-3 rounded-xl border border-border p-3">
+              <p className="font-medium">Flipbook appearance</p>
+              <div className="flex flex-wrap gap-x-5 gap-y-2">
+                {([["clean", "Simple"], ["studio", "Studio"]] as const).map(([look, label]) => (
+                  <label key={look} className="flex items-center gap-2">
+                    <input type="checkbox" checked={enabledLooks.includes(look)} disabled={enabledLooks.length === 1 && enabledLooks.includes(look)} onChange={(e) => toggleLook(look, e.target.checked)} />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+              {enabledLooks.length > 1 && (
+                <div className="space-y-1.5">
+                  <p>Opens with</p>
+                  <Segmented label="Flipbook opens with" value={viewer.look} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={(look) => setViewer({ look })} />
+                  <p className="text-xxs text-muted-foreground">Visitors get a Simple / Studio switch in the corner of the flipbook.</p>
+                </div>
+              )}
+              {enabledLooks.includes("clean") && (
+                <div className="space-y-2 border-t border-border pt-3">
+                  <p className="font-medium">Simple</p>
+                  <div className="space-y-1.5">
+                    <p>Shadow under the book</p>
+                    <Segmented label="Shadow under the book" value={shadowOn ? "on" : "off"} options={[["on", "On"], ["off", "Off"]] as const} onChange={(v) => setViewer({ simpleShadow: v === "on" })} />
+                  </div>
+                  {shadowOn && (
+                    <label className="flex items-center gap-3">
+                      <span className="w-20 shrink-0">Opacity</span>
+                      <input type="range" aria-label="Shadow opacity" min="0" max="100" step="1" value={Math.round(shadowOpacity * 100)} onChange={(e) => setViewer({ simpleShadowOpacity: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground" />
+                      <span className="w-9 text-right tabular-nums">{Math.round(shadowOpacity * 100)}%</span>
+                    </label>
+                  )}
+                </div>
+              )}
+              {enabledLooks.includes("studio") && (
+                <div className="space-y-3 border-t border-border pt-3">
+                  <p className="font-medium">Studio</p>
+                  <div className="space-y-1.5">
+                    <p>Paper</p>
+                    <Segmented label="Studio paper" value={viewer.finish === "textured" ? "textured" : "satin"} options={[["satin", "Satin"], ["textured", "Textured"]] as const} onChange={(finish) => setViewer({ finish })} />
+                  </div>
+                  <label className="flex items-center gap-3">
+                    <span className="w-20 shrink-0">Brightness</span>
+                    <input type="range" aria-label="Studio brightness" min="0" max="100" step="1" value={Math.round(studioBrightness * 100)} onChange={(e) => setViewer({ studioBrightness: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground" />
+                    <span className="w-9 text-right tabular-nums">{Math.round(studioBrightness * 100)}%</span>
+                  </label>
+                  <div className="space-y-1.5">
+                    <p>Lighting</p>
+                    <div role="radiogroup" aria-label="Studio lighting" className="grid grid-cols-4 gap-1.5">
+                      {HDRI_PRESETS.map((light, index) => (
+                        <button
+                          key={light.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={studioLighting === light.id}
+                          aria-label={`Lighting ${index + 1}`}
+                          title={`Lighting ${index + 1}`}
+                          onClick={() => setViewer({ studioLighting: light.id })}
+                          className={`relative h-12 overflow-hidden rounded-lg border text-sm font-medium text-white transition-opacity ${studioLighting === light.id ? "border-foreground opacity-100 ring-2 ring-foreground/30" : "border-border opacity-75 hover:opacity-100"}`}
+                          style={{ background: light.preview }}
+                        >
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/25 [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">{index + 1}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           <div className="space-y-1.5">
             <p>My PDF contains</p>
             <Segmented label="My PDF contains" value={viewer.spreads} options={[["single", "Single pages"], ["ready", "Two-page spreads"]] as const} onChange={(spreads) => setViewer({ spreads })} />

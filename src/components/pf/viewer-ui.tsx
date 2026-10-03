@@ -1,4 +1,6 @@
 import { useEffect, useState, type ReactNode, type RefObject } from "react";
+import { Link } from "@tanstack/react-router";
+import logo from "@/assets/portfolia-logo.png";
 import { cn } from "@/lib/utils";
 import { fitTransform, toneOfHex, type BackgroundFit } from "@/lib/portfolia/background";
 
@@ -149,5 +151,17 @@ export function BackdropLayer({ colour, imageUrl, fit, className }: { colour: st
     <div aria-hidden className={cn("absolute inset-0 overflow-hidden", className)} style={{ background: colour }}>
       {imageUrl && <img src={imageUrl} alt="" draggable={false} className="h-full w-full select-none object-cover" style={{ transform: fitTransform(fit) }} />}
     </div>
+  );
+}
+
+/**
+ * Just the Portfolia mark, linking home. The logo file is the mark followed by the word, so a
+ * square window on its left edge shows the mark alone, using the real artwork.
+ */
+export function LogoMark({ tone, className }: { tone: Tone; className?: string }) {
+  return (
+    <Link to="/" aria-label="Portfolia home" title="Portfolia" className={cn("inline-flex size-6 overflow-hidden rounded-[3px] opacity-60 transition-opacity hover:opacity-100 focus-visible:opacity-100", className)}>
+      <img src={logo} alt="" draggable={false} className={cn("h-full w-full max-w-none object-cover object-left", tone === "dark" && "brightness-0 invert")} />
+    </Link>
   );
 }

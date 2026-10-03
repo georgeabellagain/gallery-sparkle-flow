@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import type { ViewerSettings } from "@/lib/portfolia/store";
 import {
@@ -9,19 +9,22 @@ import {
   type Leaf,
   type Spread,
 } from "@/lib/portfolia/book-layout";
-import {
-  createBookScene,
-  HDRI_PRESETS,
-  type BookFaces,
-  type BookScene,
-  type StudioSettings,
-} from "@/lib/portfolia/book-scene";
+import { createBookScene, type BookFaces, type BookScene, type StudioSettings } from "@/lib/portfolia/book-scene";
+import { DEFAULT_SIMPLE_SHADOW_OPACITY } from "@/lib/portfolia/lighting";
 import { cn } from "@/lib/utils";
 import type { BackgroundFit } from "@/lib/portfolia/background";
-import { BackdropLayer, IconButton, Panel, Segmented, useDismiss, type Tone } from "@/components/pf/viewer-ui";
+import { BackdropLayer, IconButton, Segmented, type Tone } from "@/components/pf/viewer-ui";
 
-/** The studio options a visitor can change. */
+/** How the book looks, as the creator set it up in the editor. */
 type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri" | "simpleShadow" | "simpleShadowOpacity">;
+const lookFrom = (viewer: ViewerSettings): Look => ({
+  studio: viewer.look === "studio",
+  material: viewer.finish === "textured" ? "textured" : "satin",
+  brightness: viewer.studioBrightness ?? 0.65,
+  hdri: viewer.studioLighting ?? "1",
+  simpleShadow: viewer.simpleShadow ?? true,
+  simpleShadowOpacity: viewer.simpleShadowOpacity ?? DEFAULT_SIMPLE_SHADOW_OPACITY,
+});
 
 /** The most turns that can be queued up by clicking quickly. */
 const MAX_QUEUE = 12;
@@ -65,7 +68,7 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number, layout: ReturnType<typ
     canvas.width = leaf.half ? Math.floor(raw.width / 2) : raw.width;
     canvas.height = Math.round(canvas.width * ratio);
     // Each page's position in the book gives it its own, repeatable imperfections.
-    canvas.dataset.seed = String(index);
+    canvas.dataset["seed"] = String(index);
     const ctx = canvas.getContext("2d")!;
     ctx.imageSmoothingQuality = "high";
     ctx.fillStyle = "white";
@@ -180,6 +183,8 @@ export function BookView({
   tone,
   immersive,
   fullscreen,
+  awake = true,
+  onReadyChange,
 }: {
   doc: PDFDocumentProxy;
   sizes: { w: number; h: number }[];
@@ -198,6 +203,10 @@ export function BookView({
   immersive?: boolean;
   /** The viewer is full screen: the book fills the whole screen, top to bottom. */
   fullscreen?: boolean;
+  /** Whether the on-screen icons are showing. In the full portfolio they appear only when the mouse moves. */
+  awake?: boolean;
+  /** Told when the book has rendered and is ready to show, and when it is preparing again. */
+  onReadyChange?: (ready: boolean) => void;
 }) {
   const layout = useMemo(
     () => bookLayout(doc.numPages, viewer.spreads === "ready"),
@@ -216,7 +225,6 @@ export function BookView({
   const epoch = useRef(0);
   const alive = useRef(true);
   const shown = useRef<string | null>(null);
-  const settingsRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(0);
   const [warm, setWarm] = useState(false);
   const [warmProgress, setWarmProgress] = useState({ done: 0, total: 0 });
@@ -238,16 +246,13 @@ export function BookView({
   const [error, setError] = useState<string | null>(null);
   const [fallback, setFallback] = useState(false);
   const fallbackCanvas = useRef<HTMLCanvasElement>(null);
-  const [settings, setSettings] = useState<Look>({
-    studio: viewer.look === "studio",
-    material: viewer.finish === "textured" ? "textured" : "satin",
-    brightness: 0.65,
-    hdri: HDRI_PRESETS[0]!.id,
-    simpleShadow: true,
-    simpleShadowOpacity: 0.42,
-  });
-  const [open, setOpen] = useState(false);
-  useDismiss(settingsRef, open, () => setOpen(false));
+  const [settings, setSettings] = useState<Look>(() => lookFrom(viewer));
+  // When the creator changes the settings in the editor, the book follows. A visitor's own
+  // Simple/Studio choice is kept until then.
+  useEffect(() => {
+    setSettings(lookFrom(viewer));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity]);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; from: number; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
   const panning = useRef<{ id: number; x: number; y: number } | null>(null);
@@ -337,7 +342,7 @@ export function BookView({
       if (busy || wait || !scene.current) return;
       event.preventDefault();
       const dy = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 100 : 1);
-      const next = Math.min(3, Math.max(0.8, wheelZoom.current * Math.exp(-dy * 0.0015)));
+      const next = Math.min(3, Math.max(1, wheelZoom.current * Math.exp(-dy * 0.0015)));
       if (Math.abs(next - wheelZoom.current) < 0.001) return;
       const rect = element.getBoundingClientRect();
       scene.current.zoomAt(next, (event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height);
@@ -562,7 +567,14 @@ export function BookView({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [move]);
-  const update = (patch: Partial<Look>) => setSettings((s) => ({ ...s, ...patch }));
+  const enabledLooks = viewer.looks?.length ? viewer.looks : [viewer.look];
+  const updateLook = (look: "clean" | "studio") => setSettings((current) => ({ ...current, studio: look === "studio" }));
+
+  // Tell the viewer when the book is rendered and ready, so it can show nothing but a loader until then.
+  const bookReady = ready > 0 && warm && !loading;
+  useEffect(() => {
+    onReadyChange?.(bookReady);
+  }, [bookReady, onReadyChange]);
 
   return (
     <section aria-label="Interactive PDF book" data-look={settings.studio ? "studio" : "simple"}>
@@ -655,114 +667,30 @@ export function BookView({
               onClick={(e) => { if (e.detail === 0) void move(d); }}
             />
           ))}
-        {wait && !error && (
-          <p className="pf-book-status" role="status">
-            {warm || warmProgress.total === 0
-              ? "Preparing pages…"
-              : `Preparing pages… ${warmProgress.done} / ${warmProgress.total}`}
-          </p>
-        )}
         {error && (
           <p className="pf-book-status" role="alert">
             {error}
           </p>
         )}
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-20 flex items-center pl-1.5">
-          <IconButton label="Previous page" tone={tone} large className="pointer-events-auto" disabled={wait || atStart} onClick={() => void move(-1)}>
+        <div className={cn("pointer-events-none absolute inset-y-0 left-0 z-20 flex items-center pl-1.5 transition-opacity duration-300", awake ? "opacity-100" : "opacity-0")}>
+          <IconButton label="Previous page" tone={tone} large className={cn(awake ? "pointer-events-auto" : "pointer-events-none")} disabled={wait || atStart} onClick={() => void move(-1)}>
             <ChevronLeft className="size-6" />
           </IconButton>
         </div>
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-20 flex items-center pr-1.5">
-          <IconButton label="Next page" tone={tone} large className="pointer-events-auto" disabled={wait || atEnd} onClick={() => void move(1)}>
+        <div className={cn("pointer-events-none absolute inset-y-0 right-0 z-20 flex items-center pr-1.5 transition-opacity duration-300", awake ? "opacity-100" : "opacity-0")}>
+          <IconButton label="Next page" tone={tone} large className={cn(awake ? "pointer-events-auto" : "pointer-events-none")} disabled={wait || atEnd} onClick={() => void move(1)}>
             <ChevronRight className="size-6" />
           </IconButton>
         </div>
-        <p aria-live="polite" className={cn("pointer-events-none absolute inset-x-0 bottom-2 z-10 text-center text-[11px] tabular-nums", tone === "dark" ? "text-white/45" : "text-black/40")}>
+        <p aria-live="polite" className={cn("pointer-events-none absolute inset-x-0 bottom-2 z-10 text-center text-[11px] tabular-nums transition-opacity duration-300", awake ? "opacity-100" : "opacity-0", tone === "dark" ? "text-white/45" : "text-black/40")}>
           {label}
         </p>
-        <div ref={settingsRef} className="absolute bottom-1.5 right-1.5 z-20 flex flex-col-reverse items-end gap-2">
-          <IconButton label="Book appearance" tone={tone} pressed={open} onClick={() => setOpen((v) => !v)}>
-            <SlidersHorizontal className="size-[17px]" />
-          </IconButton>
-          {open && (
-            <Panel label="Book appearance" className="w-[min(17rem,calc(100vw-1rem))] space-y-3">
-              <div className="space-y-1.5">
-                <p className="text-muted-foreground">Appearance</p>
-                <Segmented label="Appearance" value={settings.studio ? "studio" : "simple"} options={[["simple", "Simple"], ["studio", "Studio"]] as const} onChange={(v) => update({ studio: v === "studio" })} />
-              </div>
-              {!settings.studio && (
-                <>
-                  <div className="space-y-1.5">
-                    <p className="text-muted-foreground">Shadow</p>
-                    <Segmented label="Shadow" value={settings.simpleShadow ? "on" : "off"} options={[["on", "On"], ["off", "Off"]] as const} onChange={(v) => update({ simpleShadow: v === "on" })} />
-                  </div>
-                  {settings.simpleShadow && (
-                    <label className="block space-y-1.5">
-                      <span className="text-muted-foreground">Shadow opacity</span>
-                      <span className="flex items-center gap-2">
-                        <input
-                          type="range"
-                          aria-label="Shadow opacity"
-                          className="min-w-0 flex-1 accent-foreground"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={Math.round(settings.simpleShadowOpacity * 100)}
-                          onChange={(e) => update({ simpleShadowOpacity: Number(e.target.value) / 100 })}
-                        />
-                        <span className="w-9 text-right tabular-nums">{Math.round(settings.simpleShadowOpacity * 100)}%</span>
-                      </span>
-                    </label>
-                  )}
-                </>
-              )}
-              {settings.studio && (
-                <>
-                  <div className="space-y-1.5">
-                    <p className="text-muted-foreground">Paper</p>
-                    <Segmented label="Paper" value={settings.material === "textured" ? "textured" : "satin"} options={[["satin", "Satin"], ["textured", "Textured"]] as const} onChange={(v) => update({ material: v })} />
-                  </div>
-                  <label className="block space-y-1.5">
-                    <span className="text-muted-foreground">Brightness</span>
-                    <span className="flex items-center gap-2">
-                      <input
-                        type="range"
-                        aria-label="Studio brightness"
-                        className="min-w-0 flex-1 accent-foreground"
-                        min="0"
-                        max="100"
-                        step="1"
-                        value={Math.round(settings.brightness * 100)}
-                        onChange={(e) => update({ brightness: Number(e.target.value) / 100 })}
-                      />
-                      <span className="w-9 text-right tabular-nums">{Math.round(settings.brightness * 100)}%</span>
-                    </span>
-                  </label>
-                  <div className="space-y-1.5">
-                    <p className="text-muted-foreground">Lighting</p>
-                    <div role="radiogroup" aria-label="Lighting" className="grid grid-cols-4 gap-1.5">
-                      {HDRI_PRESETS.map((h, i) => (
-                        <button
-                          key={h.id}
-                          type="button"
-                          role="radio"
-                          aria-checked={settings.hdri === h.id}
-                          aria-label={`Lighting ${i + 1}`}
-                          title={`Lighting ${i + 1}`}
-                          onClick={() => update({ hdri: h.id })}
-                          className={cn("relative h-12 overflow-hidden rounded-lg border text-sm font-medium text-white transition-opacity", settings.hdri === h.id ? "border-foreground opacity-100 ring-2 ring-foreground/30" : "border-border opacity-75 hover:opacity-100")}
-                          style={{ background: h.preview }}
-                        >
-                          <span className="absolute inset-0 flex items-center justify-center bg-black/25 [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">{i + 1}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </Panel>
-          )}
-        </div>
+        {/* Simple / Studio: only offered when the creator has enabled both. Everything else is set in the editor. */}
+        {enabledLooks.length > 1 && (
+          <div className={cn("absolute bottom-1.5 right-1.5 z-20 w-36 rounded-full bg-background/90 shadow-soft backdrop-blur transition-opacity duration-300", awake ? "opacity-100" : "pointer-events-none opacity-0")}>
+            <Segmented label="Book appearance" value={settings.studio ? "studio" : "clean"} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={updateLook} />
+          </div>
+        )}
       </div>
     </section>
   );

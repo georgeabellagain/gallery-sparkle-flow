@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { bookFocus, bookLayout } from "@/lib/portfolia/book-layout";
 import { createBookScene, type BookFaces, type BookScene, type StudioSettings } from "@/lib/portfolia/book-scene";
+import { DEFAULT_SIMPLE_SHADOW_OPACITY } from "@/lib/portfolia/lighting";
+import { Segmented } from "@/components/pf/viewer-ui";
 
 const MIDNIGHT = "#191d3a";
 /** Pages are drawn in a 900 x 1272 space and scaled to the real canvas size. */
@@ -13,15 +15,16 @@ const layout = bookLayout(PAGES, false);
 /** The most turns that can be queued by clicking quickly. */
 const MAX_QUEUE = 12;
 
-/** The same studio look a visitor gets in the real flipbook, on midnight blue. */
-const LOOK: StudioSettings = {
-  studio: true,
+/** The two looks a visitor can switch between, as in the real flipbook. The example starts on Simple. */
+const SIMPLE_LOOK: StudioSettings = {
+  studio: false,
   material: "satin",
   brightness: 0.7,
   hdri: "4",
   simpleShadow: true,
-  simpleShadowOpacity: 0.42,
+  simpleShadowOpacity: DEFAULT_SIMPLE_SHADOW_OPACITY,
 };
+const STUDIO_LOOK: StudioSettings = { ...SIMPLE_LOOK, studio: true };
 
 const PALETTES: [string, string, string][] = [
   ["#ff4d6d", "#ff9e00", "#ffe066"],
@@ -93,7 +96,7 @@ function drawPage(n: number, width: number): HTMLCanvasElement {
   canvas.width = width;
   canvas.height = Math.round(DESIGN_H * scale);
   // Each page's position in the book gives it its own, repeatable imperfections.
-  canvas.dataset.seed = String(n);
+  canvas.dataset["seed"] = String(n);
   const ctx = canvas.getContext("2d")!;
   ctx.imageSmoothingQuality = "high";
   ctx.scale(scale, scale);
@@ -204,10 +207,12 @@ function drawPage(n: number, width: number): HTMLCanvasElement {
  * A self-playing studio flipbook for the homepage. It only starts when it
  * scrolls into view and pauses when it leaves, so it costs nothing elsewhere.
  */
-export function StudioDemo() {
+export function StudioDemo({ className }: { className?: string }) {
   const wrap = useRef<HTMLDivElement>(null);
   const host = useRef<HTMLDivElement>(null);
-  const controls = useRef<{ manual: (dir: 1 | -1) => void } | null>(null);
+  const controls = useRef<{ manual: (dir: 1 | -1) => void; setLook: (look: "simple" | "studio") => void } | null>(null);
+  const [look, setLook] = useState<"simple" | "studio">("simple");
+  const lookRef = useRef(look);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -287,7 +292,7 @@ export function StudioDemo() {
         scene = createBookScene(element, RATIO, () => {
           if (!disposed) setFailed(true);
         });
-        scene.configure(LOOK);
+        scene.configure(lookRef.current === "studio" ? STUDIO_LOOK : SIMPLE_LOOK);
         scene.viewport(false, 1, focusOf(0));
         scene.show(facesOf(0));
         setReady(true);
@@ -302,6 +307,7 @@ export function StudioDemo() {
     };
 
     controls.current = {
+      setLook: (next) => scene?.configure(next === "studio" ? STUDIO_LOOK : SIMPLE_LOOK),
       manual: (dir) => {
         if (timer) clearTimeout(timer);
         if (busy) {
@@ -335,9 +341,9 @@ export function StudioDemo() {
   }, []);
 
   return (
-    <div ref={wrap} className="mx-auto w-full max-w-5xl">
+    <div ref={wrap} className={className ?? "mx-auto w-full max-w-5xl"}>
       <div className="relative overflow-hidden rounded-3xl shadow-lift" style={{ background: MIDNIGHT }}>
-        <div ref={host} role="img" aria-label="A colourful example flipbook turning its pages in studio lighting" className="h-[22rem] w-full sm:h-[36rem]" />
+        <div ref={host} role="img" aria-label="A colourful example flipbook turning its pages in studio lighting" className="h-[22rem] w-full sm:h-[30rem] lg:h-[34rem]" />
         {!ready && !failed && (
           <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-white/60">Loading example…</p>
         )}
@@ -348,7 +354,17 @@ export function StudioDemo() {
         )}
       </div>
       {!failed && (
-        <div className="mt-4 flex items-center justify-center gap-3">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+          <Segmented
+            label="Example appearance"
+            value={look}
+            options={[["simple", "Simple"], ["studio", "Studio"]] as const}
+            onChange={(next) => {
+              lookRef.current = next;
+              setLook(next);
+              controls.current?.setLook(next);
+            }}
+          />
           <button
             type="button"
             onClick={() => controls.current?.manual(-1)}

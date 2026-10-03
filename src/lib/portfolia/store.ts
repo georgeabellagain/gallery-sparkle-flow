@@ -29,7 +29,18 @@ export interface PageStyle {
 
 export interface ViewerSettings {
   mode: "scroll" | "paged" | "book";
+  /** Reading modes offered to visitors. Older portfolios without this use all modes. */
+  modes?: ("scroll" | "paged" | "book")[];
   look: "clean" | "studio";
+  /** Flipbook appearances offered to visitors. Older portfolios use their saved look only. */
+  looks?: ("clean" | "studio")[];
+  /** Creator-defined Studio lighting. */
+  studioBrightness?: number;
+  studioLighting?: "1" | "2" | "3" | "4";
+  /** Simple look: the soft shadow under the book. On unless switched off. */
+  simpleShadow?: boolean;
+  /** How dark that shadow is, 0 to 1. Starts at 0.2. */
+  simpleShadowOpacity?: number;
   background: "midnight" | "black" | "paper" | "soft" | "oak" | "walnut";
   finish: "matte" | "satin" | "textured";
   paper: "smooth" | "natural";
