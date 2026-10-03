@@ -257,8 +257,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let seedCounter = 0;
   const seedFor = (canvas: HTMLCanvasElement | null | undefined) => {
     if (!canvas) return 0;
-    const fromBook = Number(canvas.dataset?.seed);
-    if (Number.isFinite(fromBook) && canvas.dataset?.seed !== undefined) return fromBook + 1;
+    const fromBook = Number(canvas.dataset?.["seed"]);
+    if (Number.isFinite(fromBook) && canvas.dataset?.["seed"] !== undefined) return fromBook + 1;
     let seed = seeds.get(canvas);
     if (seed === undefined) {
       seed = ++seedCounter;
@@ -277,7 +277,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     positions.needsUpdate = true;
     mesh.geometry.computeVertexNormals();
-    mesh.userData.seed = seed;
+    mesh.userData["seed"] = seed;
   };
   const left = new THREE.Mesh(new THREE.PlaneGeometry(1, ratio, 40, 24), material());
   const right = new THREE.Mesh(new THREE.PlaneGeometry(1, ratio, 40, 24), material());
@@ -497,7 +497,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       mesh.visible = !!next[i];
       setMap(mesh.material, next[i] ?? null);
       const seed = seedFor(next[i]);
-      if (mesh.userData.seed !== seed) shapePage(mesh, i === 0 ? -1 : 1, seed);
+      if (mesh.userData["seed"] !== seed) shapePage(mesh, i === 0 ? -1 : 1, seed);
     });
     // The shadow sits under whichever pages are showing: a lone cover has a shadow half the width.
     const both = !!next[0] && !!next[1];
@@ -575,8 +575,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // The face seen from behind uses the mirrored view of the sheet.
     const forwardView = dir === 1 ? geometry : reverseGeometry;
     if (front.geometry !== forwardView) {
-      front.geometry = forwardView;
-      back.geometry = dir === 1 ? reverseGeometry : geometry;
+      front.geometry = forwardView as THREE.PlaneGeometry;
+      back.geometry = (dir === 1 ? reverseGeometry : geometry) as THREE.PlaneGeometry;
     }
     attr.needsUpdate = true;
     geometry.computeVertexNormals();

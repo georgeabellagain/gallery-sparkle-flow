@@ -65,3 +65,9 @@
 - [x] Enlarge the book at its default scale and add cursor-anchored mouse-wheel zoom.
 - [x] Smoothly return to the full-book view before a next/previous page turn.
 - [x] Drag to position the zoomed book; shrink the corner fold and pull it across to turn a page.
+
+## Creator-controlled viewer choices
+- [x] Let creators choose which reading modes visitors can use and which one opens first.
+- [x] Show Simple and Studio availability only when Flipbook is enabled.
+- [x] Move Studio paper, lighting, and brightness settings into the portfolio editing panel.
+- [x] Keep resting and turning page shadows visible in Studio.
