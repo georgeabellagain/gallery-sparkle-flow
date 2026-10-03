@@ -26,6 +26,10 @@ export type StudioSettings = {
   /** 0..1 overall studio brightness. */
   brightness: number;
   hdri: HdriId;
+  /** Simple look only: whether the soft shadow under the book shows. */
+  simpleShadow: boolean;
+  /** Simple look only: how dark that shadow is, 0..1. */
+  simpleShadowOpacity: number;
 };
 export type BookFaces = [HTMLCanvasElement | null, HTMLCanvasElement | null];
 const ease = (t: number) => t * t * (3 - 2 * t);
@@ -191,7 +195,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const ctx = contactCanvas.getContext("2d")!;
     const image = ctx.createImageData(CONTACT_SIZE, CONTACT_SIZE);
     const inset = (CONTACT_SIZE - CONTACT_CORE) / 2;
-    const spread = 26; // how far the edge softens, in picture pixels
+    const spread = 20; // how far the edge softens, in picture pixels
     for (let y = 0; y < CONTACT_SIZE; y++) {
       for (let x = 0; x < CONTACT_SIZE; x++) {
         // distance outside the solid centre: 0 inside, growing smoothly away from its edges
@@ -208,7 +212,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     new THREE.PlaneGeometry(2 * (CONTACT_SIZE / CONTACT_CORE), ratio * (CONTACT_SIZE / CONTACT_CORE)),
     new THREE.MeshBasicMaterial({ map: contactTexture, transparent: true, opacity: 0.42, depthWrite: false, toneMapped: false }),
   );
-  contact.position.set(0.03, -0.07, -BOOK_LIFT + 0.002);
+  const CONTACT_X = 0.025;
+  contact.position.set(CONTACT_X, -0.05, -BOOK_LIFT + 0.002);
   contact.renderOrder = -1;
   scene.add(contact);
 
@@ -217,6 +222,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     material: "satin",
     brightness: 0.65,
     hdri: "1",
+    simpleShadow: true,
+    simpleShadowOpacity: 0.42,
   };
   let focus = 0.5,
     narrow = false,
@@ -237,6 +244,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       specularIntensity: 0.12,
       metalness: 0,
     });
+    // A single sheet of paper must cast its shadow whichever way it faces the light. By default a
+    // one-sided sheet that faces the light casts none, so the real shadow would come and go.
+    mat.shadowSide = THREE.DoubleSide;
     pageMaterials.push(mat);
     return mat;
   };
@@ -257,8 +267,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let seedCounter = 0;
   const seedFor = (canvas: HTMLCanvasElement | null | undefined) => {
     if (!canvas) return 0;
-    const fromBook = Number(canvas.dataset?.["seed"]);
-    if (Number.isFinite(fromBook) && canvas.dataset?.["seed"] !== undefined) return fromBook + 1;
+    const fromBook = Number(canvas.dataset?.seed);
+    if (Number.isFinite(fromBook) && canvas.dataset?.seed !== undefined) return fromBook + 1;
     let seed = seeds.get(canvas);
     if (seed === undefined) {
       seed = ++seedCounter;
@@ -277,7 +287,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     positions.needsUpdate = true;
     mesh.geometry.computeVertexNormals();
-    mesh.userData["seed"] = seed;
+    mesh.userData.seed = seed;
   };
   const left = new THREE.Mesh(new THREE.PlaneGeometry(1, ratio, 40, 24), material());
   const right = new THREE.Mesh(new THREE.PlaneGeometry(1, ratio, 40, 24), material());
@@ -361,11 +371,14 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       paint();
     });
   };
+  // Room around the book: a little more below than above, so its shadow can fade out before the edge of the view.
+  const FRAME_PAD = 0.1 + 0.07 * ratio;
+  const FRAME_DROP = 0.06;
   const cameraHeight = (scale: number) => {
     const aspect = Math.max(1, host.clientWidth) / Math.max(1, host.clientHeight);
     // Frame a lone cover as a page, but leave room for both pages once open.
     const width = narrow ? 1.08 : THREE.MathUtils.lerp(2.32, 1.32, Math.min(1, Math.abs(focus) * 2));
-    return Math.max(ratio * 1.12, width / aspect) / scale;
+    return Math.max(ratio * 1.1 + FRAME_PAD, width / aspect) / scale;
   };
   /** Dragging may never move the view outside the initial framing. */
   const clampPan = () => {
@@ -381,8 +394,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     clampPan();
     const visibleHeight = cameraHeight(zoom);
     const distance = visibleHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
-    camera.position.set(focus + panX, panY, distance);
-    camera.lookAt(focus + panX, panY, 0);
+    camera.position.set(focus + panX, panY - FRAME_DROP, distance);
+    camera.lookAt(focus + panX, panY - FRAME_DROP, 0);
     camera.updateProjectionMatrix();
   };
   const resize = () => {
@@ -397,6 +410,62 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     onLost();
   };
   renderer.domElement.addEventListener("webglcontextlost", lost);
+
+  // The soft "Simple" shadow lies under whichever pages show. When a page appears or goes (one page
+  // becomes two, or the reverse) it grows or shrinks smoothly instead of jumping.
+  const contactNow = { l: -1, r: 1, a: 1 };
+  const contactGoal = { l: -1, r: 1, a: 1 };
+  let contactShown = false;
+  let contactFrame = 0;
+  let contactLast = 0;
+  let contactOn = true;
+  let contactOpacity = 0.42;
+  const applyContact = () => {
+    contact.scale.x = Math.max(contactNow.r - contactNow.l, 0.001) / 2;
+    contact.position.x = CONTACT_X + (contactNow.l + contactNow.r) / 2;
+    contact.material.opacity = contactOpacity * contactNow.a;
+    contact.visible = contactOn && contactNow.a > 0.004;
+  };
+  const stepContact = (now: number) => {
+    contactFrame = 0;
+    if (disposed) return;
+    const dt = Math.min(64, Math.max(1, now - contactLast));
+    contactLast = now;
+    const k = 1 - Math.exp(-dt / 110); // settles in about a third of a second
+    let moving = false;
+    for (const key of ["l", "r", "a"] as const) {
+      const d = contactGoal[key] - contactNow[key];
+      if (Math.abs(d) < 0.002) contactNow[key] = contactGoal[key];
+      else {
+        contactNow[key] += d * k;
+        moving = true;
+      }
+    }
+    applyContact();
+    requestPaint();
+    if (moving) contactFrame = requestAnimationFrame(stepContact);
+  };
+  const setContact = (faces: BookFaces) => {
+    const any = !!faces[0] || !!faces[1];
+    // With no pages the shadow fades where it is, rather than collapsing.
+    if (any) {
+      contactGoal.l = faces[0] ? -1 : 0;
+      contactGoal.r = faces[1] ? 1 : 0;
+    }
+    contactGoal.a = any ? 1 : 0;
+    const instant = !contactShown || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (any) contactShown = true;
+    if (instant) {
+      Object.assign(contactNow, contactGoal);
+      applyContact();
+      return;
+    }
+    if (contactNow.l === contactGoal.l && contactNow.r === contactGoal.r && contactNow.a === contactGoal.a) return;
+    if (!contactFrame) {
+      contactLast = performance.now();
+      contactFrame = requestAnimationFrame(stepContact);
+    }
+  };
 
   /** Compiles the page shaders now so the first turn does not stall. */
   const warm = () => {
@@ -455,7 +524,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     ambient.intensity = next.studio ? 0.65 : Math.PI;
     ambient.color.set(0xffffff);
     ambient.groundColor.set(next.studio ? 0xb7bdca : 0xffffff);
-    shadowCatcher.material.opacity = 0.36;
+    // Studio shows only the real shadow cast by the light and the paper; the soft shadow is the Simple look's.
+    contactOn = !next.studio && next.simpleShadow;
+    contactOpacity = THREE.MathUtils.clamp(next.simpleShadowOpacity, 0, 1);
+    applyContact();
+    shadowCatcher.material.opacity = 0.45;
     shadowCatcher.visible = next.studio;
     light.castShadow = next.studio;
     let bump: THREE.CanvasTexture | null = null;
@@ -497,13 +570,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       mesh.visible = !!next[i];
       setMap(mesh.material, next[i] ?? null);
       const seed = seedFor(next[i]);
-      if (mesh.userData["seed"] !== seed) shapePage(mesh, i === 0 ? -1 : 1, seed);
+      if (mesh.userData.seed !== seed) shapePage(mesh, i === 0 ? -1 : 1, seed);
     });
-    // The shadow sits under whichever pages are showing: a lone cover has a shadow half the width.
-    const both = !!next[0] && !!next[1];
-    contact.visible = !!next[0] || !!next[1];
-    contact.scale.x = both ? 1 : 0.5;
-    contact.position.x = 0.03 + (both ? 0 : next[1] ? 0.5 : -0.5);
+    setContact(next);
     if (render) paint();
   };
   const animate = (duration: number, update: (t: number) => void) =>
@@ -575,8 +644,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // The face seen from behind uses the mirrored view of the sheet.
     const forwardView = dir === 1 ? geometry : reverseGeometry;
     if (front.geometry !== forwardView) {
-      front.geometry = forwardView as THREE.PlaneGeometry;
-      back.geometry = (dir === 1 ? reverseGeometry : geometry) as THREE.PlaneGeometry;
+      front.geometry = forwardView;
+      back.geometry = dir === 1 ? reverseGeometry : geometry;
     }
     attr.needsUpdate = true;
     geometry.computeVertexNormals();
@@ -650,6 +719,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       // The page being revealed sits underneath the turning sheet from the
       // first frame; the page being covered stays unchanged until the end.
       show(dir === 1 ? [from[0], to[1]] : [to[0], from[1]], false);
+      // The shadow starts moving to where it will be when the turn ends, so it grows or shrinks with the turn.
+      setContact(to);
       sheet.visible = true;
       shape(0, dir);
       paint();
@@ -701,6 +772,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       texCache.clear();
       placeholder.dispose();
       bumps.forEach((t) => t.dispose());
+      cancelAnimationFrame(contactFrame);
       contactTexture.dispose();
       environments.forEach((target) => target.dispose());
       evenLight?.dispose();

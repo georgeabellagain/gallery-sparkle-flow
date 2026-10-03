@@ -19,6 +19,8 @@ const LOOK: StudioSettings = {
   material: "satin",
   brightness: 0.7,
   hdri: "4",
+  simpleShadow: true,
+  simpleShadowOpacity: 0.42,
 };
 
 const PALETTES: [string, string, string][] = [
@@ -91,7 +93,7 @@ function drawPage(n: number, width: number): HTMLCanvasElement {
   canvas.width = width;
   canvas.height = Math.round(DESIGN_H * scale);
   // Each page's position in the book gives it its own, repeatable imperfections.
-  canvas.dataset["seed"] = String(n);
+  canvas.dataset.seed = String(n);
   const ctx = canvas.getContext("2d")!;
   ctx.imageSmoothingQuality = "high";
   ctx.scale(scale, scale);

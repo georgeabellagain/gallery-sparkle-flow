@@ -6,7 +6,6 @@ import { DEFAULT_STYLE, DEFAULT_VIEWER, FONT_OPTIONS, patchPortfolio, type PageS
 import { backgroundColour, DEFAULT_FIT } from "@/lib/portfolia/background";
 import { useBlob, useObjectUrl } from "@/components/pf/Chrome";
 import { Segmented } from "@/components/pf/viewer-ui";
-import { HDRI_PRESETS } from "@/lib/portfolia/book-scene";
 
 /** Shrinks a chosen picture to a size that looks sharp on a large screen but stays light to load. */
 async function prepareBackground(file: File): Promise<Blob> {
@@ -48,18 +47,6 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
   const wheelColour = backgroundColour(viewer, paid ? style.backdrop : undefined);
   const fit = { ...DEFAULT_FIT, ...viewer.backgroundFit };
   const setFit = (patch: Partial<typeof fit>) => setViewer({ backgroundFit: { ...fit, ...patch } });
-  const enabledModes = viewer.modes?.length ? viewer.modes : (["scroll", "paged", "book"] as const);
-  const enabledLooks = viewer.looks?.length ? viewer.looks : ([viewer.look] as const);
-  const toggleMode = (mode: ViewerSettings["mode"], checked: boolean) => {
-    const modes = checked ? [...new Set([...enabledModes, mode])] : enabledModes.filter((item) => item !== mode);
-    if (!modes.length) return;
-    setViewer({ modes, mode: modes.includes(viewer.mode) ? viewer.mode : modes[0] });
-  };
-  const toggleLook = (look: ViewerSettings["look"], checked: boolean) => {
-    const looks = checked ? [...new Set([...enabledLooks, look])] : enabledLooks.filter((item) => item !== look);
-    if (!looks.length) return;
-    setViewer({ looks, look: looks.includes(viewer.look) ? viewer.look : looks[0] });
-  };
 
   const onBackgroundImage = async (f?: File) => {
     setBackgroundErr(null);
@@ -138,66 +125,10 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
       <div className="mt-5 rule-t pt-4">
         <p className="text-xs font-medium">Portfolio experience</p>
         <div className="mt-3 space-y-3 text-xs">
-          <div className="space-y-2">
-            <p>Reading modes visitors can use</p>
-            <div className="grid gap-2">
-              {([["scroll", "Scroll"], ["paged", "Page by page"], ["book", "Flipbook"]] as const).map(([mode, label]) => (
-                <label key={mode} className="flex items-center gap-2">
-                  <input type="checkbox" checked={enabledModes.includes(mode)} disabled={enabledModes.length === 1 && enabledModes.includes(mode)} onChange={(e) => toggleMode(mode, e.target.checked)} />
-                  <span>{label}</span>
-                  {viewer.mode === mode && <span className="text-xxs text-muted-foreground">Opens first</span>}
-                </label>
-              ))}
-            </div>
-            {enabledModes.length > 1 && (
-              <label className="flex items-center justify-between gap-3 pt-1">
-                <span>Open shared link with</span>
-                <select value={viewer.mode} onChange={(e) => setViewer({ mode: e.target.value as ViewerSettings["mode"] })} className="rounded-full border border-input bg-background px-3 py-1.5">
-                  {enabledModes.map((mode) => <option key={mode} value={mode}>{mode === "scroll" ? "Scroll" : mode === "paged" ? "Page by page" : "Flipbook"}</option>)}
-                </select>
-              </label>
-            )}
+          <div className="space-y-1.5">
+            <p>Default reading mode</p>
+            <Segmented label="Default reading mode" value={viewer.mode} options={[["scroll", "Scroll"], ["paged", "Page by page"], ["book", "Flipbook"]] as const} onChange={(mode) => setViewer({ mode })} />
           </div>
-          {enabledModes.includes("book") && (
-            <div className="space-y-2 rounded-xl border border-border p-3">
-              <p className="font-medium">Flipbook appearance</p>
-              <div className="flex flex-wrap gap-x-5 gap-y-2">
-                {([["clean", "Simple"], ["studio", "Studio"]] as const).map(([look, label]) => (
-                  <label key={look} className="flex items-center gap-2">
-                    <input type="checkbox" checked={enabledLooks.includes(look)} disabled={enabledLooks.length === 1 && enabledLooks.includes(look)} onChange={(e) => toggleLook(look, e.target.checked)} />
-                    <span>{label}</span>
-                  </label>
-                ))}
-              </div>
-              {enabledLooks.length > 1 && (
-                <label className="flex items-center justify-between gap-3">
-                  <span>Open with</span>
-                  <select value={viewer.look} onChange={(e) => setViewer({ look: e.target.value as ViewerSettings["look"] })} className="rounded-full border border-input bg-background px-3 py-1.5">
-                    <option value="clean">Simple</option><option value="studio">Studio</option>
-                  </select>
-                </label>
-              )}
-              {enabledLooks.includes("studio") && (
-                <div className="space-y-3 border-t border-border pt-3">
-                  <div className="space-y-1.5">
-                    <p>Paper</p>
-                    <Segmented label="Studio paper" value={viewer.finish === "textured" ? "textured" : "satin"} options={[["satin", "Satin"], ["textured", "Textured"]] as const} onChange={(finish) => setViewer({ finish })} />
-                  </div>
-                  <label className="flex items-center gap-3"><span className="w-20 shrink-0">Brightness</span><input type="range" aria-label="Studio brightness" min="0" max="100" value={Math.round((viewer.studioBrightness ?? 0.65) * 100)} onChange={(e) => setViewer({ studioBrightness: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground" /><span className="w-9 text-right tabular-nums">{Math.round((viewer.studioBrightness ?? 0.65) * 100)}%</span></label>
-                  <div className="space-y-1.5">
-                    <p>Lighting</p>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {HDRI_PRESETS.map((light, index) => (
-                        <button key={light.id} type="button" aria-label={`Lighting ${index + 1}`} aria-pressed={(viewer.studioLighting ?? "1") === light.id} onClick={() => setViewer({ studioLighting: light.id })} className={`relative h-12 overflow-hidden rounded-lg border text-sm font-medium text-white transition-opacity ${(viewer.studioLighting ?? "1") === light.id ? "border-foreground opacity-100 ring-2 ring-foreground/30" : "border-border opacity-75 hover:opacity-100"}`} style={{ background: light.preview }}>
-                          <span className="absolute inset-0 flex items-center justify-center bg-black/25 [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">{index + 1}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
           <div className="space-y-1.5">
             <p>My PDF contains</p>
             <Segmented label="My PDF contains" value={viewer.spreads} options={[["single", "Single pages"], ["ready", "Two-page spreads"]] as const} onChange={(spreads) => setViewer({ spreads })} />
