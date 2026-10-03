@@ -1,182 +1,24 @@
 import * as THREE from "three";
 import { surfaceCanvas, type SurfaceKind } from "./surface";
+import { parseRgbe } from "./rgbe";
 
-export type HdriId =
-  | "window"
-  | "softbox"
-  | "golden"
-  | "overcast"
-  | "gallery"
-  | "livingroom"
-  | "loft"
-  | "atrium";
-export type HdriGroup = "Daylight" | "Interior";
+/** The four lighting environments, numbered as they are in the lighting settings. */
+export type HdriId = "1" | "2" | "3" | "4";
 
-/** Lighting environments offered in Studio. `preview` is a CSS background used for the thumbnail. */
-export const HDRI_PRESETS: readonly { id: HdriId; label: string; group: HdriGroup; preview: string }[] = [
-  {
-    id: "window",
-    label: "Window light",
-    group: "Daylight",
-    preview:
-      "radial-gradient(circle at 28% 40%, #ffffff 0, #dce8ff 16%, transparent 42%), linear-gradient(135deg, #5b6b8c, #2a3350)",
-  },
-  {
-    id: "softbox",
-    label: "Softbox",
-    group: "Daylight",
-    preview:
-      "radial-gradient(ellipse at 45% 18%, #ffffff 0, #f4f1ea 30%, transparent 64%), linear-gradient(180deg, #8c93a8, #3a4058)",
-  },
-  {
-    id: "golden",
-    label: "Golden hour",
-    group: "Daylight",
-    preview:
-      "radial-gradient(circle at 78% 55%, #ffe2a8 0, #ffb25e 22%, transparent 50%), linear-gradient(135deg, #5a3b4a, #2b2038)",
-  },
-  {
-    id: "overcast",
-    label: "Overcast",
-    group: "Daylight",
-    preview: "linear-gradient(180deg, #eef1f5, #b3bac6 58%, #6d7585)",
-  },
-  {
-    id: "gallery",
-    label: "Gallery",
-    group: "Interior",
-    preview:
-      "radial-gradient(circle at 12% 20%, #fff6e4 0, transparent 14%), radial-gradient(circle at 32% 20%, #fff6e4 0, transparent 14%), radial-gradient(circle at 52% 20%, #fff6e4 0, transparent 14%), radial-gradient(circle at 72% 20%, #fff6e4 0, transparent 14%), radial-gradient(circle at 92% 20%, #fff6e4 0, transparent 14%), linear-gradient(180deg, #c9c2b6, #4a463f)",
-  },
-  {
-    id: "livingroom",
-    label: "Living room",
-    group: "Interior",
-    preview:
-      "radial-gradient(ellipse at 22% 42%, #e6f0ff 0, #b8cdf0 16%, transparent 38%), radial-gradient(circle at 72% 50%, #ffc27a 0, #ff9a4a 14%, transparent 34%), linear-gradient(135deg, #6b4a3c, #2c1f1b)",
-  },
-  {
-    id: "loft",
-    label: "Loft windows",
-    group: "Interior",
-    preview:
-      "linear-gradient(90deg, #2a3140 0, #2a3140 10%, #e4eeff 12%, #e4eeff 22%, #2a3140 24%, #2a3140 34%, #e4eeff 36%, #e4eeff 46%, #2a3140 48%, #2a3140 100%)",
-  },
-  {
-    id: "atrium",
-    label: "Atrium",
-    group: "Interior",
-    preview:
-      "radial-gradient(ellipse at 50% 6%, #ffffff 0, #f2f4f8 30%, transparent 66%), linear-gradient(180deg, #9aa3b4, #3b4256)",
-  },
+/**
+ * Real photographic lighting (see public/studio/hdri). Each is a 1024 x 512 Radiance picture,
+ * prepared so that every one lights a page equally brightly and its main light comes from
+ * the same direction as the studio's own light. `preview` is a CSS background for the thumbnail.
+ */
+export const HDRI_PRESETS: readonly { id: HdriId; label: string; file: string; preview: string }[] = [
+  { id: "1", label: "Lighting 1", file: "/studio/hdri/lighting-1.hdr", preview: "url(/studio/hdri/lighting-1.jpg) center / cover" },
+  { id: "2", label: "Lighting 2", file: "/studio/hdri/lighting-2.hdr", preview: "url(/studio/hdri/lighting-2.jpg) center / cover" },
+  { id: "3", label: "Lighting 3", file: "/studio/hdri/lighting-3.hdr", preview: "url(/studio/hdri/lighting-3.jpg) center / cover" },
+  { id: "4", label: "Lighting 4", file: "/studio/hdri/lighting-4.hdr", preview: "url(/studio/hdri/lighting-4.jpg) center / cover" },
 ];
 
-type HdriSpec = {
-  /** Sky radiance everywhere. */
-  base: number;
-  /** Bright areas of the environment (equirectangular u/v, falloff, power, colour). */
-  blobs: { u: number; v: number; su: number; sv: number; power: number; tint: [number, number, number] }[];
-  /** Adds the foliage flicker used by the window preset. */
-  foliage?: boolean;
-  /** Key light position, height and colour. */
-  key: { x: number; y: number; z: number; color: number; strength: number };
-  /** Projected window/foliage light. 0 switches it off. */
-  windowLight: number;
-  /** 0 = crisp shadow edge, 1 = very soft. */
-  soft: number;
-  warm: boolean;
-};
-
-const white: [number, number, number] = [1, 1, 1];
-const HDRI_SPECS: Record<HdriId, HdriSpec> = {
-  window: {
-    base: 0.28,
-    blobs: [{ u: 0.28, v: 0.42, su: 0.012, sv: 0.035, power: 3.2, tint: [1, 1, 1.02] }],
-    foliage: true,
-    key: { x: -3, y: 4, z: 4.5, color: 0xffffff, strength: 0.55 },
-    windowLight: 0.45,
-    soft: 0.65,
-    warm: false,
-  },
-  softbox: {
-    base: 0.34,
-    blobs: [{ u: 0.45, v: 0.22, su: 0.05, sv: 0.02, power: 2.6, tint: [1, 0.99, 0.97] }],
-    key: { x: -1, y: 5, z: 4.5, color: 0xffffff, strength: 0.6 },
-    windowLight: 0,
-    soft: 0.9,
-    warm: false,
-  },
-  golden: {
-    base: 0.22,
-    blobs: [{ u: 0.78, v: 0.5, su: 0.02, sv: 0.03, power: 3.6, tint: [1, 0.72, 0.42] }],
-    key: { x: 4, y: 2, z: 4.5, color: 0xffc98a, strength: 0.65 },
-    windowLight: 0.3,
-    soft: 0.35,
-    warm: true,
-  },
-  overcast: {
-    base: 0.55,
-    blobs: [{ u: 0.5, v: 0.1, su: 0.5, sv: 0.05, power: 0.6, tint: [0.95, 0.97, 1] }],
-    key: { x: 0, y: 3, z: 6, color: 0xf2f6ff, strength: 0.3 },
-    windowLight: 0,
-    soft: 1,
-    warm: false,
-  },
-  // Interiors: several discrete sources instead of one open sky.
-  gallery: {
-    base: 0.42,
-    blobs: [0.1, 0.3, 0.5, 0.7, 0.9].map((u) => ({
-      u,
-      v: 0.18,
-      su: 0.0025,
-      sv: 0.006,
-      power: 2.4,
-      tint: [1, 0.98, 0.94] as [number, number, number],
-    })),
-    key: { x: 0, y: 3.2, z: 4.2, color: 0xfff4e6, strength: 0.6 },
-    windowLight: 0,
-    soft: 0.8,
-    warm: false,
-  },
-  livingroom: {
-    base: 0.2,
-    blobs: [
-      { u: 0.22, v: 0.4, su: 0.01, sv: 0.03, power: 2.6, tint: [0.95, 1, 1.1] },
-      { u: 0.68, v: 0.46, su: 0.004, sv: 0.006, power: 3, tint: [1, 0.72, 0.42] },
-      { u: 0.9, v: 0.5, su: 0.003, sv: 0.005, power: 1.6, tint: [1, 0.78, 0.5] },
-    ],
-    key: { x: -3.2, y: 2.6, z: 4.2, color: 0xffe2c0, strength: 0.5 },
-    windowLight: 0.3,
-    soft: 0.6,
-    warm: true,
-  },
-  loft: {
-    base: 0.26,
-    blobs: [0.14, 0.26, 0.38].map((u) => ({
-      u,
-      v: 0.42,
-      su: 0.0016,
-      sv: 0.05,
-      power: 3.4,
-      tint: [0.92, 0.98, 1.1] as [number, number, number],
-    })),
-    key: { x: -4, y: 1.8, z: 4, color: 0xe9f1ff, strength: 0.55 },
-    windowLight: 0.4,
-    soft: 0.5,
-    warm: false,
-  },
-  atrium: {
-    base: 0.38,
-    blobs: [
-      { u: 0.5, v: 0.1, su: 0.12, sv: 0.02, power: 2.8, tint: [1, 1, 0.98] },
-      { u: 0.5, v: 0.28, su: 0.3, sv: 0.03, power: 0.8, tint: white },
-    ],
-    key: { x: 0.6, y: 3.6, z: 5, color: 0xffffff, strength: 0.5 },
-    windowLight: 0,
-    soft: 1,
-    warm: false,
-  },
-};
+/** The studio's own light: above, in front and to the left, so the shadow falls below and a little to the right. */
+const KEY_LIGHT: [number, number, number] = [-3, 5, 5];
 
 export type StudioSettings = {
   studio: boolean;
@@ -184,19 +26,6 @@ export type StudioSettings = {
   /** 0..1 overall studio brightness. */
   brightness: number;
   hdri: HdriId;
-  /** Image URL behind the book. Only used when `backdropKind` is "photo". */
-  backdrop: string;
-  /** The backdrop colour, shown exactly as chosen. */
-  backdropColor: string;
-  /** "color" is a flat colour. "photo" fits one picture behind the book. */
-  backdropKind: "color" | "photo";
-  /** width / height of the photo. */
-  backdropAspect: number;
-  /** Photo size, 1 = fills the usual view. */
-  backdropScale: number;
-  /** Photo position, -1..1 across / up. */
-  backdropX: number;
-  backdropY: number;
 };
 export type BookFaces = [HTMLCanvasElement | null, HTMLCanvasElement | null];
 const ease = (t: number) => t * t * (3 - 2 * t);
@@ -213,13 +42,12 @@ const SHEET_CLEARANCE = 0.01;
 
 /**
  * Height of a page above the table at distance `d` from the spine (0..1) and
- * height `v` (0 bottom .. 1 top). Pages rise from the gutter in a gentle dome
- * and fall away towards the fore-edge. A little waviness and a slightly
- * lifted corner differ for every page, so no two pages look machine-made.
+ * height `v` (0 bottom .. 1 top). Pages lie flat apart from the small lift at
+ * the gutter. A little waviness and a slightly lifted corner differ for every
+ * page, so no two pages look machine-made.
  */
 function pageRelief(d: number, v: number, seed: number) {
   const spine = 0.014 * Math.pow(1 - d, 6);
-  const dome = 0.016 * Math.sin(Math.PI * Math.min(1, Math.max(0, d)));
   // Imperfections fade out at the gutter so both pages meet cleanly there.
   const s = seed * 12.9898;
   const fade = Math.min(1, d / 0.18);
@@ -231,7 +59,7 @@ function pageRelief(d: number, v: number, seed: number) {
   const cu = Math.min(1, Math.max(0, (d - 0.55) / 0.45));
   const cv = Math.min(1, Math.max(0, (0.4 - v) / 0.4));
   const corner = 0.005 * k * cu * cu * cv * cv;
-  return spine + dome + ripple + corner;
+  return spine + ripple + corner;
 }
 
 /** One persistent, demand-rendered scene. Static and moving pages share lights/materials. */
@@ -259,47 +87,70 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     (THREE as unknown as { NeutralToneMapping?: THREE.ToneMapping }).NeutralToneMapping ?? THREE.ACESFilmicToneMapping;
   const scene = new THREE.Scene();
 
-  // Self-contained floating-point HDR environments, prefiltered for diffuse
-  // paper. Radiance above 1 preserves a real high dynamic range, and no
-  // third-party request can leave the viewer unlit. Built on first use.
+  // The lighting environments are real photographs, downloaded the first time one is chosen and
+  // prefiltered for paper. They are held as half-floats, which every device can filter.
   const environments = new Map<HdriId, THREE.WebGLRenderTarget>();
-  const environmentFor = (id: HdriId) => {
-    const hit = environments.get(id);
-    if (hit) return hit.texture;
-    const spec = HDRI_SPECS[id];
-    const envWidth = 512,
-      envHeight = 256;
-    const radiance = new Float32Array(envWidth * envHeight * 4);
-    for (let y = 0; y < envHeight; y++) {
-      for (let x = 0; x < envWidth; x++) {
-        const u = x / envWidth,
-          v = y / envHeight;
-        const foliage = spec.foliage ? 0.85 + 0.15 * Math.sin(x * 0.12) * Math.cos(y * 0.19) : 1;
-        let r = spec.base,
-          g = spec.base,
-          b = spec.base;
-        for (const blob of spec.blobs) {
-          const k = blob.power * Math.exp(-((u - blob.u) ** 2 / blob.su + (v - blob.v) ** 2 / blob.sv)) * foliage;
-          r += k * blob.tint[0];
-          g += k * blob.tint[1];
-          b += k * blob.tint[2];
-        }
-        const i = (y * envWidth + x) * 4;
-        radiance[i] = r;
-        radiance[i + 1] = g;
-        radiance[i + 2] = b;
-        radiance[i + 3] = 1;
-      }
-    }
-    const hdr = new THREE.DataTexture(radiance, envWidth, envHeight, THREE.RGBAFormat, THREE.FloatType);
+  const loading = new Map<HdriId, Promise<THREE.WebGLRenderTarget | null>>();
+  const toEnvironment = (data: Uint16Array, width: number, height: number) => {
+    const hdr = new THREE.DataTexture(data, width, height, THREE.RGBAFormat, THREE.HalfFloatType);
     hdr.mapping = THREE.EquirectangularReflectionMapping;
+    hdr.minFilter = hdr.magFilter = THREE.LinearFilter;
+    hdr.generateMipmaps = false;
     hdr.needsUpdate = true;
     const pmrem = new THREE.PMREMGenerator(renderer);
     const target = pmrem.fromEquirectangular(hdr);
     hdr.dispose();
     pmrem.dispose();
-    environments.set(id, target);
-    return target.texture;
+    return target;
+  };
+  /** A plain, even light, used while a lighting file downloads and if one cannot be loaded. */
+  let evenLight: THREE.WebGLRenderTarget | null = null;
+  const even = () => {
+    if (!evenLight) {
+      const level = THREE.DataUtils.toHalfFloat(0.285);
+      const one = THREE.DataUtils.toHalfFloat(1);
+      const data = new Uint16Array(4 * 2 * 4);
+      for (let i = 0; i < 8; i++) data.set([level, level, level, one], i * 4);
+      evenLight = toEnvironment(data, 4, 2);
+    }
+    return evenLight;
+  };
+  const loadEnvironment = (id: HdriId): Promise<THREE.WebGLRenderTarget | null> => {
+    const hit = environments.get(id);
+    if (hit) return Promise.resolve(hit);
+    let promise = loading.get(id);
+    if (!promise) {
+      const preset = HDRI_PRESETS.find((h) => h.id === id)!;
+      promise = fetch(preset.file)
+        .then((response) => {
+          if (!response.ok) throw new Error(`Lighting file ${response.status}`);
+          return response.arrayBuffer();
+        })
+        .then((buffer) => {
+          if (disposed) return null;
+          const { width, height, rgb } = parseRgbe(buffer);
+          const half = new Uint16Array(width * height * 4);
+          const one = THREE.DataUtils.toHalfFloat(1);
+          // A picture file starts with its top row; a texture starts with its bottom row.
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              const from = ((height - 1 - y) * width + x) * 3;
+              const to = (y * width + x) * 4;
+              half[to] = THREE.DataUtils.toHalfFloat(Math.min(rgb[from]!, 60000));
+              half[to + 1] = THREE.DataUtils.toHalfFloat(Math.min(rgb[from + 1]!, 60000));
+              half[to + 2] = THREE.DataUtils.toHalfFloat(Math.min(rgb[from + 2]!, 60000));
+              half[to + 3] = one;
+            }
+          }
+          const target = toEnvironment(half, width, height);
+          environments.set(id, target);
+          return target;
+        })
+        .catch(() => null)
+        .finally(() => loading.delete(id));
+      loading.set(id, promise);
+    }
+    return promise;
   };
 
   const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 50);
@@ -307,7 +158,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   scene.add(book);
   const ambient = new THREE.HemisphereLight(0xffffff, 0xd5cfbf, 2.2);
   const light = new THREE.DirectionalLight(0xffffff, 2.3);
-  light.position.set(-3, 4, 6);
+  light.position.set(...KEY_LIGHT);
   light.castShadow = true;
   // A tight frustum keeps shadow detail high.
   const shadowExtent = Math.hypot(1, ratio / 2) + 0.7;
@@ -320,67 +171,53 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   light.shadow.normalBias = 0.012;
   light.shadow.bias = -0.0001;
   light.shadow.radius = 3;
-  // A projected window/foliage pattern adds soft daylight variation without
-  // baking shadows or colour into the PDF artwork.
-  const windowLight = new THREE.SpotLight(0xffffff, 1.5, 30, 0.65, 0.9, 0);
-  windowLight.position.set(-2.5, 3, 6);
-  windowLight.target.position.set(0, 0, -0.1);
-  const windowMap = document.createElement("canvas");
-  windowMap.width = windowMap.height = 512;
-  const windowTexture = new THREE.CanvasTexture(windowMap);
-  windowLight.map = windowTexture;
-  let paintedSoft = -1;
-  const paintWindow = (diffusion: number) => {
-    const ctx = windowMap.getContext("2d")!;
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, 512, 512);
-    ctx.save();
-    ctx.filter = `blur(${4 + diffusion * 24}px)`;
-    ctx.fillStyle = "#aaa";
-    ctx.fillRect(244, 0, 24, 512);
-    ctx.fillRect(0, 244, 512, 24);
-    // Deterministic foliage silhouettes keep slider changes visually stable.
-    for (let i = 0; i < 45; i++) {
-      const x = (Math.sin(i * 73.1) * 0.5 + 0.5) * 512;
-      const y = (Math.cos(i * 37.7) * 0.5 + 0.5) * 512;
-      ctx.beginPath();
-      ctx.ellipse(x, y, 12 + (i % 19), 8 + (i % 11), i, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-    windowTexture.needsUpdate = true;
-  };
-  scene.add(ambient, light, windowLight, windowLight.target);
+  scene.add(ambient, light);
 
-  // The backdrop is a flat, unlit colour (or picture), so it shows exactly what
-  // was chosen whatever the lighting. A separate catcher draws the book's shadow on top.
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(20, 20),
-    new THREE.MeshBasicMaterial({ color: 0x191d3a, toneMapped: false }),
-  );
-  ground.position.z = -0.13;
-  scene.add(ground);
+  // The book floats this far above the background, which is what makes its shadow show.
+  const BOOK_LIFT = 0.18;
+  // The shadow cast by the studio light, caught on an invisible sheet below the book.
   const shadowCatcher = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.ShadowMaterial({ opacity: 0.38 }));
-  shadowCatcher.position.z = -0.129;
+  shadowCatcher.position.z = -BOOK_LIFT;
   shadowCatcher.receiveShadow = true;
   scene.add(shadowCatcher);
+
+  // A soft shadow that is always under the book, whatever the lighting or look, so the
+  // book always appears lifted from the background. It is drawn once, not cast.
+  const CONTACT_SIZE = 512;
+  const CONTACT_CORE = 320; // the solid centre of the picture, exactly the size of the open book
+  const contactCanvas = document.createElement("canvas");
+  contactCanvas.width = contactCanvas.height = CONTACT_SIZE;
+  {
+    const ctx = contactCanvas.getContext("2d")!;
+    const image = ctx.createImageData(CONTACT_SIZE, CONTACT_SIZE);
+    const inset = (CONTACT_SIZE - CONTACT_CORE) / 2;
+    const spread = 26; // how far the edge softens, in picture pixels
+    for (let y = 0; y < CONTACT_SIZE; y++) {
+      for (let x = 0; x < CONTACT_SIZE; x++) {
+        // distance outside the solid centre: 0 inside, growing smoothly away from its edges
+        const dx = Math.max(inset - x, 0, x - (CONTACT_SIZE - 1 - inset));
+        const dy = Math.max(inset - y, 0, y - (CONTACT_SIZE - 1 - inset));
+        const d = Math.hypot(dx, dy);
+        image.data[(y * CONTACT_SIZE + x) * 4 + 3] = Math.round(255 * Math.exp(-(d * d) / (2 * spread * spread)));
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+  }
+  const contactTexture = new THREE.CanvasTexture(contactCanvas);
+  const contact = new THREE.Mesh(
+    new THREE.PlaneGeometry(2 * (CONTACT_SIZE / CONTACT_CORE), ratio * (CONTACT_SIZE / CONTACT_CORE)),
+    new THREE.MeshBasicMaterial({ map: contactTexture, transparent: true, opacity: 0.42, depthWrite: false, toneMapped: false }),
+  );
+  contact.position.set(0.03, -0.07, -BOOK_LIFT + 0.002);
+  contact.renderOrder = -1;
+  scene.add(contact);
 
   let settings: StudioSettings = {
     studio: false,
     material: "satin",
     brightness: 0.65,
-    hdri: "window",
-    backdrop: "",
-    backdropColor: "#191d3a",
-    backdropKind: "color",
-    backdropAspect: 1,
-    backdropScale: 1,
-    backdropX: 0,
-    backdropY: 0,
+    hdri: "1",
   };
-  const backdropTextures = new Map<string, THREE.Texture>();
-  const textureLoader = new THREE.TextureLoader();
-  let backdropRequest = 0;
   let focus = 0.5,
     narrow = false,
     zoom = 1,
@@ -587,85 +424,38 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     sheet.visible = before[2];
   };
   let warmedFor: boolean | null = null;
-  let photoUrl = "";
+  let environmentRequest = 0;
   const configure = (next: StudioSettings) => {
     settings = next;
-    const spec = HDRI_SPECS[next.hdri] ?? HDRI_SPECS.window;
     const brightness = THREE.MathUtils.clamp(next.brightness, 0, 1);
     renderer.toneMapping = next.studio ? studioTone : THREE.NoToneMapping;
     // The brightness slider drives overall exposure so the change is obvious.
     renderer.toneMappingExposure = next.studio ? 0.55 + brightness * 1.6 : 1;
-    scene.environment = next.studio ? environmentFor(next.hdri) : null;
-    scene.environmentIntensity = next.studio ? 0.6 : 0;
-    light.position.set(spec.key.x, spec.key.y, spec.key.z);
-    light.color.set(spec.key.color);
-    light.intensity = next.studio ? spec.key.strength : 0;
-    light.shadow.radius = 2 + spec.soft * 6;
-    if (spec.windowLight > 0 && paintedSoft !== spec.soft) {
-      paintWindow(spec.soft);
-      paintedSoft = spec.soft;
-    }
-    windowLight.position.set(spec.key.x * 0.85, spec.key.y * 0.75, 6);
-    windowLight.intensity = next.studio ? spec.windowLight : 0;
-    windowLight.color.set(spec.warm ? 0xfff0dd : 0xffffff);
-    ambient.intensity = next.studio ? 0.65 : Math.PI;
-    ambient.color.set(spec.warm ? 0xffe4c2 : 0xffffff);
-    ambient.groundColor.set(next.studio ? 0xb7bdca : 0xffffff);
-    const request = ++backdropRequest;
-    const photo = next.backdropKind === "photo" && !!next.backdrop;
-    // A picture is shown as it is; a colour is applied directly.
-    ground.material.color.set(photo ? "#ffffff" : next.backdropColor || "#191d3a");
-    shadowCatcher.material.opacity = 0.3 + spec.soft * 0.1;
-    const applyBackdrop = (map: THREE.Texture | null) => {
-      if (disposed || request !== backdropRequest) return;
-      if (map) {
-        // One picture behind the book. It starts centred and covering the
-        // usual view; size and position are then adjusted by the visitor.
-        map.wrapS = map.wrapT = THREE.MirroredRepeatWrapping;
-        const aspect = Math.max(0.2, next.backdropAspect || 1);
-        const scale = THREE.MathUtils.clamp(next.backdropScale || 1, 1, 4);
-        const tileW = Math.max(3.4, 2 * aspect) * scale;
-        const tileH = tileW / aspect;
-        const rx = 20 / tileW,
-          ry = 20 / tileH;
-        const px = THREE.MathUtils.clamp(next.backdropX || 0, -1, 1) * tileW * 0.5;
-        const py = THREE.MathUtils.clamp(next.backdropY || 0, -1, 1) * tileH * 0.5;
-        map.repeat.set(rx, ry);
-        map.offset.set(0.5 - (px / 20 + 0.5) * rx, 0.5 - (py / 20 + 0.5) * ry);
+    // The lighting is a real photograph. While one downloads, the previous lighting (or a plain even light) stays.
+    const request = ++environmentRequest;
+    if (!next.studio) scene.environment = null;
+    else {
+      const ready = environments.get(next.hdri);
+      if (ready) scene.environment = ready.texture;
+      else {
+        if (!scene.environment) scene.environment = even().texture;
+        void loadEnvironment(next.hdri).then((target) => {
+          if (disposed || request !== environmentRequest) return;
+          scene.environment = (target ?? even()).texture;
+          paint();
+        });
       }
-      if (!!ground.material.map !== !!map) ground.material.needsUpdate = true;
-      ground.material.map = map;
-      paint();
-    };
-    if (!photo && photoUrl) {
-      backdropTextures.get(photoUrl)?.dispose();
-      backdropTextures.delete(photoUrl);
-      photoUrl = "";
     }
-    if (!photo) applyBackdrop(null);
-    else if (backdropTextures.has(next.backdrop)) applyBackdrop(backdropTextures.get(next.backdrop)!);
-    else
-      textureLoader.load(
-        next.backdrop,
-        (map) => {
-          if (disposed) {
-            map.dispose();
-            return;
-          }
-          map.colorSpace = THREE.SRGBColorSpace;
-          map.anisotropy = maxAnisotropy;
-          if (photoUrl && photoUrl !== next.backdrop) {
-            backdropTextures.get(photoUrl)?.dispose();
-            backdropTextures.delete(photoUrl);
-          }
-          photoUrl = next.backdrop;
-          backdropTextures.set(next.backdrop, map);
-          applyBackdrop(map);
-        },
-        undefined,
-        () => applyBackdrop(null),
-      );
-    ground.visible = next.studio;
+    scene.environmentIntensity = next.studio ? 1 : 0;
+    // The studio's own light is the same whatever the lighting, so the shadow always falls the same way.
+    light.position.set(...KEY_LIGHT);
+    light.color.set(0xffffff);
+    light.intensity = next.studio ? 0.55 : 0;
+    light.shadow.radius = 6;
+    ambient.intensity = next.studio ? 0.65 : Math.PI;
+    ambient.color.set(0xffffff);
+    ambient.groundColor.set(next.studio ? 0xb7bdca : 0xffffff);
+    shadowCatcher.material.opacity = 0.36;
     shadowCatcher.visible = next.studio;
     light.castShadow = next.studio;
     let bump: THREE.CanvasTexture | null = null;
@@ -709,6 +499,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const seed = seedFor(next[i]);
       if (mesh.userData.seed !== seed) shapePage(mesh, i === 0 ? -1 : 1, seed);
     });
+    // The shadow sits under whichever pages are showing: a lone cover has a shadow half the width.
+    const both = !!next[0] && !!next[1];
+    contact.visible = !!next[0] || !!next[1];
+    contact.scale.x = both ? 1 : 0.5;
+    contact.position.x = 0.03 + (both ? 0 : next[1] ? 0.5 : -0.5);
     if (render) paint();
   };
   const animate = (duration: number, update: (t: number) => void) =>
@@ -906,9 +701,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       texCache.clear();
       placeholder.dispose();
       bumps.forEach((t) => t.dispose());
-      backdropTextures.forEach((t) => t.dispose());
-      windowTexture.dispose();
+      contactTexture.dispose();
       environments.forEach((target) => target.dispose());
+      evenLight?.dispose();
       const geometries = new Set<THREE.BufferGeometry>();
       scene.traverse((o) => {
         if (o instanceof THREE.Mesh) geometries.add(o.geometry);
@@ -917,7 +712,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       geometries.add(reverseGeometry);
       geometries.forEach((g) => g.dispose());
       pageMaterials.forEach((m) => m.dispose());
-      ground.material.dispose();
+      contact.material.dispose();
       shadowCatcher.material.dispose();
       renderer.dispose();
       renderer.forceContextLoss();

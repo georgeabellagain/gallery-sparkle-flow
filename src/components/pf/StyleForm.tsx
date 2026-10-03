@@ -3,9 +3,29 @@ import { Minus, Palette, Plus, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { deleteBlob, putBlob, uid } from "@/lib/portfolia/assets";
 import { DEFAULT_STYLE, DEFAULT_VIEWER, FONT_OPTIONS, patchPortfolio, type PageStyle, type Portfolio, type ViewerSettings } from "@/lib/portfolia/store";
+import { backgroundColour, DEFAULT_FIT } from "@/lib/portfolia/background";
+import { useBlob, useObjectUrl } from "@/components/pf/Chrome";
+import { Segmented } from "@/components/pf/viewer-ui";
 
-/** The colour each viewer background choice shows behind the PDF. */
-const BACKGROUND_COLOURS: Record<string, string> = { midnight: "#191d3a", black: "#111111", paper: "#ffffff", soft: "#f1f1ef" };
+/** Shrinks a chosen picture to a size that looks sharp on a large screen but stays light to load. */
+async function prepareBackground(file: File): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const scale = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
+    if (!blob) throw new Error("Could not prepare the picture");
+    return blob;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 /** Paid-plan page styling: heading font, colours and an optional banner. */
 export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg: string | null) => void }) {
@@ -19,17 +39,36 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
   const viewer = { ...DEFAULT_VIEWER, ...p.viewer };
   const setViewer = (patch: Partial<ViewerSettings>) =>
     onSaveError(patchPortfolio({ viewer: { ...viewer, ...patch } }) ? null : "Couldn’t save that viewer change.");
-  // Personal portfolios also have a "Behind the PDF" colour, which the viewer uses in preference
-  // to this setting, so changing the background keeps the two in step.
-  const setBackground = (value: string) =>
-    onSaveError(
-      patchPortfolio({
-        viewer: { ...viewer, background: value as ViewerSettings["background"], look: "clean" },
-        ...(paid ? { style: { ...style, backdrop: BACKGROUND_COLOURS[value] ?? style.backdrop } } : {}),
-      })
-        ? null
-        : "Couldn’t save that viewer change.",
-    );
+  const backgroundInput = useRef<HTMLInputElement>(null);
+  const [backgroundErr, setBackgroundErr] = useState<string | null>(null);
+  const backgroundBlob = useBlob(viewer.backgroundKey);
+  const backgroundUrl = useObjectUrl(backgroundBlob);
+  /** The colour behind the PDF as it shows now, so the colour wheel starts on the right colour. */
+  const wheelColour = backgroundColour(viewer, paid ? style.backdrop : undefined);
+  const fit = { ...DEFAULT_FIT, ...viewer.backgroundFit };
+  const setFit = (patch: Partial<typeof fit>) => setViewer({ backgroundFit: { ...fit, ...patch } });
+
+  const onBackgroundImage = async (f?: File) => {
+    setBackgroundErr(null);
+    if (!f) return;
+    if (!f.type.startsWith("image/")) return setBackgroundErr("Choose a JPG, PNG or WebP image.");
+    if (f.size > 15 * 1048576) return setBackgroundErr("Background pictures can be up to 15 MB.");
+    try {
+      const blob = await prepareBackground(f);
+      const key = uid("bg");
+      await putBlob(key, blob);
+      const old = viewer.backgroundKey;
+      setViewer({ backgroundKey: key, backgroundFit: DEFAULT_FIT });
+      if (old) void deleteBlob(old);
+    } catch {
+      setBackgroundErr("That picture couldn’t be saved. Try a JPG or PNG, or check your connection.");
+    }
+  };
+  const removeBackgroundImage = () => {
+    const old = viewer.backgroundKey;
+    setViewer({ backgroundKey: undefined, backgroundFit: undefined });
+    if (old) void deleteBlob(old);
+  };
 
   const onBanner = (f?: File) => {
     setErr(null);
@@ -64,7 +103,7 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
               {FONT_OPTIONS.map((f) => <option key={f.label} value={f.css}>{f.label}</option>)}
             </select>
           </label>
-          {([["text", "Details text"], ["background", "Page background"], ["backdrop", "Behind the PDF"]] as const).map(([k, l]) => (
+          {([["text", "Details text"], ["background", "Page background"]] as const).map(([k, l]) => (
             <label key={k} className="flex items-center justify-between gap-3">
               <span>{l}</span>
               <input type="color" value={style[k]} onChange={(e) => set({ [k]: e.target.value })} className="h-8 w-12 cursor-pointer rounded-full border border-border bg-transparent" />
@@ -86,18 +125,49 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
       <div className="mt-5 rule-t pt-4">
         <p className="text-xs font-medium">Portfolio experience</p>
         <div className="mt-3 space-y-3 text-xs">
-          <SettingSelect label="Default reading mode" value={viewer.mode} onChange={(value) => setViewer({ mode: value as ViewerSettings["mode"] })} options={[["scroll", "Scroll"], ["paged", "Page by page"], ["book", "Flipbook"]]} />
-          <SettingSelect label="My PDF contains" value={viewer.spreads} onChange={(value) => setViewer({ spreads: value as ViewerSettings["spreads"] })} options={[["single", "Single pages"], ["ready", "Ready-made spreads"]]} />
-          <SettingSelect label="Viewer background" value={viewer.background === "oak" || viewer.background === "walnut" ? "midnight" : viewer.background} onChange={setBackground} options={[["midnight", "Midnight blue"], ["black", "Black"], ["paper", "White"], ["soft", "Soft grey"]]} />
-          <label className="flex items-center justify-between gap-3"><span>Show profile header</span><input type="checkbox" checked={viewer.showHeader} onChange={(e) => setViewer({ showHeader: e.target.checked })} /></label>
+          <div className="space-y-1.5">
+            <p>Default reading mode</p>
+            <Segmented label="Default reading mode" value={viewer.mode} options={[["scroll", "Scroll"], ["paged", "Page by page"], ["book", "Flipbook"]] as const} onChange={(mode) => setViewer({ mode })} />
+          </div>
+          <div className="space-y-1.5">
+            <p>My PDF contains</p>
+            <Segmented label="My PDF contains" value={viewer.spreads} options={[["single", "Single pages"], ["ready", "Two-page spreads"]] as const} onChange={(spreads) => setViewer({ spreads })} />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <span>Viewer background</span>
+              <span className="flex items-center gap-2">
+                <input
+                  type="color"
+                  aria-label="Viewer background colour"
+                  title={viewer.backgroundKey ? "Remove the picture to use a colour" : "Choose a colour"}
+                  value={wheelColour}
+                  disabled={!!viewer.backgroundKey}
+                  onChange={(e) => setViewer({ backgroundColor: e.target.value })}
+                  className="h-8 w-12 cursor-pointer rounded-full border border-border bg-transparent disabled:cursor-default disabled:opacity-40"
+                />
+                <input ref={backgroundInput} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => { void onBackgroundImage(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+                <Button size="xs" variant="line" onClick={() => backgroundInput.current?.click()}>{viewer.backgroundKey ? "Replace picture" : "Upload picture"}</Button>
+                {viewer.backgroundKey && <Button size="xs" variant="quiet" onClick={removeBackgroundImage}>Remove</Button>}
+              </span>
+            </div>
+            {viewer.backgroundKey && (
+              <div className="space-y-2 rounded-xl border border-border p-3">
+                {backgroundUrl && <img src={backgroundUrl} alt="Your background picture" className="h-16 w-full rounded-md object-cover" />}
+                <label className="flex items-center gap-3"><span className="w-16 shrink-0">Size</span><input type="range" aria-label="Background picture size" min="100" max="300" step="5" value={Math.round(fit.scale * 100)} onChange={(e) => setFit({ scale: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground" /><span className="w-10 text-right tabular-nums">{Math.round(fit.scale * 100)}%</span></label>
+                <label className="flex items-center gap-3"><span className="w-16 shrink-0">Left / right</span><input type="range" aria-label="Move background picture left or right" min="-100" max="100" step="2" value={Math.round(fit.x * 100)} disabled={fit.scale <= 1} onChange={(e) => setFit({ x: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground disabled:opacity-40" /></label>
+                <label className="flex items-center gap-3"><span className="w-16 shrink-0">Up / down</span><input type="range" aria-label="Move background picture up or down" min="-100" max="100" step="2" value={Math.round(fit.y * 100)} disabled={fit.scale <= 1} onChange={(e) => setFit({ y: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground disabled:opacity-40" /></label>
+                <p className="text-xxs text-muted-foreground">Make the picture larger to move it.</p>
+                <Button size="xs" variant="quiet" onClick={() => setFit(DEFAULT_FIT)}>Reset size and position</Button>
+              </div>
+            )}
+            {backgroundErr && <p role="alert" className="text-destructive">{backgroundErr}</p>}
+          </div>
+          <label className="flex items-center justify-between gap-3"><span>Show profile icon</span><input type="checkbox" checked={viewer.showHeader} onChange={(e) => setViewer({ showHeader: e.target.checked })} /></label>
         </div>
       </div>
     </div>
   );
-}
-
-function SettingSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: readonly (readonly [string, string])[] }) {
-  return <label className="flex items-center justify-between gap-3"><span>{label}</span><select value={value} onChange={(e) => onChange(e.target.value)} className="max-w-44 rounded-full border border-input bg-background px-3 py-1.5">{options.map(([v, text]) => <option key={v} value={v}>{text}</option>)}</select></label>;
 }
 
 const CROP_WIDTH = 320;

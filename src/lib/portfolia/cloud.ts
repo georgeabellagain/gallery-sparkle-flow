@@ -34,7 +34,7 @@ let pushed = new Map<string, string>();
 let timer: ReturnType<typeof setTimeout> | null = null;
 
 function fileKeys(p: Portfolio): string[] {
-  return [p.pdf?.blobKey, p.profile.photoKey, p.profile.cv?.blobKey, p.style?.bannerKey].filter(Boolean) as string[];
+  return [p.pdf?.blobKey, p.profile.photoKey, p.profile.cv?.blobKey, p.style?.bannerKey, p.viewer?.backgroundKey].filter(Boolean) as string[];
 }
 
 function schedulePush() {

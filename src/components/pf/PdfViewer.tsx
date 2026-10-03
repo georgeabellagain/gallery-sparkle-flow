@@ -1,17 +1,29 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Download, LayoutGrid, Maximize2, Minimize2, Minus, Plus } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { BookOpen, ChevronLeft, ChevronRight, Download, FileText, LayoutGrid, Maximize2, Minimize2, ScrollText, User, ZoomIn, ZoomOut } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { BookView } from "@/components/pf/BookView";
+import { Wordmark } from "@/components/pf/Chrome";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
+import { backgroundColour, fitTransform } from "@/lib/portfolia/background";
+import { IconButton, Panel, iconClass, useDismiss, useTone } from "@/components/pf/viewer-ui";
 
 type Source = { blob: Blob } | { url: string };
 
+const noop = () => {};
+
+const MODES = [
+  ["scroll", "Scroll", ScrollText],
+  ["paged", "Page by page", FileText],
+  ["book", "Flipbook", BookOpen],
+] as const;
+
 /**
- * Integrated continuous-scroll viewer. Pages render only as they approach the
- * viewport; text stays selectable and web links in the PDF stay clickable.
+ * Integrated PDF viewer. The page itself is all that fills the screen; everything
+ * else is a quiet icon that brightens when pointed at. Pages render only as they
+ * approach the viewport; text stays selectable and web links in the PDF stay clickable.
  */
 export function PdfViewer({
   source,
@@ -23,6 +35,10 @@ export function PdfViewer({
   backdrop,
   viewer,
   startPage = 1,
+  profile,
+  home,
+  backgroundUrl,
+  controls,
 }: {
   source: Source | null;
   fileName: string;
@@ -30,11 +46,23 @@ export function PdfViewer({
   onDownload?: () => void;
   compact?: boolean;
   immersive?: boolean;
+  /** The older "behind the PDF" colour some Personal portfolios have. */
   backdrop?: string;
   viewer?: ViewerSettings;
   startPage?: number;
+  /** The person's details, shown from a small profile icon. */
+  profile?: ReactNode;
+  /** Shows the small logo that links to the home page. */
+  home?: boolean;
+  /** An uploaded picture to show behind the PDF instead of the colour. */
+  backgroundUrl?: string;
+  /** Whether to show the icons. Defaults to on, except for small thumbnails. */
+  controls?: boolean;
 }) {
   const view = { ...DEFAULT_VIEWER, ...viewer };
+  const colour = backgroundColour(view, backdrop);
+  const tone = useTone(colour, backgroundUrl);
+  const showControls = controls ?? !compact;
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
   const [progress, setProgress] = useState(0);
@@ -42,11 +70,11 @@ export function PdfViewer({
   const [zoom, setZoom] = useState(1);
   const [current, setCurrent] = useState(1);
   const [full, setFull] = useState(false);
+  const [panel, setPanel] = useState<"profile" | "pages" | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
-  const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [controlsVisible, setControlsVisible] = useState(!immersive);
-  const [canHover, setCanHover] = useState(false);
+  const clusterRef = useRef<HTMLDivElement>(null);
   const [downloadUrl, setDownloadUrl] = useState<string>();
+  useDismiss(clusterRef, panel !== null, () => setPanel(null));
 
   useEffect(() => {
     if (!source) return;
@@ -103,31 +131,9 @@ export function PdfViewer({
     else void rootRef.current?.requestFullscreen?.();
   };
 
-  const z = (d: number) => setZoom((v) => Math.min(3, Math.max(mode === "book" ? 0.8 : 0.5, Math.round((v + d) * 100) / 100)));
-  const revealControls = (pointerType?: string) => {
-    setControlsVisible(true);
-    if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    if (pointerType !== "touch") controlsTimer.current = setTimeout(() => setControlsVisible(false), 1400);
-  };
-
-  useEffect(() => () => {
-    if (controlsTimer.current) clearTimeout(controlsTimer.current);
-  }, []);
-
-  useEffect(() => {
-    const query = window.matchMedia("(hover: hover) and (pointer: fine)");
-    const sync = () => {
-      setCanHover(query.matches);
-      if (immersive && query.matches) setControlsVisible(false);
-    };
-    sync();
-    query.addEventListener("change", sync);
-    return () => query.removeEventListener("change", sync);
-  }, [immersive]);
-
   const [mode, setMode] = useState<"scroll" | "paged" | "book">(view.mode);
-  const [thumbs, setThumbs] = useState(false);
   const [jump, setJump] = useState<{ page: number; t: number } | null>(null);
+  const z = (d: number) => setZoom((v) => Math.min(3, Math.max(mode === "book" ? 0.8 : 0.5, Math.round((v + d) * 100) / 100)));
   const total = doc?.numPages ?? 0;
   const go = (d: number) => setCurrent((c) => Math.min(total, Math.max(1, c + d)));
 
@@ -160,128 +166,152 @@ export function PdfViewer({
     return () => window.removeEventListener("keydown", on);
   }, [mode, total]);
 
-  return (
-    <div ref={rootRef} onPointerMove={(e) => revealControls(e.pointerType)} style={backdrop ? { background: backdrop } : view.background === "midnight" ? { background: "#191d3a" } : undefined} className={cn("relative bg-foreground", !backdrop && view.background === "paper" && "bg-background", !backdrop && view.background === "soft" && "bg-muted", immersive && "min-h-[calc(100vh-5rem)]", full && "overflow-auto")}>
-      {!compact && <div className={cn(
-        "sticky top-0 z-50 isolate flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background/95 px-3 py-1.5 text-xs backdrop-blur transition-opacity duration-200",
-        immersive && "opacity-100 focus-within:opacity-100",
-        immersive && canHover && !controlsVisible && "pointer-events-none opacity-0",
-      )}>
-        <div className="flex items-center gap-3">
-          <div role="radiogroup" aria-label="Reading mode" className="inline-flex rounded-full border border-border p-0.5">
-            {(["scroll", "paged", "book"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                role="radio"
-                aria-checked={mode === m}
-                onClick={() => setMode(m)}
-                className={cn(
-                  "rounded-full px-3 py-0.5 transition-colors",
-                  mode === m ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {m === "scroll" ? "Scroll" : m === "paged" ? "Page by page" : "Flipbook"}
-              </button>
-            ))}
-          </div>
-          <span className="hidden tabular-nums text-muted-foreground sm:inline" aria-live="polite">
-            {doc ? `Page ${current} of ${doc.numPages}` : error ? "Couldn’t load" : "Loading…"}
-          </span>
-        </div>
-        <div className="flex items-center gap-0.5">
-          {doc && (
-            <button
-              type="button"
-              onClick={() => setThumbs((v) => !v)}
-              aria-pressed={thumbs}
-              className={cn("mr-1 inline-flex items-center gap-1.5 rounded-full px-3 py-1 hover:text-foreground", thumbs ? "bg-muted text-foreground" : "text-muted-foreground")}
-            >
-              <LayoutGrid className="size-3.5" /> Pages
-            </button>
-          )}
-          <ToolBtn label="Zoom out" onClick={() => z(-0.25)} disabled={zoom <= (mode === "book" ? 0.8 : 0.5)}>
-            <Minus className="size-3.5" />
-          </ToolBtn>
-          <button
-            type="button"
-            onClick={() => setZoom(1)}
-            className="w-12 py-1 text-center tabular-nums hover:text-foreground"
-            aria-label="Reset zoom"
-          >
-            {Math.round(zoom * 100)}%
-          </button>
-          <ToolBtn label="Zoom in" onClick={() => z(0.25)} disabled={zoom >= 3}>
-            <Plus className="size-3.5" />
-          </ToolBtn>
-          <span className="mx-1 h-4 w-px bg-border" />
-          <ToolBtn label={full ? "Exit full screen" : "Full screen"} onClick={toggleFull}>
-            {full ? <Minimize2 className="size-3.5" /> : <Maximize2 className="size-3.5" />}
-          </ToolBtn>
-          {allowDownload && downloadUrl && (
-            <a
-              href={downloadUrl}
-              download={fileName}
-              onClick={onDownload}
-              className="ml-1 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 hover:border-foreground"
-            >
-              <Download className="size-3.5" /> Download PDF
-            </a>
-          )}
-        </div>
-      </div>}
+  const quiet = tone === "dark" ? "text-white/60" : "text-black/55";
+  const togglePanel = (name: "profile" | "pages") => setPanel((p) => (p === name ? null : name));
+  const pageArrow = (side: "left" | "right") => (
+    <div className={cn("pointer-events-none absolute inset-y-0 z-30", side === "left" ? "left-0" : "right-0")}>
+      <div className={cn("pointer-events-auto sticky top-[45svh]", side === "left" ? "pl-1.5" : "pr-1.5")}>
+        <IconButton
+          label={side === "left" ? "Previous page" : "Next page"}
+          tone={tone}
+          large
+          disabled={side === "left" ? current <= 1 : current >= total}
+          onClick={() => go(side === "left" ? -1 : 1)}
+        >
+          {side === "left" ? <ChevronLeft className="size-6" /> : <ChevronRight className="size-6" />}
+        </IconButton>
+      </div>
+    </div>
+  );
 
-      {doc && thumbs && (
-        <nav aria-label="Pages" className={cn("sticky z-40 isolate flex gap-2 overflow-x-auto border-b border-border bg-background/95 px-3 py-2 backdrop-blur", immersive ? "top-10" : "top-[41px]")}>
-          {sizes.map((s, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => jumpTo(i + 1)}
-              aria-label={`Go to page ${i + 1}`}
-              aria-current={current === i + 1 ? "page" : undefined}
-              className={cn("shrink-0 rounded-md p-0.5 text-xxs text-muted-foreground", current === i + 1 ? "ring-2 ring-primary" : "hover:ring-1 hover:ring-border")}
-            >
-              <div className="pointer-events-none w-16">
-                <PdfPage doc={doc} n={i + 1} size={s} zoom={0} onVisible={noop} eager thumb />
-              </div>
-              <span className="block pt-0.5 tabular-nums">{i + 1}</span>
-            </button>
-          ))}
-        </nav>
+  return (
+    <div ref={rootRef} style={{ background: colour }} className={cn("relative isolate overflow-clip", immersive && "min-h-[calc(100svh-3rem)]", full && "overflow-auto")}>
+      {backgroundUrl && mode !== "book" && (
+        <div aria-hidden className="pointer-events-none sticky top-0 -z-10 -mb-[100svh] h-[100svh] w-full overflow-hidden">
+          <img src={backgroundUrl} alt="" draggable={false} className="h-full w-full select-none object-cover" style={{ transform: fitTransform(view.backgroundFit) }} />
+        </div>
+      )}
+
+      {showControls && (
+        <div className="pointer-events-none sticky top-0 z-50 h-0">
+          {home && (
+            <div className="pointer-events-auto absolute left-3 top-3">
+              <Wordmark className={cn("opacity-55 transition-opacity hover:opacity-100 focus-visible:opacity-100 [&>img]:h-4", tone === "dark" && "[&>img]:brightness-0 [&>img]:invert")} />
+            </div>
+          )}
+          <div ref={clusterRef} className="pointer-events-auto absolute right-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] flex-col items-end gap-2">
+            <div role="toolbar" aria-label="Viewer controls" className="flex flex-wrap items-center justify-end gap-0.5">
+              {profile && (
+                <IconButton label="Profile" tone={tone} pressed={panel === "profile"} onClick={() => togglePanel("profile")}>
+                  <User className="size-[17px]" />
+                </IconButton>
+              )}
+              {doc && (
+                <div role="radiogroup" aria-label="Reading mode" className="flex items-center">
+                  {MODES.map(([m, label, Icon]) => (
+                    <IconButton key={m} label={label} tone={tone} checked={mode === m} onClick={() => setMode(m)}>
+                      <Icon className="size-[17px]" />
+                    </IconButton>
+                  ))}
+                </div>
+              )}
+              {doc && (
+                <IconButton label="Pages" tone={tone} pressed={panel === "pages"} onClick={() => togglePanel("pages")}>
+                  <LayoutGrid className="size-[17px]" />
+                </IconButton>
+              )}
+              {doc && (
+                <span className={cn("hidden px-1 text-[11px] tabular-nums sm:inline", quiet)} aria-live="polite">
+                  {current} / {doc.numPages}
+                </span>
+              )}
+              {doc && (
+                <IconButton label="Zoom out" tone={tone} onClick={() => z(-0.25)} disabled={zoom <= (mode === "book" ? 0.8 : 0.5)}>
+                  <ZoomOut className="size-[17px]" />
+                </IconButton>
+              )}
+              {doc && (
+                <button type="button" onClick={() => setZoom(1)} aria-label="Reset zoom" className={cn("hidden w-10 rounded-full py-1 text-center text-[11px] tabular-nums transition-colors sm:inline", quiet, tone === "dark" ? "hover:text-white" : "hover:text-black")}>
+                  {Math.round(zoom * 100)}%
+                </button>
+              )}
+              {doc && (
+                <IconButton label="Zoom in" tone={tone} onClick={() => z(0.25)} disabled={zoom >= 3}>
+                  <ZoomIn className="size-[17px]" />
+                </IconButton>
+              )}
+              <IconButton label={full ? "Exit full screen" : "Full screen"} tone={tone} onClick={toggleFull}>
+                {full ? <Minimize2 className="size-[17px]" /> : <Maximize2 className="size-[17px]" />}
+              </IconButton>
+              {allowDownload && downloadUrl && (
+                <a href={downloadUrl} download={fileName} onClick={onDownload} aria-label="Download PDF" title="Download PDF" className={iconClass(tone)}>
+                  <Download className="size-[17px]" />
+                </a>
+              )}
+            </div>
+            {panel === "profile" && profile && (
+              <Panel label="Profile" className="w-[min(24rem,calc(100vw-1rem))]">
+                {profile}
+              </Panel>
+            )}
+            {panel === "pages" && doc && (
+              <Panel label="Pages" className="max-h-[70svh] w-[min(24rem,calc(100vw-1rem))] overflow-auto">
+                <div className="grid grid-cols-4 gap-2">
+                  {sizes.map((s, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        jumpTo(i + 1);
+                        setPanel(null);
+                      }}
+                      aria-label={`Go to page ${i + 1}`}
+                      aria-current={current === i + 1 ? "page" : undefined}
+                      className={cn("rounded-md p-0.5 text-xxs text-muted-foreground", current === i + 1 ? "ring-2 ring-primary" : "hover:ring-1 hover:ring-border")}
+                    >
+                      <div className="pointer-events-none w-full">
+                        <PdfPage doc={doc} n={i + 1} size={s} zoom={0} onVisible={noop} eager thumb />
+                      </div>
+                      <span className="block pt-0.5 tabular-nums">{i + 1}</span>
+                    </button>
+                  ))}
+                </div>
+              </Panel>
+            )}
+          </div>
+        </div>
       )}
 
       {error ? (
         <div className="px-6 py-20 text-center text-sm">
-          <p className="font-medium text-background">This portfolio couldn’t be displayed</p>
-          <p className="mt-1 text-muted-foreground">{error}</p>
+          <p className={cn("font-medium", tone === "dark" ? "text-white" : "text-black")}>This portfolio couldn’t be displayed</p>
+          <p className={cn("mt-1", quiet)}>{error}</p>
         </div>
       ) : !doc ? (
-        <div className="mx-auto max-w-xs px-6 py-24 text-center text-xs text-background/70">
+        <div className={cn("mx-auto max-w-xs px-6 py-24 text-center text-xs", quiet)}>
           <p>Loading portfolio… {progress}%</p>
           <Progress value={progress} className="mt-3 h-1" />
         </div>
       ) : mode === "book" ? (
-        <BookView doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} controlsHidden={!!immersive && canHover && !controlsVisible} viewer={view} stage={backdrop} />
+        <BookView doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} />
       ) : mode === "paged" ? (
-        <div className="overflow-x-auto">
-          <div
-            className={cn("mx-auto py-6", compact ? "px-3" : "px-3 sm:px-8")}
-            style={{ width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? (compact ? 900 : 1100) : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
-          >
-            {sizes[current - 1] && (
-              <PdfPage key={current} doc={doc} n={current} size={sizes[current - 1]!} zoom={zoom} onVisible={noop} eager />
-            )}
+        <div className="relative">
+          <div className="overflow-x-auto">
+            <div
+              className={cn("mx-auto py-6", compact ? "px-3" : "px-3 sm:px-8")}
+              style={{ width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? (compact ? 900 : 1100) : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
+            >
+              {sizes[current - 1] && (
+                <PdfPage key={current} doc={doc} n={current} size={sizes[current - 1]!} zoom={zoom} onVisible={noop} eager />
+              )}
+            </div>
           </div>
-          <div className={cn("flex items-center justify-center gap-3 pb-6 text-xs transition-opacity duration-200", immersive && "opacity-100 focus-within:opacity-100", immersive && canHover && !controlsVisible && "pointer-events-none opacity-0")}>
-            <button type="button" onClick={() => go(-1)} disabled={current <= 1} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
-              <ChevronLeft className="size-3.5" /> Previous
-            </button>
-            <span className="tabular-nums text-background/70">{current} / {doc.numPages}</span>
-            <button type="button" onClick={() => go(1)} disabled={current >= doc.numPages} className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-4 py-1.5 hover:border-foreground disabled:opacity-30">
-              Next <ChevronRight className="size-3.5" />
-            </button>
-          </div>
+          {showControls && (
+            <>
+              {pageArrow("left")}
+              {pageArrow("right")}
+            </>
+          )}
         </div>
       ) : (
         <div className="overflow-x-auto" style={{ touchAction: "pan-x pan-y pinch-zoom" }}>
@@ -296,23 +326,6 @@ export function PdfViewer({
         </div>
       )}
     </div>
-  );
-}
-
-const noop = () => {};
-
-function ToolBtn(props: { label: string; onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-label={props.label}
-      title={props.label}
-      onClick={props.onClick}
-      disabled={props.disabled}
-      className="inline-flex size-7 items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30"
-    >
-      {props.children}
-    </button>
   );
 }
 

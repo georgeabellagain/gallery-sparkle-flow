@@ -37,7 +37,14 @@ export interface ViewerSettings {
   shadow: "none" | "subtle" | "grounded";
   thickness: "thin" | "medium" | "thick";
   spreads: "single" | "ready";
+  /** Shows the profile as a small icon in the viewer. */
   showHeader: boolean;
+  /** Colour chosen on the colour wheel for behind the PDF. Takes priority over `background`. */
+  backgroundColor?: string;
+  /** Uploaded picture behind the PDF (a stored file key). Shown instead of the colour. */
+  backgroundKey?: string;
+  /** Size and position of the background picture. */
+  backgroundFit?: { scale: number; x: number; y: number };
 }
 
 export const DEFAULT_VIEWER: ViewerSettings = {

@@ -29,7 +29,7 @@ export const getPublicPortfolio = createServerFn({ method: "GET" })
     const { data: row } = await (data.by === "code" ? q.eq("code", data.value) : q.eq("username", data.value.toLowerCase())).maybeSingle();
     if (!row) return null;
     const p = row.data as unknown as Portfolio;
-    const keys = [p.pdf?.blobKey, p.profile?.photoKey, p.plan === "personal" ? p.profile?.cv?.blobKey : undefined, p.plan === "personal" ? p.style?.bannerKey : undefined].filter(Boolean) as string[];
+    const keys = [p.pdf?.blobKey, p.profile?.photoKey, p.plan === "personal" ? p.profile?.cv?.blobKey : undefined, p.plan === "personal" ? p.style?.bannerKey : undefined, p.viewer?.backgroundKey].filter(Boolean) as string[];
     const urls: Record<string, string> = {};
     if (keys.length) {
       // Signing needs privileged access; only files referenced by this published portfolio are signed.

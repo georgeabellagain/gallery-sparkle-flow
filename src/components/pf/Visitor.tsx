@@ -82,8 +82,9 @@ export function CloudVisitor({ data }: { data: NonNullable<PublicPortfolio> }) {
   const own = useOwn((p) => p.code === data.portfolio.code);
   return (
     <div className="relative">
+      {/* Bottom-left, so it never covers the viewer's icons at the top. */}
       {hydrated && own && (
-        <div className="fixed right-3 top-3 z-[70] flex gap-2 rounded-full border border-border bg-background/95 p-1 shadow-soft backdrop-blur">
+        <div className="fixed bottom-3 left-3 z-[70] flex gap-2 rounded-full border border-border bg-background/95 p-1 shadow-soft backdrop-blur">
           <Link to="/edit" className="rounded-full px-3 py-1.5 text-xs font-medium hover:bg-muted">Edit portfolio</Link>
           <Link to="/dashboard" className="rounded-full px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">Dashboard</Link>
         </div>
@@ -99,6 +100,8 @@ export function EmbeddedVisitor({ data, startPage, mode, background }: { data: N
   const p = data.portfolio;
   const { pdf } = useStoredMedia(p.pdf?.blobKey);
   useEffect(() => recordVisit(p.code), [p.code]);
+  // A background chosen for the embed replaces the owner's own colour or picture.
+  const pageStyle = p.plan === "personal" ? (background && p.style ? { ...p.style, backdrop: "" } : p.style) : undefined;
   return (
     <PortfolioPage
       profile={p.profile}
@@ -106,8 +109,8 @@ export function EmbeddedVisitor({ data, startPage, mode, background }: { data: N
       allowDownload={p.allowDownload}
       showCredit={false}
       onDownload={() => recordDownload(p.code)}
-      pageStyle={p.plan === "personal" ? p.style : undefined}
-      viewer={{ ...DEFAULT_VIEWER, ...p.viewer, look: "clean", ...(mode ? { mode } : {}), ...(background ? { background } : {}), showHeader: false }}
+      pageStyle={pageStyle}
+      viewer={{ ...DEFAULT_VIEWER, ...p.viewer, look: "clean", ...(mode ? { mode } : {}), ...(background ? { background, backgroundColor: undefined, backgroundKey: undefined } : {}), showHeader: false }}
       startPage={startPage}
       immersive
       embed

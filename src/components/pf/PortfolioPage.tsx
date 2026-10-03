@@ -3,9 +3,12 @@ import { Mail } from "lucide-react";
 import { DEFAULT_VIEWER, type PageStyle, type Profile, type ViewerSettings } from "@/lib/portfolia/store";
 import { PdfViewer } from "./PdfViewer";
 import { CvIcon } from "./CvIcon";
-import { useBlob, useObjectUrl, Wordmark } from "./Chrome";
+import { useBlob, useObjectUrl } from "./Chrome";
 
-/** The visitor-facing page: compact profile, then the PDF. No editor controls. */
+/**
+ * The visitor-facing page: the PDF, and nothing else on screen. The person's details
+ * live behind a small profile icon, and every control is a quiet icon.
+ */
 export function PortfolioPage({
   profile,
   pdf,
@@ -40,58 +43,68 @@ export function PortfolioPage({
   const bannerUrl = useObjectUrl(bannerBlob);
   const cvBlob = useBlob(cvBlobKey);
   const cvUrl = useObjectUrl(cvBlob);
+  const backgroundBlob = useBlob(view.backgroundKey);
+  const backgroundUrl = useObjectUrl(backgroundBlob);
   const cv = cvBlobKey ? profile.cv : undefined;
   const links = profile.links.filter((l) => l.url.trim());
-  // With no profile photo, the profile sits hard against the left edge instead of the centred column.
-  const flushLeft = !photoUrl && view.showHeader;
-  const column = flushLeft ? "max-w-none" : "mx-auto max-w-[1100px]";
-  return (
-    <div className="flex min-h-full flex-col bg-background" style={pageStyle ? { background: pageStyle.background, color: pageStyle.text } : undefined}>
-      {/* A small way home on every public page. Hidden inside embeds and editor previews. */}
-      {!embed && !compact && (
-        <div className="px-4 pt-3 sm:px-6">
-          <div className={`flex ${column}`}>
-            <Wordmark className="rounded-full bg-white/90 px-3 py-1.5 opacity-80 shadow-soft transition-opacity hover:opacity-100 focus-visible:opacity-100 [&>img]:h-4" />
-          </div>
+  const hasProfile = view.showHeader && !embed && Boolean(profile.name?.trim() || profile.title || profile.intro || profile.email || links.length > 0 || cv || photoUrl || bannerUrl);
+
+  const details = hasProfile ? (
+    <div className="-m-3 rounded-2xl p-3" style={pageStyle ? { background: pageStyle.background, color: pageStyle.text } : undefined}>
+      {bannerUrl && (
+        <img src={bannerUrl} alt={profile.name ? `${profile.name} portfolio banner` : "Portfolio banner"} className="-mx-3 -mt-3 mb-3 h-24 w-[calc(100%+1.5rem)] max-w-none rounded-t-2xl object-cover" />
+      )}
+      <div className="flex items-start gap-3">
+        {photoUrl && <img src={photoUrl} alt={profile.name || "Profile photo"} className="size-12 shrink-0 rounded-full object-cover" />}
+        <div className="min-w-0">
+          <p style={pageStyle ? { fontFamily: pageStyle.font } : undefined} className="display-title text-xl leading-tight">
+            {profile.name || "Your name"}
+          </p>
+          {profile.title && <p className="text-sm text-muted-foreground">{profile.title}</p>}
+        </div>
+      </div>
+      {profile.intro && <p className="mt-3 text-sm leading-relaxed">{profile.intro}</p>}
+      {(profile.email || links.length > 0 || cv) && (
+        <div className="mt-3 flex flex-col gap-1.5 text-sm">
+          {profile.email && (
+            <a href={`mailto:${profile.email}`} className="inline-flex items-center gap-1.5 underline-offset-4 hover:underline">
+              <Mail className="size-3.5" /> {profile.email}
+            </a>
+          )}
+          {cv && cvUrl && (
+            <a href={cvUrl} download={cv.name} className="inline-flex items-center gap-1.5 underline-offset-4 hover:underline">
+              <CvIcon className="size-3.5" /> CV
+            </a>
+          )}
+          {links.map((l, i) => (
+            <a key={i} href={withProtocol(l.url)} target="_blank" rel="noopener noreferrer" className="underline-offset-4 hover:underline">
+              {l.label || prettyUrl(l.url)}
+            </a>
+          ))}
         </div>
       )}
-      {view.showHeader && !embed && bannerUrl && <img src={bannerUrl} alt={profile.name ? `${profile.name} portfolio banner` : "Portfolio banner"} className={immersive ? "h-28 w-full object-cover sm:h-40" : "h-24 w-full object-cover"} />}
-      {view.showHeader && !embed && <header className={immersive ? "px-4 py-3 sm:px-6 sm:py-4" : compact ? "px-4 py-4" : "px-5 py-5 sm:px-8 sm:py-8"}>
-        <div className={`flex items-start gap-4 ${column}`}>
-          {photoUrl ? (
-            <img src={photoUrl} alt={profile.name || "Profile photo"} className={immersive ? "size-10 shrink-0 rounded-full object-cover" : "size-11 shrink-0 rounded-full object-cover sm:size-14"} />
-          ) : null}
-          <div className="min-w-0 flex-1">
-            <h1 style={pageStyle ? { fontFamily: pageStyle.font } : undefined} className={immersive ? "display-title text-xl leading-tight sm:text-2xl" : "display-title text-2xl leading-tight sm:text-3xl"}>{profile.name || "Your name"}</h1>
-            {profile.title && <p className="text-sm text-muted-foreground">{profile.title}</p>}
-            {profile.intro && (
-              // With no profile photo the text uses the whole width instead of a narrow column.
-              <p className={`${immersive ? "mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground" : "mt-2 line-clamp-3 text-sm leading-relaxed sm:line-clamp-none"} ${photoUrl ? "max-w-2xl" : "max-w-none"}`}>{profile.intro}</p>
-            )}
-            {(profile.email || links.length > 0 || cv) && (
-              <div className={immersive ? "mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs" : "mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm"}>
-                {profile.email && (
-                  <a href={`mailto:${profile.email}`} className="inline-flex items-center gap-1.5 underline-offset-4 hover:underline">
-                    <Mail className="size-3.5" /> {profile.email}
-                  </a>
-                )}
-                {cv && cvUrl && (
-                  <a href={cvUrl} download={cv.name} className="inline-flex items-center gap-1.5 underline-offset-4 hover:underline">
-                    <CvIcon className="size-3.5" /> CV
-                  </a>
-                )}
-                {links.map((l, i) => (
-                  <a key={i} href={withProtocol(l.url)} target="_blank" rel="noopener noreferrer" className="underline-offset-4 hover:underline">
-                    {l.label || prettyUrl(l.url)}
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </header>}
+    </div>
+  ) : undefined;
+
+  return (
+    <div className="flex min-h-full flex-col bg-background" style={pageStyle ? { background: pageStyle.background, color: pageStyle.text } : undefined}>
+      <h1 className="sr-only">{profile.name || "Portfolio"}</h1>
       <div className="flex-1">
-        <PdfViewer source={pdf} fileName={`${profile.name || "portfolio"}.pdf`} allowDownload={allowDownload} onDownload={onDownload} compact={compact} immersive={immersive} backdrop={pageStyle?.backdrop} viewer={view} startPage={startPage} />
+        <PdfViewer
+          source={pdf}
+          fileName={`${profile.name || "portfolio"}.pdf`}
+          allowDownload={allowDownload}
+          onDownload={onDownload}
+          compact={compact}
+          immersive={immersive}
+          backdrop={pageStyle?.backdrop}
+          viewer={view}
+          startPage={startPage}
+          profile={details}
+          home={!embed && !compact}
+          backgroundUrl={backgroundUrl}
+          controls
+        />
       </div>
       {showCredit && (
         <footer className="py-5 text-center text-xxs text-muted-foreground">

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import type { ViewerSettings } from "@/lib/portfolia/store";
 import {
@@ -17,37 +17,15 @@ import {
   type StudioSettings,
 } from "@/lib/portfolia/book-scene";
 import { cn } from "@/lib/utils";
+import type { BackgroundFit } from "@/lib/portfolia/background";
+import { BackdropLayer, IconButton, Panel, Segmented, useDismiss, type Tone } from "@/components/pf/viewer-ui";
 
-const MIDNIGHT = "#191d3a";
-
-/** The colour behind the book for each viewer background choice. Matches the viewer itself. */
-const STAGE: Record<string, string> = {
-  midnight: MIDNIGHT,
-  black: "var(--foreground)",
-  paper: "var(--background)",
-  soft: "var(--muted)",
-  oak: MIDNIGHT,
-  walnut: MIDNIGHT,
-};
-
-/** The studio options a visitor can change. Backdrop settings are derived separately. */
+/** The studio options a visitor can change. */
 type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri">;
-type CustomBackdrop = { url: string; aspect: number };
-type BackdropFit = { scale: number; x: number; y: number };
 
 /** The most turns that can be queued up by clicking quickly. */
 const MAX_QUEUE = 12;
 
-/** Small caption above a row of options. A paragraph, because spans in this bar are styled as swatches. */
-const rowLabel = {
-  alignSelf: "center",
-  width: "4.75rem",
-  margin: 0,
-  fontSize: ".65rem",
-  letterSpacing: ".06em",
-  textTransform: "uppercase",
-  color: "#656b62",
-} as const;
 
 /**
  * Renders every page once into a ready-to-use face and keeps them in a bounded
@@ -197,7 +175,10 @@ export function BookView({
   jump,
   onPage,
   viewer,
-  stage,
+  colour,
+  backgroundUrl,
+  tone,
+  immersive,
 }: {
   doc: PDFDocumentProxy;
   sizes: { w: number; h: number }[];
@@ -205,10 +186,15 @@ export function BookView({
   onZoomChange: (zoom: number) => void;
   jump: { page: number; t: number } | null;
   onPage: (page: number) => void;
-  controlsHidden?: boolean;
   viewer: ViewerSettings;
-  /** The portfolio's own "behind the PDF" colour, when it has one. */
-  stage?: string;
+  /** The colour behind the book. */
+  colour: string;
+  /** A picture behind the book instead of the colour. */
+  backgroundUrl?: string;
+  /** Whether that backdrop is light or dark, so the icons can stay readable. */
+  tone: Tone;
+  /** Fill most of the screen (a published portfolio) rather than a preview. */
+  immersive?: boolean;
 }) {
   const layout = useMemo(
     () => bookLayout(doc.numPages, viewer.spreads === "ready"),
@@ -227,7 +213,7 @@ export function BookView({
   const epoch = useRef(0);
   const alive = useRef(true);
   const shown = useRef<string | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(0);
   const [warm, setWarm] = useState(false);
   const [warmProgress, setWarmProgress] = useState({ done: 0, total: 0 });
@@ -253,12 +239,10 @@ export function BookView({
     studio: viewer.look === "studio",
     material: viewer.finish === "textured" ? "textured" : "satin",
     brightness: 0.65,
-    hdri: "window",
+    hdri: HDRI_PRESETS[0]!.id,
   });
-  const [bgColor, setBgColor] = useState(MIDNIGHT);
-  const [custom, setCustom] = useState<CustomBackdrop | null>(null);
-  const [fit, setFit] = useState<BackdropFit>({ scale: 1, x: 0, y: 0 });
-  const customRef = useRef<CustomBackdrop | null>(null);
+  const [open, setOpen] = useState(false);
+  useDismiss(settingsRef, open, () => setOpen(false));
   const touch = useRef<{ x: number; y: number } | null>(null);
   const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; from: number; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
   const panning = useRef<{ id: number; x: number; y: number } | null>(null);
@@ -276,31 +260,6 @@ export function BookView({
     narrow || new Set(pages).size === 1
       ? `Page ${current.page} of ${doc.numPages}${narrow && current.half ? ` · ${current.half}` : ""}`
       : `Pages ${pages[0]}–${pages[1]} of ${doc.numPages}`;
-  /** The colour immediately behind the simple flipbook follows the viewer background setting. */
-  const stageColour = stage || STAGE[viewer.background] || MIDNIGHT;
-
-  const backdropSettings = useMemo(() => {
-    if (custom) {
-      return {
-        backdrop: custom.url,
-        backdropColor: bgColor,
-        backdropKind: "photo" as const,
-        backdropAspect: custom.aspect,
-        backdropScale: fit.scale,
-        backdropX: fit.x,
-        backdropY: fit.y,
-      };
-    }
-    return {
-      backdrop: "",
-      backdropColor: bgColor,
-      backdropKind: "color" as const,
-      backdropAspect: 1,
-      backdropScale: 1,
-      backdropX: 0,
-      backdropY: 0,
-    };
-  }, [custom, bgColor, fit]);
 
   useEffect(() => {
     alive.current = true;
@@ -355,8 +314,8 @@ export function BookView({
     if (found >= 0 && !lock.current) goTo(found);
   }, [jump, layout, goTo]);
   useEffect(() => {
-    scene.current?.configure({ ...settings, ...backdropSettings });
-  }, [settings, backdropSettings, ready]);
+    scene.current?.configure(settings);
+  }, [settings, ready]);
   useEffect(() => {
     if (!busy && scene.current) {
       // A wheel gesture that has not reached the parent yet owns the zoom.
@@ -600,236 +559,12 @@ export function BookView({
   }, [move]);
   const update = (patch: Partial<Look>) => setSettings((s) => ({ ...s, ...patch }));
 
-  useEffect(() => {
-    customRef.current = custom;
-  }, [custom]);
-  useEffect(
-    () => () => {
-      if (customRef.current) URL.revokeObjectURL(customRef.current.url);
-    },
-    [],
-  );
-
-  /** Fits an uploaded picture into the studio backdrop (downscaled for the GPU). */
-  const chooseBackground = (file?: File) => {
-    if (!file || !file.type.startsWith("image/")) return;
-    const source = URL.createObjectURL(file);
-    const image = new Image();
-    image.onload = () => {
-      const scale = Math.min(1, 2048 / Math.max(image.naturalWidth, image.naturalHeight));
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-      canvas.getContext("2d")!.drawImage(image, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(source);
-      canvas.toBlob(
-        (blob) => {
-          if (!blob || !alive.current) return;
-          const url = URL.createObjectURL(blob);
-          setCustom((old) => {
-            if (old) URL.revokeObjectURL(old.url);
-            return { url, aspect: canvas.width / canvas.height };
-          });
-          setFit({ scale: 1, x: 0, y: 0 });
-        },
-        "image/jpeg",
-        0.92,
-      );
-    };
-    image.onerror = () => URL.revokeObjectURL(source);
-    image.src = source;
-  };
-  const removeBackground = () => {
-    setCustom((old) => {
-      if (old) URL.revokeObjectURL(old.url);
-      return null;
-    });
-    setFit({ scale: 1, x: 0, y: 0 });
-  };
-
   return (
-    <section
-      className="pf-book-reader"
-      aria-label="Interactive PDF book"
-      data-look={settings.studio ? "studio" : "simple"}
-    >
-      <div className="pf-book-options">
-        <div className="pf-book-switch" role="group" aria-label="Book appearance">
-          <button
-            type="button"
-            aria-pressed={!settings.studio}
-            onClick={() => update({ studio: false })}
-          >
-            Simple
-          </button>
-          <button
-            type="button"
-            aria-pressed={settings.studio}
-            onClick={() => update({ studio: true })}
-          >
-            Studio
-          </button>
-        </div>
-        {settings.studio && (
-          <div className="pf-studio-controls">
-            <label>
-              Paper
-              <select
-                aria-label="Paper material"
-                value={settings.material}
-                onChange={(e) => update({ material: e.target.value as Look["material"] })}
-              >
-                <option value="satin">Satin</option>
-                <option value="textured">Textured</option>
-              </select>
-            </label>
-            <label>
-              Brightness
-              <input
-                type="range"
-                aria-label="Studio brightness"
-                min="0"
-                max="100"
-                step="1"
-                value={Math.round(settings.brightness * 100)}
-                onChange={(e) => update({ brightness: Number(e.target.value) / 100 })}
-              />
-              <span className="tabular-nums">{Math.round(settings.brightness * 100)}%</span>
-            </label>
-          </div>
-        )}
-      </div>
-      {settings.studio &&
-        (["Daylight", "Interior"] as const).map((group) => (
-          <div key={group} className="pf-backdrops" role="group" aria-label={`${group} lighting`}>
-            <p style={rowLabel}>{group}</p>
-            {HDRI_PRESETS.filter((h) => h.group === group).map((h) => (
-              <button
-                key={h.id}
-                type="button"
-                aria-pressed={settings.hdri === h.id}
-                onClick={() => update({ hdri: h.id })}
-              >
-                <span aria-hidden style={{ backgroundImage: h.preview }} />
-                {h.label}
-              </button>
-            ))}
-          </div>
-        ))}
-      {settings.studio && (
-        <div className="pf-backdrops" role="group" aria-label="Studio backdrop">
-          <p style={rowLabel}>Backdrop</p>
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: ".45rem",
-              fontSize: ".7rem",
-              opacity: custom ? 0.5 : 1,
-            }}
-            title={custom ? "Remove the image to use a colour" : undefined}
-          >
-            <input
-              type="color"
-              aria-label="Backdrop colour"
-              value={bgColor}
-              disabled={!!custom}
-              onChange={(e) => setBgColor(e.target.value)}
-              style={{
-                width: 38,
-                height: 28,
-                padding: 0,
-                border: "1px solid #cfcfc7",
-                borderRadius: 6,
-                background: "none",
-                cursor: custom ? "default" : "pointer",
-              }}
-            />
-            Colour
-          </label>
-          <button type="button" onClick={() => fileInput.current?.click()}>
-            <span
-              aria-hidden
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1em" }}
-            >
-              +
-            </span>
-            {custom ? "Change image" : "Add image"}
-          </button>
-          {custom && (
-            <button type="button" onClick={removeBackground}>
-              <span aria-hidden style={{ backgroundImage: `url(${custom.url})` }} />
-              Remove image
-            </button>
-          )}
-          <input
-            ref={fileInput}
-            type="file"
-            accept="image/*"
-            className="sr-only"
-            tabIndex={-1}
-            aria-hidden
-            onChange={(e) => {
-              chooseBackground(e.target.files?.[0]);
-              e.currentTarget.value = "";
-            }}
-          />
-        </div>
-      )}
-      {settings.studio && custom && (
-        <div className="pf-book-options">
-          <div className="pf-studio-controls">
-            <label>
-              Image size
-              <input
-                type="range"
-                aria-label="Background image size"
-                min="100"
-                max="300"
-                step="5"
-                value={Math.round(fit.scale * 100)}
-                onChange={(e) => setFit((f) => ({ ...f, scale: Number(e.target.value) / 100 }))}
-              />
-              <span className="tabular-nums">{Math.round(fit.scale * 100)}%</span>
-            </label>
-            <label>
-              Left / right
-              <input
-                type="range"
-                aria-label="Move background image left or right"
-                min="-100"
-                max="100"
-                step="2"
-                value={Math.round(fit.x * 100)}
-                onChange={(e) => setFit((f) => ({ ...f, x: Number(e.target.value) / 100 }))}
-              />
-            </label>
-            <label>
-              Up / down
-              <input
-                type="range"
-                aria-label="Move background image up or down"
-                min="-100"
-                max="100"
-                step="2"
-                value={Math.round(fit.y * 100)}
-                onChange={(e) => setFit((f) => ({ ...f, y: Number(e.target.value) / 100 }))}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => setFit({ scale: 1, x: 0, y: 0 })}
-              style={{ fontSize: ".7rem", textDecoration: "underline" }}
-            >
-              Reset image
-            </button>
-          </div>
-        </div>
-      )}
+    <section aria-label="Interactive PDF book" data-look={settings.studio ? "studio" : "simple"}>
       <div
         ref={viewportRef}
         className="pf-book-viewport"
-        style={{ background: stageColour, ...(zoom > 1 ? { touchAction: "none" } : {}) }}
+        style={{ ...(immersive ? { height: "clamp(420px, calc(100svh - 3rem), 1100px)" } : {}), ...(zoom > 1 ? { touchAction: "none" } : {}) }}
         data-busy={busy || wait}
         data-narrow={narrow}
         data-panning={panning.current !== null}
@@ -874,6 +609,7 @@ export function BookView({
           if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.3) void move(dx < 0 ? 1 : -1);
         }}
       >
+        <BackdropLayer colour={colour} imageUrl={backgroundUrl} fit={viewer.backgroundFit as Partial<BackgroundFit> | undefined} />
         <div ref={host} className={cn("pf-book-canvas", fallback && "invisible")} />
         {fallback && (
           <div className="pf-book-fallback">
@@ -926,23 +662,77 @@ export function BookView({
             {error}
           </p>
         )}
-      </div>
-      <nav aria-label="Book pages" className="pf-book-navigation">
-        <button type="button" onClick={() => void move(-1)} disabled={wait || atStart}>
-          <ChevronLeft size={15} />
-          Previous
-        </button>
-        <span aria-live="polite">{label}</span>
-        <button type="button" onClick={() => void move(1)} disabled={wait || atEnd}>
-          Next
-          <ChevronRight size={15} />
-        </button>
-      </nav>
-      {narrow && (
-        <p className="pf-book-hint">
-          Swipe or use the arrows to read. The camera follows each page.
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-20 flex items-center pl-1.5">
+          <IconButton label="Previous page" tone={tone} large className="pointer-events-auto" disabled={wait || atStart} onClick={() => void move(-1)}>
+            <ChevronLeft className="size-6" />
+          </IconButton>
+        </div>
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-20 flex items-center pr-1.5">
+          <IconButton label="Next page" tone={tone} large className="pointer-events-auto" disabled={wait || atEnd} onClick={() => void move(1)}>
+            <ChevronRight className="size-6" />
+          </IconButton>
+        </div>
+        <p aria-live="polite" className={cn("pointer-events-none absolute inset-x-0 bottom-2 z-10 text-center text-[11px] tabular-nums", tone === "dark" ? "text-white/45" : "text-black/40")}>
+          {label}
         </p>
-      )}
+        <div ref={settingsRef} className="absolute bottom-1.5 right-1.5 z-20 flex flex-col-reverse items-end gap-2">
+          <IconButton label="Book appearance" tone={tone} pressed={open} onClick={() => setOpen((v) => !v)}>
+            <SlidersHorizontal className="size-[17px]" />
+          </IconButton>
+          {open && (
+            <Panel label="Book appearance" className="w-[min(17rem,calc(100vw-1rem))] space-y-3">
+              <div className="space-y-1.5">
+                <p className="text-muted-foreground">Appearance</p>
+                <Segmented label="Appearance" value={settings.studio ? "studio" : "simple"} options={[["simple", "Simple"], ["studio", "Studio"]] as const} onChange={(v) => update({ studio: v === "studio" })} />
+              </div>
+              {settings.studio && (
+                <>
+                  <div className="space-y-1.5">
+                    <p className="text-muted-foreground">Paper</p>
+                    <Segmented label="Paper" value={settings.material === "textured" ? "textured" : "satin"} options={[["satin", "Satin"], ["textured", "Textured"]] as const} onChange={(v) => update({ material: v })} />
+                  </div>
+                  <label className="block space-y-1.5">
+                    <span className="text-muted-foreground">Brightness</span>
+                    <span className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        aria-label="Studio brightness"
+                        className="min-w-0 flex-1 accent-foreground"
+                        min="0"
+                        max="100"
+                        step="1"
+                        value={Math.round(settings.brightness * 100)}
+                        onChange={(e) => update({ brightness: Number(e.target.value) / 100 })}
+                      />
+                      <span className="w-9 text-right tabular-nums">{Math.round(settings.brightness * 100)}%</span>
+                    </span>
+                  </label>
+                  <div className="space-y-1.5">
+                    <p className="text-muted-foreground">Lighting</p>
+                    <div role="radiogroup" aria-label="Lighting" className="grid grid-cols-4 gap-1.5">
+                      {HDRI_PRESETS.map((h, i) => (
+                        <button
+                          key={h.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={settings.hdri === h.id}
+                          aria-label={`Lighting ${i + 1}`}
+                          title={`Lighting ${i + 1}`}
+                          onClick={() => update({ hdri: h.id })}
+                          className={cn("relative h-12 overflow-hidden rounded-lg border text-sm font-medium text-white transition-opacity", settings.hdri === h.id ? "border-foreground opacity-100 ring-2 ring-foreground/30" : "border-border opacity-75 hover:opacity-100")}
+                          style={{ background: h.preview }}
+                        >
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/25 [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">{i + 1}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </Panel>
+          )}
+        </div>
+      </div>
     </section>
   );
 }

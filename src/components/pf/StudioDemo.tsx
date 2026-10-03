@@ -18,14 +18,7 @@ const LOOK: StudioSettings = {
   studio: true,
   material: "satin",
   brightness: 0.7,
-  hdri: "softbox",
-  backdrop: "",
-  backdropColor: MIDNIGHT,
-  backdropKind: "color",
-  backdropAspect: 1,
-  backdropScale: 1,
-  backdropX: 0,
-  backdropY: 0,
+  hdri: "4",
 };
 
 const PALETTES: [string, string, string][] = [
