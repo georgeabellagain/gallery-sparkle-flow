@@ -60,6 +60,7 @@ export function PdfViewer({
   controls?: boolean;
 }) {
   const view = { ...DEFAULT_VIEWER, ...viewer };
+  const availableModes = view.modes?.length ? view.modes : MODES.map(([mode]) => mode);
   const colour = backgroundColour(view, backdrop);
   const tone = useTone(colour, backgroundUrl);
   const showControls = controls ?? !compact;
@@ -131,7 +132,7 @@ export function PdfViewer({
     else void rootRef.current?.requestFullscreen?.();
   };
 
-  const [mode, setMode] = useState<"scroll" | "paged" | "book">(view.mode);
+  const [mode, setMode] = useState<"scroll" | "paged" | "book">(availableModes.includes(view.mode) ? view.mode : availableModes[0] ?? "scroll");
   const [jump, setJump] = useState<{ page: number; t: number } | null>(null);
   const z = (d: number) => setZoom((v) => Math.min(3, Math.max(mode === "book" ? 0.8 : 0.5, Math.round((v + d) * 100) / 100)));
   const total = doc?.numPages ?? 0;
@@ -143,7 +144,7 @@ export function PdfViewer({
     if (mode === "scroll") rootRef.current?.querySelector(`[data-page="${n}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  useEffect(() => setMode(view.mode), [view.mode]);
+  useEffect(() => setMode(availableModes.includes(view.mode) ? view.mode : availableModes[0] ?? "scroll"), [view.mode, view.modes]);
   useEffect(() => {
     if (mode === "book") setZoom((value) => Math.max(0.8, value));
   }, [mode]);
@@ -206,9 +207,9 @@ export function PdfViewer({
                   <User className="size-[17px]" />
                 </IconButton>
               )}
-              {doc && (
+              {doc && availableModes.length > 1 && (
                 <div role="radiogroup" aria-label="Reading mode" className="flex items-center">
-                  {MODES.map(([m, label, Icon]) => (
+                  {MODES.filter(([m]) => availableModes.includes(m)).map(([m, label, Icon]) => (
                     <IconButton key={m} label={label} tone={tone} checked={mode === m} onClick={() => setMode(m)}>
                       <Icon className="size-[17px]" />
                     </IconButton>

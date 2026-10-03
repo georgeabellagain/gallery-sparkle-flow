@@ -29,7 +29,14 @@ export interface PageStyle {
 
 export interface ViewerSettings {
   mode: "scroll" | "paged" | "book";
+  /** Reading modes offered to visitors. Older portfolios without this use all modes. */
+  modes?: ("scroll" | "paged" | "book")[];
   look: "clean" | "studio";
+  /** Flipbook appearances offered to visitors. Older portfolios use their saved look only. */
+  looks?: ("clean" | "studio")[];
+  /** Creator-defined Studio lighting. */
+  studioBrightness?: number;
+  studioLighting?: "1" | "2" | "3" | "4";
   background: "midnight" | "black" | "paper" | "soft" | "oak" | "walnut";
   finish: "matte" | "satin" | "textured";
   paper: "smooth" | "natural";
