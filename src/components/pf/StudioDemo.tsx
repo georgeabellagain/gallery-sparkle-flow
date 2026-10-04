@@ -216,6 +216,7 @@ export function StudioDemo({ className }: { className?: string }) {
   const lookRef = useRef(look);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  const failedRef = useRef(false);
 
   useEffect(() => {
     const element = host.current!;
@@ -259,7 +260,7 @@ export function StudioDemo({ className }: { className?: string }) {
       if (busy || next < 0 || next >= layout.spreads.length) return;
       busy = true;
       try {
-        if (scene && !failed) await scene.turn(facesOf(spread), facesOf(next), dir, focusOf(next), speed);
+        if (scene && !failedRef.current) await scene.turn(facesOf(spread), facesOf(next), dir, focusOf(next), speed);
         spread = next;
         showFallback();
       } finally {
@@ -302,11 +303,12 @@ export function StudioDemo({ className }: { className?: string }) {
         pages = Array.from({ length: PAGES }, (_, i) => drawPage(i, pageWidth));
         showFallback();
         scene = createBookScene(element, RATIO, () => {
-          if (!disposed) setFailed(true);
+          if (!disposed) { failedRef.current = true; setFailed(true); showFallback(); }
         }, () => {
           if (disposed || !scene) return;
           scene.configure(lookRef.current === "studio" ? STUDIO_LOOK : SIMPLE_LOOK);
           scene.show(facesOf(spread));
+          failedRef.current = false;
           setFailed(false);
         });
         scene.configure(lookRef.current === "studio" ? STUDIO_LOOK : SIMPLE_LOOK);
@@ -319,6 +321,7 @@ export function StudioDemo({ className }: { className?: string }) {
         scene?.dispose();
         scene = null;
         showFallback();
+        failedRef.current = true;
         setFailed(true);
       } finally {
         starting = false;
