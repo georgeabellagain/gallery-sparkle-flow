@@ -157,10 +157,15 @@ function Landing() {
               </Link>
               <Link to="/p/$slug" params={{ slug: "sample" }} search={{}} className="group block focus-visible:outline-none">
                 <div className="relative h-64 overflow-hidden rounded-2xl border border-border shadow-soft transition-transform group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-ring" style={{ background: MIDNIGHT }}>
-                  <img src={samplePage} alt="" width={1648} height={1168} loading="lazy" decoding="async" className="mx-auto mt-6 w-[66%] rounded-sm shadow-lift" />
+                  {/* Two pages side by side, so it reads as a spread rather than a column of pages like Scroll. */}
+                  <div className="relative mx-auto mt-9 grid w-[88%] grid-cols-2 gap-px shadow-lift" aria-hidden>
+                    <img src={samplePage} alt="" width={1648} height={1168} loading="lazy" decoding="async" className="w-full rounded-l-sm" />
+                    <img src={samplePage} alt="" width={1648} height={1168} loading="lazy" decoding="async" className="w-full rounded-r-sm" />
+                    <div className="pointer-events-none absolute inset-y-0 left-1/2 w-6 -translate-x-1/2" style={{ background: "linear-gradient(to right, transparent, rgba(0,0,0,0.22), transparent)" }} />
+                  </div>
                   <div className="absolute inset-x-0 bottom-4 flex items-center justify-center gap-2 text-xxs" aria-hidden>
                     <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-white/80">Previous</span>
-                    <span className="tabular-nums text-white/60">1 / 12</span>
+                    <span className="tabular-nums text-white/60">2–3 / 12</span>
                     <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-white/80">Next</span>
                   </div>
                 </div>

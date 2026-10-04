@@ -20,8 +20,8 @@ type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri" |
 const lookFrom = (viewer: ViewerSettings): Look => ({
   studio: viewer.look === "studio",
   material: viewer.finish === "textured" ? "textured" : "satin",
-  brightness: viewer.studioBrightness ?? 0.65,
-  hdri: viewer.studioLighting ?? "1",
+  brightness: viewer.studioBrightness ?? 0.5,
+  hdri: viewer.studioLighting ?? "4",
   simpleShadow: viewer.simpleShadow ?? true,
   simpleShadowOpacity: viewer.simpleShadowOpacity ?? DEFAULT_SIMPLE_SHADOW_OPACITY,
 });
@@ -290,9 +290,12 @@ export function BookView({
     });
     try {
       scene.current = createBookScene(element, ratio, () => {
+        // Say why, so if 3D ever stops working the browser console shows the reason.
+        console.warn("[flipbook] The graphics context was lost, so the 3D view was switched off.");
         if (alive.current) setFallback(true);
       });
-    } catch {
+    } catch (error) {
+      console.error("[flipbook] 3D could not start:", error);
       setFallback(true);
     }
     setReady((v) => v + 1);
@@ -581,7 +584,7 @@ export function BookView({
       <div
         ref={viewportRef}
         className="pf-book-viewport"
-        style={{ ...(fullscreen ? { height: "100svh" } : immersive ? { height: "clamp(420px, calc(100svh - 3rem), 1100px)" } : {}), ...(zoom > 1 ? { touchAction: "none" } : {}) }}
+        style={{ ...(fullscreen ? { height: "100svh" } : immersive ? { height: "max(420px, 100svh)" } : {}), ...(zoom > 1 ? { touchAction: "none" } : {}) }}
         data-busy={busy || wait}
         data-narrow={narrow}
         data-panning={panning.current !== null}
@@ -667,6 +670,11 @@ export function BookView({
               onClick={(e) => { if (e.detail === 0) void move(d); }}
             />
           ))}
+        {wait && !error && (
+          <p className="pf-book-status" role="status">
+            Preparing pages…
+          </p>
+        )}
         {error && (
           <p className="pf-book-status" role="alert">
             {error}
@@ -682,7 +690,7 @@ export function BookView({
             <ChevronRight className="size-6" />
           </IconButton>
         </div>
-        <p aria-live="polite" className={cn("pointer-events-none absolute inset-x-0 bottom-2 z-10 text-center text-[11px] tabular-nums transition-opacity duration-300", awake ? "opacity-100" : "opacity-0", tone === "dark" ? "text-white/45" : "text-black/40")}>
+        <p aria-live="polite" className={cn("pointer-events-none absolute inset-x-0 bottom-5 z-10 text-center text-[11px] tabular-nums transition-opacity duration-300", awake ? "opacity-100" : "opacity-0", tone === "dark" ? "text-white/45" : "text-black/40")}>
           {label}
         </p>
         {/* Simple / Studio: only offered when the creator has enabled both. Everything else is set in the editor. */}

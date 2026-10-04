@@ -97,6 +97,7 @@ export function PortfolioPage({
           onDownload={onDownload}
           compact={compact}
           immersive={immersive}
+          credit={showCredit}
           backdrop={pageStyle?.backdrop}
           viewer={view}
           startPage={startPage}
@@ -106,11 +107,6 @@ export function PortfolioPage({
           controls
         />
       </div>
-      {showCredit && (
-        <footer className="py-5 text-center text-xxs text-muted-foreground">
-          Hosted on <span className="display-title text-xs text-foreground">Portfolia</span>
-        </footer>
-      )}
     </div>
   );
 }

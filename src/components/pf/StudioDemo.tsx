@@ -19,7 +19,7 @@ const MAX_QUEUE = 12;
 const SIMPLE_LOOK: StudioSettings = {
   studio: false,
   material: "satin",
-  brightness: 0.7,
+  brightness: 0.5,
   hdri: "4",
   simpleShadow: true,
   simpleShadowOpacity: DEFAULT_SIMPLE_SHADOW_OPACITY,

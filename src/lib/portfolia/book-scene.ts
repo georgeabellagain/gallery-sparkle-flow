@@ -59,12 +59,12 @@ function pageRelief(d: number, v: number, seed: number) {
 export function createBookScene(host: HTMLElement, ratio: number, onLost: () => void) {
   const compact = window.innerWidth < 720;
   const dpr = window.devicePixelRatio || 1;
-  // Render at least twice the CSS resolution on desktop (a sharp, smooth
-  // result even on standard screens) and never beyond what a phone can handle.
-  const pixelRatio = compact ? Math.min(Math.max(dpr, 1.5), 2) : Math.min(Math.max(dpr, 2), 2.5);
+  // Edges are smoothed by multisampling (always on), so the picture does not need to be drawn at more than
+  // twice the screen's own detail. Drawing fewer pixels is what keeps Studio's paper shading quick.
+  let pixelRatio = Math.min(Math.max(dpr, 1.5), 2);
   const renderer = new THREE.WebGLRenderer({
     alpha: true,
-    antialias: pixelRatio < 2,
+    antialias: true,
     powerPreference: "high-performance",
   });
   renderer.setPixelRatio(pixelRatio);
@@ -74,7 +74,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.setAttribute("aria-hidden", "true");
   host.appendChild(renderer.domElement);
-  const maxAnisotropy = Math.min(16, renderer.capabilities.getMaxAnisotropy());
+  // 8x is visually the same as 16x for pages seen almost face-on, and noticeably cheaper to draw.
+  const maxAnisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   // Neutral tone mapping keeps artwork colours true; ACES is the fallback.
   const studioTone =
     (THREE as unknown as { NeutralToneMapping?: THREE.ToneMapping }).NeutralToneMapping ?? THREE.ACESFilmicToneMapping;
@@ -155,7 +156,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   light.castShadow = true;
   // A tight frustum keeps shadow detail high.
   const shadowExtent = Math.hypot(1, ratio / 2) + 0.7;
-  light.shadow.mapSize.set(2048, 2048);
+  light.shadow.mapSize.set(1024, 1024);
   light.shadow.camera.left = -shadowExtent;
   light.shadow.camera.right = shadowExtent;
   light.shadow.camera.top = shadowExtent;
@@ -174,36 +175,32 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   shadowCatcher.receiveShadow = true;
   scene.add(shadowCatcher);
 
-  // A soft shadow that is always under the book in the Simple look. It is in two halves, one under each
-  // page, so a page's shadow can arrive with the page as it lands rather than sliding across. Drawn once, not cast.
+  // A soft shadow that is always under the book in the Simple look. There is one for the open book and one
+  // for a single page (the cover, or the back page), each solid under what it sits beneath and softening
+  // evenly on every side. Moving between one page and two cross-fades them, timed with the page landing,
+  // so a shadow never slides and a lone page never has a hard edge. Drawn once, not cast.
   const SHADOW_SPREAD = 0.075; // how far the edge softens, in world units
   const SHADOW_MARGIN = 0.3; // how far the picture reaches beyond the page edge
   const SHADOW_PPU = 190; // picture pixels per world unit
   const CONTACT_X = 0.02;
   const CONTACT_Y = -0.03;
-  const contactWidth = 1 + SHADOW_MARGIN;
-  const contactHeight = ratio + 2 * SHADOW_MARGIN;
-  /**
-   * One page's shadow. Only the outer side softens: the side at the spine stays solid, so the two
-   * halves meet without a seam and, together, look like one shadow under the whole book.
-   */
-  const makeShadow = (mirror: boolean) => {
-    const w = Math.round(contactWidth * SHADOW_PPU);
-    const h = Math.round(contactHeight * SHADOW_PPU);
+  const makeShadow = (coreWidth: number) => {
+    const width = coreWidth + 2 * SHADOW_MARGIN;
+    const height = ratio + 2 * SHADOW_MARGIN;
+    const w = Math.round(width * SHADOW_PPU);
+    const h = Math.round(height * SHADOW_PPU);
     const canvas = document.createElement("canvas");
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d")!;
     const image = ctx.createImageData(w, h);
     const sigma = SHADOW_SPREAD * SHADOW_PPU;
-    const pageEdge = SHADOW_PPU;
-    const top = SHADOW_MARGIN * SHADOW_PPU;
-    const bottom = h - SHADOW_MARGIN * SHADOW_PPU;
+    const halfWidth = (coreWidth * SHADOW_PPU) / 2;
+    const halfHeight = (ratio * SHADOW_PPU) / 2;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
-        const fromSpine = mirror ? w - 1 - x : x;
-        const dx = Math.max(fromSpine - pageEdge, 0);
-        const dy = Math.max(top - y, 0, y - bottom);
+        const dx = Math.max(Math.abs(x + 0.5 - w / 2) - halfWidth, 0);
+        const dy = Math.max(Math.abs(y + 0.5 - h / 2) - halfHeight, 0);
         const d = Math.hypot(dx, dy);
         image.data[(y * w + x) * 4 + 3] = Math.round(255 * Math.exp(-(d * d) / (2 * sigma * sigma)));
       }
@@ -212,26 +209,28 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const texture = new THREE.CanvasTexture(canvas);
     texture.minFilter = THREE.LinearFilter;
     texture.generateMipmaps = false;
+    return { texture, width, height };
+  };
+  const spreadArt = makeShadow(2);
+  const pageArt = makeShadow(1);
+  const shadowMesh = (art: ReturnType<typeof makeShadow>, x: number) => {
     const mesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(contactWidth, contactHeight),
-      new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }),
+      new THREE.PlaneGeometry(art.width, art.height),
+      new THREE.MeshBasicMaterial({ map: art.texture, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }),
     );
     mesh.renderOrder = -1;
+    // A little down and to the right, like a real drop shadow.
+    mesh.position.set(CONTACT_X + x, CONTACT_Y, -BOOK_LIFT + 0.002);
     scene.add(mesh);
-    return { mesh, texture };
+    return mesh;
   };
-  const rightShadow = makeShadow(false);
-  const leftShadow = makeShadow(true);
-  // Each half lies from the spine outwards, shifted a little down and to the right like a real drop shadow.
-  rightShadow.mesh.position.set(CONTACT_X + contactWidth / 2, CONTACT_Y, -BOOK_LIFT + 0.002);
-  leftShadow.mesh.position.set(CONTACT_X - contactWidth / 2, CONTACT_Y, -BOOK_LIFT + 0.002);
-  const contact = [leftShadow.mesh, rightShadow.mesh];
+  const contact = { left: shadowMesh(pageArt, -0.5), spread: shadowMesh(spreadArt, 0), right: shadowMesh(pageArt, 0.5) };
 
   let settings: StudioSettings = {
     studio: false,
     material: "satin",
-    brightness: 0.65,
-    hdri: "1",
+    brightness: 0.5,
+    hdri: "4",
     simpleShadow: true,
     simpleShadowOpacity: DEFAULT_SIMPLE_SHADOW_OPACITY,
   };
@@ -420,23 +419,31 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   };
   renderer.domElement.addEventListener("webglcontextlost", lost);
 
-  // The soft Simple-look shadow lies under whichever pages show. When a page appears or goes the shadow
-  // under it fades; it never slides. During a turn the fade follows the turn, so a page's shadow
-  // arrives as the page lands. Otherwise (a jump to another page) it eases over about a third of a second.
-  const contactNow = { l: 1, r: 1 };
-  const contactGoal = { l: 1, r: 1 };
+  // Which of the three shadows is showing. A page that appears or goes fades; nothing slides. During a turn
+  // the cross-fade follows the turn, so the shadow arrives as the page lands. Otherwise (a jump to
+  // another page) it eases over about a third of a second.
+  type ShadowKind = "none" | "left" | "spread" | "right";
+  const kindOf = (faces: BookFaces): ShadowKind => (faces[0] && faces[1] ? "spread" : faces[1] ? "right" : faces[0] ? "left" : "none");
+  const weightsOf = (kind: ShadowKind) => ({ l: kind === "left" ? 1 : 0, s: kind === "spread" ? 1 : 0, r: kind === "right" ? 1 : 0 });
+  const keyOf = { none: null, left: "l", spread: "s", right: "r" } as const;
+  const contactNow = weightsOf("spread");
+  const contactGoal = weightsOf("spread");
   let contactShown = false;
   let contactFrame = 0;
   let contactLast = 0;
   let contactOn = true;
   let contactOpacity = DEFAULT_SIMPLE_SHADOW_OPACITY;
-  let contactTurn: { start: [number, number]; end: [number, number] } | null = null;
+  let contactTurn: { from: ShadowKind; to: ShadowKind; landing: boolean } | null = null;
   const applyContact = () => {
-    contact.forEach((mesh, i) => {
-      const side = i === 0 ? contactNow.l : contactNow.r;
-      mesh.material.opacity = contactOpacity * side;
-      mesh.visible = contactOn && side > 0.004;
-    });
+    const parts = [
+      [contact.left, contactNow.l],
+      [contact.spread, contactNow.s],
+      [contact.right, contactNow.r],
+    ] as const;
+    for (const [mesh, weight] of parts) {
+      mesh.material.opacity = contactOpacity * weight;
+      mesh.visible = contactOn && weight > 0.004;
+    }
   };
   const stepContact = (now: number) => {
     contactFrame = 0;
@@ -445,7 +452,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     contactLast = now;
     const k = 1 - Math.exp(-dt / 110);
     let moving = false;
-    for (const key of ["l", "r"] as const) {
+    for (const key of ["l", "s", "r"] as const) {
       const d = contactGoal[key] - contactNow[key];
       if (Math.abs(d) < 0.002) contactNow[key] = contactGoal[key];
       else {
@@ -460,34 +467,50 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const setContact = (faces: BookFaces) => {
     // While a page is turning, the turn itself decides the shadow.
     if (contactTurn) return;
-    contactGoal.l = faces[0] ? 1 : 0;
-    contactGoal.r = faces[1] ? 1 : 0;
+    const kind = kindOf(faces);
+    Object.assign(contactGoal, weightsOf(kind));
     const instant = !contactShown || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (faces[0] || faces[1]) contactShown = true;
+    if (kind !== "none") contactShown = true;
     if (instant) {
       Object.assign(contactNow, contactGoal);
       applyContact();
       return;
     }
-    if (contactNow.l === contactGoal.l && contactNow.r === contactGoal.r) return;
+    const settled = (["l", "s", "r"] as const).every((key) => Math.abs(contactNow[key] - contactGoal[key]) < 1e-6);
+    if (settled) return;
     if (!contactFrame) {
       contactLast = performance.now();
       contactFrame = requestAnimationFrame(stepContact);
     }
   };
-  /** Sets each page's shadow from how far the turn has got. */
+  /**
+   * How much of the outgoing shadow remains when the incoming one is at `t`, chosen so that where the two
+   * overlap (under a page that stays put) the shadow keeps exactly the same strength all the way through.
+   */
+  const outgoing = (t: number) => {
+    if (t <= 0) return 1;
+    if (t >= 1) return 0;
+    const op = contactOpacity;
+    if (op < 1e-6) return 1 - t;
+    const d = 1 - t * op;
+    return d <= 1e-9 ? 0 : Math.min(1, Math.max(0, (1 - (1 - op) / d) / op));
+  };
+  /** Sets the shadow from how far the turn has got. */
   const driveContact = (progress: number) => {
     const turn = contactTurn;
     if (!turn) return;
-    const side = (i: 0 | 1) => {
-      const from = turn.start[i];
-      const to = turn.end[i];
-      if (from === to) return from;
-      // A page lands: its shadow arrives over the last part of the turn. A page lifts: its shadow goes early.
-      return to > from ? smooth((progress - 0.55) / 0.45) : 1 - smooth(progress / 0.45);
-    };
-    contactNow.l = contactGoal.l = side(0);
-    contactNow.r = contactGoal.r = side(1);
+    const next = weightsOf("none");
+    if (turn.from === turn.to) Object.assign(next, weightsOf(turn.from));
+    else {
+      // A page lands: the new shadow arrives over the last part of the turn. A page lifts: it changes early.
+      const t = turn.landing ? smooth((progress - 0.55) / 0.45) : smooth(progress / 0.45);
+      const incoming = keyOf[turn.to];
+      const leaving = keyOf[turn.from];
+      if (incoming) next[incoming] = t;
+      if (leaving) next[leaving] = incoming ? outgoing(t) : 1 - t;
+    }
+    Object.assign(contactNow, next);
+    Object.assign(contactGoal, next);
     applyContact();
   };
 
@@ -599,6 +622,19 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     setContact(next);
     if (render) paint();
   };
+  // On a slower device, step the picture's resolution down while pages turn rather than let the turn stutter.
+  // It only ever steps down, a few times at most, so it can never flicker back and forth.
+  let qualityDrops = 0;
+  let slowFrames = 0;
+  const watchSpeed = (frameMs: number) => {
+    slowFrames = frameMs > 30 ? slowFrames + 1 : Math.max(0, slowFrames - 1);
+    if (slowFrames < 6 || qualityDrops >= 3 || pixelRatio <= 1) return;
+    slowFrames = 0;
+    qualityDrops += 1;
+    pixelRatio = Math.max(1, pixelRatio * 0.8);
+    renderer.setPixelRatio(pixelRatio);
+    resize();
+  };
   const animate = (duration: number, update: (t: number) => void) =>
     new Promise<void>((resolve) => {
       if (disposed) {
@@ -614,6 +650,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       finishAnimation?.();
       const start = performance.now();
       finishAnimation = resolve;
+      let lastFrame = 0;
+      let frames = 0;
       const tick = (now: number) => {
         if (disposed) {
           resolve();
@@ -622,6 +660,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         const t = Math.min(1, (now - start) / duration);
         update(ease(t));
         paint();
+        // The first few frames of a turn are not representative (shaders, uploads), so they are not counted.
+        if (lastFrame && ++frames > 2) watchSpeed(now - lastFrame);
+        lastFrame = now;
         if (t < 1) frame = requestAnimationFrame(tick);
         else {
           finishAnimation = null;
@@ -743,7 +784,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       sheetSeeds = [seedFor(from[moving]), seedFor(to[landing])];
       // The page being revealed sits underneath the turning sheet from the
       // first frame; the page being covered stays unchanged until the end.
-      contactTurn = { start: [from[0] ? 1 : 0, from[1] ? 1 : 0], end: [to[0] ? 1 : 0, to[1] ? 1 : 0] };
+      contactTurn = { from: kindOf(from), to: kindOf(to), landing: (to[0] ? 1 : 0) + (to[1] ? 1 : 0) > (from[0] ? 1 : 0) + (from[1] ? 1 : 0) };
       show(dir === 1 ? [from[0], to[1]] : [to[0], from[1]], false);
       sheet.visible = true;
       shape(0, dir);
@@ -798,8 +839,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       placeholder.dispose();
       bumps.forEach((t) => t.dispose());
       cancelAnimationFrame(contactFrame);
-      leftShadow.texture.dispose();
-      rightShadow.texture.dispose();
+      spreadArt.texture.dispose();
+      pageArt.texture.dispose();
       environments.forEach((target) => target.dispose());
       evenLight?.dispose();
       const geometries = new Set<THREE.BufferGeometry>();
@@ -810,7 +851,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       geometries.add(reverseGeometry);
       geometries.forEach((g) => g.dispose());
       pageMaterials.forEach((m) => m.dispose());
-      contact.forEach((mesh) => mesh.material.dispose());
+      Object.values(contact).forEach((mesh) => mesh.material.dispose());
       shadowCatcher.material.dispose();
       renderer.dispose();
       renderer.forceContextLoss();

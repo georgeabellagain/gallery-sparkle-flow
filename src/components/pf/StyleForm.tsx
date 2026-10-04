@@ -64,8 +64,8 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
   };
   const shadowOn = viewer.simpleShadow ?? true;
   const shadowOpacity = viewer.simpleShadowOpacity ?? DEFAULT_SIMPLE_SHADOW_OPACITY;
-  const studioBrightness = viewer.studioBrightness ?? 0.65;
-  const studioLighting = viewer.studioLighting ?? "1";
+  const studioBrightness = viewer.studioBrightness ?? 0.5;
+  const studioLighting = viewer.studioLighting ?? "4";
 
   const onBackgroundImage = async (f?: File) => {
     setBackgroundErr(null);

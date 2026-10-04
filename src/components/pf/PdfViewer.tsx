@@ -4,6 +4,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { cn } from "@/lib/utils";
 import { BookView } from "@/components/pf/BookView";
+import { Progress } from "@/components/ui/progress";
 import { BookLoader } from "@/components/pf/book-loader";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 import { backgroundColour, fitTransform } from "@/lib/portfolia/background";
@@ -12,6 +13,12 @@ import { IconButton, LogoMark, Panel, iconClass, useDismiss, useTone } from "@/c
 type Source = { blob: Blob } | { url: string };
 
 const noop = () => {};
+
+/**
+ * The page-turning loading icon, and holding the portfolio back until it has rendered. Switched off for now:
+ * the viewer shows its pages as they are ready, with a simple "Loading" note. Switch this on to bring it back.
+ */
+const SHOW_LOADER = false;
 
 const MODES = [
   ["scroll", "Scroll", ScrollText],
@@ -31,6 +38,7 @@ export function PdfViewer({
   onDownload,
   compact,
   immersive,
+  credit,
   backdrop,
   viewer,
   startPage = 1,
@@ -45,6 +53,8 @@ export function PdfViewer({
   onDownload?: () => void;
   compact?: boolean;
   immersive?: boolean;
+  /** Show the small "Hosted on Portfolia" text at the bottom of the viewer (the free plan). */
+  credit?: boolean;
   /** The older "behind the PDF" colour some Personal portfolios have. */
   backdrop?: string;
   viewer?: ViewerSettings;
@@ -74,6 +84,7 @@ export function PdfViewer({
   const [full, setFull] = useState(false);
   const [panel, setPanel] = useState<"profile" | "pages" | null>(null);
   const [contentReady, setContentReady] = useState(false);
+  const shownReady = !SHOW_LOADER || contentReady;
   const rootRef = useRef<HTMLDivElement>(null);
   const clusterRef = useRef<HTMLDivElement>(null);
   const [downloadUrl, setDownloadUrl] = useState<string>();
@@ -240,7 +251,7 @@ export function PdfViewer({
     <div
       ref={rootRef}
       style={{ background: colour }}
-      className={cn("relative isolate overflow-clip", immersive && "min-h-[calc(100svh-3rem)]", !contentReady && !error && "min-h-[22rem]", full && "overflow-auto")}
+      className={cn("relative isolate overflow-clip", immersive && "min-h-[100svh]", SHOW_LOADER && !contentReady && !error && "min-h-[22rem]", credit && mode !== "book" && "pb-8", full && "overflow-auto")}
       onPointerMove={autoHide ? wake : undefined}
       onPointerDown={autoHide ? wake : undefined}
       onKeyDown={autoHide ? wake : undefined}
@@ -348,8 +359,15 @@ export function PdfViewer({
           <p className={cn("font-medium", tone === "dark" ? "text-white" : "text-black")}>This portfolio couldn’t be displayed</p>
           <p className={cn("mt-1", quiet)}>{error}</p>
         </div>
-      ) : !doc ? null : (
-        <div className={cn("transition-opacity duration-300", contentReady ? "opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!contentReady}>
+      ) : !doc ? (
+        SHOW_LOADER ? null : (
+          <div role="status" className="mx-auto max-w-xs px-6 py-24 text-center text-sm">
+            <p className={quiet}>Loading portfolio…{progress > 0 && progress < 100 ? ` ${progress}%` : ""}</p>
+            <Progress value={progress} className="mt-3 h-1" />
+          </div>
+        )
+      ) : (
+        <div className={cn("transition-opacity duration-300", shownReady ? "opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!shownReady}>
       {mode === "book" ? (
         <BookView doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={setContentReady} />
       ) : mode === "paged" ? (
@@ -386,7 +404,13 @@ export function PdfViewer({
         </div>
       )}
 
-      {!error && (
+      {credit && (
+        <p className={cn("pointer-events-none absolute inset-x-0 bottom-1.5 z-10 text-center text-xxs", tone === "dark" ? "text-white/45" : "text-black/40")}>
+          Hosted on <span className={cn("display-title text-xs", tone === "dark" ? "text-white/75" : "text-black/65")}>Portfolia</span>
+        </p>
+      )}
+
+      {SHOW_LOADER && !error && (
         <div
           aria-hidden={contentReady}
           className={cn("absolute inset-0 z-40 transition-opacity duration-300", contentReady ? "pointer-events-none opacity-0" : "opacity-100")}
