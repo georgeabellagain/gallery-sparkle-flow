@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import samplePage from "@/assets/sample-page.jpg";
+import samplePageTwo from "@/assets/sample-page-two.jpg";
 import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
 import { BookAnimation } from "@/components/pf/BookAnimation";
 import { DropZone } from "@/components/pf/DropZone";
@@ -160,7 +161,7 @@ function Landing() {
                   {/* Two pages side by side, so it reads as a spread rather than a column of pages like Scroll. */}
                   <div className="relative mx-auto mt-9 grid w-[88%] grid-cols-2 gap-px shadow-lift" aria-hidden>
                     <img src={samplePage} alt="" width={1648} height={1168} loading="lazy" decoding="async" className="w-full rounded-l-sm" />
-                    <img src={samplePage} alt="" width={1648} height={1168} loading="lazy" decoding="async" className="w-full rounded-r-sm" />
+                     <img src={samplePageTwo} alt="" width={653} height={463} loading="lazy" decoding="async" className="w-full rounded-r-sm" />
                     <div className="pointer-events-none absolute inset-y-0 left-1/2 w-6 -translate-x-1/2" style={{ background: "linear-gradient(to right, transparent, rgba(0,0,0,0.22), transparent)" }} />
                   </div>
                   <div className="absolute inset-x-0 bottom-4 flex items-center justify-center gap-2 text-xxs" aria-hidden>
@@ -180,13 +181,13 @@ function Landing() {
           <div className="shell py-14">
             <h2 className="text-sm font-medium">Plans</h2>
             <div className="mx-auto mt-7 grid max-w-5xl gap-5 sm:grid-cols-2">
-               <Plan name="Free" price="£0" description="A complete, permanent starting point for one portfolio." items={["One PDF portfolio up to 10 MB", "Permanent Portfolia sharing address", "Downloadable personal QR code", "Profile and contact links", "Continuous and page-by-page viewing", "Basic visit statistics", "Replace your PDF without changing its link", "Small Portfolia credit"]} />
+               <Plan name="Free" price="£0" description="A complete, permanent starting point for one portfolio." items={["One PDF portfolio up to 10 MB", "Permanent Portfolia sharing address", "Downloadable personal QR code", "Profile and contact links", "Continuous and page-by-page viewing", "Basic visit statistics", "Replace your PDF without changing its link"]} />
               <Plan
                 name="Personal"
                 price={`${PRICE.month}/month or ${PRICE.year}/year`}
                 description="For professionals managing a broader body of work and a more personal presence."
                 featured
-                items={["Everything included in Free", "Up to 10 portfolios, each up to 50 MB", "CV displayed with your profile", "Personalised address such as portfolia.site/marksmith", "Portfolia credit removed"]}
+                 items={["Everything included in Free", "Up to 10 portfolios, each up to 50 MB", "CV displayed with your profile", "Personalised address such as portfolia.site/marksmith"]}
                 action={<Button variant="line" size="sm" className="mt-5" onClick={() => setUpgrade(true)}>Choose Personal</Button>}
               />
             </div>

@@ -14,7 +14,6 @@ export function PortfolioPage({
   pdf,
   photoUrl,
   allowDownload,
-  showCredit,
   onDownload,
   compact,
   immersive,
@@ -28,7 +27,6 @@ export function PortfolioPage({
   pdf: { blob: Blob } | { url: string } | null;
   photoUrl?: string;
   allowDownload: boolean;
-  showCredit: boolean;
   onDownload?: () => void;
   compact?: boolean;
   immersive?: boolean;
@@ -97,7 +95,6 @@ export function PortfolioPage({
           onDownload={onDownload}
           compact={compact}
           immersive={immersive}
-          credit={showCredit}
           backdrop={pageStyle?.backdrop}
           viewer={view}
           startPage={startPage}
