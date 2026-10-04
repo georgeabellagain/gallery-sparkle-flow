@@ -22,3 +22,4 @@
 - Profile details and portfolio appearance are edited on separate routes; own portfolio cards open the appearance editor while explicit Preview opens the visitor view. Why: creator navigation should distinguish identity from presentation.
 - Flipbook camera zoom and cursor anchoring live in the persistent book scene; the viewer toolbar owns the shared zoom value. Why: wheel and button zoom must remain coordinated while turns can smoothly reset the camera.
 - Viewer mode and Flipbook appearance availability are creator-owned portfolio settings; visitors may switch only among enabled choices, while Studio material and lighting remain fixed by the creator. Why: shared links must preserve the intended presentation.
+- A lost flipbook graphics context shows a readable canvas page and restores the scene when graphics return; the homepage example uses smaller page textures. Why: temporary GPU failures must not hide the portfolio or leave a permanent warning.

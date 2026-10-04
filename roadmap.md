@@ -71,3 +71,9 @@
 - [x] Show Simple and Studio availability only when Flipbook is enabled.
 - [x] Move Studio paper, lighting, and brightness settings into the portfolio editing panel.
 - [x] Keep resting and turning page shadows visible in Studio.
+
+## Viewer clarity and reliability
+- [x] Keep Scroll and Page by page pages clear of the top icons.
+- [x] Remove free-plan viewer branding and corresponding plan copy.
+- [x] Show a different second page in the homepage page-by-page example.
+- [x] Keep the flipbook readable when 3D fails and restore it after temporary graphics loss.
