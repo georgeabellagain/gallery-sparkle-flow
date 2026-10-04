@@ -12,6 +12,9 @@ import {
 import { createBookScene, type BookFaces, type BookScene, type StudioSettings } from "@/lib/portfolia/book-scene";
 import { DEFAULT_SIMPLE_SHADOW_OPACITY } from "@/lib/portfolia/lighting";
 import { getPreviewLook, subscribePreviewLook, type PreviewLook } from "@/lib/portfolia/preview-look";
+import { coverThenSpreads, coverWithSpreads } from "@/lib/portfolia/mixed-layout";
+import { CPU_BYTES, deviceTier, detectDensity, longSideCap, longSideFor } from "@/lib/portfolia/resolution";
+import { loadPdfjs } from "@/lib/portfolia/pdf";
 import { cn } from "@/lib/utils";
 import type { BackgroundFit } from "@/lib/portfolia/background";
 import { BackdropLayer, IconButton, Segmented, type Tone } from "@/components/pf/viewer-ui";
@@ -40,7 +43,15 @@ const MAX_QUEUE = 12;
  * rendering or copying at the moment the page moves. Pages are rendered up
  * front, within a memory budget, so turning never waits.
  */
-function pageLoader(doc: PDFDocumentProxy, ratio: number, layout: ReturnType<typeof bookLayout>) {
+function pageLoader(
+  doc: PDFDocumentProxy,
+  ratio: number,
+  layout: ReturnType<typeof bookLayout>,
+  /** The detail of the images inside the PDF, in pixels per PDF point (0 if there are none). */
+  density: Promise<number> = Promise.resolve(0),
+  /** What the graphics card can take, known once the 3D view exists. */
+  maxTexture: () => number = () => 4096,
+) {
   const faces = new Map<number, HTMLCanvasElement>();
   const pending = new Map<number, Promise<void>>();
   const tasks = new Set<RenderTask>();
@@ -60,21 +71,36 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number, layout: ReturnType<typ
     else leavesOf.set(leaf.page, [index]);
   });
 
-  // Keep every page in memory when it fits. Longer documents render each page
-  // a little smaller so they still fit instead of exhausting the device.
+  // Each page is drawn at the detail of the images inside the PDF, so nothing is softer than the file that was
+  // uploaded (a spread sheet keeps the sheet's detail across both pages), and never below what the screen needs.
+  // The most a device can safely hold caps it. Pages are kept in memory within that budget; any beyond it are
+  // prepared just before they are turned to, and the turn waits for them.
   const split = layout.leaves.some((leaf) => leaf.half) ? 0.5 : 1;
   const perPage = split === 0.5 ? 2 : 1;
   const count = layout.leaves.length;
-  const budget = (window.innerWidth < 720 ? 160 : 360) * 1024 * 1024;
-  const ideal = Math.min(
-    4096,
-    Math.max(2560, window.innerWidth * Math.min(devicePixelRatio || 1, 3)),
-  );
-  const fitted = Math.sqrt(budget / (3 * Math.min(count, 60)));
-  // No page picture needs to be more than ~3000px on its long side: more costs graphics memory (and, on some devices, the 3D view itself).
-  const target = Math.max(1200, Math.min(ideal, fitted, 3072));
-  const keep = Math.max(8, Math.min(count, Math.floor(budget / (3 * target * target))));
+  const tier = deviceTier();
+  const screenLong = Math.min(4096, Math.max(2560, window.innerWidth * Math.min(devicePixelRatio || 1, 3)));
+  const leafRatio = Math.max(ratio, 1 / ratio);
+  const isSplit = (page: number) => (leavesOf.get(page) ?? []).some((index) => !!layout.leaves[index]!.half);
+  /** The long side, in PDF points, of what is shown for this page (a whole page, or half of a spread). */
+  const leafLongPt = (page: number, width: number, height: number) => Math.max(isSplit(page) ? width / 2 : width, height);
+  let nativeDensity = 0;
+  let keep = 8;
+  const longFor = (page: number, width: number, height: number) =>
+    longSideFor({
+      screenLong,
+      density: nativeDensity,
+      leafLongPt: leafLongPt(page, width, height),
+      cap: longSideCap({ leafRatio, tier, maxTexture: maxTexture() }),
+    });
 
+  const plan = (async () => {
+    nativeDensity = await density.catch(() => 0);
+    const first = (await doc.getPage(1)).getViewport({ scale: 1 });
+    const long = longFor(1, first.width, first.height);
+    // Enough pages stay in memory to turn through the book; the rest are prepared as they are needed.
+    keep = Math.max(6, Math.min(count, Math.floor(CPU_BYTES[tier] / ((4 * long * long) / leafRatio))));
+  })();
   const compose = (raw: HTMLCanvasElement, leaf: Leaf, index: number) => {
     const canvas = document.createElement("canvas");
     canvas.width = leaf.half ? Math.floor(raw.width / 2) : raw.width;
@@ -108,14 +134,13 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number, layout: ReturnType<typ
     const existing = pending.get(page);
     if (existing) return existing;
     const promise = (async () => {
+      await plan;
       const pdfPage = await doc.getPage(page);
       if (closed) throw new Error("Viewer closed");
       const original = pdfPage.getViewport({ scale: 1 });
-      const viewport = pdfPage.getViewport({
-        // What matters is the size of one leaf (a whole page, or half of a two-page spread), so a spread is
-        // drawn twice as wide and each half comes out as sharp as a single page.
-        scale: target / Math.max(split === 0.5 ? original.width / 2 : original.width, original.height),
-      });
+      // The scale that gives one leaf (a whole page, or half of a spread) its long side, so a spread's two
+      // halves together carry the whole sheet's detail.
+      const viewport = pdfPage.getViewport({ scale: longFor(page, original.width, original.height) / leafLongPt(page, original.width, original.height) });
       const raw = document.createElement("canvas");
       raw.width = Math.ceil(viewport.width);
       raw.height = Math.ceil(viewport.height);
@@ -141,7 +166,8 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number, layout: ReturnType<typ
      * Renders pages in the background. Resolves once the first `gate` pages are
      * ready; any remaining pages keep loading afterwards.
      */
-    preload(onProgress: (done: number, total: number) => void): Promise<void> {
+    async preload(onProgress: (done: number, total: number) => void): Promise<void> {
+      await plan;
       const total = Math.min(doc.numPages, Math.floor(keep / perPage));
       // Turning waits until every page is ready, so no page ever has to be prepared during a turn.
       const gate = total;
@@ -235,12 +261,15 @@ export function BookView({
   /** The editor's preview: it shows the look whose settings are being edited. */
   previewable?: boolean;
 }) {
+  // A portrait first page followed only by landscape pages is a front cover and then two-page spreads.
+  // The flipbook shows it that way whatever "My PDF contains" says; the other reading modes are unaffected.
+  const coverAndSpreads = useMemo(() => coverWithSpreads(sizes), [sizes]);
   const layout = useMemo(
-    () => bookLayout(doc.numPages, viewer.spreads === "ready"),
-    [doc, viewer.spreads],
+    () => (coverAndSpreads ? coverThenSpreads(doc.numPages) : bookLayout(doc.numPages, viewer.spreads === "ready")),
+    [doc, viewer.spreads, coverAndSpreads],
   );
-  const first = sizes[0] ?? { w: 1, h: 1.4 };
-  const ratio = first.h / (viewer.spreads === "ready" ? first.w / 2 : first.w);
+  const first = sizes[coverAndSpreads ? 1 : 0] ?? { w: 1, h: 1.4 };
+  const ratio = first.h / (coverAndSpreads || viewer.spreads === "ready" ? first.w / 2 : first.w);
   const host = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const wheelZoom = useRef(zoom);
@@ -322,7 +351,9 @@ export function BookView({
     const observer = new ResizeObserver(() => setNarrow(element.clientWidth < 720));
     observer.observe(element);
     setNarrow(element.clientWidth < 720);
-    const source = pageLoader(doc, ratio, layout);
+    // The detail of the images inside the PDF is read once, in the background; pages wait for it before drawing.
+    const density = loadPdfjs().then((pdfjs) => detectDensity(doc, pdfjs.OPS as never)).catch(() => 0);
+    const source = pageLoader(doc, ratio, layout, density, () => scene.current?.maxTextureSize ?? 4096);
     loader.current = source;
     setWarm(false);
     setWarmProgress({ done: 0, total: 0 });

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { surfaceCanvas, type SurfaceKind } from "./surface";
 import { parseRgbe } from "./rgbe";
 import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS, type HdriId } from "./lighting";
+import { GPU_BYTES, deviceTier, gpuBytesOf } from "./resolution";
 
 export { HDRI_PRESETS };
 export type { HdriId };
@@ -30,9 +31,6 @@ const fract = (x: number) => x - Math.floor(x);
 
 /** Page textures kept on the GPU at once (current, next and previous spreads). */
 const MAX_TEXTURES = 8;
-/** The most graphics memory page pictures may hold at once (mipmaps included). Beyond this the browser may take the graphics context away. */
-const MAX_TEXTURE_BYTES = 224 * 1024 * 1024;
-const MAX_TEXTURE_BYTES_SMALL = 128 * 1024 * 1024;
 /** The drawing surface, in pixels. With edge smoothing it costs several times its size in graphics memory. */
 const MAX_SURFACE_PIXELS = 4_200_000;
 const MAX_SURFACE_PIXELS_SMALL = 2_500_000;
@@ -346,13 +344,16 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let draggedTurn: { from: BookFaces; to: BookFaces; dir: 1 | -1; destinationFocus: number; originalFocus: number; progress: number; speed: number } | null = null;
 
   // Pages kept on the graphics card are limited by count and by memory, so the browser never has a reason to take the context away.
+  // The most graphics memory page pictures may hold at once depends on the device (see resolution.ts); beyond it the
+  // browser may take the graphics context away.
+  const textureBudget = GPU_BYTES[deviceTier()];
   const textureBytes = () => {
     let total = 0;
-    for (const [canvas] of texCache) total += (canvas.width || 0) * (canvas.height || 0) * 4 * 1.34;
+    for (const [canvas] of texCache) total += gpuBytesOf(canvas.width || 0, canvas.height || 0);
     return total;
   };
   const trimTextures = () => {
-    const budget = compact ? MAX_TEXTURE_BYTES_SMALL : MAX_TEXTURE_BYTES;
+    const budget = textureBudget;
     if (texCache.size <= MAX_TEXTURES && textureBytes() <= budget) return;
     const used = new Set<THREE.Texture | null>([left.material.map, right.material.map, frontMat.map, backMat.map]);
     for (const [canvas, t] of texCache) {
@@ -675,10 +676,19 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     slowFrames = frameMs > 30 ? slowFrames + 1 : Math.max(0, slowFrames - 1);
     if (slowFrames < 6 || qualityDrops >= 3 || appliedRatio <= 1) return;
     slowFrames = 0;
+    // Resizing the drawing surface is itself a hitch, so it waits until the turn is over (see applyPendingQuality).
+    qualityPending = true;
+  };
+  let qualityPending = false;
+  const applyPendingQuality = () => {
+    if (!qualityPending || qualityDrops >= 3 || appliedRatio <= 1) return;
+    qualityPending = false;
     qualityDrops += 1;
     pixelRatio = Math.max(1, appliedRatio * 0.8);
     resize();
   };
+  /** The most a turn advances in one frame, however slow that frame was. */
+  const MAX_FRAME_STEP = 40;
   const animate = (duration: number, update: (t: number) => void) =>
     new Promise<void>((resolve) => {
       if (disposed) {
@@ -694,6 +704,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       finishAnimation?.();
       finishAnimation = resolve;
       let start = 0;
+      let previous = 0;
+      let elapsed = 0;
       let lastFrame = 0;
       let frames = 0;
       const tick = (now: number) => {
@@ -703,8 +715,15 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         }
         // Time starts from the first frame that is actually drawn: if that frame is slow (a texture reaching the
         // graphics card, say) the turn begins from the start rather than skipping ahead.
-        if (!start) start = now;
-        const t = Math.min(1, (now - start) / duration);
+        // A slow frame (a hitch of any kind) holds the turn back instead of making it jump ahead: however long a
+        // frame takes, the turn advances by at most two frames' worth, so it never skips.
+        if (!start) {
+          start = now;
+          previous = now;
+        }
+        elapsed += Math.min(now - previous, MAX_FRAME_STEP);
+        previous = now;
+        const t = Math.min(1, elapsed / duration);
         update(ease(t));
         paint();
         // The first few frames of a turn are not representative (shaders, uploads), so they are not counted.
@@ -783,6 +802,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       }
       return bothLooks || settings.studio ? loadEnvironment(settings.hdri).then(() => undefined) : Promise.resolve();
     },
+    /** The largest picture the graphics card can take on a side. */
+    maxTextureSize: renderer.capabilities.maxTextureSize as number,
     prefetch(canvas: HTMLCanvasElement | null | undefined) {
       if (!canvas || disposed) return;
       try {
@@ -848,9 +869,23 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       contactTurn = { from: kindOf(from), to: kindOf(to), landing: (to[0] ? 1 : 0) + (to[1] ? 1 : 0) > (from[0] ? 1 : 0) + (from[1] ? 1 : 0) };
       show(dir === 1 ? [from[0], to[1]] : [to[0], from[1]], false);
       sheet.visible = true;
+      applyPendingQuality();
+      // Everything this turn needs reaches the graphics card now (the pictures, the sheet in mid-turn), and the card
+      // is waited for, so the first frames of the animation have nothing left to stall on.
+      shape(0.5, dir);
+      paint();
       shape(0, dir);
       paint();
+      try {
+        renderer.getContext().finish();
+      } catch {
+        /* not available: the turn simply starts */
+      }
       draggedTurn = { from, to, dir, destinationFocus, originalFocus, progress: 0, speed };
+    },
+    /** How far the turn in progress has got (0 to 1), or null when no page is turning. */
+    turnProgress(): number | null {
+      return draggedTurn ? draggedTurn.progress : null;
     },
     dragTurn(progress: number) {
       const turn = draggedTurn;
@@ -887,6 +922,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     },
     async turn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number, speed = 1) {
       await this.prepareTurn(from, to, dir, destinationFocus, speed);
+      // One frame to let everything settle, so the turn's clock starts on a quiet frame.
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       await this.settleTurn(true);
     },
     dispose() {
