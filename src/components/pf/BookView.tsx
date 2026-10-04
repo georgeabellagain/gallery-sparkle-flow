@@ -41,6 +41,13 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number, layout: ReturnType<typ
   const pending = new Map<number, Promise<void>>();
   const tasks = new Set<RenderTask>();
   let closed = false;
+  let paused = false;
+  let resumeWaiters: (() => void)[] = [];
+  const resume = () => {
+    const waiting = resumeWaiters;
+    resumeWaiters = [];
+    waiting.forEach((go) => go());
+  };
 
   const leavesOf = new Map<number, number[]>();
   layout.leaves.forEach((leaf, index) => {
@@ -60,7 +67,8 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number, layout: ReturnType<typ
     Math.max(2560, window.innerWidth * Math.min(devicePixelRatio || 1, 3)),
   );
   const fitted = Math.sqrt(budget / (3 * split * Math.min(count, 60)));
-  const target = Math.max(1200, Math.min(ideal, fitted));
+  // No page picture needs to be more than ~3000px on its long side: more costs graphics memory (and, on some devices, the 3D view itself).
+  const target = Math.max(1200, Math.min(ideal, fitted, 3072));
   const keep = Math.max(8, Math.min(count, Math.floor(budget / (3 * split * target * target))));
 
   const compose = (raw: HTMLCanvasElement, leaf: Leaf, index: number) => {
@@ -129,12 +137,16 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number, layout: ReturnType<typ
      */
     preload(onProgress: (done: number, total: number) => void): Promise<void> {
       const total = Math.min(doc.numPages, Math.floor(keep / perPage));
-      const gate = Math.min(total, 40);
+      // Turning can start once the first few pages are ready; the rest keep preparing quietly behind.
+      const gate = Math.min(total, 6);
       return new Promise<void>((resolve) => {
         let next = 1;
         let done = 0;
         const worker = async () => {
           while (!closed) {
+            // Preparing pages uses the main thread, so it waits while a page is turning.
+            while (paused && !closed) await new Promise<void>((go) => resumeWaiters.push(go));
+            if (closed) return;
             const page = next++;
             if (page > total) return;
             try {
@@ -150,6 +162,11 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number, layout: ReturnType<typ
         void Promise.all([worker(), worker()]).then(() => resolve());
       });
     },
+    /** Holds the background preparation while a page turns, and lets it carry on afterwards. */
+    setPaused(value: boolean) {
+      paused = value;
+      if (!value) resume();
+    },
     async face(index: number | null): Promise<HTMLCanvasElement | null> {
       if (index === null) return null;
       let hit = faces.get(index);
@@ -164,6 +181,7 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number, layout: ReturnType<typ
     },
     dispose() {
       closed = true;
+      resume();
       tasks.forEach((task) => task.cancel());
       faces.clear();
     },
@@ -245,6 +263,9 @@ export function BookView({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fallback, setFallback] = useState(false);
+  useEffect(() => {
+    loader.current?.setPaused(busy);
+  }, [busy]);
   const fallbackCanvas = useRef<HTMLCanvasElement>(null);
   const [settings, setSettings] = useState<Look>(() => lookFrom(viewer));
   // When the creator changes the settings in the editor, the book follows. A visitor's own
@@ -288,24 +309,74 @@ export function BookView({
     }).then(() => {
       if (!cancelled) setWarm(true);
     });
-    try {
-      scene.current = createBookScene(element, ratio, () => {
-        // Say why, so if 3D ever stops working the browser console shows the reason.
-        console.warn("[flipbook] The graphics context was lost, so the 3D view was switched off.");
-        if (alive.current) setFallback(true);
-      }, () => {
-        if (alive.current) {
-          setFallback(false);
-          setReady((v) => v + 1);
-        }
-      });
-    } catch (error) {
-      console.error("[flipbook] 3D could not start:", error);
-      setFallback(true);
-    }
-    setReady((v) => v + 1);
+    // 3D that keeps working. Failing to start, or the browser taking the graphics context back, is not the end
+    // of 3D: a fresh view is built a moment later. Only after several failures is the plain page view shown
+    // (and 3D is still retried in the background, and swapped back in as soon as it works).
+    let attempt = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let restoreTimer: ReturnType<typeof setTimeout> | null = null;
+    let steadyTimer: ReturnType<typeof setTimeout> | null = null;
+    const RETRY_MS = [400, 1500, 4000, 8000];
+    const MAX_TRIES = 12;
+    const discard = () => {
+      const old = scene.current;
+      scene.current = null;
+      try {
+        old?.dispose();
+      } catch (error) {
+        console.warn("[flipbook] Closing the old 3D view:", error);
+      }
+    };
+    const failed = () => {
+      attempt += 1;
+      if (attempt >= 3) setFallback(true);
+      if (attempt >= MAX_TRIES || cancelled) return;
+      retryTimer = setTimeout(build, RETRY_MS[Math.min(attempt - 1, RETRY_MS.length - 1)]);
+    };
+    const lost = (which: BookScene | null) => {
+      // An old, already-replaced view reporting late is not news.
+      if (cancelled || !which || which !== scene.current) return;
+      console.warn("[flipbook] The graphics context was lost; waiting a moment for the browser to give it back.");
+      if (restoreTimer) clearTimeout(restoreTimer);
+      restoreTimer = setTimeout(() => {
+        restoreTimer = null;
+        if (cancelled || which !== scene.current) return;
+        console.warn("[flipbook] The graphics context was not given back; building a new 3D view.");
+        discard();
+        failed();
+      }, 2500);
+    };
+    const restored = (which: BookScene | null) => {
+      if (which !== scene.current || !restoreTimer) return;
+      clearTimeout(restoreTimer);
+      restoreTimer = null;
+    };
+    const build = () => {
+      retryTimer = null;
+      if (cancelled) return;
+      let made: BookScene | null = null;
+      try {
+        made = createBookScene(element, ratio, () => lost(made), () => restored(made));
+      } catch (error) {
+        console.error(`[flipbook] 3D could not start (try ${attempt + 1}):`, error);
+        failed();
+        return;
+      }
+      scene.current = made;
+      setFallback(false);
+      setReady((v) => v + 1);
+      // Once it has held for a few seconds, earlier trouble is forgotten.
+      if (steadyTimer) clearTimeout(steadyTimer);
+      steadyTimer = setTimeout(() => {
+        attempt = 0;
+      }, 6000);
+    };
+    build();
     return () => {
       cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      if (restoreTimer) clearTimeout(restoreTimer);
+      if (steadyTimer) clearTimeout(steadyTimer);
       alive.current = false;
       queued.current = 0;
       generation.current++;
@@ -639,6 +710,7 @@ export function BookView({
         {fallback && (
           <div className="pf-book-fallback">
             <canvas ref={fallbackCanvas} />
+            <p>3D is unavailable on this device. You can still read every page.</p>
           </div>
         )}
         {/* Invisible but fully working: click a bottom corner, or drag it to turn. */}

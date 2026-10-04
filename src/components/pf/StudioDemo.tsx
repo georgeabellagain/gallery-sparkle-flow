@@ -210,13 +210,11 @@ function drawPage(n: number, width: number): HTMLCanvasElement {
 export function StudioDemo({ className }: { className?: string }) {
   const wrap = useRef<HTMLDivElement>(null);
   const host = useRef<HTMLDivElement>(null);
-  const fallbackCanvas = useRef<HTMLCanvasElement>(null);
   const controls = useRef<{ manual: (dir: 1 | -1) => void; setLook: (look: "simple" | "studio") => void } | null>(null);
   const [look, setLook] = useState<"simple" | "studio">("simple");
   const lookRef = useRef(look);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
-  const failedRef = useRef(false);
 
   useEffect(() => {
     const element = host.current!;
@@ -231,15 +229,6 @@ export function StudioDemo({ className }: { className?: string }) {
     let direction: 1 | -1 = 1;
     let queued = 0;
     let pages: HTMLCanvasElement[] = [];
-
-    const showFallback = () => {
-      const canvas = fallbackCanvas.current;
-      const page = pages[layout.spreads[spread]?.[1] ?? layout.spreads[spread]?.[0] ?? 0];
-      if (!canvas || !page) return;
-      canvas.width = page.width;
-      canvas.height = page.height;
-      canvas.getContext("2d")?.drawImage(page, 0, 0);
-    };
 
     const facesOf = (index: number): BookFaces => {
       const [l, r] = layout.spreads[index]!;
@@ -257,12 +246,17 @@ export function StudioDemo({ className }: { className?: string }) {
 
     const go = async (dir: 1 | -1, speed = 1) => {
       const next = spread + dir;
-      if (busy || next < 0 || next >= layout.spreads.length) return;
+      if (!scene || busy || next < 0 || next >= layout.spreads.length) return;
       busy = true;
       try {
-        if (scene && !failedRef.current) await scene.turn(facesOf(spread), facesOf(next), dir, focusOf(next), speed);
+        const used = scene;
+        await used.turn(facesOf(spread), facesOf(next), dir, focusOf(next), speed);
         spread = next;
-        showFallback();
+        // If the 3D view was replaced during the turn, the new one is brought to where the turn ended.
+        if (scene && scene !== used) {
+          scene.viewport(false, 1, focusOf(spread));
+          scene.show(facesOf(spread));
+        }
       } finally {
         busy = false;
       }
@@ -291,6 +285,40 @@ export function StudioDemo({ className }: { className?: string }) {
       schedule();
     }
 
+    // Same recovery as the real flipbook: a failed start, or the graphics context being taken away, is retried
+    // with a fresh view rather than ending the example. The "unavailable" note only shows after repeated failures.
+    let attempts = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let restoreTimer: ReturnType<typeof setTimeout> | undefined;
+    let steadyTimer: ReturnType<typeof setTimeout> | undefined;
+    const noteFailure = () => {
+      attempts += 1;
+      if (attempts >= 3) setFailed(true);
+      if (attempts >= 12 || disposed) return;
+      retryTimer = setTimeout(() => void start(), [400, 1500, 4000, 8000][Math.min(attempts - 1, 3)]);
+    };
+    const lost = (which: BookScene | null) => {
+      if (disposed || !which || which !== scene) return;
+      console.warn("[example] The graphics context was lost; waiting a moment for the browser to give it back.");
+      if (restoreTimer) clearTimeout(restoreTimer);
+      restoreTimer = setTimeout(() => {
+        if (disposed || which !== scene) return;
+        console.warn("[example] The graphics context was not given back; building a new 3D view.");
+        try {
+          scene?.dispose();
+        } catch {
+          /* already gone */
+        }
+        scene = null;
+        noteFailure();
+      }, 2500);
+    };
+    const restored = (which: BookScene | null) => {
+      if (which !== scene) return;
+      if (restoreTimer) clearTimeout(restoreTimer);
+      restoreTimer = undefined;
+    };
+
     const start = async () => {
       if (scene || starting || disposed) return;
       starting = true;
@@ -299,30 +327,30 @@ export function StudioDemo({ className }: { className?: string }) {
         if (document.fonts?.ready) await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 600))]);
         if (disposed) return;
         // Sharper pages on large screens; lighter ones on phones.
-        const pageWidth = window.innerWidth < 720 ? 700 : 900;
-        pages = Array.from({ length: PAGES }, (_, i) => drawPage(i, pageWidth));
-        showFallback();
-        scene = createBookScene(element, RATIO, () => {
-          if (!disposed) { failedRef.current = true; setFailed(true); showFallback(); }
-        }, () => {
-          if (disposed || !scene) return;
-          scene.configure(lookRef.current === "studio" ? STUDIO_LOOK : SIMPLE_LOOK);
-          scene.show(facesOf(spread));
-          failedRef.current = false;
-          setFailed(false);
-        });
+        const pageWidth = window.innerWidth < 720 ? 1000 : 1400;
+        if (!pages.length) pages = Array.from({ length: PAGES }, (_, i) => drawPage(i, pageWidth));
+        let made: BookScene | null = null;
+        made = createBookScene(element, RATIO, () => lost(made), () => restored(made));
+        scene = made;
         scene.configure(lookRef.current === "studio" ? STUDIO_LOOK : SIMPLE_LOOK);
-        scene.viewport(false, 1, focusOf(0));
-        scene.show(facesOf(0));
+        scene.viewport(false, 1, focusOf(spread));
+        scene.show(facesOf(spread));
+        setFailed(false);
         setReady(true);
+        if (steadyTimer) clearTimeout(steadyTimer);
+        steadyTimer = setTimeout(() => {
+          attempts = 0;
+        }, 6000);
         schedule();
       } catch (error) {
-        console.warn("[flipbook example] 3D could not start:", error);
-        scene?.dispose();
+        console.error(`[example] 3D could not start (try ${attempts + 1}):`, error);
+        try {
+          scene?.dispose();
+        } catch {
+          /* already gone */
+        }
         scene = null;
-        showFallback();
-        failedRef.current = true;
-        setFailed(true);
+        noteFailure();
       } finally {
         starting = false;
       }
@@ -356,6 +384,9 @@ export function StudioDemo({ className }: { className?: string }) {
       disposed = true;
       controls.current = null;
       if (timer) clearTimeout(timer);
+      if (retryTimer) clearTimeout(retryTimer);
+      if (restoreTimer) clearTimeout(restoreTimer);
+      if (steadyTimer) clearTimeout(steadyTimer);
       observer.disconnect();
       scene?.dispose();
       scene = null;
@@ -366,12 +397,16 @@ export function StudioDemo({ className }: { className?: string }) {
     <div ref={wrap} className={className ?? "mx-auto w-full max-w-5xl"}>
       <div className="relative overflow-hidden rounded-3xl shadow-lift" style={{ background: MIDNIGHT }}>
         <div ref={host} role="img" aria-label="A colourful example flipbook turning its pages in studio lighting" className="h-[22rem] w-full sm:h-[30rem] lg:h-[34rem]" />
-        <canvas ref={fallbackCanvas} aria-label="Example portfolio page" role="img" className={`pointer-events-none absolute inset-0 h-full w-full object-contain p-8 ${failed ? "block" : "hidden"}`} />
         {!ready && !failed && (
           <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-white/60">Loading example…</p>
         )}
+        {failed && (
+          <p className="absolute inset-0 flex items-center justify-center px-6 text-center text-xs text-white/70">
+            The animated example needs 3D graphics, which aren’t available on this device. The real flipbook still lets you read every page.
+          </p>
+        )}
       </div>
-      {ready || failed ? (
+      {!failed && (
         <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
           <Segmented
             label="Example appearance"
@@ -398,7 +433,7 @@ export function StudioDemo({ className }: { className?: string }) {
             Next <ChevronRight className="size-3.5" aria-hidden />
           </button>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

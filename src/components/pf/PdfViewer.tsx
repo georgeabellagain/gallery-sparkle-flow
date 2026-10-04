@@ -38,6 +38,7 @@ export function PdfViewer({
   onDownload,
   compact,
   immersive,
+  credit,
   backdrop,
   viewer,
   startPage = 1,
@@ -52,6 +53,8 @@ export function PdfViewer({
   onDownload?: () => void;
   compact?: boolean;
   immersive?: boolean;
+  /** Show the small "Hosted on Portfolia" text at the bottom of the viewer (the free plan). */
+  credit?: boolean;
   /** The older "behind the PDF" colour some Personal portfolios have. */
   backdrop?: string;
   viewer?: ViewerSettings;
@@ -248,7 +251,7 @@ export function PdfViewer({
     <div
       ref={rootRef}
       style={{ background: colour }}
-      className={cn("relative isolate overflow-clip", immersive && "min-h-[100svh]", SHOW_LOADER && !contentReady && !error && "min-h-[22rem]", full && "overflow-auto")}
+      className={cn("relative isolate overflow-clip", immersive && "min-h-[100svh]", SHOW_LOADER && !contentReady && !error && "min-h-[22rem]", credit && mode !== "book" && "pb-8", full && "overflow-auto")}
       onPointerMove={autoHide ? wake : undefined}
       onPointerDown={autoHide ? wake : undefined}
       onKeyDown={autoHide ? wake : undefined}
@@ -371,7 +374,7 @@ export function PdfViewer({
         <div className="relative">
           <div className="overflow-x-auto">
             <div
-              className={cn("mx-auto pb-6 pt-20 sm:pt-16", compact ? "px-3" : "px-3 sm:px-8")}
+              className={cn("mx-auto py-6", compact ? "px-3" : "px-3 sm:px-8")}
               style={{ width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? (compact ? 900 : 1100) : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
             >
               {sizes[current - 1] && (
@@ -389,7 +392,7 @@ export function PdfViewer({
       ) : (
         <div className="overflow-x-auto" style={{ touchAction: "pan-x pan-y pinch-zoom" }}>
           <div
-            className={cn("mx-auto flex flex-col gap-4 pb-6 pt-20 sm:pt-16", compact ? "px-3" : "px-3 sm:px-8")}
+            className={cn("mx-auto flex flex-col gap-4 py-6", compact ? "px-3" : "px-3 sm:px-8")}
             style={{ width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? (compact ? 900 : 1100) : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
           >
             {sizes.map((s, i) => (
@@ -399,6 +402,12 @@ export function PdfViewer({
         </div>
       )}
         </div>
+      )}
+
+      {credit && (
+        <p className={cn("pointer-events-none absolute inset-x-0 bottom-1.5 z-10 text-center text-xxs", tone === "dark" ? "text-white/45" : "text-black/40")}>
+          Hosted on <span className={cn("display-title text-xs", tone === "dark" ? "text-white/75" : "text-black/65")}>Portfolia</span>
+        </p>
       )}
 
       {SHOW_LOADER && !error && (

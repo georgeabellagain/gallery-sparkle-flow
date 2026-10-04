@@ -13,7 +13,7 @@ export function SampleVisitor({ demo }: { demo?: "book" }) {
   const viewer = demo ? { ...DEFAULT_VIEWER, mode: "book" as const } : undefined;
   return (
     <div className="min-h-screen">
-      <PortfolioPage profile={SAMPLE.profile} pdf={SAMPLE_SRC} allowDownload immersive viewer={viewer} />
+      <PortfolioPage profile={SAMPLE.profile} pdf={SAMPLE_SRC} allowDownload showCredit immersive viewer={viewer} />
     </div>
   );
 }
@@ -44,6 +44,7 @@ export function OwnVisitor({ p, preview }: { p: Portfolio; preview: boolean }) {
         pdf={pdf}
         photoUrl={photoUrl}
         allowDownload={p.allowDownload}
+        showCredit={p.plan === "free"}
         onDownload={preview ? undefined : () => recordDownload(p.code)}
         pageStyle={p.plan === "personal" ? p.style : undefined}
         viewer={p.viewer}
@@ -106,6 +107,7 @@ export function EmbeddedVisitor({ data, startPage, mode, background }: { data: N
       profile={p.profile}
       pdf={pdf}
       allowDownload={p.allowDownload}
+      showCredit={false}
       onDownload={() => recordDownload(p.code)}
       pageStyle={pageStyle}
       viewer={{ ...DEFAULT_VIEWER, ...p.viewer, look: "clean", ...(mode ? { mode } : {}), ...(background ? { background, backgroundColor: undefined, backgroundKey: undefined } : {}), showHeader: false }}
