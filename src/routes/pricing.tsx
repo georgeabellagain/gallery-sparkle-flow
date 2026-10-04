@@ -65,7 +65,6 @@ function PricingPage() {
                 "Continuous and page-by-page viewing",
                 "Basic visit statistics",
                 "Replace your PDF without changing its link",
-                "Small Portfolia credit",
               ]}
               action={
                 <Button asChild variant="line" size="sm" className="mt-5">
@@ -85,7 +84,6 @@ function PricingPage() {
                 "Up to 10 portfolios, each up to 50 MB",
                 "CV displayed with your profile",
                 "Personalised address such as portfolia.site/marksmith",
-                "Portfolia credit removed",
               ]}
               action={
                 <Button variant="line" size="sm" className="mt-5" onClick={() => setUpgrade(true)}>

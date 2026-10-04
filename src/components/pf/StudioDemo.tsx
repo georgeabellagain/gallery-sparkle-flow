@@ -210,11 +210,13 @@ function drawPage(n: number, width: number): HTMLCanvasElement {
 export function StudioDemo({ className }: { className?: string }) {
   const wrap = useRef<HTMLDivElement>(null);
   const host = useRef<HTMLDivElement>(null);
+  const fallbackCanvas = useRef<HTMLCanvasElement>(null);
   const controls = useRef<{ manual: (dir: 1 | -1) => void; setLook: (look: "simple" | "studio") => void } | null>(null);
   const [look, setLook] = useState<"simple" | "studio">("simple");
   const lookRef = useRef(look);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  const failedRef = useRef(false);
 
   useEffect(() => {
     const element = host.current!;
@@ -229,6 +231,15 @@ export function StudioDemo({ className }: { className?: string }) {
     let direction: 1 | -1 = 1;
     let queued = 0;
     let pages: HTMLCanvasElement[] = [];
+
+    const showFallback = () => {
+      const canvas = fallbackCanvas.current;
+      const page = pages[layout.spreads[spread]?.[1] ?? layout.spreads[spread]?.[0] ?? 0];
+      if (!canvas || !page) return;
+      canvas.width = page.width;
+      canvas.height = page.height;
+      canvas.getContext("2d")?.drawImage(page, 0, 0);
+    };
 
     const facesOf = (index: number): BookFaces => {
       const [l, r] = layout.spreads[index]!;
@@ -246,11 +257,12 @@ export function StudioDemo({ className }: { className?: string }) {
 
     const go = async (dir: 1 | -1, speed = 1) => {
       const next = spread + dir;
-      if (!scene || busy || next < 0 || next >= layout.spreads.length) return;
+      if (busy || next < 0 || next >= layout.spreads.length) return;
       busy = true;
       try {
-        await scene.turn(facesOf(spread), facesOf(next), dir, focusOf(next), speed);
+        if (scene && !failedRef.current) await scene.turn(facesOf(spread), facesOf(next), dir, focusOf(next), speed);
         spread = next;
+        showFallback();
       } finally {
         busy = false;
       }
@@ -287,19 +299,29 @@ export function StudioDemo({ className }: { className?: string }) {
         if (document.fonts?.ready) await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 600))]);
         if (disposed) return;
         // Sharper pages on large screens; lighter ones on phones.
-        const pageWidth = window.innerWidth < 720 ? 1000 : 1400;
+        const pageWidth = window.innerWidth < 720 ? 700 : 900;
         pages = Array.from({ length: PAGES }, (_, i) => drawPage(i, pageWidth));
+        showFallback();
         scene = createBookScene(element, RATIO, () => {
-          if (!disposed) setFailed(true);
+          if (!disposed) { failedRef.current = true; setFailed(true); showFallback(); }
+        }, () => {
+          if (disposed || !scene) return;
+          scene.configure(lookRef.current === "studio" ? STUDIO_LOOK : SIMPLE_LOOK);
+          scene.show(facesOf(spread));
+          failedRef.current = false;
+          setFailed(false);
         });
         scene.configure(lookRef.current === "studio" ? STUDIO_LOOK : SIMPLE_LOOK);
         scene.viewport(false, 1, focusOf(0));
         scene.show(facesOf(0));
         setReady(true);
         schedule();
-      } catch {
+      } catch (error) {
+        console.warn("[flipbook example] 3D could not start:", error);
         scene?.dispose();
         scene = null;
+        showFallback();
+        failedRef.current = true;
         setFailed(true);
       } finally {
         starting = false;
@@ -344,16 +366,12 @@ export function StudioDemo({ className }: { className?: string }) {
     <div ref={wrap} className={className ?? "mx-auto w-full max-w-5xl"}>
       <div className="relative overflow-hidden rounded-3xl shadow-lift" style={{ background: MIDNIGHT }}>
         <div ref={host} role="img" aria-label="A colourful example flipbook turning its pages in studio lighting" className="h-[22rem] w-full sm:h-[30rem] lg:h-[34rem]" />
+        <canvas ref={fallbackCanvas} aria-label="Example portfolio page" role="img" className={`pointer-events-none absolute inset-0 h-full w-full object-contain p-8 ${failed ? "block" : "hidden"}`} />
         {!ready && !failed && (
           <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-white/60">Loading example…</p>
         )}
-        {failed && (
-          <p className="absolute inset-0 flex items-center justify-center px-6 text-center text-xs text-white/70">
-            The animated example needs 3D graphics, which aren’t available on this device. The real flipbook still lets you read every page.
-          </p>
-        )}
       </div>
-      {!failed && (
+      {ready || failed ? (
         <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
           <Segmented
             label="Example appearance"
@@ -380,7 +398,7 @@ export function StudioDemo({ className }: { className?: string }) {
             Next <ChevronRight className="size-3.5" aria-hidden />
           </button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
