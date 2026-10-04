@@ -293,6 +293,11 @@ export function BookView({
         // Say why, so if 3D ever stops working the browser console shows the reason.
         console.warn("[flipbook] The graphics context was lost, so the 3D view was switched off.");
         if (alive.current) setFallback(true);
+      }, () => {
+        if (alive.current) {
+          setFallback(false);
+          setReady((v) => v + 1);
+        }
       });
     } catch (error) {
       console.error("[flipbook] 3D could not start:", error);
@@ -634,7 +639,6 @@ export function BookView({
         {fallback && (
           <div className="pf-book-fallback">
             <canvas ref={fallbackCanvas} />
-            <p>3D is unavailable on this device. You can still read every page.</p>
           </div>
         )}
         {/* Invisible but fully working: click a bottom corner, or drag it to turn. */}

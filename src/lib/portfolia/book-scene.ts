@@ -56,7 +56,7 @@ function pageRelief(d: number, v: number, seed: number) {
 }
 
 /** One persistent, demand-rendered scene. Static and moving pages share lights/materials. */
-export function createBookScene(host: HTMLElement, ratio: number, onLost: () => void) {
+export function createBookScene(host: HTMLElement, ratio: number, onLost: () => void, onRestored?: () => void) {
   const compact = window.innerWidth < 720;
   const dpr = window.devicePixelRatio || 1;
   // Edges are smoothed by multisampling (always on), so the picture does not need to be drawn at more than
@@ -418,6 +418,12 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     onLost();
   };
   renderer.domElement.addEventListener("webglcontextlost", lost);
+  const restored = () => {
+    if (disposed) return;
+    resize();
+    onRestored?.();
+  };
+  renderer.domElement.addEventListener("webglcontextrestored", restored);
 
   // Which of the three shadows is showing. A page that appears or goes fades; nothing slides. During a turn
   // the cross-fade follows the turn, so the shadow arrives as the page lands. Otherwise (a jump to
@@ -834,6 +840,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       finishAnimation?.();
       observer.disconnect();
       renderer.domElement.removeEventListener("webglcontextlost", lost);
+      renderer.domElement.removeEventListener("webglcontextrestored", restored);
       texCache.forEach((t) => t.dispose());
       texCache.clear();
       placeholder.dispose();
