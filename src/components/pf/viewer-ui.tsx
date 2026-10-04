@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { Link } from "@tanstack/react-router";
 import logo from "@/assets/portfolia-logo.png";
 import { cn } from "@/lib/utils";
@@ -86,9 +86,9 @@ export function IconButton({
 }
 
 /** A small floating panel for a few settings. */
-export function Panel({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
+export function Panel({ label, className, style, children }: { label: string; className?: string; style?: CSSProperties; children: ReactNode }) {
   return (
-    <div role="dialog" aria-label={label} className={cn("rounded-2xl border border-border bg-background/95 p-3 text-xs text-foreground shadow-lift backdrop-blur", className)}>
+    <div role="dialog" aria-label={label} style={style} className={cn("rounded-2xl border border-border bg-background/95 p-3 text-xs text-foreground shadow-lift backdrop-blur", className)}>
       {children}
     </div>
   );

@@ -7,6 +7,7 @@ import { backgroundColour, DEFAULT_FIT } from "@/lib/portfolia/background";
 import { useBlob, useObjectUrl } from "@/components/pf/Chrome";
 import { Segmented } from "@/components/pf/viewer-ui";
 import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS } from "@/lib/portfolia/lighting";
+import { setPreviewLook } from "@/lib/portfolia/preview-look";
 
 /** Shrinks a chosen picture to a size that looks sharp on a large screen but stays light to load. */
 async function prepareBackground(file: File): Promise<Blob> {
@@ -41,6 +42,19 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
   const setViewer = (patch: Partial<ViewerSettings>) =>
     onSaveError(patchPortfolio({ viewer: { ...viewer, ...patch } }) ? null : "Couldn’t save that viewer change.");
   const backgroundInput = useRef<HTMLInputElement>(null);
+  // While one look's options are being edited, the preview shows that look. Clicking anywhere else (or leaving) puts
+  // the preview back to how the portfolio opens. Nothing here is saved.
+  const flipbookBox = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const away = (e: PointerEvent) => {
+      if (!flipbookBox.current || !flipbookBox.current.contains(e.target as Node)) setPreviewLook(null);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      setPreviewLook(null);
+    };
+  }, []);
   const [backgroundErr, setBackgroundErr] = useState<string | null>(null);
   const backgroundBlob = useBlob(viewer.backgroundKey);
   const backgroundUrl = useObjectUrl(backgroundBlob);
@@ -62,6 +76,11 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
     if (!looks.length) return;
     setViewer({ looks, look: looks.includes(viewer.look) ? viewer.look : looks[0]! });
   };
+  // If Flipbook is switched off while one of its looks was being previewed, the preview lets go.
+  const flipbookOn = enabledModes.includes("book");
+  useEffect(() => {
+    if (!flipbookOn) setPreviewLook(null);
+  }, [flipbookOn]);
   const shadowOn = viewer.simpleShadow ?? true;
   const shadowOpacity = viewer.simpleShadowOpacity ?? DEFAULT_SIMPLE_SHADOW_OPACITY;
   const studioBrightness = viewer.studioBrightness ?? 0.5;
@@ -163,9 +182,15 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
             )}
           </div>
           {enabledModes.includes("book") && (
-            <div className="space-y-3 rounded-xl border border-border p-3">
+            <div
+              ref={flipbookBox}
+              className="space-y-3 rounded-xl border border-border p-3"
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setPreviewLook(null);
+              }}
+            >
               <p className="font-medium">Flipbook appearance</p>
-              <div className="flex flex-wrap gap-x-5 gap-y-2">
+              <div className="flex flex-wrap gap-x-5 gap-y-2" onPointerDownCapture={() => setPreviewLook(null)}>
                 {([["clean", "Simple"], ["studio", "Studio"]] as const).map(([look, label]) => (
                   <label key={look} className="flex items-center gap-2">
                     <input type="checkbox" checked={enabledLooks.includes(look)} disabled={enabledLooks.length === 1 && enabledLooks.includes(look)} onChange={(e) => toggleLook(look, e.target.checked)} />
@@ -174,14 +199,14 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
                 ))}
               </div>
               {enabledLooks.length > 1 && (
-                <div className="space-y-1.5">
+                <div className="space-y-1.5" onPointerDownCapture={() => setPreviewLook(null)}>
                   <p>Opens with</p>
                   <Segmented label="Flipbook opens with" value={viewer.look} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={(look) => setViewer({ look })} />
                   <p className="text-xxs text-muted-foreground">Visitors get a Simple / Studio switch in the corner of the flipbook.</p>
                 </div>
               )}
               {enabledLooks.includes("clean") && (
-                <div className="space-y-2 border-t border-border pt-3">
+                <div className="space-y-2 border-t border-border pt-3" onPointerDownCapture={() => setPreviewLook("clean")} onFocusCapture={() => setPreviewLook("clean")}>
                   <p className="font-medium">Simple</p>
                   <div className="space-y-1.5">
                     <p>Shadow under the book</p>
@@ -197,7 +222,7 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
                 </div>
               )}
               {enabledLooks.includes("studio") && (
-                <div className="space-y-3 border-t border-border pt-3">
+                <div className="space-y-3 border-t border-border pt-3" onPointerDownCapture={() => setPreviewLook("studio")} onFocusCapture={() => setPreviewLook("studio")}>
                   <p className="font-medium">Studio</p>
                   <div className="space-y-1.5">
                     <p>Paper</p>

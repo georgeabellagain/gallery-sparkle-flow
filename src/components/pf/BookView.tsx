@@ -11,11 +11,15 @@ import {
 } from "@/lib/portfolia/book-layout";
 import { createBookScene, type BookFaces, type BookScene, type StudioSettings } from "@/lib/portfolia/book-scene";
 import { DEFAULT_SIMPLE_SHADOW_OPACITY } from "@/lib/portfolia/lighting";
+import { getPreviewLook, subscribePreviewLook, type PreviewLook } from "@/lib/portfolia/preview-look";
 import { cn } from "@/lib/utils";
 import type { BackgroundFit } from "@/lib/portfolia/background";
 import { BackdropLayer, IconButton, Segmented, type Tone } from "@/components/pf/viewer-ui";
 
 /** How the book looks, as the creator set it up in the editor. */
+/** Full screen is the visible height of the window, which on a phone changes as the address bar slides away. */
+const FULL_HEIGHT = typeof CSS !== "undefined" && CSS.supports?.("height", "100dvh") ? "100dvh" : "100vh";
+
 type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri" | "simpleShadow" | "simpleShadowOpacity">;
 const lookFrom = (viewer: ViewerSettings): Look => ({
   studio: viewer.look === "studio",
@@ -66,10 +70,10 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number, layout: ReturnType<typ
     4096,
     Math.max(2560, window.innerWidth * Math.min(devicePixelRatio || 1, 3)),
   );
-  const fitted = Math.sqrt(budget / (3 * split * Math.min(count, 60)));
+  const fitted = Math.sqrt(budget / (3 * Math.min(count, 60)));
   // No page picture needs to be more than ~3000px on its long side: more costs graphics memory (and, on some devices, the 3D view itself).
   const target = Math.max(1200, Math.min(ideal, fitted, 3072));
-  const keep = Math.max(8, Math.min(count, Math.floor(budget / (3 * split * target * target))));
+  const keep = Math.max(8, Math.min(count, Math.floor(budget / (3 * target * target))));
 
   const compose = (raw: HTMLCanvasElement, leaf: Leaf, index: number) => {
     const canvas = document.createElement("canvas");
@@ -108,7 +112,9 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number, layout: ReturnType<typ
       if (closed) throw new Error("Viewer closed");
       const original = pdfPage.getViewport({ scale: 1 });
       const viewport = pdfPage.getViewport({
-        scale: target / Math.max(original.width, original.height),
+        // What matters is the size of one leaf (a whole page, or half of a two-page spread), so a spread is
+        // drawn twice as wide and each half comes out as sharp as a single page.
+        scale: target / Math.max(split === 0.5 ? original.width / 2 : original.width, original.height),
       });
       const raw = document.createElement("canvas");
       raw.width = Math.ceil(viewport.width);
@@ -137,8 +143,8 @@ function pageLoader(doc: PDFDocumentProxy, ratio: number, layout: ReturnType<typ
      */
     preload(onProgress: (done: number, total: number) => void): Promise<void> {
       const total = Math.min(doc.numPages, Math.floor(keep / perPage));
-      // Turning can start once the first few pages are ready; the rest keep preparing quietly behind.
-      const gate = Math.min(total, 6);
+      // Turning waits until every page is ready, so no page ever has to be prepared during a turn.
+      const gate = total;
       return new Promise<void>((resolve) => {
         let next = 1;
         let done = 0;
@@ -203,6 +209,7 @@ export function BookView({
   fullscreen,
   awake = true,
   onReadyChange,
+  previewable,
 }: {
   doc: PDFDocumentProxy;
   sizes: { w: number; h: number }[];
@@ -225,6 +232,8 @@ export function BookView({
   awake?: boolean;
   /** Told when the book has rendered and is ready to show, and when it is preparing again. */
   onReadyChange?: (ready: boolean) => void;
+  /** The editor's preview: it shows the look whose settings are being edited. */
+  previewable?: boolean;
 }) {
   const layout = useMemo(
     () => bookLayout(doc.numPages, viewer.spreads === "ready"),
@@ -246,6 +255,7 @@ export function BookView({
   const [ready, setReady] = useState(0);
   const [warm, setWarm] = useState(false);
   const [warmProgress, setWarmProgress] = useState({ done: 0, total: 0 });
+  const offersBoth = useRef(false);
   const [corners, setCorners] = useState([
     { x: 8, y: 86 },
     { x: 92, y: 86 },
@@ -267,13 +277,25 @@ export function BookView({
     loader.current?.setPaused(busy);
   }, [busy]);
   const fallbackCanvas = useRef<HTMLCanvasElement>(null);
-  const [settings, setSettings] = useState<Look>(() => lookFrom(viewer));
+  // In the editor, the preview shows the look whose settings are being edited (only if that look is on offer).
+  const [previewLook, setPreviewLook] = useState<PreviewLook | null>(() => (previewable ? getPreviewLook() : null));
+  useEffect(() => {
+    if (!previewable) return;
+    setPreviewLook(getPreviewLook());
+    return subscribePreviewLook(setPreviewLook);
+  }, [previewable]);
+  const offered = viewer.looks?.length ? viewer.looks : [viewer.look];
+  const lookFor = (): Look => {
+    const base = lookFrom(viewer);
+    return previewLook && offered.includes(previewLook) ? { ...base, studio: previewLook === "studio" } : base;
+  };
+  const [settings, setSettings] = useState<Look>(lookFor);
   // When the creator changes the settings in the editor, the book follows. A visitor's own
   // Simple/Studio choice is kept until then.
   useEffect(() => {
-    setSettings(lookFrom(viewer));
+    setSettings(lookFor());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity]);
+  }, [viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, previewLook]);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; from: number; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
   const panning = useRef<{ id: number; x: number; y: number } | null>(null);
@@ -306,7 +328,14 @@ export function BookView({
     setWarmProgress({ done: 0, total: 0 });
     void source.preload((done, total) => {
       if (!cancelled) setWarmProgress({ done, total });
-    }).then(() => {
+    }).then(async () => {
+      // Pages are only part of it: both looks' shaders and the lighting are prepared too, so neither the first
+      // turn nor the Simple/Studio switch has anything left to stall on. (A cap stops a slow download holding it up.)
+      try {
+        await Promise.race([scene.current?.prepare(offersBoth.current) ?? Promise.resolve(), new Promise<void>((done) => setTimeout(done, 8000))]);
+      } catch {
+        /* turning is allowed anyway */
+      }
       if (!cancelled) setWarm(true);
     });
     // 3D that keeps working. Failing to start, or the browser taking the graphics context back, is not the end
@@ -363,6 +392,8 @@ export function BookView({
         return;
       }
       scene.current = made;
+      // A rebuilt view is prepared again (shaders, lighting) without holding anything up.
+      void made.prepare(offersBoth.current).catch(() => undefined);
       setFallback(false);
       setReady((v) => v + 1);
       // Once it has held for a few seconds, earlier trouble is forgotten.
@@ -483,7 +514,8 @@ export function BookView({
   useEffect(() => {
     if (!ready || !warm || busy || loading || fallback) return;
     const token = ++prefetchToken.current;
-    const targets = [index + 1, index - 1]
+    // The next spread first (most likely), then the previous, then the one after: all on the card before they are needed.
+    const targets = [index + 1, index - 1, index + 2]
       .flatMap((i) => layout.spreads[i] ?? [])
       .filter((n): n is number => n !== null);
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -496,9 +528,9 @@ export function BookView({
       } catch {
         /* a page that cannot be prepared reports its own error when opened */
       }
-      timer = setTimeout(() => void step(), 90);
+      timer = setTimeout(() => void step(), 45);
     };
-    timer = setTimeout(() => void step(), 200);
+    timer = setTimeout(() => void step(), 40);
     return () => {
       prefetchToken.current++;
       if (timer) clearTimeout(timer);
@@ -632,21 +664,27 @@ export function BookView({
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest("input, textarea, select, button, [contenteditable]"))
-        return;
-      if (e.key === "ArrowRight" || e.key === "PageDown") {
+      const target = e.target instanceof Element ? e.target : null;
+      // Typing and sliders keep their arrow keys. Buttons do not use them, and after clicking an icon (full screen,
+      // zoom...) focus stays on that button, so buttons must not switch the arrow keys off.
+      if (target?.closest("input, textarea, select, [contenteditable='true'], [contenteditable='']")) return;
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      // Page Up / Page Down also scroll the page, so they belong to the viewer only when it fills the screen.
+      const pageKeys = !!immersive || !!fullscreen;
+      if (e.key === "ArrowRight" || (pageKeys && e.key === "PageDown")) {
         e.preventDefault();
         void move(1);
       }
-      if (e.key === "ArrowLeft" || e.key === "PageUp") {
+      if (e.key === "ArrowLeft" || (pageKeys && e.key === "PageUp")) {
         e.preventDefault();
         void move(-1);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [move]);
+  }, [move, immersive, fullscreen]);
   const enabledLooks = viewer.looks?.length ? viewer.looks : [viewer.look];
+  offersBoth.current = enabledLooks.length > 1;
   const updateLook = (look: "clean" | "studio") => setSettings((current) => ({ ...current, studio: look === "studio" }));
 
   // Tell the viewer when the book is rendered and ready, so it can show nothing but a loader until then.
@@ -660,7 +698,7 @@ export function BookView({
       <div
         ref={viewportRef}
         className="pf-book-viewport"
-        style={{ ...(fullscreen ? { height: "100svh" } : immersive ? { height: "max(420px, 100svh)" } : {}), ...(zoom > 1 ? { touchAction: "none" } : {}) }}
+        style={{ ...(fullscreen ? { height: FULL_HEIGHT } : immersive ? { height: "max(420px, 100svh)" } : {}), ...(zoom > 1 ? { touchAction: "none" } : {}) }}
         data-busy={busy || wait}
         data-narrow={narrow}
         data-panning={panning.current !== null}
@@ -748,7 +786,7 @@ export function BookView({
           ))}
         {wait && !error && (
           <p className="pf-book-status" role="status">
-            Preparing pages…
+            Preparing pages…{warmProgress.total > 0 ? ` ${warmProgress.done} / ${warmProgress.total}` : ""}
           </p>
         )}
         {error && (

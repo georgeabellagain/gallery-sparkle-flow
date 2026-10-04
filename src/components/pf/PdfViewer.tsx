@@ -5,6 +5,7 @@ import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { cn } from "@/lib/utils";
 import { BookView } from "@/components/pf/BookView";
 import { Progress } from "@/components/ui/progress";
+import { subscribePreviewLook } from "@/lib/portfolia/preview-look";
 import { BookLoader } from "@/components/pf/book-loader";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 import { backgroundColour, fitTransform } from "@/lib/portfolia/background";
@@ -81,9 +82,14 @@ export function PdfViewer({
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [current, setCurrent] = useState(1);
-  const [full, setFull] = useState(false);
+  const [nativeFull, setNativeFull] = useState(false);
+  // Where the browser cannot take a page full screen (iPhone Safari cannot), the viewer fills the window itself.
+  const [pseudoFull, setPseudoFull] = useState(false);
+  const full = nativeFull || pseudoFull;
   const [panel, setPanel] = useState<"profile" | "pages" | null>(null);
   const [contentReady, setContentReady] = useState(false);
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [toolbarHeight, setToolbarHeight] = useState(0);
   const shownReady = !SHOW_LOADER || contentReady;
   const rootRef = useRef<HTMLDivElement>(null);
   const clusterRef = useRef<HTMLDivElement>(null);
@@ -134,15 +140,62 @@ export function PdfViewer({
     };
   }, [source]);
 
+  type FullscreenDoc = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void; webkitFullscreenEnabled?: boolean };
+  type FullscreenEl = HTMLDivElement & { webkitRequestFullscreen?: () => void };
   useEffect(() => {
-    const on = () => setFull(document.fullscreenElement === rootRef.current);
+    const on = () => {
+      const d = document as FullscreenDoc;
+      setNativeFull((d.fullscreenElement ?? d.webkitFullscreenElement) === rootRef.current);
+    };
     document.addEventListener("fullscreenchange", on);
-    return () => document.removeEventListener("fullscreenchange", on);
+    document.addEventListener("webkitfullscreenchange", on);
+    return () => {
+      document.removeEventListener("fullscreenchange", on);
+      document.removeEventListener("webkitfullscreenchange", on);
+    };
   }, []);
+  useEffect(() => {
+    if (!pseudoFull) return;
+    // Held in place: the page behind does not scroll, and Escape leaves, as in real full screen.
+    const html = document.documentElement;
+    const before = [html.style.overflow, document.body.style.overflow];
+    html.style.overflow = document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPseudoFull(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      html.style.overflow = before[0] ?? "";
+      document.body.style.overflow = before[1] ?? "";
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [pseudoFull]);
 
-  const toggleFull = () => {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void rootRef.current?.requestFullscreen?.();
+  const toggleFull = async () => {
+    const d = document as FullscreenDoc;
+    if (d.fullscreenElement || d.webkitFullscreenElement) {
+      try {
+        await (d.exitFullscreen?.() ?? d.webkitExitFullscreen?.());
+      } catch {
+        /* already out */
+      }
+      return;
+    }
+    if (pseudoFull) {
+      setPseudoFull(false);
+      return;
+    }
+    const el = rootRef.current as FullscreenEl | null;
+    const request: ((this: HTMLElement) => Promise<void> | void) | undefined = el?.requestFullscreen ?? el?.webkitRequestFullscreen;
+    if (el && request && (d.fullscreenEnabled ?? d.webkitFullscreenEnabled ?? true)) {
+      try {
+        await request.call(el);
+        return;
+      } catch {
+        /* refused: use the in-page full screen instead */
+      }
+    }
+    setPseudoFull(true);
   };
 
   const [mode, setMode] = useState<"scroll" | "paged" | "book">(startMode);
@@ -158,6 +211,24 @@ export function PdfViewer({
   };
 
   useEffect(() => setMode(startMode), [startMode]);
+  // In the editor, working on the flipbook's options brings the flipbook up in the preview, and going away returns to the mode before.
+  const modeBefore = useRef<"scroll" | "paged" | "book" | null>(null);
+  const offersBook = availableModes.includes("book");
+  useEffect(() => {
+    if (!compact || !offersBook) return;
+    return subscribePreviewLook((look) => {
+      if (look) {
+        setMode((current) => {
+          if (current !== "book") modeBefore.current = current;
+          return "book";
+        });
+      } else if (modeBefore.current) {
+        const back = modeBefore.current;
+        modeBefore.current = null;
+        setMode(back);
+      }
+    });
+  }, [compact, offersBook]);
   useEffect(() => {
     setZoom((value) => Math.max(1, value));
   }, [mode]);
@@ -229,6 +300,25 @@ export function PdfViewer({
     return () => clearTimeout(t);
   }, [contentReady, doc, mode]);
 
+  // Scroll and page-by-page start below the icon bar (measured, as it can wrap on a narrow screen), so the icons
+  // never sit over the top of the first page.
+  useEffect(() => {
+    const bar = toolbarRef.current;
+    if (!bar) {
+      setToolbarHeight(0);
+      return;
+    }
+    const measure = () => setToolbarHeight(bar.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, [showControls, !!doc, mode]);
+  const topGap = showControls ? Math.max(24, toolbarHeight + 24) : 24;
+  // A panel opens just under the icon bar (which can be two rows on a narrow screen) and may use the rest of the
+  // window, with a little room left below, so its bottom never leaves the screen.
+  const panelFit = { maxHeight: `calc(100svh - ${(toolbarHeight || 36) + 6 + 8 + 12}px)` };
+
   const quiet = tone === "dark" ? "text-white/60" : "text-black/55";
   const togglePanel = (name: "profile" | "pages") => setPanel((p) => (p === name ? null : name));
   const pageArrow = (side: "left" | "right") => (
@@ -250,8 +340,8 @@ export function PdfViewer({
   return (
     <div
       ref={rootRef}
-      style={{ background: colour }}
-      className={cn("relative isolate overflow-clip", immersive && "min-h-[100svh]", SHOW_LOADER && !contentReady && !error && "min-h-[22rem]", credit && mode !== "book" && "pb-8", full && "overflow-auto")}
+      style={pseudoFull ? { background: colour, height: "100dvh" } : { background: colour }}
+      className={cn("isolate overflow-clip", pseudoFull ? "fixed inset-0 z-[200] overscroll-contain" : "relative", immersive && "min-h-[100svh]", SHOW_LOADER && !contentReady && !error && "min-h-[22rem]", credit && mode !== "book" && "pb-8", full && "overflow-auto")}
       onPointerMove={autoHide ? wake : undefined}
       onPointerDown={autoHide ? wake : undefined}
       onKeyDown={autoHide ? wake : undefined}
@@ -272,7 +362,7 @@ export function PdfViewer({
             </div>
           )}
           <div ref={clusterRef} className={cn("pointer-events-auto absolute right-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] flex-col items-end gap-2 transition-opacity duration-300", fade)}>
-            <div role="toolbar" aria-label="Viewer controls" className="flex flex-wrap items-center justify-end gap-0.5">
+            <div ref={toolbarRef} role="toolbar" aria-label="Viewer controls" className="flex flex-wrap items-center justify-end gap-0.5">
               {profile && (
                 <IconButton label="Profile" tone={tone} pressed={panel === "profile"} onClick={() => togglePanel("profile")}>
                   <User className="size-[17px]" />
@@ -312,7 +402,7 @@ export function PdfViewer({
                   <ZoomIn className="size-[17px]" />
                 </IconButton>
               )}
-              <IconButton label={full ? "Exit full screen" : "Full screen"} tone={tone} onClick={toggleFull}>
+              <IconButton label={full ? "Exit full screen" : "Full screen"} tone={tone} onClick={() => void toggleFull()}>
                 {full ? <Minimize2 className="size-[17px]" /> : <Maximize2 className="size-[17px]" />}
               </IconButton>
               {allowDownload && downloadUrl && (
@@ -322,12 +412,12 @@ export function PdfViewer({
               )}
             </div>
             {panel === "profile" && profile && (
-              <Panel label="Profile" className="w-[min(24rem,calc(100vw-1rem))]">
+              <Panel label="Profile" style={panelFit} className="w-[min(24rem,calc(100vw-1.5rem))] max-w-full overflow-y-auto overflow-x-hidden [overflow-wrap:anywhere] overscroll-contain">
                 {profile}
               </Panel>
             )}
             {panel === "pages" && doc && (
-              <Panel label="Pages" className="max-h-[70svh] w-[min(24rem,calc(100vw-1rem))] overflow-auto">
+              <Panel label="Pages" style={panelFit} className="w-[min(24rem,calc(100vw-1.5rem))] max-w-full overflow-auto overscroll-contain">
                 <div className="grid grid-cols-4 gap-2">
                   {sizes.map((s, i) => (
                     <button
@@ -369,13 +459,13 @@ export function PdfViewer({
       ) : (
         <div className={cn("transition-opacity duration-300", shownReady ? "opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!shownReady}>
       {mode === "book" ? (
-        <BookView doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={setContentReady} />
+        <BookView doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={setContentReady} previewable={compact} />
       ) : mode === "paged" ? (
         <div className="relative">
           <div className="overflow-x-auto">
             <div
-              className={cn("mx-auto py-6", compact ? "px-3" : "px-3 sm:px-8")}
-              style={{ width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? (compact ? 900 : 1100) : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
+              className={cn("mx-auto pb-6", compact ? "px-3" : "px-3 sm:px-8")}
+              style={{ paddingTop: topGap, width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? (compact ? 900 : 1100) : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
             >
               {sizes[current - 1] && (
                 <PdfPage key={current} doc={doc} n={current} size={sizes[current - 1]!} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
@@ -392,8 +482,8 @@ export function PdfViewer({
       ) : (
         <div className="overflow-x-auto" style={{ touchAction: "pan-x pan-y pinch-zoom" }}>
           <div
-            className={cn("mx-auto flex flex-col gap-4 py-6", compact ? "px-3" : "px-3 sm:px-8")}
-            style={{ width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? (compact ? 900 : 1100) : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
+            className={cn("mx-auto flex flex-col gap-4 pb-6", compact ? "px-3" : "px-3 sm:px-8")}
+            style={{ paddingTop: topGap, width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? (compact ? 900 : 1100) : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
           >
             {sizes.map((s, i) => (
               <PdfPage key={i} doc={doc} n={i + 1} size={s} zoom={zoom} onVisible={setCurrent} onRendered={i === 0 ? markReady : undefined} />

@@ -448,6 +448,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     environments.clear();
     evenLight = null;
     scene.environment = null;
+    warmedLooks.clear(); // the shaders were lost with the old context
     configure(settings);
     paint();
     onRestored?.();
@@ -574,12 +575,19 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     right.visible = before[1];
     sheet.visible = before[2];
   };
-  let warmedFor: boolean | null = null;
+  // Each look's shaders are compiled once; switching between looks that have been prepared costs nothing.
+  const warmedLooks = new Set<boolean>();
   let environmentRequest = 0;
+  // The paper's look depends on the look (Simple/Studio) and the paper, not on brightness or the shadow settings,
+  // so dragging a slider only changes the exposure or the shadow and never rebuilds the materials.
+  let variant = "";
   const configure = (next: StudioSettings) => {
     settings = next;
     const brightness = THREE.MathUtils.clamp(next.brightness, 0, 1);
-    renderer.toneMapping = next.studio ? studioTone : THREE.NoToneMapping;
+    const nextVariant = `${next.studio ? 1 : 0}|${next.material}`;
+    const variantChanged = nextVariant !== variant;
+    const tone = next.studio ? studioTone : THREE.NoToneMapping;
+    if (renderer.toneMapping !== tone) renderer.toneMapping = tone;
     // The brightness slider drives overall exposure so the change is obvious.
     renderer.toneMappingExposure = next.studio ? 0.55 + brightness * 1.6 : 1;
     // The lighting is a real photograph. While one downloads, the previous lighting (or a plain even light) stays.
@@ -614,7 +622,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     shadowCatcher.visible = next.studio;
     light.castShadow = next.studio;
     let bump: THREE.CanvasTexture | null = null;
-    if (next.studio) {
+    if (variantChanged && next.studio) {
       const key = next.material;
       if (!bumps.has(key)) {
         const t = new THREE.CanvasTexture(surfaceCanvas(next.material, "soft"));
@@ -626,7 +634,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     const satin = next.material === "satin";
     const textured = next.material === "textured";
-    for (const m of pageMaterials) {
+    if (variantChanged) variant = nextVariant;
+    for (const m of variantChanged ? pageMaterials : []) {
       m.bumpMap = bump;
       // Satin is smooth with a visible sheen; textured shows clear paper grain.
       m.bumpScale = next.studio ? (textured ? 0.006 : 0.0003) : 0;
@@ -640,12 +649,13 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       m.color.set(next.studio ? 0xffffff : 0x000000);
       m.needsUpdate = true;
     }
-    if (warmedFor !== next.studio) {
-      warmedFor = next.studio;
+    if (!warmedLooks.has(next.studio)) {
+      warmedLooks.add(next.studio);
       warm();
     }
     frameCamera();
-    paint();
+    if (variantChanged) paint();
+    else requestPaint();
   };
   const show = (next: BookFaces, render = true) => {
     [left, right].forEach((mesh, i) => {
@@ -682,8 +692,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         return;
       }
       finishAnimation?.();
-      const start = performance.now();
       finishAnimation = resolve;
+      let start = 0;
       let lastFrame = 0;
       let frames = 0;
       const tick = (now: number) => {
@@ -691,6 +701,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
           resolve();
           return;
         }
+        // Time starts from the first frame that is actually drawn: if that frame is slow (a texture reaching the
+        // graphics card, say) the turn begins from the start rather than skipping ahead.
+        if (!start) start = now;
         const t = Math.min(1, (now - start) / duration);
         update(ease(t));
         paint();
@@ -756,6 +769,20 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     configure,
     show,
     /** Uploads a page to the GPU ahead of time so a later turn does not stall. */
+    /**
+     * Gets everything the first turn and the Simple/Studio switch will need: with `bothLooks` the shaders for
+     * both looks are compiled (by briefly applying the other look), and the lighting is downloaded and prepared.
+     * Resolves when that is done, so turning can be held back until nothing is left to stall.
+     */
+    prepare(bothLooks: boolean): Promise<void> {
+      if (disposed) return Promise.resolve();
+      if (bothLooks) {
+        const current = settings;
+        configure({ ...current, studio: !current.studio });
+        configure(current);
+      }
+      return bothLooks || settings.studio ? loadEnvironment(settings.hdri).then(() => undefined) : Promise.resolve();
+    },
     prefetch(canvas: HTMLCanvasElement | null | undefined) {
       if (!canvas || disposed) return;
       try {

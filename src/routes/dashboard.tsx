@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useHydrated, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Code2, Copy, Eye, Pencil, QrCode, Share2 } from "lucide-react";
+import { Code2, Copy, Eye, Pencil, QrCode, Share2, Upload } from "lucide-react";
 import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE, Modal, useBlob, useObjectUrl } from "@/components/pf/Chrome";
 import { DropZone } from "@/components/pf/DropZone";
 import { PdfViewer } from "@/components/pf/PdfViewer";
@@ -40,7 +40,7 @@ function Dashboard() {
   const hydrated = useHydrated();
   const navigate = useNavigate();
   const p = doc.portfolio;
-  const [dialog, setDialog] = useState<null | "share" | "upgrade" | "cancel" | "qr" | "embed">(null);
+  const [dialog, setDialog] = useState<null | "share" | "upgrade" | "cancel" | "qr" | "embed" | "limit">(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const { user, sub, loading, refresh } = useAccount();
@@ -116,6 +116,11 @@ function Dashboard() {
     if (code !== p.code) switchPortfolio(code);
     void navigate({ to: "/edit" });
   };
+  // Upload another portfolio. Where the plan allows it the upload box opens; otherwise the person is asked whether to upgrade.
+  const uploadNew = () => {
+    if (canAddPortfolio(doc)) beginNewPortfolio();
+    else setDialog("limit");
+  };
 
   return (
     <div className="min-h-screen"><PaymentTestModeBanner />{header}
@@ -137,7 +142,7 @@ function Dashboard() {
             <div><p className="label-xs">Library</p><h2 className="display-title mt-1 text-4xl">Portfolios</h2></div>
             <div className="flex items-center gap-3">
               <span className="text-xs text-muted-foreground">{all.length}/{MAX_PORTFOLIOS}</span>
-              {canAddPortfolio(doc) && <Button size="sm" onClick={() => beginNewPortfolio()}>New portfolio</Button>}
+              <Button size="sm" onClick={uploadNew}><Upload /> Upload portfolio</Button>
             </div>
           </div>
 
@@ -200,6 +205,19 @@ function Dashboard() {
       <PortfolioQrCode open={dialog === "qr"} onClose={() => setDialog(null)} url={origin + sharePath} name={p.profile.name} />
       <EmbedModal open={dialog === "embed"} onClose={() => setDialog(null)} url={`${origin}/embed/${p.code}`} title={p.profile.name || "Portfolio"} />
       <UpgradeModal open={dialog === "upgrade"} onClose={() => setDialog(null)} />
+      <Modal open={dialog === "limit"} onClose={() => setDialog(null)} title={paid ? "Portfolio limit reached" : "Upload another portfolio"}>
+        {paid ? (
+          <p className="text-muted-foreground">You have {all.length} of {MAX_PORTFOLIOS} portfolios, the most a Personal plan includes.</p>
+        ) : (
+          <>
+            <p className="text-muted-foreground">The free plan includes one portfolio. Personal lets you keep up to {MAX_PORTFOLIOS}, each with its own link. Would you like to upgrade?</p>
+            <div className="mt-6 flex justify-end gap-2">
+              <Button variant="line" onClick={() => setDialog(null)}>Not now</Button>
+              <Button onClick={() => setDialog("upgrade")}>See Personal plan</Button>
+            </div>
+          </>
+        )}
+      </Modal>
       <Modal open={dialog === "cancel"} onClose={() => setDialog(null)} title="Manage Personal">
         <p className="text-muted-foreground">Your portfolios remain available at their free addresses if you cancel. Nothing is deleted immediately.</p>
         <Confirm onCancel={() => setDialog(null)} label="Open billing page" onConfirm={async () => { setDialog(null); const w = window.open("", "_blank"); try { const url = await portal({ data: { environment: getPaddleEnvironment() } }); if (w) w.location.href = url; else window.location.href = url; } catch { w?.close(); setMsg("Couldn’t open the billing page — try again."); } }} />
