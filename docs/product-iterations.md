@@ -25,7 +25,7 @@ Validation: TypeScript (`npx tsc --noEmit`) and production build (`npm run build
 
 ## Iteration 2 — cover images for shared links
 
-Status: implemented on the iteration-2 branch; not yet merged or verified live.
+Status: merged into main on 5 October 2026 via PR #4, merge commit `fd276a79f97a488c01d11694f3cf0ed9246de2d1`. Live publication has not been verified.
 
 - Render a 1200 × 630 JPEG from page one during PDF upload, with the whole page visible against a neutral background.
 - Reuse the existing private file bucket and browser-to-account transfer. No new service, dependency, public bucket or database migration.
@@ -39,7 +39,16 @@ Validation: production build and TypeScript pass. Eight focused tests cover uplo
 
 ## Iteration 3 — owner and editor experience
 
-Planned, not implemented. Let owners view their real public page with a clear Edit action. Improve the existing editor's preview visibility with compact/collapsible settings after a desktop and mobile layout review. Creation-preview improvements in iteration 1 do not complete this editor work.
+Status: implemented on the iteration-3 branch; awaiting merge and deployed browser checks.
+
+- Remove automatic editor redirects from code, personalised and legacy public portfolio routes. Owners see the published server version; explicit draft preview remains available separately.
+- Retain the owner-only Edit portfolio / Dashboard controls. Edit selects the matching portfolio before navigation, including when another portfolio was active, and reports a storage failure instead of opening the wrong editor.
+- Suppress visit/download tracking for recognised owners viewing their published page.
+- Put appearance controls beside a sticky, scrollable preview on desktop; adapt the existing form to a single sidebar column without changing renderer or lighting logic.
+- Put the preview first on mobile with Edit settings / Back to preview anchors and retain Full preview.
+- Clean up a generated cover when a replacement upload is cancelled.
+
+Validation: TypeScript and production build pass. Nine focused tests pass, including selecting another owned portfolio without losing the previously active work. Signed-in browser routing, responsive layout and analytics still need deployed browser checks. No renderer files or dependencies changed.
 
 ## Iteration 4 — discovery and comparison
 

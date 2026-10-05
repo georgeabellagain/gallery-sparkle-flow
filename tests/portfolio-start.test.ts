@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getDoc, replaceDoc, startPortfolio, DEFAULT_VIEWER, type Doc, type PdfFile } from "../src/lib/portfolia/store";
+import { getDoc, replaceDoc, startPortfolio, switchPortfolio, DEFAULT_VIEWER, type Doc, type PdfFile } from "../src/lib/portfolia/store";
 
 const storage = new Map<string, string>();
 Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
@@ -40,4 +40,21 @@ test("a homepage upload cannot replace a published portfolio", () => {
   replaceDoc(doc);
   startPortfolio({ ...pdf, blobKey: "must-not-replace" });
   assert.deepEqual(getDoc(), doc);
+});
+
+
+test("Edit on another owned portfolio selects it and preserves the previous portfolio", () => {
+  replaceDoc(empty());
+  startPortfolio(pdf);
+  const doc = structuredClone(getDoc());
+  const first = structuredClone(doc.portfolio!);
+  const other = { ...structuredClone(first), code: "second-portfolio" };
+  doc.others = [{ portfolio: other, analytics: { visits: [{ t: 1, v: "visitor" }], downloads: [] } }];
+  replaceDoc(doc);
+  assert.equal(switchPortfolio(other.code), true);
+  assert.equal(getDoc().portfolio?.code, other.code);
+  assert.deepEqual(getDoc().others[0]?.portfolio, first);
+  assert.equal(getDoc().analytics.visits.length, 1);
+  assert.equal(switchPortfolio(other.code), true);
+  assert.equal(getDoc().others.length, 1, "reopening the active editor does not duplicate portfolios");
 });

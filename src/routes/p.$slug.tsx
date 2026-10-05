@@ -1,5 +1,4 @@
-import { createFileRoute, useHydrated, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, useHydrated } from "@tanstack/react-router";
 import { CloudVisitor, LOCAL_MISSING, Missing, OwnVisitor, SampleVisitor, useOwn } from "@/components/pf/Visitor";
 import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
 import { portfolioHead } from "@/lib/portfolia/head";
@@ -54,17 +53,13 @@ function Page() {
   const { data } = Route.useLoaderData();
   const p = useOwn((x) => x.code === slug);
   const hydrated = useHydrated();
-  const navigate = useNavigate();
-  useEffect(() => {
-    if (hydrated && p && !preview && slug !== SAMPLE.code) void navigate({ to: "/edit", replace: true });
-  }, [hydrated, navigate, p, preview, slug]);
   if (slug === SAMPLE.code) return <SampleVisitor demo={demo} />;
   if (preview) {
     if (!hydrated) return null;
     if (!p || p.code !== slug) return <Missing title="No portfolio here" body="Sign in on this device to preview your draft." />;
     return <OwnVisitor p={p} preview />;
   }
-  if (hydrated && p) return null;
   if (!data) return <Missing title="No portfolio here" body={LOCAL_MISSING} />;
   return <CloudVisitor data={data} />;
 }
+

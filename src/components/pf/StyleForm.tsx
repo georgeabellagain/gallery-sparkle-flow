@@ -30,7 +30,7 @@ async function prepareBackground(file: File): Promise<Blob> {
 }
 
 /** Paid-plan page styling: heading font, colours and an optional banner. */
-export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg: string | null) => void }) {
+export function StyleForm({ p, onSaveError, sidebar = false }: { p: Portfolio; onSaveError: (msg: string | null) => void; sidebar?: boolean }) {
   const style = p.style ?? DEFAULT_STYLE;
   const paid = p.plan === "personal";
   const input = useRef<HTMLInputElement>(null);
@@ -126,7 +126,7 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
   };
 
   return (
-    <div className="grid items-start gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+    <div className={`grid min-w-0 items-start gap-x-10 gap-y-6 ${sidebar ? "" : "lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]"}`}>
       <div>
       <p className="flex items-center gap-2 text-xs font-medium">
         <Palette className="size-4 text-leaf" aria-hidden /> Portfolio appearance
@@ -162,9 +162,9 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
       )}
       {cropFile && <BannerCropper file={cropFile} onCancel={() => setCropFile(null)} onSave={saveBanner} />}
       </div>
-      <div className="rule-t pt-4 lg:border-t-0 lg:pt-0">
+      <div className={`rule-t pt-4 ${sidebar ? "" : "lg:border-t-0 lg:pt-0"}`}>
         <p className="text-xs font-medium">Portfolio experience</p>
-        <div className="mt-3 grid items-start gap-x-10 gap-y-4 text-xs lg:grid-cols-2">
+        <div className={`mt-3 grid items-start gap-x-10 gap-y-4 text-xs ${sidebar ? "" : "lg:grid-cols-2"}`}>
           <div className="space-y-3">
           <div className="space-y-2">
             <p>Reading modes visitors can use</p>
@@ -387,3 +387,4 @@ function BannerCropper({ file, onCancel, onSave }: { file: File; onCancel: () =>
     </dialog>
   );
 }
+
