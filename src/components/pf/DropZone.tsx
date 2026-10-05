@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { acceptPdf } from "@/lib/portfolia/pdf";
@@ -11,19 +11,37 @@ export function DropZone({ onAccepted, label = "Upload your PDF", small, limitMb
   const [phase, setPhase] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [optimise, setOptimise] = useState(false);
+  const [candidate, setCandidate] = useState<{ original: File; smaller: File | null } | null>(null);
+  const [download, setDownload] = useState<string>();
+  const busy = useRef(false);
+  useEffect(() => {
+    if (!candidate?.smaller) { setDownload(undefined); return; }
+    const url = URL.createObjectURL(candidate.smaller);
+    setDownload(url);
+    return () => URL.revokeObjectURL(url);
+  }, [candidate]);
+
+  const accept = async (file: File) => {
+    setPhase("Checking PDF");
+    try { const pdf = await acceptPdf(file, setPhase, limitMb); setCandidate(null); onAccepted(pdf); }
+    catch (e) { setError(e instanceof Error ? e.message : "The upload didn’t finish."); }
+    finally { setPhase(null); busy.current = false; }
+  };
   const handle = async (file?: File) => {
-    if (!file) return;
+    if (!file || busy.current) return;
+    busy.current = true;
     setError(null);
-    setPhase("Reading file");
+    setCandidate(null);
     try {
-      const pdf = await acceptPdf(file, setPhase, limitMb);
-      setPhase(null);
-      onAccepted(pdf);
-    } catch (e) {
-      setPhase(null);
-      setError(e instanceof Error ? e.message : "The upload didn’t finish.");
-    }
-    if (input.current) input.current.value = "";
+      if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) throw new Error("Please choose a PDF file.");
+      if (optimise) {
+        setPhase("Trying a smaller copy on your device");
+        const { optimiseFile } = await import("@/lib/portfolia/optimise-file");
+        setCandidate({ original: file, smaller: await optimiseFile(file) });
+      } else await accept(file);
+    } catch (e) { setError(e instanceof Error ? e.message : "The upload didn’t finish."); }
+    finally { busy.current = false; setPhase(null); if (input.current) input.current.value = ""; }
   };
 
   return (
@@ -55,9 +73,24 @@ export function DropZone({ onAccepted, label = "Upload your PDF", small, limitMb
           {label}
         </Button>
       </div>
+      <label className="mt-3 flex items-start justify-center gap-2 text-xs text-muted-foreground">
+        <input type="checkbox" checked={optimise} disabled={Boolean(phase)} onChange={(e) => setOptimise(e.target.checked)} />
+        Try PDF compression on my device before upload
+      </label>
+      {candidate && <div className="mt-3 rounded-xl border border-border p-4 text-sm" role="status">
+        <p>{candidate.smaller ? `Original: ${(candidate.original.size / 1048576).toFixed(2)} MB → smaller copy: ${(candidate.smaller.size / 1048576).toFixed(2)} MB.` : "This PDF is already compact; no smaller copy was produced."}</p>
+        <p className="mt-2 text-xs text-muted-foreground">Your original file is unchanged. Pages are not converted to images or downsampled. Review the smaller copy before using it; image-heavy PDFs may need a smaller export from your design app.</p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          {candidate.smaller && <Button size="sm" disabled={Boolean(phase) || candidate.smaller.size > limitMb * 1048576} onClick={() => { if (!busy.current && candidate.smaller) { busy.current = true; void accept(candidate.smaller); } }}>Use smaller copy</Button>}
+          {download && <a href={download} download={candidate.smaller?.name} className="text-xs underline">Download to review</a>}
+          <Button size="sm" variant="line" disabled={Boolean(phase) || candidate.original.size > limitMb * 1048576} onClick={() => { if (!busy.current) { busy.current = true; void accept(candidate.original); } }}>Use original</Button>
+          <button type="button" disabled={Boolean(phase)} className="text-xs underline" onClick={() => setCandidate(null)}>Discard</button>
+        </div>
+        {(candidate.smaller ?? candidate.original).size > limitMb * 1048576 && <p className="mt-2 text-xs">This copy still exceeds your {limitMb} MB limit. Try a smaller web export.</p>}
+      </div>}
       <details className="mt-3 text-xs text-muted-foreground">
         <summary className="cursor-pointer underline underline-offset-4">PDF larger than {limitMb} MB?</summary>
-        <p className="mt-2">Export a separate web copy from your design app using its PDF image-compression settings. Check small text and drawings at full size before uploading, and keep your original. Personal accepts PDFs up to 50 MB; files are not automatically compressed.</p>
+        <p className="mt-2">Export a separate web copy from your design app using its PDF image-compression settings. Check small text and drawings at full size before uploading, and keep your original. Personal accepts PDFs up to 50 MB; compression is optional and may not reduce already-compressed images.</p>
       </details>
       {error && (
         <p role="alert" className="mt-3 rounded-2xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive">

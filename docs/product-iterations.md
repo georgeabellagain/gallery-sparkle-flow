@@ -65,7 +65,7 @@ Validation: production build and TypeScript pass. No viewer, PDF handling, stora
 
 ## Iteration 5 — Scarlett’s example, embedding and upload guidance
 
-Status: implemented on the iteration-5 branch; awaiting merge and browser verification.
+Status: merged into main on 5 October 2026 via PR #7, merge commit `d376ce7866d44c8524bcbf167bb5179510a9981c`. Browser verification remains outstanding.
 
 - Owner requested the only account's saved flipbook as the public example. A read-only database query confirmed one published portfolio (`adu2v`), containing Scarlett Bushell's 14-page lookbook and both Simple/Studio looks.
 - Replace the synthetic homepage animation and fictional `/p/sample` portfolio with the existing PDF reader loading that explicitly selected published portfolio. Its saved background, material, lighting, shadows and booklet settings are retained; visitors can choose Simple or Studio. No account record, original PDF or renderer is modified.
@@ -76,13 +76,29 @@ Status: implemented on the iteration-5 branch; awaiting merge and browser verifi
 
 Validation: TypeScript and production build pass. Database inspection was read-only. Real PDF rendering, responsive appearance and published-site verification remain outstanding. No Lovable AI generation calls or new dependencies.
 
-## Next iteration — release verification and measured improvements
+## Iteration 6 — loading, autoplay, homepage and optimisation
 
-Complete the accumulated desktop/mobile, signed-in owner, shared-preview and embed checks on the deployed build before expanding features. Historical cover backfill and font-loading measurement remain optional follow-ups. No automatic customer indexing or public gallery.
+Status: implemented on the iteration-6 branch; awaiting merge and deployed browser verification.
+
+- Start Scarlett's example in Studio while retaining its saved lighting, finish, background and other settings and the Simple/Studio switch.
+- Keep the actual book canvas invisible while pages are preparing, including the non-3D fallback. Reveal the example only after real page readiness, rather than a timeout. Rendering failures expose a retry state.
+- Automatically turn the example forwards, reverse at the end, and continue back to the start. Use the existing animated turn path with a 3.2-second reading pause. Pause offscreen/in hidden tabs and honour reduced-motion settings. Pointer, keyboard or wheel interaction permanently stops autoplay for that visit.
+- Replace the old reading cards with six keyboard-accessible feature tabs: Page by page, Scroll, Your backdrop, Studio lighting, Easy sharing and Embed. Each has a distinct lightweight SVG illustration. The page-by-page visual now shows one page, with all illustrations clearly labelled as illustrative.
+- Improve reader controls with dark-grey icons on light backplates or white icons on dark backplates. Picture brightness detection now requests CORS-safe image sampling; contrasting plates keep controls readable over mixed imagery or when sampling is unavailable.
+- Reduce always-loaded Google font families from seven to two. Load optional portfolio heading fonts only when selected in the viewer/editor; code text uses its system monospace fallback.
+- Generate missing cover images when signed-in owners open the sharing tools for an existing published portfolio. Reuse private storage, deduplicate concurrent attempts, check that the PDF still matches before attaching the cover, and expose retry feedback. This is owner-device backfill, not a bulk production-data migration.
+- Add optional browser-worker PDF compression using pinned pdf-lib 1.17.1. It repacks PDF objects without rasterising pages or downsampling images, only offers a smaller result, and never replaces the original on disk. Show both sizes, offer a download to review, and require choosing the smaller copy before upload. Plan limits remain enforced; processing is bounded to 75 MB inputs and 60 seconds. Signed PDFs are rejected to avoid invalidating signatures. Already-compressed/image-heavy files may see little or no saving.
+- Expand the free flipbook guide with export, compression, spreads, link behaviour, privacy and replacement advice.
+
+Validation: TypeScript and production build pass. Twelve tests pass, including a compression fixture that retains page dimensions, content-stream bytes and URL annotations, never grows an already-compact file and rejects signatures. Existing upload-preservation and cover-access tests still pass. Bun dependency lock updated. Browser testing was attempted but blocked: the local browser download failed and the remote preview timed out. Autoplay, image contrast, mobile tabs and authenticated backfill therefore still require browser checks. No production account records or original portfolio files were changed, and no Lovable AI generation calls were made.
+
+## Next — verify the release
+
+Prioritise desktop/mobile and real-account checks of this batch before further feature work. Verify initial loading, the complete forward/back autoplay cycle and permanent interaction stop, Simple/Studio switching, optional compression acceptance, older-cover generation, sharing metadata and embedding. Confirm the actual live deployment separately from merging GitHub.
 
 ## Later — validate demand first
 
-Measure upload failures before adding optional PDF optimisation; preserve legibility and original files. Consider passwords, expiry, analytics and a job-hunt pass after validating demand and operating cost. A public social gallery, sounds and classroom tooling are deferred.
+Measure whether the optional lossless optimiser meaningfully reduces upload failures before considering more aggressive image compression; preserve legibility and original files. Consider passwords, expiry, analytics and a job-hunt pass after validating demand and operating cost. A public social gallery, sounds and classroom tooling are deferred.
 
 ## Release checklist
 

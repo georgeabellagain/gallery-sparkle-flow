@@ -1,3 +1,4 @@
+import { usePortfolioFont } from "@/lib/portfolia/fonts";
 import { useEffect, useRef, useState } from "react";
 import { Minus, Palette, Plus, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ async function prepareBackground(file: File): Promise<Blob> {
 /** Paid-plan page styling: heading font, colours and an optional banner. */
 export function StyleForm({ p, onSaveError, sidebar = false }: { p: Portfolio; onSaveError: (msg: string | null) => void; sidebar?: boolean }) {
   const style = p.style ?? DEFAULT_STYLE;
+  usePortfolioFont(style.font);
   const paid = p.plan === "personal";
   const input = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState<string | null>(null);
