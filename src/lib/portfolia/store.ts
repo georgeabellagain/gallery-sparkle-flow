@@ -90,6 +90,8 @@ export interface Domain {
 
 export interface PdfFile {
   blobKey: string;
+  /** Optional derived JPEG used in public link previews. */
+  coverKey?: string;
   name: string;
   bytes: number;
   pages: number;
@@ -253,13 +255,17 @@ export function patchProfile(patch: Partial<Profile>): boolean {
 export async function replacePdf(pdf: PdfFile): Promise<boolean> {
   const old = getDoc().portfolio?.pdf;
   const ok = patchPortfolio({ pdf });
-  if (ok && old && old.blobKey !== pdf.blobKey) await deleteBlob(old.blobKey).catch(() => {});
+  if (ok && old && old.blobKey !== pdf.blobKey) {
+    await deleteBlob(old.blobKey).catch(() => {});
+    if (old.coverKey) await deleteBlob(old.coverKey).catch(() => {});
+  }
   return ok;
 }
 
 export async function deletePortfolio(): Promise<void> {
   const p = getDoc().portfolio;
   if (p?.pdf) await deleteBlob(p.pdf.blobKey).catch(() => {});
+  if (p?.pdf?.coverKey) await deleteBlob(p.pdf.coverKey).catch(() => {});
   if (p?.profile.photoKey) await deleteBlob(p.profile.photoKey).catch(() => {});
   if (p?.profile.cv) await deleteBlob(p.profile.cv.blobKey).catch(() => {});
   update((d) => {
