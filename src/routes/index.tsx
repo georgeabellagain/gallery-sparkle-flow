@@ -1,8 +1,8 @@
+import { FeatureShowcase } from "@/components/pf/FeatureShowcase";
 import { softwareSchema } from "@/lib/portfolia/software-schema";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
-import samplePage from "@/assets/sample-page.jpg";
 import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
 import { BookAnimation } from "@/components/pf/BookAnimation";
 import { DropZone } from "@/components/pf/DropZone";
@@ -102,41 +102,7 @@ function Landing() {
           </div>
         </section>
 
-        <section className="rule-t">
-          <div className="shell py-16">
-            <h2 className="text-sm font-medium">Other ways to read</h2>
-            <p className="mt-2 max-w-xl text-sm text-muted-foreground">Choose which reading styles to offer. Visitors can switch between the modes you enable.</p>
-            <div className="mx-auto mt-7 grid grid-cols-1 max-w-5xl gap-5 sm:grid-cols-2">
-              <Link to="/p/$slug" params={{ slug: "sample" }} search={{}} className="group block focus-visible:outline-none">
-                <div className="relative h-64 overflow-hidden rounded-2xl border border-border shadow-soft transition-transform group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-ring" style={{ background: MIDNIGHT }}>
-                  <div className="mx-auto mt-5 w-[72%] space-y-3">
-                    <img src={samplePage} alt="" width={1648} height={1168} loading="lazy" decoding="async" className="w-full rounded-sm" />
-                    <img src={samplePage} alt="" width={1648} height={1168} loading="lazy" decoding="async" className="w-full rounded-sm" />
-                  </div>
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20" style={{ background: `linear-gradient(to bottom, transparent, ${MIDNIGHT})` }} aria-hidden />
-                </div>
-                <h3 className="mt-3 text-sm font-medium">Scroll</h3>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Every page in one smooth, continuous column. The simplest way to read, and it works well on any screen.</p>
-              </Link>
-              <Link to="/p/$slug" params={{ slug: "sample" }} search={{}} className="group block focus-visible:outline-none">
-                <div className="relative h-64 overflow-hidden rounded-2xl border border-border shadow-soft transition-transform group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-ring" style={{ background: MIDNIGHT }}>
-                  {/* Two separate pages side by side, each with its own shadow and a gap between, so it is not mistaken for a flipbook spread or for Scroll's single column. */}
-                  <div className="mx-auto mt-9 grid w-[80%] grid-cols-2 gap-4" aria-hidden>
-                    <img src={samplePage} alt="" width={1648} height={1168} loading="lazy" decoding="async" className="w-full rounded-sm shadow-lift" />
-                    <img src={samplePage} alt="" width={1648} height={1168} loading="lazy" decoding="async" className="w-full rounded-sm shadow-lift" />
-                  </div>
-                  <div className="absolute inset-x-0 bottom-4 flex items-center justify-center gap-2 text-xxs" aria-hidden>
-                    <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-white/80">Previous</span>
-                    <span className="tabular-nums text-white/60">2–3 / 12</span>
-                    <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-white/80">Next</span>
-                  </div>
-                </div>
-                <h3 className="mt-3 text-sm font-medium">Page by page</h3>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">One page at a time with simple previous and next controls, so each page gets the whole screen.</p>
-              </Link>
-            </div>
-          </div>
-        </section>
+        <FeatureShowcase />
 
         <section className="rule-t">
           <div className="shell py-16">

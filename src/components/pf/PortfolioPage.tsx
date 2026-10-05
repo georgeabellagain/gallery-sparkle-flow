@@ -1,3 +1,4 @@
+import { usePortfolioFont } from "@/lib/portfolia/fonts";
 import { useMemo } from "react";
 import { Mail } from "lucide-react";
 import { DEFAULT_VIEWER, type PageStyle, type Profile, type ViewerSettings } from "@/lib/portfolia/store";
@@ -41,6 +42,7 @@ export function PortfolioPage({
   /** Open full screen on a phone or tablet (a portfolio opened from its QR code). */
   startFullscreen?: boolean;
 }) {
+  usePortfolioFont(pageStyle?.font);
   const view = { ...DEFAULT_VIEWER, ...viewer };
   const bannerBlob = useBlob(pageStyle?.bannerKey);
   const bannerUrl = useObjectUrl(bannerBlob);
@@ -130,3 +132,4 @@ export function useStoredMedia(pdfKey?: string, photoKey?: string) {
   const pdf = useMemo(() => (pdfBlob ? { blob: pdfBlob } : null), [pdfBlob]);
   return { pdf, photoUrl };
 }
+

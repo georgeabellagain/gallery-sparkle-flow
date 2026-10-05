@@ -1,3 +1,4 @@
+import { ShareCover } from "./ShareCover";
 import { useState } from "react";
 import { Code2, Copy, QrCode } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -36,8 +37,10 @@ export function ShareActions({ p }: { p: Portfolio }) {
         {published && <Button size="sm" variant="line" onClick={() => setDialog("embed")}><Code2 /> Embed</Button>}
       </div>
       {!published && <p className="mt-3 text-xs text-muted-foreground">Publish this portfolio before sharing it with visitors.</p>}
+      <ShareCover p={p} />
       <PortfolioQrCode open={dialog === "qr"} onClose={() => setDialog(null)} url={origin + sharePath} name={p.profile.name} />
       <EmbedModal open={dialog === "embed"} onClose={() => setDialog(null)} url={`${origin}/embed/${p.code}`} title={p.profile.name || "Portfolio"} />
     </section>
   );
 }
+

@@ -236,6 +236,8 @@ export function BookView({
   fullscreen,
   awake = true,
   onReadyChange,
+  onRenderError,
+  autoTurn = false,
   previewable,
 }: {
   doc: PDFDocumentProxy;
@@ -259,6 +261,9 @@ export function BookView({
   awake?: boolean;
   /** Told when the book has rendered and is ready to show, and when it is preparing again. */
   onReadyChange?: (ready: boolean) => void;
+  onRenderError?: (message: string) => void;
+  /** Featured demo only; uses the normal animated turn path. */
+  autoTurn?: boolean;
   /** The editor's preview: it shows the look whose settings are being edited. */
   previewable?: boolean;
 }) {
@@ -369,7 +374,7 @@ export function BookView({
         /* turning is allowed anyway */
       }
       if (!cancelled) setWarm(true);
-    });
+    }).catch(() => { if (!cancelled) setError("The PDF pages could not be prepared. Please reload and try again."); });
     // 3D that keeps working. Failing to start, or the browser taking the graphics context back, is not the end
     // of 3D: a fresh view is built a moment later. Only after several failures is the plain page view shown
     // (and 3D is still retried in the background, and swapped back in as soon as it works).
@@ -540,7 +545,7 @@ export function BookView({
   }, [busy, wait, fallback, onZoomChange]);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready && !fallback) return;
     // After a page turn the scene already shows this spread: do not rebuild it.
     const key = `${ready}|${spread.join(",")}|${fallback ? leaf : ""}`;
     if (shown.current === key) {
@@ -753,10 +758,20 @@ export function BookView({
   const updateLook = (look: "clean" | "studio") => setSettings((current) => ({ ...current, studio: look === "studio" }));
 
   // Tell the viewer when the book is rendered and ready, so it can show nothing but a loader until then.
-  const bookReady = ready > 0 && warm && !loading;
+  useEffect(() => { if (error) onRenderError?.(error); }, [error, onRenderError]);
+  const bookReady = (ready > 0 || fallback) && warm && !loading && !error;
   useEffect(() => {
     onReadyChange?.(bookReady);
   }, [bookReady, onReadyChange]);
+
+  const autoDirection = useRef<1 | -1>(1);
+  useEffect(() => {
+    if (!autoTurn || !bookReady || busy || wait || error || (atStart && atEnd)) return;
+    if (atEnd) autoDirection.current = -1;
+    else if (atStart) autoDirection.current = 1;
+    const timer = setTimeout(() => { void move(autoDirection.current); }, 3200);
+    return () => clearTimeout(timer);
+  }, [autoTurn, bookReady, busy, wait, error, atStart, atEnd, move]);
 
   return (
     <section aria-label="Interactive PDF book" data-look={settings.studio ? "studio" : "simple"}>
@@ -810,9 +825,9 @@ export function BookView({
         }}
       >
         <BackdropLayer colour={colour} imageUrl={backgroundUrl} fit={viewer.backgroundFit as Partial<BackgroundFit> | undefined} />
-        <div ref={host} className={cn("pf-book-canvas", fallback && "invisible")} />
+        <div ref={host} className={cn("pf-book-canvas", (fallback || !bookReady) && "invisible")} />
         {fallback && (
-          <div className="pf-book-fallback">
+          <div className={cn("pf-book-fallback", !bookReady && "invisible")}>
             <canvas ref={fallbackCanvas} />
             <p>3D is unavailable on this device. You can still read every page.</p>
           </div>
@@ -883,3 +898,4 @@ export function BookView({
     </section>
   );
 }
+

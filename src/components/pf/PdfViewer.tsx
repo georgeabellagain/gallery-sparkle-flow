@@ -50,6 +50,9 @@ export function PdfViewer({
   home,
   backgroundUrl,
   controls,
+  autoTurn = false,
+  onBookReadyChange,
+  onLoadError,
 }: {
   source: Source | null;
   fileName: string;
@@ -73,6 +76,9 @@ export function PdfViewer({
   backgroundUrl?: string;
   /** Whether to show the icons. Defaults to on, except for small thumbnails. */
   controls?: boolean;
+  autoTurn?: boolean;
+  onBookReadyChange?: (ready: boolean) => void;
+  onLoadError?: (message: string) => void;
 }) {
   const view = { ...DEFAULT_VIEWER, ...viewer };
   // The creator chooses which reading modes visitors get, and which one opens first.
@@ -96,6 +102,11 @@ export function PdfViewer({
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [toolbarHeight, setToolbarHeight] = useState(0);
   const shownReady = !SHOW_LOADER || contentReady;
+  const bookReadyChanged = useCallback((ready: boolean) => {
+    setContentReady(ready);
+    onBookReadyChange?.(ready);
+  }, [onBookReadyChange]);
+  useEffect(() => { if (error) onLoadError?.(error); }, [error, onLoadError]);
   const rootRef = useRef<HTMLDivElement>(null);
   const clusterRef = useRef<HTMLDivElement>(null);
   const [downloadUrl, setDownloadUrl] = useState<string>();
@@ -346,7 +357,7 @@ export function PdfViewer({
   // window, with a little room left below, so its bottom never leaves the screen.
   const panelFit = { maxHeight: `calc(100svh - ${(toolbarHeight || 36) + 6 + 8 + 12}px)` };
 
-  const quiet = tone === "dark" ? "text-white/60" : "text-black/55";
+  const quiet = tone === "dark" ? "text-white/90" : "text-slate-700";
   const togglePanel = (name: "profile" | "pages") => setPanel((p) => (p === name ? null : name));
   const pageArrow = (side: "left" | "right") => (
     <div className={cn("pointer-events-none absolute inset-y-0 z-30", side === "left" ? "left-0" : "right-0")}>
@@ -389,7 +400,7 @@ export function PdfViewer({
             </div>
           )}
           <div ref={clusterRef} className={cn("pointer-events-auto absolute right-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] flex-col items-end gap-2 transition-opacity duration-300", fade)}>
-            <div ref={toolbarRef} role="toolbar" aria-label="Viewer controls" className="flex flex-wrap items-center justify-end gap-0.5">
+            <div ref={toolbarRef} role="toolbar" aria-label="Viewer controls" className={cn("flex flex-wrap items-center justify-end gap-0.5 rounded-full p-1 shadow-sm backdrop-blur-md", tone === "dark" ? "bg-slate-950/80 text-white" : "bg-white/90 text-slate-700")}>
               {profile && (
                 <IconButton label="Profile" tone={tone} pressed={panel === "profile"} onClick={() => togglePanel("profile")}>
                   <User className="size-[17px]" />
@@ -487,7 +498,7 @@ export function PdfViewer({
       ) : (
         <div className={cn("transition-opacity duration-300", shownReady ? "opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!shownReady}>
       {mode === "book" ? (
-        <BookView doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={setContentReady} previewable={compact} />
+        <BookView doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={onLoadError} autoTurn={autoTurn} previewable={compact} />
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div className="overflow-x-auto">
@@ -739,3 +750,4 @@ function PdfPage({
     </div>
   );
 }
+

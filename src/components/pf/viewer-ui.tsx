@@ -34,6 +34,7 @@ export function useTone(colour: string, imageUrl?: string): Tone {
         setImageTone("dark");
       }
     };
+    img.crossOrigin = "anonymous";
     img.src = imageUrl;
     return () => {
       live = false;
@@ -45,11 +46,11 @@ export function useTone(colour: string, imageUrl?: string): Tone {
 /** Quiet round icon: faint until pointed at. */
 export const iconClass = (tone: Tone, large = false) =>
   cn(
-    "inline-flex shrink-0 items-center justify-center rounded-full transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 disabled:pointer-events-none disabled:opacity-20",
+    "inline-flex shrink-0 items-center justify-center rounded-full transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 disabled:pointer-events-none disabled:opacity-40",
     large ? "size-11" : "size-9 sm:size-8",
     tone === "dark"
-      ? "text-white/55 hover:bg-white/10 hover:text-white aria-pressed:bg-white/15 aria-pressed:text-white aria-checked:bg-white/15 aria-checked:text-white"
-      : "text-black/45 hover:bg-black/5 hover:text-black aria-pressed:bg-black/10 aria-pressed:text-black aria-checked:bg-black/10 aria-checked:text-black",
+      ? "text-white bg-slate-950/75 shadow-sm ring-1 ring-white/20 backdrop-blur-sm hover:bg-slate-950/90 hover:text-white aria-pressed:bg-white/15 aria-pressed:text-white aria-checked:bg-white/15 aria-checked:text-white"
+      : "text-slate-700 bg-white/90 shadow-sm ring-1 ring-black/15 backdrop-blur-sm hover:bg-white hover:text-slate-950 aria-pressed:bg-black/10 aria-pressed:text-black aria-checked:bg-black/10 aria-checked:text-black",
   );
 
 export function IconButton({
@@ -160,8 +161,9 @@ export function BackdropLayer({ colour, imageUrl, fit, className }: { colour: st
  */
 export function LogoMark({ tone, className }: { tone: Tone; className?: string }) {
   return (
-    <Link to="/" aria-label="Portfolia home" title="Portfolia" className={cn("inline-flex size-6 overflow-hidden rounded-[3px] opacity-60 transition-opacity hover:opacity-100 focus-visible:opacity-100", className)}>
+    <Link to="/" aria-label="Portfolia home" title="Portfolia" className={cn("inline-flex size-8 overflow-hidden rounded-lg p-1 shadow-sm ring-1 ring-black/10", tone === "dark" ? "bg-slate-950/80" : "bg-white/90", className)}>
       <img src={logo} alt="" draggable={false} className={cn("h-full w-full max-w-none object-cover object-left", tone === "dark" && "brightness-0 invert")} />
     </Link>
   );
 }
+
