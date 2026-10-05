@@ -39,10 +39,17 @@ export async function acceptPdf(file: File, onPhase?: (p: string) => void, limit
   const buf = await file.arrayBuffer();
   const pdfjs = await loadPdfjs();
   let pages = 0;
+  let cover: Blob | undefined;
   try {
     const doc = await pdfjs.getDocument({ data: new Uint8Array(buf.slice(0)) }).promise;
-    pages = doc.numPages;
-    void doc.destroy();
+    try {
+      pages = doc.numPages;
+      onPhase?.("Preparing link preview");
+      const { renderCover } = await import("./cover");
+      cover = await renderCover(doc).catch(() => undefined);
+    } finally {
+      await doc.destroy();
+    }
   } catch (e) {
     throw new Error(describePdfError(e));
   }
@@ -53,5 +60,12 @@ export async function acceptPdf(file: File, onPhase?: (p: string) => void, limit
   } catch {
     throw new Error("Your browser’s storage is full or blocked, so the PDF couldn’t be saved. Free some space and try again.");
   }
-  return { blobKey, name: file.name, bytes: file.size, pages, uploadedAt: Date.now() };
+  let coverKey: string | undefined;
+  if (cover) {
+    const key = `${blobKey}_cover.jpg`;
+    // A failed preview must never prevent an otherwise valid PDF upload.
+    try { await putBlob(key, cover); coverKey = key; } catch { /* text-only share card */ }
+  }
+  return { blobKey, ...(coverKey ? { coverKey } : {}), name: file.name, bytes: file.size, pages, uploadedAt: Date.now() };
 }
+

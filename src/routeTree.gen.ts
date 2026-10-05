@@ -41,6 +41,7 @@ import { Route as EmbedCodeRouteImport } from './routes/embed.$code'
 import { Route as PSlugRouteImport } from './routes/p.$slug'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
+import { Route as ApiPublicPortfolioCoverCodeRouteImport } from './routes/api/public/portfolio-cover/$code'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -204,6 +205,12 @@ const ApiPublicPaymentsWebhookRoute =
     path: '/api/public/payments/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicPortfolioCoverCodeRoute =
+  ApiPublicPortfolioCoverCodeRouteImport.update({
+    id: '/api/public/portfolio-cover/$code',
+    path: '/api/public/portfolio-cover/$code',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -238,6 +245,7 @@ export interface FileRoutesByFullPath {
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -272,6 +280,7 @@ export interface FileRoutesByTo {
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -307,6 +316,7 @@ export interface FileRoutesById {
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -343,6 +353,7 @@ export interface FileRouteTypes {
     | '/p/$slug'
     | '/u/$username'
     | '/api/public/payments/webhook'
+    | '/api/public/portfolio-cover/$code'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -377,6 +388,7 @@ export interface FileRouteTypes {
     | '/p/$slug'
     | '/u/$username'
     | '/api/public/payments/webhook'
+    | '/api/public/portfolio-cover/$code'
   id:
     | '__root__'
     | '/'
@@ -411,6 +423,7 @@ export interface FileRouteTypes {
     | '/p/$slug'
     | '/u/$username'
     | '/api/public/payments/webhook'
+    | '/api/public/portfolio-cover/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -446,6 +459,7 @@ export interface RootRouteChildren {
   PSlugRoute: typeof PSlugRoute
   UUsernameRoute: typeof UUsernameRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
+  ApiPublicPortfolioCoverCodeRoute: typeof ApiPublicPortfolioCoverCodeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -674,6 +688,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/portfolio-cover/$code': {
+      id: '/api/public/portfolio-cover/$code'
+      path: '/api/public/portfolio-cover/$code'
+      fullPath: '/api/public/portfolio-cover/$code'
+      preLoaderRoute: typeof ApiPublicPortfolioCoverCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -710,6 +731,7 @@ const rootRouteChildren: RootRouteChildren = {
   PSlugRoute: PSlugRoute,
   UUsernameRoute: UUsernameRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
+  ApiPublicPortfolioCoverCodeRoute: ApiPublicPortfolioCoverCodeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

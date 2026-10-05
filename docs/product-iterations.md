@@ -10,7 +10,7 @@ The earlier flipbook and studio work was merged in PR #2, followed by further vi
 
 ## Iteration 1 — first upload, pricing and trust
 
-Status: implemented and checked; awaiting merge and live publication verification.
+Status: merged into main on 5 October 2026 via PR #3, merge commit `4f95aa14bba28c65e26c3219bf828719d1a6af4d`. Live publication has not been verified.
 
 - Put the existing PDF upload control directly in the homepage hero beside the existing studio demo.
 - Explain the practical benefit of a shareable link, with clear no-sign-up preview guidance.
@@ -25,7 +25,17 @@ Validation: TypeScript (`npx tsc --noEmit`) and production build (`npm run build
 
 ## Iteration 2 — cover images for shared links
 
-Planned, not implemented. Generate a stable public preview image from the portfolio cover and serve Open Graph and large Twitter cards from the public page metadata. Cover replacement and unpublishing must update or remove images consistently. Keep source PDFs private and avoid publishing more than the owner intends. This needs storage and server metadata work, so it is a separate batch.
+Status: implemented on the iteration-2 branch; not yet merged or verified live.
+
+- Render a 1200 × 630 JPEG from page one during PDF upload, with the whole page visible against a neutral background.
+- Reuse the existing private file bucket and browser-to-account transfer. No new service, dependency, public bucket or database migration.
+- Add versioned, absolute cover URLs to Open Graph and large Twitter cards for code, personalised and legacy public addresses.
+- Serve only the current published portfolio's derived cover through a server endpoint. Drafts, deleted portfolios, obsolete versions and arbitrary file paths return no image. Responses disable caching; social platforms can nevertheless retain their own copies.
+- Replacing or deleting the PDF removes its old cover through the existing asset cleanup path. Unpublishing retains the private cover but closes public access.
+- If rendering or saving the cover fails, the PDF upload still succeeds with a text-only card. Existing portfolios acquire covers on their next PDF upload/replacement; there is no automatic historical backfill.
+- Search indexing stays owner-controlled and off by default.
+
+Validation: production build and TypeScript pass. Eight focused tests cover upload state preservation plus share metadata, unpublished/legacy behaviour, replacement invalidation rejected storage paths, and endpoint publication/version checks before storage access. Actual social-crawler fetches and authenticated storage lifecycle still need deployment verification; no production credentials or user PDFs were used locally.
 
 ## Iteration 3 — owner and editor experience
 
