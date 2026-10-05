@@ -78,7 +78,7 @@ Validation: TypeScript and production build pass. Database inspection was read-o
 
 ## Iteration 6 — loading, autoplay, homepage and optimisation
 
-Status: implemented on the iteration-6 branch; awaiting merge and deployed browser verification.
+Status: merged into main on 5 October 2026 via PR #8, merge commit `3ce6d5bf963fbf3053c8e3c1772c213229787c93`. Lovable sync confirmed and publication requested; the new homepage was subsequently verified on https://portfolia.site/.
 
 - Start Scarlett's example in Studio while retaining its saved lighting, finish, background and other settings and the Simple/Studio switch.
 - Keep the actual book canvas invisible while pages are preparing, including the non-3D fallback. Reveal the example only after real page readiness, rather than a timeout. Rendering failures expose a retry state.
@@ -92,7 +92,17 @@ Status: implemented on the iteration-6 branch; awaiting merge and deployed brows
 
 Validation: TypeScript and production build pass. Twelve tests pass, including a compression fixture that retains page dimensions, content-stream bytes and URL annotations, never grows an already-compact file and rejects signatures. Existing upload-preservation and cover-access tests still pass. Bun dependency lock updated. Browser testing was attempted but blocked: the local browser download failed and the remote preview timed out. Autoplay, image contrast, mobile tabs and authenticated backfill therefore still require browser checks. No production account records or original portfolio files were changed, and no Lovable AI generation calls were made.
 
-## Next — verify the release
+## Iteration 7 — live release verification
+
+Status: release verification performed on 5 October 2026; no additional product changes.
+
+- Confirmed Lovable synced the exact iteration-6 merge before publishing. Deployment request `a24f6135-c1e8-4b0f-b273-c681075fbc68` initially returned pending; the live custom domain subsequently served the new six-tab homepage and optional compression control.
+- Live desktop browser confirmed the loading area has no blank white book, the example eventually becomes readable, Studio is selected, and Scarlett’s credit is present.
+- Verified Studio lighting tab by click and Easy sharing by arrow-key navigation. Verified the example’s Next page control advances the displayed page.
+- This cloud browser explicitly reports WebGL disabled. Its readable fallback works, but actual 3D rendering, lighting and the full forward/back autoplay cycle remain unverified. This is not evidence of a failure on a WebGL-capable device.
+- Prior TypeScript, production build and twelve focused test results remain the code-validation baseline. No production account records were changed and no Lovable AI generation calls were used.
+
+## Next — remaining release checks
 
 Prioritise desktop/mobile and real-account checks of this batch before further feature work. Verify initial loading, the complete forward/back autoplay cycle and permanent interaction stop, Simple/Studio switching, optional compression acceptance, older-cover generation, sharing metadata and embedding. Confirm the actual live deployment separately from merging GitHub.
 
