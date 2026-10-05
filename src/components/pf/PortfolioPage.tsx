@@ -23,6 +23,7 @@ export function PortfolioPage({
   viewer,
   embed,
   startPage,
+  startFullscreen,
 }: {
   profile: Profile;
   pdf: { blob: Blob } | { url: string } | null;
@@ -37,6 +38,8 @@ export function PortfolioPage({
   viewer?: ViewerSettings;
   embed?: boolean;
   startPage?: number;
+  /** Open full screen on a phone or tablet (a portfolio opened from its QR code). */
+  startFullscreen?: boolean;
 }) {
   const view = { ...DEFAULT_VIEWER, ...viewer };
   const bannerBlob = useBlob(pageStyle?.bannerKey);
@@ -101,6 +104,7 @@ export function PortfolioPage({
           backdrop={pageStyle?.backdrop}
           viewer={view}
           startPage={startPage}
+          startFullscreen={startFullscreen}
           profile={details}
           home={!embed && !compact}
           backgroundUrl={backgroundUrl}

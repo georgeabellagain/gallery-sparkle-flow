@@ -13,6 +13,7 @@ import { createBookScene, type BookFaces, type BookScene, type StudioSettings } 
 import { DEFAULT_SIMPLE_SHADOW_OPACITY } from "@/lib/portfolia/lighting";
 import { getPreviewLook, subscribePreviewLook, type PreviewLook } from "@/lib/portfolia/preview-look";
 import { coverThenSpreads, coverWithSpreads } from "@/lib/portfolia/mixed-layout";
+import { useTouchGestures } from "@/components/pf/touch-gestures";
 import { CPU_BYTES, deviceTier, detectDensity, longSideCap, longSideFor } from "@/lib/portfolia/resolution";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
 import { cn } from "@/lib/utils";
@@ -476,6 +477,39 @@ export function BookView({
     if (!zoomFrame.current) wheelZoom.current = zoom;
   }, [narrow, zoom, focus, busy, ready, settings]);
 
+  // On a touch screen: tap the left or right of the book to turn that way, and pinch to zoom the book itself
+  // (not the whole web page). While two fingers are down nothing else (a pan, a swipe) happens.
+  const pinching = useRef(false);
+  const applyPinch = (asked: number, x: number, y: number) => {
+    if (busy || wait || !scene.current) return;
+    pinching.current = true;
+    const next = Math.min(3, Math.max(1, asked));
+    if (Math.abs(next - wheelZoom.current) < 0.001) return;
+    scene.current.zoomAt(next, x, y);
+    wheelZoom.current = next;
+    if (!zoomFrame.current) {
+      zoomFrame.current = requestAnimationFrame(() => {
+        zoomFrame.current = 0;
+        onZoomChange(wheelZoom.current);
+        if (scene.current) setCorners(scene.current.corners());
+      });
+    }
+  };
+  useTouchGestures(viewportRef, {
+    enabled: !fallback,
+    zoom: () => wheelZoom.current,
+    onTap: (side) => {
+      // Like the arrows, a tap while a page is still turning joins the queue; only while the book is preparing is it ignored.
+      if (wait) return;
+      if (side === "left") void move(-1);
+      else if (side === "right") void move(1);
+    },
+    onPinch: applyPinch,
+    onPinchEnd: () => {
+      pinching.current = false;
+    },
+  });
+
   useEffect(() => {
     const element = viewportRef.current;
     if (!element || fallback) return;
@@ -729,20 +763,21 @@ export function BookView({
       <div
         ref={viewportRef}
         className="pf-book-viewport"
-        style={{ ...(fullscreen ? { height: FULL_HEIGHT } : immersive ? { height: "max(420px, 100svh)" } : {}), ...(zoom > 1 ? { touchAction: "none" } : {}) }}
+        style={{ ...(fullscreen ? { height: FULL_HEIGHT } : immersive ? { height: "max(420px, 100svh)" } : {}), touchAction: zoom > 1 ? "none" : "pan-y" }}
         data-busy={busy || wait}
         data-narrow={narrow}
         data-panning={panning.current !== null}
         onPointerDown={(e) => {
           if (e.target !== e.currentTarget && e.target !== host.current && e.target !== host.current?.firstChild) return;
           if (e.pointerType === "mouse" && e.button !== 0) return;
+          if (!e.isPrimary || pinching.current) return;
           if (zoom <= 1 || busy || wait || !scene.current) return;
           panning.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
           e.currentTarget.setPointerCapture(e.pointerId);
         }}
         onPointerMove={(e) => {
           const pan = panning.current;
-          if (!pan || pan.id !== e.pointerId) return;
+          if (!pan || pan.id !== e.pointerId || pinching.current) return;
           // The scene keeps the view inside the initial framing.
           scene.current?.dragPan(e.clientX - pan.x, e.clientY - pan.y);
           pan.x = e.clientX;

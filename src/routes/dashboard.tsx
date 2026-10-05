@@ -6,6 +6,7 @@ import { DropZone } from "@/components/pf/DropZone";
 import { PdfViewer } from "@/components/pf/PdfViewer";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
 import { PortfolioQrCode } from "@/components/pf/PortfolioQrCode";
+import { EmbedModal } from "@/components/pf/EmbedModal";
 import { Button } from "@/components/ui/button";
 import { formatBytes } from "@/lib/portfolia/assets";
 import { sampleAnalytics } from "@/lib/portfolia/sample";
@@ -83,7 +84,7 @@ function Dashboard() {
   if (!p) {
     return (
       <div className="min-h-screen">{header}
-        <main className="shell max-w-[90rem] py-14">
+        <main className="shell py-14">
           <h1 className="display-title text-3xl">{all.length ? "Upload your next portfolio" : "No portfolio yet"}</h1>
           {all.length > 0 && <Button size="sm" variant="quiet" className="mt-3" onClick={() => switchPortfolio(all[0]?.code ?? "")}>Cancel</Button>}
           <div className="mt-6 max-w-2xl"><DropZone limitMb={pdfLimitMb} onAccepted={(pdf) => { if (startPortfolio(pdf)) void navigate({ to: "/create" }); }} /></div>
@@ -124,7 +125,7 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen"><PaymentTestModeBanner />{header}
-      <main className="shell max-w-[90rem] py-10 sm:py-14">
+      <main className="shell py-10 sm:py-14">
         <section className="flex flex-col gap-5 border-b border-border pb-10 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-4">
             {profilePhotoUrl ? <img src={profilePhotoUrl} alt={profile?.name || "Profile"} className="size-16 shrink-0 rounded-full object-cover sm:size-20" /> : <div className="flex size-16 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-xl font-medium sm:size-20">{profile?.name?.trim().charAt(0).toUpperCase() || "P"}</div>}
@@ -233,32 +234,6 @@ function CatalogueCover({ blobKey }: { blobKey?: string }) {
   return <div className="relative aspect-[4/5] overflow-hidden rounded-[3px] bg-background shadow-[0_3px_8px_rgba(0,0,0,0.3),0_26px_50px_-14px_rgba(0,0,0,0.6)] transition-transform duration-300 group-hover:-translate-y-1">
     <div className="pointer-events-none h-full overflow-hidden bg-background" aria-hidden><PdfViewer source={src} fileName="" compact viewer={{ mode: "paged", look: "clean", background: "paper", finish: "matte", paper: "smooth", light: "soft", shadow: "none", thickness: "thin", spreads: "single", showHeader: false }} /></div>
   </div>;
-}
-
-function EmbedModal({ open, onClose, url, title }: { open: boolean; onClose: () => void; url: string; title: string }) {
-  const [copied, setCopied] = useState(false);
-  const [page, setPage] = useState(1);
-  const [mode, setMode] = useState<"scroll" | "paged" | "book">("book");
-  const [background, setBackground] = useState<"black" | "paper" | "soft">("black");
-  const params = new URLSearchParams({ page: String(page), mode, background });
-  const embedUrl = `${url}?${params}`;
-  const safeTitle = title.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-  const code = `<iframe src="${embedUrl}" title="${safeTitle} portfolio" loading="lazy" allow="fullscreen" style="width:100%;aspect-ratio:16/10;border:0"></iframe><p><a href="${url.replace("/embed/", "/p/")}">View ${safeTitle} portfolio</a></p>`;
-  return (
-    <Modal open={open} onClose={onClose} title="Embed portfolio">
-      <p className="text-muted-foreground">Paste this code into a website that accepts embeds. It always shows the published version.</p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <label className="text-xs">Starting page<input type="number" min={1} value={page} onChange={(e) => setPage(Math.max(1, Number(e.target.value) || 1))} className="mt-1 w-full rounded-full border border-input bg-background px-3 py-1.5" /></label>
-        <label className="text-xs">Reading mode<select value={mode} onChange={(e) => setMode(e.target.value as typeof mode)} className="mt-1 w-full rounded-full border border-input bg-background px-3 py-1.5"><option value="scroll">Scroll</option><option value="paged">Page by page</option><option value="book">Flipbook</option></select></label>
-        <label className="text-xs">Background<select value={background} onChange={(e) => setBackground(e.target.value as typeof background)} className="mt-1 w-full rounded-full border border-input bg-background px-3 py-1.5"><option value="black">Black</option><option value="paper">Paper</option><option value="soft">Soft grey</option></select></label>
-      </div>
-      <div className="mt-4 overflow-hidden rounded-xl border border-border bg-muted">
-        <iframe key={embedUrl} src={embedUrl} title={`${title} embed preview`} className="aspect-[16/10] w-full border-0" />
-      </div>
-      <textarea readOnly value={code} aria-label="Portfolio embed code" rows={5} className="mt-4 w-full resize-none rounded-xl border border-border bg-muted p-3 font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
-      <div className="mt-4 flex justify-end gap-2"><Button variant="line" onClick={onClose}>Close</Button><Button onClick={async () => { await navigator.clipboard.writeText(code); setCopied(true); }}>{copied ? "Copied" : "Copy embed code"}</Button></div>
-    </Modal>
-  );
 }
 
 function Confirm({ onCancel, onConfirm, label }: { onCancel: () => void; onConfirm: () => void; label: string }) {

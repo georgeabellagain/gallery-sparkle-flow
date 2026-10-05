@@ -396,7 +396,7 @@ export function StudioDemo({ className }: { className?: string }) {
   return (
     <div ref={wrap} className={className ?? "mx-auto w-full max-w-5xl"}>
       <div className="relative overflow-hidden rounded-3xl shadow-lift" style={{ background: MIDNIGHT }}>
-        <div ref={host} role="img" aria-label="A colourful example flipbook turning its pages in studio lighting" className="h-[22rem] w-full sm:h-[30rem] lg:h-[34rem]" />
+        <div ref={host} role="img" aria-label="A colourful example flipbook turning its pages in studio lighting" className="h-[22rem] w-full overflow-hidden sm:h-[30rem] lg:h-[34rem] xl:h-[40rem] 2xl:h-[46rem]" />
         {!ready && !failed && (
           <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-white/60">Loading example…</p>
         )}

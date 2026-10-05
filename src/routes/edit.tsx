@@ -49,7 +49,7 @@ function EditPortfolio() {
       <SiteHeader right={<span className="text-xs text-muted-foreground">{saveErr || sync.status === "error" ? <>Couldn’t save · <button className="underline" onClick={retrySync}>Retry</button></> : !doc.account.signedIn ? "Draft — sign in to save" : sync.status === "saving" ? "Saving…" : "Saved"}</span>} />
       <main className="flex-1">
         {/* All the editing options, across the top. */}
-        <section aria-label="Edit options" className="shell max-w-[90rem] py-6 sm:py-8">
+        <section aria-label="Edit options" className="shell py-6 sm:py-8">
           <h1 className="display-title text-2xl">Edit portfolio</h1>
           <p className="mt-1 text-xs text-muted-foreground">Style and experience settings</p>
           <div className="mt-6"><StyleForm p={p} onSaveError={setSaveErr} /></div>
@@ -79,7 +79,7 @@ function EditPortfolio() {
           </div>
         </section>
         {/* Under the preview: the file and publishing, the way back, and sharing. */}
-        <section aria-label="Publishing and sharing" className="shell max-w-[90rem] py-6 sm:py-8">
+        <section aria-label="Publishing and sharing" className="shell py-6 sm:py-8">
           <div className="max-w-xl space-y-8">
             <section>
               <h2 className="text-sm font-medium">Portfolio file and publishing</h2>

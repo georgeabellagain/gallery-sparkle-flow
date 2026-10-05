@@ -54,7 +54,7 @@ function Landing() {
   const published = doc.account.signedIn && doc.portfolio?.status === "published";
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col overflow-x-clip">
       <SiteHeader
         right={
           doc.account.signedIn ? (
@@ -67,13 +67,13 @@ function Landing() {
       <main className="flex-1">
         {/* The example comes first, with the pitch beside it. */}
         <section className="shell py-12 sm:py-16">
-          <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.35fr)] lg:gap-14">
-            <div className="text-center lg:text-left">
+          <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)] lg:gap-14 xl:grid-cols-[minmax(0,0.7fr)_minmax(0,1.5fr)] xl:gap-20">
+            <div className="min-w-0 text-center lg:text-left">
               <div className="inline-flex rounded-full border border-border px-4 py-1.5 text-xxs font-medium uppercase text-muted-foreground">PDF flipbook hosting</div>
-              <h1 className="display-title mt-6 text-5xl leading-[1.02] sm:text-6xl">
+              <h1 className="display-title mt-6 text-5xl leading-[1.02] sm:text-6xl xl:text-7xl 2xl:text-8xl">
                 Your portfolio, <em className="italic text-leaf">brought to life.</em>
               </h1>
-              <p className="mx-auto mt-5 max-w-md text-sm leading-relaxed text-muted-foreground lg:mx-0">
+              <p className="mx-auto mt-5 max-w-md text-sm leading-relaxed text-muted-foreground lg:mx-0 xl:max-w-xl xl:text-base">
                 Turn your finished PDF into a smooth page-turning portfolio and share it with one simple link.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-5 lg:justify-start">
@@ -82,7 +82,7 @@ function Landing() {
               </div>
               <p className="mt-3 text-xs text-muted-foreground">Publish one portfolio at no cost.</p>
             </div>
-            <StudioDemo className="w-full" />
+            <StudioDemo className="w-full min-w-0 max-w-full" />
           </div>
         </section>
 
@@ -90,7 +90,7 @@ function Landing() {
           <div className="shell py-16">
             <h2 className="text-sm font-medium">Other ways to read</h2>
             <p className="mt-2 max-w-xl text-sm text-muted-foreground">Visitors can switch between styles at any time, so every viewer reads your work the way they prefer.</p>
-            <div className="mx-auto mt-7 grid max-w-5xl gap-5 sm:grid-cols-2">
+            <div className="mx-auto mt-7 grid grid-cols-1 max-w-5xl gap-5 sm:grid-cols-2">
               <Link to="/p/$slug" params={{ slug: "sample" }} search={{}} className="group block focus-visible:outline-none">
                 <div className="relative h-64 overflow-hidden rounded-2xl border border-border shadow-soft transition-transform group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-ring" style={{ background: MIDNIGHT }}>
                   <div className="mx-auto mt-5 w-[72%] space-y-3">
@@ -124,7 +124,7 @@ function Landing() {
 
         <section className="rule-t">
           <div className="shell py-16">
-            <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
+            <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-14">
               <div>
                 <h2 className="display-title text-3xl leading-tight sm:text-4xl">From a PDF to a portfolio people enjoy opening</h2>
                 <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">
@@ -179,7 +179,7 @@ function Landing() {
         <section className="rule-t">
           <div className="shell py-14">
             <h2 className="text-sm font-medium">Plans</h2>
-            <div className="mx-auto mt-7 grid max-w-5xl gap-5 sm:grid-cols-2">
+            <div className="mx-auto mt-7 grid grid-cols-1 max-w-5xl gap-5 sm:grid-cols-2">
                <Plan name="Free" price="£0" description="A complete, permanent starting point for one portfolio." items={["One PDF portfolio up to 10 MB", "Permanent Portfolia sharing address", "Downloadable personal QR code", "Profile and contact links", "Continuous and page-by-page viewing", "Basic visit statistics", "Replace your PDF without changing its link", "Small Portfolia credit"]} />
               <Plan
                 name="Personal"

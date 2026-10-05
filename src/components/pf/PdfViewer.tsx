@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 import { BookView } from "@/components/pf/BookView";
 import { Progress } from "@/components/ui/progress";
 import { subscribePreviewLook } from "@/lib/portfolia/preview-look";
+import { isTouchDevice } from "@/lib/portfolia/scan";
+import { useTouchGestures } from "@/components/pf/touch-gestures";
 import { BookLoader } from "@/components/pf/book-loader";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 import { backgroundColour, fitTransform } from "@/lib/portfolia/background";
@@ -40,6 +42,7 @@ export function PdfViewer({
   compact,
   immersive,
   credit,
+  startFullscreen,
   backdrop,
   viewer,
   startPage = 1,
@@ -56,6 +59,8 @@ export function PdfViewer({
   immersive?: boolean;
   /** Show the small "Hosted on Portfolia" text at the bottom of the viewer (the free plan). */
   credit?: boolean;
+  /** Open full screen on a phone or tablet once the portfolio has loaded (a portfolio opened from its QR code). */
+  startFullscreen?: boolean;
   /** The older "behind the PDF" colour some Personal portfolios have. */
   backdrop?: string;
   viewer?: ViewerSettings;
@@ -203,6 +208,28 @@ export function PdfViewer({
   const z = (d: number) => setZoom((v) => Math.min(3, Math.max(1, Math.round((v + d) * 100) / 100)));
   const total = doc?.numPages ?? 0;
   const go = (d: number) => setCurrent((c) => Math.min(total, Math.max(1, c + d)));
+  // A portfolio opened from its QR code fills the screen on a phone. (A browser only allows real full screen after
+  // a tap, so this is the in-page full screen: it hides the rest of the site and keeps the exit icon.)
+  const startedFull = useRef(false);
+  useEffect(() => {
+    if (!startFullscreen || startedFull.current || !doc) return;
+    startedFull.current = true;
+    if (isTouchDevice()) setPseudoFull(true);
+  }, [startFullscreen, doc]);
+  // Page by page on a touch screen: tap the left or right to turn that way, and pinch to zoom the page.
+  // (The page scrolls up and down only at normal size, so a pinch is never mistaken for a sideways scroll; once zoomed in it moves every way.)
+  const pagedRef = useRef<HTMLDivElement>(null);
+  const zoomLive = useRef(zoom);
+  zoomLive.current = zoom;
+  useTouchGestures(pagedRef, {
+    enabled: mode === "paged" && !!doc,
+    zoom: () => zoomLive.current,
+    onTap: (side) => {
+      if (side === "left") go(-1);
+      else if (side === "right") go(1);
+    },
+    onPinch: (asked) => setZoom(Math.min(3, Math.max(1, Math.round(asked * 20) / 20))),
+  });
 
   const jumpTo = (n: number) => {
     setCurrent(n);
@@ -462,7 +489,7 @@ export function PdfViewer({
       {mode === "book" ? (
         <BookView doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={setContentReady} previewable={compact} />
       ) : mode === "paged" ? (
-        <div className="relative">
+        <div ref={pagedRef} className="relative" style={{ touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div className="overflow-x-auto">
             <div
               className={cn("mx-auto pb-6", compact ? "px-3" : "px-3 sm:px-8")}

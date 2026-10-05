@@ -5,6 +5,7 @@ import { PortfolioPage, useStoredMedia } from "./PortfolioPage";
 import { Wordmark } from "./Chrome";
 import { SAMPLE } from "@/lib/portfolia/sample";
 import { registerPublicUrls } from "@/lib/portfolia/assets";
+import { useOpenedFromQr } from "@/lib/portfolia/scan";
 import type { PublicPortfolio } from "@/lib/portfolia/public.functions";
 import { type ViewerSettings, DEFAULT_VIEWER, findPortfolio, recordDownload, recordVisit, useDoc, type Portfolio } from "@/lib/portfolia/store";
 
@@ -21,6 +22,8 @@ const SAMPLE_SRC = { url: SAMPLE.pdfUrl };
 
 export function OwnVisitor({ p, preview }: { p: Portfolio; preview: boolean }) {
   const { pdf, photoUrl } = useStoredMedia(p.pdf?.blobKey, p.profile.photoKey);
+  // A portfolio opened by scanning its QR code opens full screen on a phone.
+  const fromQr = useOpenedFromQr();
   useEffect(() => {
     if (!preview && p.status === "published") recordVisit(p.code);
   }, [p.code, p.status, preview]);
@@ -50,6 +53,7 @@ export function OwnVisitor({ p, preview }: { p: Portfolio; preview: boolean }) {
         viewer={p.viewer}
         cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined}
         immersive
+        startFullscreen={fromQr}
       />
     </div>
   );

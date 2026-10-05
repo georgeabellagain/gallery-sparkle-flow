@@ -8,7 +8,7 @@ import portfoliaLogo from "@/assets/portfolia-logo.png";
 export function Wordmark({ className }: { className?: string }) {
   return (
     <Link to="/" className={cn("inline-flex items-center", className)} aria-label="Portfolia home">
-      <img src={portfoliaLogo} alt="Portfolia" width={1162} height={257} className="h-6 w-auto" />
+      <img src={portfoliaLogo} alt="Portfolia" width={1162} height={257} className="h-6 w-auto lg:h-8 2xl:h-10" />
     </Link>
   );
 }
@@ -16,7 +16,7 @@ export function Wordmark({ className }: { className?: string }) {
 export function SiteHeader({ right }: { right?: ReactNode }) {
   return (
     <header className="rule-b">
-      <div className="shell flex h-14 items-center justify-between gap-4">
+      <div className="shell flex h-14 items-center justify-between gap-4 lg:h-16 2xl:h-20">
         <Wordmark />
         <div className="flex items-center gap-3 text-sm">{right}</div>
       </div>
