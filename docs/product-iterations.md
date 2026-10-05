@@ -39,7 +39,7 @@ Validation: production build and TypeScript pass. Eight focused tests cover uplo
 
 ## Iteration 3 — owner and editor experience
 
-Status: implemented on the iteration-3 branch; awaiting merge and deployed browser checks.
+Status: merged into main on 5 October 2026 via PR #5, merge commit `c81e57c8cb9fb1459989fb93f590dd64c52c14ba`. Deployed browser checks remain outstanding.
 
 - Remove automatic editor redirects from code, personalised and legacy public portfolio routes. Owners see the published server version; explicit draft preview remains available separately.
 - Retain the owner-only Edit portfolio / Dashboard controls. Edit selects the matching portfolio before navigation, including when another portfolio was active, and reports a storage failure instead of opening the wrong editor.
@@ -52,7 +52,20 @@ Validation: TypeScript and production build pass. Nine focused tests pass, inclu
 
 ## Iteration 4 — discovery and comparison
 
-Planned, not implemented. Expand the Issuu comparison using verified current features and prices; add real examples only with permission. Consider indexing the demonstration portfolio after confirming it is intended for public discovery. Measure font loading before reducing it. Do not automatically index private or unlisted customer portfolios.
+Status: implemented on the iteration-4 branch; awaiting merge and deployed visual verification.
+
+- Expand the Issuu alternative page with a comparison table, migration advice and explicit limits (PDF links in Flipbook, basic analytics, no discovery gallery and no password protection).
+- Cite Squarespace's current Issuu integration documentation for its paid embedding requirement. Exact Issuu prices are deliberately omitted: third-party prices conflict and the official pricing page could not be retrieved. Link readers to current vendor terms instead.
+- Add a clearly labelled architecture demonstration image and live example link to SEO landing pages, reusing an existing asset rather than generating images or inventing customer portfolios/testimonials.
+- Add FAQPage structured data generated from the same questions and answers rendered on each SEO landing page, with script-safe escaping.
+- Add SoftwareApplication and Free/Personal offer metadata to homepage and pricing using existing price constants. No fabricated reviews or ratings; structured data does not guarantee a search enhancement.
+- Point SEO and pricing upload actions directly at the homepage upload area.
+
+Validation: production build and TypeScript pass. No viewer, PDF handling, storage or payment logic changed. Live indexing and browser presentation are not verified. No changes to customer indexing or the sample's noindex status; example permission review and measured font optimisation remain deferred.
+
+## Next iteration — embedding guidance and activation clarity
+
+Add practical embed guidance using the actual generated embed code, explain host-site restrictions without promising unsupported integrations, and improve oversized-upload guidance before considering automatic PDF compression. Historical cover backfill remains a separate optional improvement. Review outstanding mobile/desktop and signed-in release checks before larger feature work.
 
 ## Later — validate demand first
 

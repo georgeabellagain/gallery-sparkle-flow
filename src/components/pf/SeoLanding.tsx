@@ -1,3 +1,4 @@
+import samplePage from "@/assets/sample-page.jpg";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check } from "lucide-react";
 import { SEO_LINKS } from "@/lib/portfolia/seo-pages";
@@ -34,6 +35,13 @@ export function seoHead(c: SeoContent) {
     ],
     links: [{ rel: "canonical", href: url }],
     scripts: [
+      ...(c.faqs.length ? [{
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org", "@type": "FAQPage",
+          mainEntity: c.faqs.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+        }).replace(/</g, "\\u003c"),
+      }] : []),
       {
         type: "application/ld+json",
         children: JSON.stringify({
@@ -51,7 +59,7 @@ export function seoHead(c: SeoContent) {
 
 const OTHERS = SEO_LINKS;
 
-export function SeoLanding({ c }: { c: SeoContent }) {
+export function SeoLanding({ c, children }: { c: SeoContent; children?: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader
@@ -72,6 +80,7 @@ export function SeoLanding({ c }: { c: SeoContent }) {
           <div className="mt-8 flex flex-wrap items-center gap-4">
             <Link
               to="/"
+              hash="upload"
               className="group inline-flex items-center gap-3 rounded-full bg-leaf py-3 pl-6 pr-3 text-sm font-medium text-background shadow-lift transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               Upload your PDF free
@@ -87,6 +96,20 @@ export function SeoLanding({ c }: { c: SeoContent }) {
             >
               Try the PDF flipbook
             </Link>
+          </div>
+        </section>
+
+        {children}
+        <section className="rule-t">
+          <div className="shell grid max-w-4xl items-center gap-6 py-10 sm:grid-cols-2">
+            <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="overflow-hidden rounded-2xl border border-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+              <img src={samplePage} alt="Page from the Portfolia architecture demonstration portfolio" width={1200} height={850} loading="lazy" className="aspect-[4/3] w-full object-contain bg-muted" />
+            </Link>
+            <div>
+              <h2 className="text-lg font-medium">See a portfolio before uploading yours</h2>
+              <p className="mt-3 text-sm text-muted-foreground">Explore our architecture demonstration in the live viewer. It is a product example, so you can try the reading controls before sharing your own work.</p>
+              <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="mt-4 inline-block text-sm underline underline-offset-4">Open the example portfolio</Link>
+            </div>
           </div>
         </section>
 
@@ -191,3 +214,4 @@ export function SeoLanding({ c }: { c: SeoContent }) {
     </div>
   );
 }
+

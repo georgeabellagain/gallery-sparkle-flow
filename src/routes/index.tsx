@@ -1,3 +1,4 @@
+import { softwareSchema } from "@/lib/portfolia/software-schema";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
@@ -31,7 +32,7 @@ export const Route = createFileRoute("/")({
         ...img,
       ],
       links: [{ rel: "canonical", href: "https://portfolia.site/" }],
-      scripts: [{
+      scripts: [{ type: "application/ld+json", children: JSON.stringify(softwareSchema) }, {
         type: "application/ld+json",
         children: JSON.stringify({
           "@context": "https://schema.org",
