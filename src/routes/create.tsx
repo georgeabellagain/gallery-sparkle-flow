@@ -55,7 +55,7 @@ function Create() {
     <div className="flex min-h-screen flex-col">
       <SiteHeader right={<span className="text-xs text-muted-foreground">{saveErr || sync.status === "error" ? <>Couldn’t save · <button className="underline" onClick={retrySync}>Retry</button></> : !doc.account.signedIn ? "Draft — sign in to save to your account" : sync.status === "saving" ? "Saving…" : "Saved to your account"}</span>} />
       <div className="grid flex-1 lg:grid-cols-[380px_1fr]">
-        <aside className="border-border p-5 lg:border-r lg:p-7">
+        <aside id="profile-details" className="order-2 scroll-mt-6 border-border p-5 lg:order-1 lg:border-r lg:p-7">
            <h1 className="display-title text-2xl">Edit profile</h1>
           <p className="mt-1 text-xs text-muted-foreground">{p.pdf.name} · {p.pdf.pages} pages</p>
           <div className="mt-6"><ProfileForm p={p} onSaveError={setSaveErr} /></div>
@@ -74,10 +74,13 @@ function Create() {
             <DemoNote className="mt-6">{LOCAL_NOTE}</DemoNote>
           </div>
         </aside>
-        <section aria-label="Preview" className="bg-muted/50 p-3 sm:p-6">
-          <p className="label-xs mb-2">Preview</p>
+        <section aria-label="Preview" className="order-1 self-start bg-muted/50 p-3 sm:p-6 lg:sticky lg:top-0 lg:order-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="label-xs">Your portfolio preview</p>
+            <a href="#profile-details" className="text-xs underline underline-offset-4 lg:hidden">Add details to publish</a>
+          </div>
           <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
-            <PortfolioPage profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.plan === "personal" ? p.style : undefined} viewer={p.viewer} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />
+            <PortfolioPage profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} showCredit={p.plan === "free"} pageStyle={p.plan === "personal" ? p.style : undefined} viewer={p.viewer} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />
           </div>
         </section>
       </div>
@@ -85,3 +88,4 @@ function Create() {
     </div>
   );
 }
+

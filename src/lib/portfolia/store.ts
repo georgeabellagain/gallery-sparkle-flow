@@ -227,6 +227,7 @@ export function startPortfolio(pdf: PdfFile): boolean {
       profile: { name: "", title: "", intro: "", email: "", links: [] },
       pdf,
       allowDownload: true,
+      viewer: { ...DEFAULT_VIEWER, mode: "book" },
       plan: paid ? "personal" : "free",
       billing: paid ? allPortfolios(d).find((x) => x.plan === "personal")?.billing : undefined,
       createdAt: Date.now(),
@@ -429,3 +430,4 @@ export function recordDownload(code?: string) {
   const c = code ?? getDoc().portfolio?.code;
   if (c) void logEvent(c, "download");
 }
+

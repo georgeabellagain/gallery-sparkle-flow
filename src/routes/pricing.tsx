@@ -62,13 +62,16 @@ function PricingPage() {
                 "Permanent Portfolia sharing address",
                 "Downloadable personal QR code",
                 "Profile and contact links",
-                "Continuous and page-by-page viewing",
+                "Simple and 3D Studio flipbooks",
+                "Scroll and page-by-page viewing",
+                "Embed your portfolio on another website",
                 "Basic visit statistics",
                 "Replace your PDF without changing its link",
+                "Small Portfolia credit",
               ]}
               action={
                 <Button asChild variant="line" size="sm" className="mt-5">
-                  <Link to="/create">
+                  <Link to="/" hash="upload">
                     Start for free <ArrowRight className="size-4" aria-hidden />
                   </Link>
                 </Button>
@@ -84,9 +87,10 @@ function PricingPage() {
                 "Up to 10 portfolios, each up to 50 MB",
                 "CV displayed with your profile",
                 "Personalised address such as portfolia.site/marksmith",
+                "Portfolia credit removed",
               ]}
               action={
-                <Button variant="line" size="sm" className="mt-5" onClick={() => setUpgrade(true)}>
+                <Button size="lg" className="mt-5" onClick={() => setUpgrade(true)}>
                   Choose Personal
                 </Button>
               }
@@ -164,7 +168,7 @@ function Plan({
         </span>
       )}
       <h3 className="text-base font-medium">{name}</h3>
-      <p className="mt-1 text-sm font-medium">{price}</p>
+      <p className="mt-2 text-2xl font-medium tracking-tight">{price}</p>
       <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">{description}</p>
       <ul className="mt-4 space-y-1.5 text-sm">
         {items.map((i) => (
@@ -178,3 +182,4 @@ function Plan({
     </div>
   );
 }
+

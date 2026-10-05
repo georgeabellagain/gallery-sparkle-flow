@@ -65,22 +65,37 @@ function Landing() {
         }
       />
       <main className="flex-1">
-        {/* The example comes first, with the pitch beside it. */}
+        {/* Try a PDF immediately, beside the existing live example. */}
         <section className="shell py-12 sm:py-16">
           <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)] lg:gap-14 xl:grid-cols-[minmax(0,0.7fr)_minmax(0,1.5fr)] xl:gap-20">
             <div className="min-w-0 text-center lg:text-left">
               <div className="inline-flex rounded-full border border-border px-4 py-1.5 text-xxs font-medium uppercase text-muted-foreground">PDF flipbook hosting</div>
               <h1 className="display-title mt-6 text-5xl leading-[1.02] sm:text-6xl xl:text-7xl 2xl:text-8xl">
-                Your portfolio, <em className="italic text-leaf">brought to life.</em>
+                Your PDF portfolio.<br /><em className="italic text-leaf">One simple link.</em>
               </h1>
               <p className="mx-auto mt-5 max-w-md text-sm leading-relaxed text-muted-foreground lg:mx-0 xl:max-w-xl xl:text-base">
-                Turn your finished PDF into a smooth page-turning portfolio and share it with one simple link.
+                Turn the PDF you already designed into a free flipbook. Send clients and recruiters a link, keep your layout, and update your work without sending another attachment.
               </p>
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-5 lg:justify-start">
-                <Button asChild size="lg"><a href="#upload">Try for free <ArrowRight aria-hidden /></a></Button>
-                <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="inline-flex items-center gap-1.5 text-sm font-medium text-leaf hover:underline underline-offset-4">View a live example</Link>
+              <div id="upload" className="mt-6 scroll-mt-6 text-center">
+                {published ? (
+                  <div className="rounded-2xl border border-border bg-card p-6 text-sm">
+                    <p>Your portfolio is published.</p>
+                    <Button asChild className="mt-4"><Link to="/dashboard">Open dashboard</Link></Button>
+                  </div>
+                ) : (
+                  <DropZone small label="Preview my PDF free" limitMb={uploadLimitMb(doc)} onAccepted={(pdf) => {
+                    setErr(null);
+                    if (!startPortfolio(pdf)) return setErr("Your browser refused to save. Free some storage and try again.");
+                    void navigate({ to: "/create" });
+                  }} />
+                )}
+                {err && <p role="alert" className="mt-3 text-sm text-destructive">{err}</p>}
+                <p className="mt-3 text-xs text-muted-foreground">No sign-up to preview. Sign in to save and publish.</p>
               </div>
-              <p className="mt-3 text-xs text-muted-foreground">Publish one portfolio at no cost.</p>
+              <div className="mt-5 flex flex-wrap items-center justify-center gap-5 text-sm lg:justify-start">
+                <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="font-medium text-leaf hover:underline underline-offset-4">View a live example <ArrowRight className="inline size-4" aria-hidden /></Link>
+                <Link to="/pricing" className="text-muted-foreground hover:underline underline-offset-4">Compare plans</Link>
+              </div>
             </div>
             <StudioDemo className="w-full min-w-0 max-w-full" />
           </div>
@@ -89,7 +104,7 @@ function Landing() {
         <section className="rule-t">
           <div className="shell py-16">
             <h2 className="text-sm font-medium">Other ways to read</h2>
-            <p className="mt-2 max-w-xl text-sm text-muted-foreground">Visitors can switch between styles at any time, so every viewer reads your work the way they prefer.</p>
+            <p className="mt-2 max-w-xl text-sm text-muted-foreground">Choose which reading styles to offer. Visitors can switch between the modes you enable.</p>
             <div className="mx-auto mt-7 grid grid-cols-1 max-w-5xl gap-5 sm:grid-cols-2">
               <Link to="/p/$slug" params={{ slug: "sample" }} search={{}} className="group block focus-visible:outline-none">
                 <div className="relative h-64 overflow-hidden rounded-2xl border border-border shadow-soft transition-transform group-hover:-translate-y-0.5 group-focus-visible:ring-2 group-focus-visible:ring-ring" style={{ background: MIDNIGHT }}>
@@ -148,50 +163,37 @@ function Landing() {
           </div>
         </section>
 
-        <section id="upload" className="rule-t scroll-mt-6">
-          <div className="shell flex flex-col items-center py-16 text-center">
-            <h2 className="display-title text-3xl sm:text-4xl">Try it with your own PDF</h2>
-            <div className="mt-8 w-full max-w-xl">
-              {published ? (
-                <div className="border border-border p-8 text-sm">
-                  <p>Your portfolio is published.</p>
-                  <Button asChild className="mt-4"><Link to="/dashboard">Open dashboard</Link></Button>
-                </div>
-              ) : (
-                <DropZone
-                  limitMb={uploadLimitMb(doc)}
-                  onAccepted={(pdf) => {
-                    if (!startPortfolio(pdf)) return setErr("Your browser refused to save. Free some storage and try again.");
-                    void navigate({ to: "/create" });
-                  }}
-                />
-              )}
-              {err && <p role="alert" className="mt-3 text-sm text-destructive">{err}</p>}
-              <p className="mt-3 text-xs text-muted-foreground">Try for free — publish one portfolio at no cost.</p>
-              <div className="mt-6 flex items-center justify-center gap-5 text-xs">
-                <Link to="/pricing" className="text-muted-foreground hover:text-foreground">Pricing</Link>
-              </div>
-            </div>
-          </div>
-        </section>
 
 
         <section className="rule-t">
           <div className="shell py-14">
             <h2 className="text-sm font-medium">Plans</h2>
             <div className="mx-auto mt-7 grid grid-cols-1 max-w-5xl gap-5 sm:grid-cols-2">
-               <Plan name="Free" price="£0" description="A complete, permanent starting point for one portfolio." items={["One PDF portfolio up to 10 MB", "Permanent Portfolia sharing address", "Downloadable personal QR code", "Profile and contact links", "Continuous and page-by-page viewing", "Basic visit statistics", "Replace your PDF without changing its link", "Small Portfolia credit"]} />
+               <Plan name="Free" price="£0" description="A complete, permanent starting point for one portfolio." items={["One PDF portfolio up to 10 MB", "Permanent Portfolia sharing address", "Downloadable personal QR code", "Profile and contact links", "Simple and 3D Studio flipbooks", "Scroll and page-by-page viewing", "Embed your portfolio on another website", "Basic visit statistics", "Replace your PDF without changing its link", "Small Portfolia credit"]} />
               <Plan
                 name="Personal"
                 price={`${PRICE.month}/month or ${PRICE.year}/year`}
                 description="For professionals managing a broader body of work and a more personal presence."
                 featured
                 items={["Everything included in Free", "Up to 10 portfolios, each up to 50 MB", "CV displayed with your profile", "Personalised address such as portfolia.site/marksmith", "Portfolia credit removed"]}
-                action={<Button variant="line" size="sm" className="mt-5" onClick={() => setUpgrade(true)}>Choose Personal</Button>}
+                action={<Button size="lg" className="mt-5" onClick={() => setUpgrade(true)}>Choose Personal</Button>}
               />
             </div>
             <p className="mx-auto mt-4 max-w-5xl text-xs text-muted-foreground">Prices are shown before checkout. You may cancel at any time; cancellation does not immediately delete your work.</p>
             <DemoNote className="mt-8 max-w-2xl">{LOCAL_NOTE}</DemoNote>
+          </div>
+        </section>
+        <section id="about" className="rule-t scroll-mt-6">
+          <div className="shell grid gap-6 py-12 sm:grid-cols-2">
+            <div>
+              <h2 className="text-lg font-medium">About Portfolia</h2>
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">Portfolia is an independent PDF portfolio hosting service run by George Bell. It helps you share the portfolio you already designed, with a permanent link, a choice of reading modes and a downloadable QR code.</p>
+            </div>
+            <div>
+              <h2 className="text-lg font-medium">Need a hand?</h2>
+              <p className="mt-3 text-sm text-muted-foreground">For upload, account or billing questions, email <a href="mailto:hello@portfolia.site" className="underline underline-offset-4">hello@portfolia.site</a>.</p>
+              <p className="mt-3 text-xs text-muted-foreground">Published portfolios are unlisted by default. Anyone with the link can view them; search indexing is optional.</p>
+            </div>
           </div>
         </section>
       </main>
@@ -206,7 +208,7 @@ function Plan({ name, price, description, items, action, featured }: { name: str
     <div className={`relative rounded-3xl border bg-card p-7 ${featured ? "border-leaf shadow-lift sm:-translate-y-2" : "border-border shadow-soft"}`}>
       {featured && <span className="absolute right-5 top-5 rounded-full bg-leaf-soft px-3 py-1 text-xxs font-medium uppercase text-leaf">Recommended</span>}
       <h3 className="text-base font-medium">{name}</h3>
-      <p className="mt-1 text-sm font-medium">{price}</p>
+      <p className="mt-2 text-2xl font-medium tracking-tight">{price}</p>
       <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">{description}</p>
       <ul className="mt-4 space-y-1.5 text-sm">
         {items.map((i) => (
@@ -217,3 +219,4 @@ function Plan({ name, price, description, items, action, featured }: { name: str
     </div>
   );
 }
+
