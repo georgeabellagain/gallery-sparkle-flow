@@ -48,11 +48,11 @@ function EditPortfolio() {
     <div className="flex min-h-screen flex-col">
       <SiteHeader right={<span className="text-xs text-muted-foreground">{saveErr || sync.status === "error" ? <>Couldn’t save · <button className="underline" onClick={retrySync}>Retry</button></> : !doc.account.signedIn ? "Draft — sign in to save" : sync.status === "saving" ? "Saving…" : "Saved"}</span>} />
       <main className="flex-1">
-        {/* All the editing options, across the top. */}
-        <section aria-label="Edit options" className="shell py-6 sm:py-8">
+        <div className="grid items-start lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)]">
+        <section id="edit-settings" aria-label="Edit options" className="order-2 min-w-0 border-border px-5 py-6 lg:order-1 lg:border-r">
           <h1 className="display-title text-2xl">Edit portfolio</h1>
           <p className="mt-1 text-xs text-muted-foreground">Style and experience settings</p>
-          <div className="mt-6"><StyleForm p={p} onSaveError={setSaveErr} /></div>
+          <div className="mt-6"><StyleForm sidebar p={p} onSaveError={setSaveErr} /></div>
           <div className="mt-6 space-y-3 rule-t pt-5">
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={p.allowDownload} onChange={(e) => setSaveErr(patchPortfolio({ allowDownload: e.target.checked }) ? null : "Couldn’t save that setting.")} />
@@ -68,16 +68,19 @@ function EditPortfolio() {
           </div>
           {saveErr && <p role="alert" className="mt-4 text-sm text-destructive">{saveErr}</p>}
         </section>
-        {/* The preview, the full width of the page. */}
-        <section aria-label="Preview" className="bg-muted/50 p-3 sm:p-6">
+        {/* Keep the existing viewer visible beside controls on desktop. */}
+        <section id="edit-preview" aria-label="Preview" className="order-1 min-w-0 bg-muted/50 p-3 sm:p-6 lg:sticky lg:top-0 lg:order-2">
           <div className="flex items-center justify-between mb-2">
-            <p className="label-xs">Preview</p>
+            <p className="label-xs">Live preview</p>
+            <a href="#edit-settings" className="text-xs underline underline-offset-4 lg:hidden">Edit settings</a>
             <Link to="/p/$slug" params={{ slug: p.code }} search={{ preview: "1" }} className="text-xxs underline underline-offset-4 text-muted-foreground hover:text-foreground">Full preview</Link>
           </div>
-          <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+          <div className="max-h-[55svh] overflow-auto rounded-2xl border border-border bg-card shadow-soft lg:max-h-[calc(100svh-5rem)]">
             <PortfolioPage showCredit={p.plan === "free"} profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.plan === "personal" ? p.style : undefined} viewer={p.viewer} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />
           </div>
         </section>
+        </div>
+        <a href="#edit-preview" className="fixed bottom-4 right-4 z-40 rounded-full border border-border bg-background px-4 py-2 text-xs shadow-soft lg:hidden">Back to preview</a>
         {/* Under the preview: the file and publishing, the way back, and sharing. */}
         <section aria-label="Publishing and sharing" className="shell py-6 sm:py-8">
           <div className="max-w-xl space-y-8">
@@ -118,7 +121,7 @@ function EditReplaceModal({ open, onClose, current, limitMb }: { open: boolean; 
   const [next, setNext] = useState<PdfFile | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const blob = useBlob(next?.blobKey);
-  const close = () => { if (next) void deleteBlob(next.blobKey); setNext(null); setErr(null); onClose(); };
+  const close = () => { if (next) { void deleteBlob(next.blobKey); if (next.coverKey) void deleteBlob(next.coverKey); } setNext(null); setErr(null); onClose(); };
   return <Modal open={open} onClose={close} title="Replace PDF">
     <p className="text-muted-foreground">{current.name} stays published until you confirm its replacement.</p>
     <div className="mt-4">{!next ? <DropZone small label="Choose replacement PDF" limitMb={limitMb} onAccepted={setNext} /> : <>
