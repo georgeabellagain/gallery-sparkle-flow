@@ -29,6 +29,8 @@ export function SiteFooter({ className }: { className?: string }) {
     <footer className={cn("rule-t mt-auto", className)}>
       <div className="shell flex flex-wrap items-center gap-x-6 gap-y-2 py-6 text-xs text-muted-foreground">
         <span>© {new Date().getFullYear()} George Bell</span>
+        <Link to="/" hash="about" className="hover:underline underline-offset-4">About</Link>
+        <a href="mailto:hello@portfolia.site" className="hover:underline underline-offset-4">Support</a>
         <Link to="/pricing" className="hover:underline underline-offset-4">Pricing</Link>
         <Link to="/free-pdf-flipbook" className="hover:underline underline-offset-4">Free PDF flipbook</Link>
         <Link to="/issuu-alternative" className="hover:underline underline-offset-4">Issuu alternative</Link>
@@ -132,3 +134,4 @@ export function useObjectUrl(blob: Blob | null) {
   }, [blob]);
   return url;
 }
+

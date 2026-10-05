@@ -41,8 +41,8 @@ export const DISCIPLINE_PAGES: Record<string, Page> = {
     h1: "Graphic design portfolios,", h1Accent: "with every grid intact.",
     intro: "No rebuilding pages block by block in a website builder. Upload the PDF you already designed and share it as a focused online portfolio.",
     points: [
-      { title: "Typography stays true", body: "Vector text renders crisply and remains selectable." },
-      { title: "Working links", body: "Links inside your PDF — to live projects or case studies — stay clickable." },
+      { title: "Typography stays true", body: "Text remains selectable in Scroll and Page by page modes. Flipbook presents each page as an image." },
+      { title: "Working links", body: "Links to live projects or case studies stay clickable in Scroll and Page by page modes. PDF links are not yet clickable in Flipbook." },
       { title: "Replace any time", body: "Upload a new version and your sharing link stays the same." },
     ],
     steps: ["Export your portfolio from InDesign, Illustrator, Figma or Canva.", "Upload it and add your profile.", "Share your link or QR code with studios and clients."],
@@ -98,7 +98,7 @@ export const DISCIPLINE_PAGES: Record<string, Page> = {
     intro: "Export your case studies from Figma as a PDF and share a focused link with recruiters and hiring managers.",
     points: [
       { title: "Case studies, as designed", body: "Your narrative and layout stay intact — no reformatting for a builder." },
-      { title: "Clickable prototypes", body: "Links in your PDF to prototypes or live products keep working." },
+      { title: "Clickable prototypes", body: "Links in your PDF to prototypes or live products work in Scroll and Page by page modes. Switch to one of these modes to open a link." },
       { title: "Know it was opened", body: "Basic visit statistics show when your portfolio has been viewed." },
     ],
     steps: ["Export your case studies from Figma as a PDF.", "Upload it and add your profile and LinkedIn.", "Share your link with recruiters."],
@@ -162,3 +162,4 @@ export function disciplineContent(slug: string): SeoContent {
   const { label: _l, ...rest } = DISCIPLINE_PAGES[slug]!;
   return { path: `/${slug}`, ...rest };
 }
+
