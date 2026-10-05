@@ -5,6 +5,7 @@ import { StyleForm } from "@/components/pf/StyleForm";
 import { PortfolioPage, useStoredMedia } from "@/components/pf/PortfolioPage";
 import { DropZone } from "@/components/pf/DropZone";
 import { PdfViewer } from "@/components/pf/PdfViewer";
+import { ShareActions } from "@/components/pf/ShareActions";
 import { Button } from "@/components/ui/button";
 import { deleteBlob, formatBytes } from "@/lib/portfolia/assets";
 import { deletePortfolio, patchPortfolio, replacePdf, uploadLimitMb, useDoc, type PdfFile } from "@/lib/portfolia/store";
@@ -46,27 +47,28 @@ function EditPortfolio() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader right={<span className="text-xs text-muted-foreground">{saveErr || sync.status === "error" ? <>Couldn’t save · <button className="underline" onClick={retrySync}>Retry</button></> : !doc.account.signedIn ? "Draft — sign in to save" : sync.status === "saving" ? "Saving…" : "Saved"}</span>} />
-      <div className="grid flex-1 lg:grid-cols-[380px_1fr]">
-        <aside className="border-border p-5 lg:border-r lg:p-7">
+      <main className="flex-1">
+        {/* All the editing options, across the top. */}
+        <section aria-label="Edit options" className="shell max-w-[90rem] py-6 sm:py-8">
           <h1 className="display-title text-2xl">Edit portfolio</h1>
           <p className="mt-1 text-xs text-muted-foreground">Style and experience settings</p>
           <div className="mt-6"><StyleForm p={p} onSaveError={setSaveErr} /></div>
-          <section className="mt-7 rule-t pt-5">
-            <h2 className="text-sm font-medium">Portfolio file and publishing</h2>
-            <p className="mt-1 text-xs text-muted-foreground">{p.pdf.name} · {p.pdf.pages} pages · {formatBytes(p.pdf.bytes)}</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button size="sm" variant="line" onClick={() => setDialog("replace")}>Replace PDF</Button>
-              {p.status === "published" ? <Button size="sm" variant="line" onClick={() => setDialog("unpublish")}>Unpublish</Button> : <Button size="sm" onClick={() => setSaveErr(patchPortfolio({ status: "published", publishedAt: Date.now() }) ? null : "Publishing failed — nothing changed.")}>Publish</Button>}
-              <Button size="sm" variant="quiet" onClick={() => setDialog("delete")}>Delete</Button>
-            </div>
-          </section>
-          {saveErr && <p role="alert" className="mt-4 text-sm text-destructive">{saveErr}</p>}
-          <div className="mt-8 rule-t pt-5 space-y-3">
-            <Button asChild className="w-full" variant="line"><Link to="/dashboard">Back to dashboard</Link></Button>
-            <Button asChild className="w-full" variant="quiet"><Link to="/create">Edit profile details</Link></Button>
-            <DemoNote className="mt-6">{LOCAL_NOTE}</DemoNote>
+          <div className="mt-6 space-y-3 rule-t pt-5">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={p.allowDownload} onChange={(e) => setSaveErr(patchPortfolio({ allowDownload: e.target.checked }) ? null : "Couldn’t save that setting.")} />
+              Let visitors download the PDF
+            </label>
+            <label className="flex items-start gap-2 text-sm">
+              <input type="checkbox" className="mt-1" checked={Boolean(p.searchIndexing)} onChange={(e) => setSaveErr(patchPortfolio({ searchIndexing: e.target.checked }) ? null : "Couldn’t save that setting.")} />
+              <span>
+                Allow search engines to list my portfolio
+                <span className="block text-xs text-muted-foreground">Off by default. Turning it off doesn’t stop people with your link from viewing it.</span>
+              </span>
+            </label>
           </div>
-        </aside>
+          {saveErr && <p role="alert" className="mt-4 text-sm text-destructive">{saveErr}</p>}
+        </section>
+        {/* The preview, the full width of the page. */}
         <section aria-label="Preview" className="bg-muted/50 p-3 sm:p-6">
           <div className="flex items-center justify-between mb-2">
             <p className="label-xs">Preview</p>
@@ -76,7 +78,28 @@ function EditPortfolio() {
             <PortfolioPage profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.plan === "personal" ? p.style : undefined} viewer={p.viewer} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />
           </div>
         </section>
-      </div>
+        {/* Under the preview: the file and publishing, the way back, and sharing. */}
+        <section aria-label="Publishing and sharing" className="shell max-w-[90rem] py-6 sm:py-8">
+          <div className="max-w-xl space-y-8">
+            <section>
+              <h2 className="text-sm font-medium">Portfolio file and publishing</h2>
+              <p className="mt-1 text-xs text-muted-foreground">{p.pdf.name} · {p.pdf.pages} pages · {formatBytes(p.pdf.bytes)}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button size="sm" variant="line" onClick={() => setDialog("replace")}>Replace PDF</Button>
+                {p.status === "published" ? <Button size="sm" variant="line" onClick={() => setDialog("unpublish")}>Unpublish</Button> : <Button size="sm" onClick={() => setSaveErr(patchPortfolio({ status: "published", publishedAt: Date.now() }) ? null : "Publishing failed — nothing changed.")}>Publish</Button>}
+                <Button size="sm" variant="quiet" onClick={() => setDialog("delete")}>Delete</Button>
+              </div>
+              {saveErr && <p role="alert" className="mt-4 text-sm text-destructive">{saveErr}</p>}
+            </section>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Button asChild className="w-full" variant="line"><Link to="/dashboard">Back to dashboard</Link></Button>
+              <Button asChild className="w-full" variant="quiet"><Link to="/create">Edit profile details</Link></Button>
+            </div>
+            <ShareActions p={p} />
+            <DemoNote>{LOCAL_NOTE}</DemoNote>
+          </div>
+        </section>
+      </main>
       <SiteFooter />
       <EditReplaceModal open={dialog === "replace"} onClose={() => setDialog(null)} current={p.pdf} limitMb={uploadLimitMb(doc)} />
       <Modal open={dialog === "unpublish"} onClose={() => setDialog(null)} title="Unpublish portfolio?">

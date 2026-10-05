@@ -382,7 +382,8 @@ export function PdfViewer({
                   <LayoutGrid className="size-[17px]" />
                 </IconButton>
               )}
-              {doc && (
+              {/* The flipbook shows its own page number at the bottom, so it is not repeated here. */}
+              {doc && mode !== "book" && (
                 <span className={cn("hidden px-1 text-[11px] tabular-nums sm:inline", quiet)} aria-live="polite">
                   {current} / {doc.numPages}
                 </span>

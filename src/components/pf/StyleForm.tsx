@@ -126,7 +126,8 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
   };
 
   return (
-    <div className="rule-t pt-4">
+    <div className="grid items-start gap-x-10 gap-y-6 lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
+      <div>
       <p className="flex items-center gap-2 text-xs font-medium">
         <Palette className="size-4 text-leaf" aria-hidden /> Portfolio appearance
         {!paid && <span className="rounded-full bg-leaf-soft px-2 py-0.5 text-xxs text-leaf">Personal plan</span>}
@@ -160,9 +161,11 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
         </div>
       )}
       {cropFile && <BannerCropper file={cropFile} onCancel={() => setCropFile(null)} onSave={saveBanner} />}
-      <div className="mt-5 rule-t pt-4">
+      </div>
+      <div className="rule-t pt-4 lg:border-t-0 lg:pt-0">
         <p className="text-xs font-medium">Portfolio experience</p>
-        <div className="mt-3 space-y-3 text-xs">
+        <div className="mt-3 grid items-start gap-x-10 gap-y-4 text-xs lg:grid-cols-2">
+          <div className="space-y-3">
           <div className="space-y-2">
             <p>Reading modes visitors can use</p>
             <div className="grid gap-2">
@@ -181,6 +184,13 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
               </div>
             )}
           </div>
+          <div className="space-y-1.5">
+            <p>My PDF contains</p>
+            <Segmented label="My PDF contains" value={viewer.spreads} options={[["single", "Single pages"], ["ready", "Two-page spreads"]] as const} onChange={(spreads) => setViewer({ spreads })} />
+          </div>
+          <label className="flex items-center justify-between gap-3"><span>Show profile icon</span><input type="checkbox" checked={viewer.showHeader} onChange={(e) => setViewer({ showHeader: e.target.checked })} /></label>
+          </div>
+          <div className="space-y-3">
           {enabledModes.includes("book") && (
             <div
               ref={flipbookBox}
@@ -257,10 +267,6 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
               )}
             </div>
           )}
-          <div className="space-y-1.5">
-            <p>My PDF contains</p>
-            <Segmented label="My PDF contains" value={viewer.spreads} options={[["single", "Single pages"], ["ready", "Two-page spreads"]] as const} onChange={(spreads) => setViewer({ spreads })} />
-          </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
               <span>Viewer background</span>
@@ -291,7 +297,7 @@ export function StyleForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg:
             )}
             {backgroundErr && <p role="alert" className="text-destructive">{backgroundErr}</p>}
           </div>
-          <label className="flex items-center justify-between gap-3"><span>Show profile icon</span><input type="checkbox" checked={viewer.showHeader} onChange={(e) => setViewer({ showHeader: e.target.checked })} /></label>
+          </div>
         </div>
       </div>
     </div>

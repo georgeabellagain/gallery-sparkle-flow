@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { deleteBlob, putBlob, uid } from "@/lib/portfolia/assets";
-import { CV_LIMIT_MB, patchPortfolio, patchProfile, type Portfolio } from "@/lib/portfolia/store";
+import { CV_LIMIT_MB, patchProfile, type Portfolio } from "@/lib/portfolia/store";
 import { formatBytes } from "@/lib/portfolia/assets";
 import { CvIcon } from "./CvIcon";
 
@@ -123,17 +123,6 @@ export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (ms
           <Button size="xs" variant="line" className="mt-2" onClick={() => set({ links: [...pr.links, { label: "", url: "" }] })}><Plus /> Add link</Button>
         )}
       </div>
-      <label className="flex items-center gap-2 pt-2 text-sm">
-        <input type="checkbox" checked={p.allowDownload} onChange={(e) => onSaveError(patchPortfolio({ allowDownload: e.target.checked }) ? null : "Couldn’t save that setting.")} />
-        Let visitors download the PDF
-      </label>
-      <label className="flex items-start gap-2 text-sm">
-        <input type="checkbox" className="mt-1" checked={Boolean(p.searchIndexing)} onChange={(e) => onSaveError(patchPortfolio({ searchIndexing: e.target.checked }) ? null : "Couldn’t save that setting.")} />
-        <span>
-          Allow search engines to list my portfolio
-          <span className="block text-xs text-muted-foreground">Off by default. Turning it off doesn’t stop people with your link from viewing it.</span>
-        </span>
-      </label>
       <p className="text-xs text-muted-foreground">Empty fields are hidden on your page.</p>
       {cropFile && <PhotoCropper file={cropFile} onCancel={() => setCropFile(null)} onSave={savePhoto} />}
     </div>

@@ -66,16 +66,29 @@ export function Modal({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  // When the page closes this dialog itself (because another one is opening, say), the browser still reports "closed".
+  // That report must not reach onClose: the page's answer to it would close whatever has just opened. Only a close
+  // the page did not ask for (the Escape key) is passed on.
+  const closedByPage = useRef(false);
   useEffect(() => {
     const d = ref.current;
     if (!d) return;
     if (open && !d.open) d.showModal();
-    if (!open && d.open) d.close();
+    if (!open && d.open) {
+      closedByPage.current = true;
+      d.close();
+    }
   }, [open]);
   return (
     <dialog
       ref={ref}
-      onClose={onClose}
+      onClose={() => {
+        if (closedByPage.current) {
+          closedByPage.current = false;
+          return;
+        }
+        onClose();
+      }}
       aria-labelledby="modal-title"
       className="m-auto w-[min(92vw,30rem)] rounded-3xl border border-border bg-card p-0 text-foreground shadow-lift backdrop:bg-foreground/30"
     >
