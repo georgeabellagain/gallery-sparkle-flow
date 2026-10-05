@@ -1,16 +1,14 @@
 import type { Profile } from "./store";
 
-/** Demonstration content — not a real person or real usage. */
+/** Public example selected by the site owner; PDF/settings load from published code adu2v. */
 export const SAMPLE = {
   code: "sample",
-  pdfUrl: "/sample/marta-oyelaran-portfolio.pdf",
   profile: {
-    name: "Marta Oyelaran",
-    title: "Architect, ARB",
-    intro:
-      "Small public buildings, reading rooms and landscape structures. Currently working between Bristol and Lagos. (Example portfolio — demonstration content.)",
-    email: "studio@example.com",
-    links: [{ label: "Instagram", url: "https://example.com/marta" }],
+    name: "Scarlett Bushell",
+    title: "Fashion lookbook",
+    intro: "Property of Scarlett Bushell 2026",
+    email: "",
+    links: [],
   } satisfies Profile,
 };
 
@@ -26,3 +24,4 @@ export function sampleAnalytics() {
   }
   return { visits, downloads };
 }
+

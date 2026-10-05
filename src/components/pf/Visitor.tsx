@@ -1,24 +1,18 @@
+import { StudioDemo } from "./StudioDemo";
 import { useEffect, useState } from "react";
 import { Link, useHydrated } from "@tanstack/react-router";
 import { Eye } from "lucide-react";
 import { PortfolioPage, useStoredMedia } from "./PortfolioPage";
 import { Wordmark } from "./Chrome";
-import { SAMPLE } from "@/lib/portfolia/sample";
 import { registerPublicUrls } from "@/lib/portfolia/assets";
 import { useOpenedFromQr } from "@/lib/portfolia/scan";
 import type { PublicPortfolio } from "@/lib/portfolia/public.functions";
 import { type ViewerSettings, DEFAULT_VIEWER, findPortfolio, switchPortfolio, recordDownload, recordVisit, useDoc, type Portfolio } from "@/lib/portfolia/store";
 
-/** Example portfolio; `demo` opens straight into a flipbook preset. */
-export function SampleVisitor({ demo }: { demo?: "book" }) {
-  const viewer = demo ? { ...DEFAULT_VIEWER, mode: "book" as const } : undefined;
-  return (
-    <div className="min-h-screen">
-      <PortfolioPage profile={SAMPLE.profile} pdf={SAMPLE_SRC} allowDownload showCredit immersive viewer={viewer} />
-    </div>
-  );
+/** The same owner-selected published lookbook used on the homepage. */
+export function SampleVisitor({ demo: _demo }: { demo?: "book" }) {
+  return <div className="min-h-screen px-3 py-8 sm:px-6"><StudioDemo /></div>;
 }
-const SAMPLE_SRC = { url: SAMPLE.pdfUrl };
 
 export function OwnVisitor({ p, preview, trackActivity = true }: { p: Portfolio; preview: boolean; trackActivity?: boolean }) {
   const { pdf, photoUrl } = useStoredMedia(p.pdf?.blobKey, p.profile.photoKey);
@@ -116,7 +110,7 @@ export function EmbeddedVisitor({ data, startPage, mode, background }: { data: N
       showCredit={false}
       onDownload={() => recordDownload(p.code)}
       pageStyle={pageStyle}
-      viewer={{ ...DEFAULT_VIEWER, ...p.viewer, look: "clean", ...(mode ? { mode } : {}), ...(background ? { background, backgroundColor: undefined, backgroundKey: undefined } : {}), showHeader: false }}
+      viewer={{ ...DEFAULT_VIEWER, ...p.viewer, ...(mode ? { mode } : {}), ...(background ? { background, backgroundColor: undefined, backgroundKey: undefined } : {}), showHeader: false }}
       startPage={startPage}
       immersive
       embed

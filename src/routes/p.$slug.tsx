@@ -19,8 +19,8 @@ export const Route = createFileRoute("/p/$slug")({
   head: ({ params, loaderData }) => {
     const sample = params.slug === "sample";
     if (!sample) return portfolioHead(loaderData?.data ?? null, "Portfolio");
-    const t = sample ? `${SAMPLE.profile.name} — Architecture PDF Portfolio Example | Portfolia` : "PDF Portfolio — Portfolia";
-    const d = sample ? `Example architecture PDF portfolio by ${SAMPLE.profile.name}, ${SAMPLE.profile.title}, hosted on Portfolia.` : "A PDF portfolio hosted on Portfolia.";
+    const t = sample ? `${SAMPLE.profile.name} — Fashion Lookbook Example | Portfolia` : "PDF Portfolio — Portfolia";
+    const d = sample ? `Example fashion lookbook by ${SAMPLE.profile.name}, ${SAMPLE.profile.title}, hosted on Portfolia.` : "A PDF portfolio hosted on Portfolia.";
     const o = loaderData?.origin ?? "";
     const img = sample && o ? [{ property: "og:image", content: `${o}/og-image.jpg` }, { name: "twitter:image", content: `${o}/og-image.jpg` }] : [];
     return {

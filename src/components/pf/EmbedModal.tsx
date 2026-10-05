@@ -16,6 +16,15 @@ export function EmbedModal({ open, onClose, url, title }: { open: boolean; onClo
   return (
     <Modal open={open} onClose={onClose} title="Embed portfolio">
       <p className="text-muted-foreground">Paste this code into a website that accepts embeds. It shows your portfolio exactly as you have set it up in the editor (the same reading modes, look and background) and always the published version.</p>
+      <details className="mt-4 rounded-xl border border-border p-4 text-sm">
+        <summary className="cursor-pointer font-medium">How to add this to your website</summary>
+        <ol className="mt-3 list-decimal space-y-2 pl-5 text-muted-foreground">
+          <li>Copy the complete code below.</li>
+          <li>In your website editor, add an HTML or embed-code block and paste the code there, rather than into a normal text block.</li>
+          <li>Publish the page, then check it on a phone and a desktop. Some editors only display embeds on the published page.</li>
+        </ol>
+        <p className="mt-3 text-muted-foreground">Your website provider may restrict iframe embeds by plan. If it removes the code or does not support it, use your public portfolio link instead. Replacing the PDF updates the embed; unpublishing makes it unavailable.</p>
+      </details>
       <div className="mt-4 overflow-hidden rounded-xl border border-border bg-muted">
         <iframe src={url} title={`${title} embed preview`} className="aspect-[16/10] w-full border-0" />
       </div>
@@ -38,3 +47,4 @@ export function EmbedModal({ open, onClose, url, title }: { open: boolean; onClo
     </Modal>
   );
 }
+

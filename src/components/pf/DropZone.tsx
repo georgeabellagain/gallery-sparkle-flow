@@ -55,6 +55,10 @@ export function DropZone({ onAccepted, label = "Upload your PDF", small, limitMb
           {label}
         </Button>
       </div>
+      <details className="mt-3 text-xs text-muted-foreground">
+        <summary className="cursor-pointer underline underline-offset-4">PDF larger than {limitMb} MB?</summary>
+        <p className="mt-2">Export a separate web copy from your design app using its PDF image-compression settings. Check small text and drawings at full size before uploading, and keep your original. Personal accepts PDFs up to 50 MB; files are not automatically compressed.</p>
+      </details>
       {error && (
         <p role="alert" className="mt-3 rounded-2xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
           {error}
@@ -63,3 +67,4 @@ export function DropZone({ onAccepted, label = "Upload your PDF", small, limitMb
     </div>
   );
 }
+
