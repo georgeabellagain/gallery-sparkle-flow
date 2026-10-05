@@ -1,4 +1,3 @@
-import samplePage from "@/assets/sample-page.jpg";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check } from "lucide-react";
 import { SEO_LINKS } from "@/lib/portfolia/seo-pages";
@@ -102,12 +101,14 @@ export function SeoLanding({ c, children }: { c: SeoContent; children?: React.Re
         {children}
         <section className="rule-t">
           <div className="shell grid max-w-4xl items-center gap-6 py-10 sm:grid-cols-2">
-            <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="overflow-hidden rounded-2xl border border-border focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
-              <img src={samplePage} alt="Page from the Portfolia architecture demonstration portfolio" width={1200} height={850} loading="lazy" className="aspect-[4/3] w-full object-contain bg-muted" />
+            <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="flex aspect-[4/3] flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-[#02011e] p-8 text-center text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
+              <span className="display-title text-3xl">Scarlett Bushell</span>
+              <span className="text-sm">Open the 14-page fashion lookbook →</span>
+              <span className="text-xs text-white/70">Property of Scarlett Bushell 2026</span>
             </Link>
             <div>
               <h2 className="text-lg font-medium">See a portfolio before uploading yours</h2>
-              <p className="mt-3 text-sm text-muted-foreground">Explore our architecture demonstration in the live viewer. It is a product example, so you can try the reading controls before sharing your own work.</p>
+              <p className="mt-3 text-sm text-muted-foreground">Explore Scarlett Bushell’s fashion lookbook in the live viewer. Try the Simple and Studio appearances before sharing your own work.</p>
               <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="mt-4 inline-block text-sm underline underline-offset-4">Open the example portfolio</Link>
             </div>
           </div>

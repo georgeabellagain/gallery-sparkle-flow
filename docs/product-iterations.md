@@ -52,7 +52,7 @@ Validation: TypeScript and production build pass. Nine focused tests pass, inclu
 
 ## Iteration 4 — discovery and comparison
 
-Status: implemented on the iteration-4 branch; awaiting merge and deployed visual verification.
+Status: merged into main on 5 October 2026 via PR #6, merge commit `105f8829bd2003d9ba15415f9d8fa91e960f2311`. Deployed visual verification remains outstanding.
 
 - Expand the Issuu alternative page with a comparison table, migration advice and explicit limits (PDF links in Flipbook, basic analytics, no discovery gallery and no password protection).
 - Cite Squarespace's current Issuu integration documentation for its paid embedding requirement. Exact Issuu prices are deliberately omitted: third-party prices conflict and the official pricing page could not be retrieved. Link readers to current vendor terms instead.
@@ -63,9 +63,22 @@ Status: implemented on the iteration-4 branch; awaiting merge and deployed visua
 
 Validation: production build and TypeScript pass. No viewer, PDF handling, storage or payment logic changed. Live indexing and browser presentation are not verified. No changes to customer indexing or the sample's noindex status; example permission review and measured font optimisation remain deferred.
 
-## Next iteration — embedding guidance and activation clarity
+## Iteration 5 — Scarlett’s example, embedding and upload guidance
 
-Add practical embed guidance using the actual generated embed code, explain host-site restrictions without promising unsupported integrations, and improve oversized-upload guidance before considering automatic PDF compression. Historical cover backfill remains a separate optional improvement. Review outstanding mobile/desktop and signed-in release checks before larger feature work.
+Status: implemented on the iteration-5 branch; awaiting merge and browser verification.
+
+- Owner requested the only account's saved flipbook as the public example. A read-only database query confirmed one published portfolio (`adu2v`), containing Scarlett Bushell's 14-page lookbook and both Simple/Studio looks.
+- Replace the synthetic homepage animation and fictional `/p/sample` portfolio with the existing PDF reader loading that explicitly selected published portfolio. Its saved background, material, lighting, shadows and booklet settings are retained; visitors can choose Simple or Studio. No account record, original PDF or renderer is modified.
+- Display the exact credit “Property of Scarlett Bushell 2026” beneath the example. Update sample metadata and SEO example links to identify Scarlett's fashion lookbook; remove the old architecture image from that example card.
+- The example follows the published portfolio: replacement/settings updates flow through, while unpublishing/deletion makes it unavailable. No draft fallback or permanently public copy of the PDF is created. Loading/error/retry states are included.
+- Add practical HTML/embed-block instructions and host-plan limitations in the embed modal. Preserve the saved initial Simple/Studio look in embeds instead of forcing Simple.
+- Add web-export guidance beside uploads, with the original-preservation and 50 MB Personal limits explained. No automatic compression or external upload service.
+
+Validation: TypeScript and production build pass. Database inspection was read-only. Real PDF rendering, responsive appearance and published-site verification remain outstanding. No Lovable AI generation calls or new dependencies.
+
+## Next iteration — release verification and measured improvements
+
+Complete the accumulated desktop/mobile, signed-in owner, shared-preview and embed checks on the deployed build before expanding features. Historical cover backfill and font-loading measurement remain optional follow-ups. No automatic customer indexing or public gallery.
 
 ## Later — validate demand first
 
