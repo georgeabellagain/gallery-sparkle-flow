@@ -1,3 +1,4 @@
+import { softwareSchema } from "@/lib/portfolia/software-schema";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/pricing")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    scripts: [{ type: "application/ld+json", children: JSON.stringify(softwareSchema) }],
     links: [{ rel: "canonical", href: "https://portfolia.site/pricing" }],
   }),
   component: PricingPage,
@@ -38,7 +40,7 @@ function PricingPage() {
     <div className="flex min-h-screen flex-col">
       <SiteHeader
         right={
-          <Link to="/create" className="hover:underline underline-offset-4">
+          <Link to="/" hash="upload" className="hover:underline underline-offset-4">
             Create a portfolio
           </Link>
         }
