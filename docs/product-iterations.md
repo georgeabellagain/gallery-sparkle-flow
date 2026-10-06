@@ -270,3 +270,11 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Apply an eight-percentage-point uplift to Scarlett's saved brightness in the featured demo, capped at 100%. This is a presentation override only; the account's saved settings and ordinary visitor reader are unchanged.
 - Simple view, HDRI choice, page-turn timing and centred spread framing remain unchanged.
 - Next priority: complete the real-device and real-account release checks recorded above, then assess demand for tailored project editions. Passwords and expiry are already implemented (iteration 14); they are not future feature work.
+
+## Iteration 20 — brighter examples and direct industry uploads
+
+- Raise the three static Studio demos from 58% to 64%; increase the featured fashion demo uplift from eight to fourteen percentage points over its saved setting (capped at 100%). This does not alter account settings or Simple appearance.
+- Add the existing drag-and-drop/file-picker upload flow to every discipline landing page, including architecture, graphic design, fashion, photography, interiors, art, illustration, UX, product design, student and landscape architecture. Respect current Free/Personal file limits and optional local compression; navigate accepted drafts to the creation preview.
+- Published portfolios show the dashboard action instead of accepting an accidental replacement. Recheck publication after upload in case account sync completes during processing.
+- Scrapbook feasibility: optional coloured tabs can map to named project start pages. A subsequent, larger feature could let creators attach images to per-page fold-out panels, store their positions and hinge sides, and open/close them on tap/click. Panels should close before page turns and inherit portfolio access controls. These would be interactive web additions; the original PDF download would not contain them. Not implemented in this iteration.
+- Next priority remains mobile/account release checks; optional coloured project tabs are the smallest proposed scrapbook step. Fold-out image editing and animation require a separate scoped iteration.

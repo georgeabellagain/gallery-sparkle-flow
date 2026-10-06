@@ -1,8 +1,9 @@
+import { IndustryUpload } from "./IndustryUpload";
 import { PROFESSION_GUIDES, withProfessionContent } from "@/lib/portfolia/profession-guides";
 import { ProfessionExample } from "./ProfessionExample";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check } from "lucide-react";
-import { SEO_LINKS } from "@/lib/portfolia/seo-pages";
+import { DISCIPLINE_PAGES, SEO_LINKS } from "@/lib/portfolia/seo-pages";
 import { SiteHeader, SiteFooter } from "@/components/pf/Chrome";
 
 export interface SeoContent {
@@ -67,6 +68,7 @@ const OTHERS = SEO_LINKS;
 export function SeoLanding({ c: base, children }: { c: SeoContent; children?: React.ReactNode }) {
   const c = withProfessionContent(base);
   const guide = PROFESSION_GUIDES[c.path];
+  const industry = c.path === "/architecture-portfolio" || Boolean(DISCIPLINE_PAGES[c.path.slice(1)]);
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader
@@ -84,8 +86,9 @@ export function SeoLanding({ c: base, children }: { c: SeoContent; children?: Re
           <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
             {c.intro}
           </p>
+          {industry && <IndustryUpload />}
           <div className="mt-8 flex flex-wrap items-center gap-4">
-            <Link
+            {industry ? <a href="#upload" className="text-sm font-medium text-leaf underline underline-offset-4">Start with your PDF</a> : <Link
               to="/"
               hash="upload"
               className="group inline-flex items-center gap-3 rounded-full bg-leaf py-3 pl-6 pr-3 text-sm font-medium text-background shadow-lift transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -94,7 +97,7 @@ export function SeoLanding({ c: base, children }: { c: SeoContent; children?: Re
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-background/20">
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </span>
-            </Link>
+            </Link>}
             {guide ? <a href="#profession-example" className="text-sm underline underline-offset-4">Explore the {guide.kind.replaceAll("-", " ")} example</a> : (
             <Link
               to="/p/$slug"
