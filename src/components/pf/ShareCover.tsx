@@ -15,7 +15,7 @@ export function ShareCover({ p }: { p: Portfolio }) {
     void backfillCover(p.code, key).catch((e) => { if (live) setError(e instanceof Error ? e.message : "Couldn’t generate the cover."); });
     return () => { live = false; };
   }, [signedIn, missing, key, p.code, p.status, attempt]);
-  if (!signedIn || p.status !== "published") return null;
+  if (!signedIn || p.status !== "published" || !key) return null;
   return <p className="mt-3 text-xs text-muted-foreground" role="status">
     {!missing ? "Cover ready for link previews after account sync. Social apps may keep an older cached preview." : error ? <>{error} <button type="button" className="underline" onClick={() => setAttempt((n) => n + 1)}>Retry cover</button></> : "Preparing a cover image for shared links…"}
   </p>;

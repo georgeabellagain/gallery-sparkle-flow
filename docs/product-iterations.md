@@ -118,6 +118,18 @@ Status: committed to main on 6 October 2026; live publication verification pendi
 
 Validation: TypeScript and production build pass. Actual 3D lighting remains unverified in the WebGL-disabled cloud browser. Signed-in cover generation and mobile checks remain outstanding.
 
+## Iteration 10 — sharing feedback
+
+Status: implemented on 6 October 2026; committed to main after validation. Live publication verification pending.
+
+- Disable Copy link and QR code for unpublished drafts, keeping the publishing instruction visible.
+- Display existing account-sync status alongside published sharing controls. Saving and failed saves explain that visitors may still see the previous published version; Retry saving uses the existing sync retry action.
+- Keep established published links available during a failed update, rather than implying the entire portfolio is unavailable.
+- Hide cover-generation feedback when there is no PDF.
+- Preserve finished homepage imagery, fonts and renderer.
+
+Validation: TypeScript and production build pass. Live homepage browser check confirmed the example becomes readable with Studio selected and advances automatically in the fallback reader (page 3 of 14 without interaction). This browser has WebGL disabled. Signed-in save/retry and cover generation were not exercised; no signed-in session was available. Mobile viewport emulation is not exposed by this browser interface, so mobile visual checks remain outstanding.
+
 ## Next — remaining release checks
 
 Prioritise desktop/mobile and real-account checks of this batch before further feature work. Verify initial loading, the complete forward/back autoplay cycle and permanent interaction stop, Simple/Studio switching, optional compression acceptance, older-cover generation, sharing metadata and embedding. Confirm the actual live deployment separately from merging GitHub.
