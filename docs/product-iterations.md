@@ -1,6 +1,6 @@
 # Portfolia product iterations
 
-Updated: 5 October 2026.
+Updated: 6 October 2026.
 
 This log separates implemented work from future ideas. Changes use direct repository edits to avoid Lovable AI generation credits. Hosting and account charges are separate.
 
@@ -101,6 +101,22 @@ Status: release verification performed on 5 October 2026; no additional product 
 - Verified Studio lighting tab by click and Easy sharing by arrow-key navigation. Verified the example’s Next page control advances the displayed page.
 - This cloud browser explicitly reports WebGL disabled. Its readable fallback works, but actual 3D rendering, lighting and the full forward/back autoplay cycle remain unverified. This is not evidence of a failure on a WebGL-capable device.
 - Prior TypeScript, production build and twelve focused test results remain the code-validation baseline. No production account records were changed and no Lovable AI generation calls were used.
+
+## Iteration 8 — feature imagery (owner completed)
+
+Status: imagery and original-font changes are present on main as of 6 October 2026. Preserved in this iteration.
+
+## Iteration 9 — loading recovery
+
+Status: committed to main on 6 October 2026; live publication verification pending.
+
+- Bound the featured portfolio request to 30 seconds, expose the existing retry action on timeout, and ignore late responses from an expired attempt.
+- After 60 seconds of page preparation, offer retry while allowing preparation to continue. A slow device does not trigger a forced reload or reveal an unprepared white book.
+- Clear the previous data before retry so stale signed file URLs cannot mount during the new attempt.
+- Give loading and recovery messages a contrasting dark surface even if the saved background is light.
+- Preserve the owner’s finished imagery, fonts, saved portfolio settings and working renderer.
+
+Validation: TypeScript and production build pass. Actual 3D lighting remains unverified in the WebGL-disabled cloud browser. Signed-in cover generation and mobile checks remain outstanding.
 
 ## Next — remaining release checks
 

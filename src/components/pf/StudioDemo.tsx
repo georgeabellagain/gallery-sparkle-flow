@@ -12,6 +12,7 @@ export const FEATURED_CREDIT = "Property of Scarlett Bushell 2026";
 export function StudioDemo({ className }: { className?: string }) {
   const [data, setData] = useState<PublicPortfolio>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [slow, setSlow] = useState(false);
   const [rendered, setRendered] = useState(false);
   const [interacted, setInteracted] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -34,13 +35,22 @@ export function StudioDemo({ className }: { className?: string }) {
     let cancelled = false;
     setState("loading");
     setRendered(false);
+    setSlow(false);
+    setData(null);
+    const timeout = setTimeout(() => { cancelled = true; setState("error"); }, 30000);
     void getPublicPortfolio({ data: { by: "code", value: FEATURED_PORTFOLIO_CODE } }).then((result) => {
       if (cancelled) return;
+      clearTimeout(timeout);
       setData(result);
       setState((result?.portfolio.pdf && result.urls[result.portfolio.pdf.blobKey]) ? "ready" : "error");
-    }).catch(() => { if (!cancelled) setState("error"); });
-    return () => { cancelled = true; };
+    }).catch(() => { clearTimeout(timeout); if (!cancelled) setState("error"); });
+    return () => { cancelled = true; clearTimeout(timeout); };
   }, [attempt]);
+  useEffect(() => {
+    if (state !== "ready" || rendered) { setSlow(false); return; }
+    const timeout = setTimeout(() => setSlow(true), 60000);
+    return () => clearTimeout(timeout);
+  }, [state, rendered, attempt]);
   const p = data?.portfolio;
   const url = p?.pdf && data?.urls[p.pdf.blobKey];
   const source = useMemo(() => url ? { url } : null, [url]);
@@ -58,9 +68,9 @@ export function StudioDemo({ className }: { className?: string }) {
         onBookReadyChange={readyChanged}
         onLoadError={loadError}
       /></div>}
-      {(!rendered || state === "error") && <div role="status" className={`${state === "ready" ? "absolute inset-0" : "h-[28rem]"} flex flex-col items-center justify-center gap-3 px-6 text-center text-sm text-white/80`}>
-        <p>{state !== "error" ? "Loading Scarlett’s lookbook…" : "The example is temporarily unavailable."}</p>
-        {state === "error" && <button type="button" className="underline underline-offset-4" onClick={() => setAttempt((n) => n + 1)}>Try again</button>}
+      {(!rendered || state === "error") && <div role="status" className={`${state === "ready" ? "absolute inset-0" : "h-[28rem]"} flex flex-col items-center justify-center gap-3 bg-slate-950/80 px-6 text-center text-sm text-white/90`}>
+        <p>{state !== "error" ? (slow ? "Preparing the example is taking longer than usual. You can wait or try again." : "Loading Scarlett’s lookbook…") : "The example is temporarily unavailable."}</p>
+        {(state === "error" || slow) && <button type="button" className="underline underline-offset-4" onClick={() => setAttempt((n) => n + 1)}>Try again</button>}
       </div>}
     </div>
     <figcaption className="mt-3 text-center text-xs text-muted-foreground">{FEATURED_CREDIT}</figcaption>
