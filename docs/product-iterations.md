@@ -195,6 +195,16 @@ Status: implemented on 6 October 2026; included in this main release.
 - Preserve the full visitor reader’s existing resolution and rendering settings. No duplicate public PDF, new storage service or Lovable AI generation call.
 - Expected startup work is reduced; live timing and WebGL-capable visual checks still need verification.
 
+## Publication verification for iterations 12–15
+
+Code commit: `987eaf89cfb3693442ec5b9923cfdb910a3eb6ca`, fast-forwarded to main. Lovable sync confirmed before deployment request `7713b737-1b72-40ff-9cb9-ba0981bdb2bd`.
+
+- Public Squarespace, Wix and Notion guide routes return HTTP 200 with the new page titles and content.
+- Public PDF checker returns HTTP 200 with its new title and local-processing UI.
+- The live protected-file endpoint rejects an unreferenced asset with HTTP 404, private/no-store caching and noindex.
+- Browser preview verification timed out. Full signed-in access settings, successful password-entry UI, checker file-selection UI and actual WebGL visual checks are not claimed as verified.
+- Homepage startup work is reduced by implementation, but a live before/after timing measurement is not available.
+
 ## Next — remaining release checks
 
 Prioritise desktop/mobile and real-account checks of this batch before further feature work. Verify initial loading, the complete forward/back autoplay cycle and permanent interaction stop, Simple/Studio switching, optional compression acceptance, older-cover generation, sharing metadata and embedding. Confirm the actual live deployment separately from merging GitHub.
