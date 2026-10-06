@@ -87,7 +87,7 @@ function Dashboard() {
         <main className="shell py-14">
           <h1 className="display-title text-3xl">{all.length ? "Upload your next portfolio" : "No portfolio yet"}</h1>
           {all.length > 0 && <Button size="sm" variant="quiet" className="mt-3" onClick={() => switchPortfolio(all[0]?.code ?? "")}>Cancel</Button>}
-          <div className="mt-6 max-w-2xl"><DropZone limitMb={pdfLimitMb} onAccepted={(pdf) => { if (startPortfolio(pdf)) void navigate({ to: "/create" }); }} /></div>
+          <div className="mt-6 max-w-2xl"><DropZone limitMb={pdfLimitMb} onAccepted={(pdf) => { if (startPortfolio(pdf)) void navigate({ to: getDoc().portfolio?.profile.name.trim() ? "/edit" : "/create" }); }} /></div>
         </main>
         <SiteFooter />
       </div>

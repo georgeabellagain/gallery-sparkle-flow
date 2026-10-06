@@ -225,10 +225,12 @@ export function startPortfolio(pdf: PdfFile): boolean {
       return d;
     }
     const paid = isPaid(d);
+    // Additional portfolios reuse the creator's existing profile rather than starting blank.
+    const prior = allPortfolios(d).find((x) => x.profile?.name?.trim());
     d.portfolio = {
       code: randomCode(),
       status: "draft",
-      profile: { name: "", title: "", intro: "", email: "", links: [] },
+      profile: prior ? structuredClone(prior.profile) : { name: "", title: "", intro: "", email: "", links: [] },
       pdf,
       allowDownload: true,
       viewer: { ...DEFAULT_VIEWER, mode: "book" },
