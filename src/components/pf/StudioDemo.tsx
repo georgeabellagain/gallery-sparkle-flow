@@ -64,6 +64,7 @@ export function StudioDemo({ className }: { className?: string }) {
         viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "studio", modes: ["book"], looks: ["clean", "studio"] }}
         backgroundUrl={p.viewer?.backgroundKey ? data?.urls[p.viewer.backgroundKey] : undefined}
         controls
+        lightweight
         autoTurn={rendered && visible && motionAllowed && !interacted}
         onBookReadyChange={readyChanged}
         onLoadError={loadError}

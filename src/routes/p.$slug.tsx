@@ -1,3 +1,4 @@
+import { AccessGate } from "@/components/pf/AccessGate";
 import { createFileRoute, useHydrated } from "@tanstack/react-router";
 import { CloudVisitor, LOCAL_MISSING, Missing, OwnVisitor, SampleVisitor, useOwn } from "@/components/pf/Visitor";
 import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
@@ -59,7 +60,6 @@ function Page() {
     if (!p || p.code !== slug) return <Missing title="No portfolio here" body="Sign in on this device to preview your draft." />;
     return <OwnVisitor p={p} preview />;
   }
-  if (!data) return <Missing title="No portfolio here" body={LOCAL_MISSING} />;
+  if (!data) return <AccessGate by="code" value={slug} />;
   return <CloudVisitor data={data} />;
 }
-

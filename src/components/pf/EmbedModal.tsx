@@ -25,6 +25,7 @@ export function EmbedModal({ open, onClose, url, title }: { open: boolean; onClo
         </ol>
         <p className="mt-3 text-muted-foreground">Your website provider may restrict iframe embeds by plan. If it removes the code or does not support it, use your public portfolio link instead. Replacing the PDF updates the embed; unpublishing makes it unavailable.</p>
       </details>
+      <nav aria-label="Platform embed guides" className="mt-4 flex flex-wrap gap-3 text-xs text-leaf">{["squarespace", "wix", "notion"].map(p => <a key={p} href={`/embed-flipbook-in-${p}`} target="_blank" rel="noopener noreferrer" className="underline">{p === "wix" ? "Wix" : p === "notion" ? "Notion" : "Squarespace"} guide</a>)}</nav>
       <div className="mt-4 overflow-hidden rounded-xl border border-border bg-muted">
         <iframe src={url} title={`${title} embed preview`} className="aspect-[16/10] w-full border-0" />
       </div>
@@ -47,4 +48,3 @@ export function EmbedModal({ open, onClose, url, title }: { open: boolean; onClo
     </Modal>
   );
 }
-

@@ -16,6 +16,9 @@ import { Route as ArtPortfolioRouteImport } from './routes/art-portfolio'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EditRouteImport } from './routes/edit'
+import { Route as EmbedFlipbookInNotionRouteImport } from './routes/embed-flipbook-in-notion'
+import { Route as EmbedFlipbookInSquarespaceRouteImport } from './routes/embed-flipbook-in-squarespace'
+import { Route as EmbedFlipbookInWixRouteImport } from './routes/embed-flipbook-in-wix'
 import { Route as FashionPortfolioRouteImport } from './routes/fashion-portfolio'
 import { Route as FreePdfFlipbookRouteImport } from './routes/free-pdf-flipbook'
 import { Route as FreePdfPortfolioRouteImport } from './routes/free-pdf-portfolio'
@@ -26,6 +29,7 @@ import { Route as InteriorDesignPortfolioRouteImport } from './routes/interior-d
 import { Route as IssuuAlternativeRouteImport } from './routes/issuu-alternative'
 import { Route as LandscapeArchitecturePortfolioRouteImport } from './routes/landscape-architecture-portfolio'
 import { Route as PhotographyPortfolioRouteImport } from './routes/photography-portfolio'
+import { Route as PortfolioCheckerRouteImport } from './routes/portfolio-checker'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProductDesignPortfolioRouteImport } from './routes/product-design-portfolio'
@@ -42,6 +46,7 @@ import { Route as PSlugRouteImport } from './routes/p.$slug'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicPortfolioCoverCodeRouteImport } from './routes/api/public/portfolio-cover/$code'
+import { Route as ApiPublicPortfolioFileCodeRouteImport } from './routes/api/public/portfolio-file/$code'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +81,22 @@ const DashboardRoute = DashboardRouteImport.update({
 const EditRoute = EditRouteImport.update({
   id: '/edit',
   path: '/edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmbedFlipbookInNotionRoute = EmbedFlipbookInNotionRouteImport.update({
+  id: '/embed-flipbook-in-notion',
+  path: '/embed-flipbook-in-notion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EmbedFlipbookInSquarespaceRoute =
+  EmbedFlipbookInSquarespaceRouteImport.update({
+    id: '/embed-flipbook-in-squarespace',
+    path: '/embed-flipbook-in-squarespace',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const EmbedFlipbookInWixRoute = EmbedFlipbookInWixRouteImport.update({
+  id: '/embed-flipbook-in-wix',
+  path: '/embed-flipbook-in-wix',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FashionPortfolioRoute = FashionPortfolioRouteImport.update({
@@ -127,6 +148,11 @@ const LandscapeArchitecturePortfolioRoute =
 const PhotographyPortfolioRoute = PhotographyPortfolioRouteImport.update({
   id: '/photography-portfolio',
   path: '/photography-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortfolioCheckerRoute = PortfolioCheckerRouteImport.update({
+  id: '/portfolio-checker',
+  path: '/portfolio-checker',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -211,6 +237,12 @@ const ApiPublicPortfolioCoverCodeRoute =
     path: '/api/public/portfolio-cover/$code',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicPortfolioFileCodeRoute =
+  ApiPublicPortfolioFileCodeRouteImport.update({
+    id: '/api/public/portfolio-file/$code',
+    path: '/api/public/portfolio-file/$code',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -220,6 +252,9 @@ export interface FileRoutesByFullPath {
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
+  '/embed-flipbook-in-notion': typeof EmbedFlipbookInNotionRoute
+  '/embed-flipbook-in-squarespace': typeof EmbedFlipbookInSquarespaceRoute
+  '/embed-flipbook-in-wix': typeof EmbedFlipbookInWixRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
   '/free-pdf-flipbook': typeof FreePdfFlipbookRoute
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
@@ -230,6 +265,7 @@ export interface FileRoutesByFullPath {
   '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
+  '/portfolio-checker': typeof PortfolioCheckerRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/product-design-portfolio': typeof ProductDesignPortfolioRoute
@@ -246,6 +282,7 @@ export interface FileRoutesByFullPath {
   '/u/$username': typeof UUsernameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
+  '/api/public/portfolio-file/$code': typeof ApiPublicPortfolioFileCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -255,6 +292,9 @@ export interface FileRoutesByTo {
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
+  '/embed-flipbook-in-notion': typeof EmbedFlipbookInNotionRoute
+  '/embed-flipbook-in-squarespace': typeof EmbedFlipbookInSquarespaceRoute
+  '/embed-flipbook-in-wix': typeof EmbedFlipbookInWixRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
   '/free-pdf-flipbook': typeof FreePdfFlipbookRoute
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
@@ -265,6 +305,7 @@ export interface FileRoutesByTo {
   '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
+  '/portfolio-checker': typeof PortfolioCheckerRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/product-design-portfolio': typeof ProductDesignPortfolioRoute
@@ -281,6 +322,7 @@ export interface FileRoutesByTo {
   '/u/$username': typeof UUsernameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
+  '/api/public/portfolio-file/$code': typeof ApiPublicPortfolioFileCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -291,6 +333,9 @@ export interface FileRoutesById {
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
+  '/embed-flipbook-in-notion': typeof EmbedFlipbookInNotionRoute
+  '/embed-flipbook-in-squarespace': typeof EmbedFlipbookInSquarespaceRoute
+  '/embed-flipbook-in-wix': typeof EmbedFlipbookInWixRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
   '/free-pdf-flipbook': typeof FreePdfFlipbookRoute
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
@@ -301,6 +346,7 @@ export interface FileRoutesById {
   '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
+  '/portfolio-checker': typeof PortfolioCheckerRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/product-design-portfolio': typeof ProductDesignPortfolioRoute
@@ -317,6 +363,7 @@ export interface FileRoutesById {
   '/u/$username': typeof UUsernameRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
+  '/api/public/portfolio-file/$code': typeof ApiPublicPortfolioFileCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -328,6 +375,9 @@ export interface FileRouteTypes {
     | '/create'
     | '/dashboard'
     | '/edit'
+    | '/embed-flipbook-in-notion'
+    | '/embed-flipbook-in-squarespace'
+    | '/embed-flipbook-in-wix'
     | '/fashion-portfolio'
     | '/free-pdf-flipbook'
     | '/free-pdf-portfolio'
@@ -338,6 +388,7 @@ export interface FileRouteTypes {
     | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
     | '/photography-portfolio'
+    | '/portfolio-checker'
     | '/pricing'
     | '/privacy'
     | '/product-design-portfolio'
@@ -354,6 +405,7 @@ export interface FileRouteTypes {
     | '/u/$username'
     | '/api/public/payments/webhook'
     | '/api/public/portfolio-cover/$code'
+    | '/api/public/portfolio-file/$code'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -363,6 +415,9 @@ export interface FileRouteTypes {
     | '/create'
     | '/dashboard'
     | '/edit'
+    | '/embed-flipbook-in-notion'
+    | '/embed-flipbook-in-squarespace'
+    | '/embed-flipbook-in-wix'
     | '/fashion-portfolio'
     | '/free-pdf-flipbook'
     | '/free-pdf-portfolio'
@@ -373,6 +428,7 @@ export interface FileRouteTypes {
     | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
     | '/photography-portfolio'
+    | '/portfolio-checker'
     | '/pricing'
     | '/privacy'
     | '/product-design-portfolio'
@@ -389,6 +445,7 @@ export interface FileRouteTypes {
     | '/u/$username'
     | '/api/public/payments/webhook'
     | '/api/public/portfolio-cover/$code'
+    | '/api/public/portfolio-file/$code'
   id:
     | '__root__'
     | '/'
@@ -398,6 +455,9 @@ export interface FileRouteTypes {
     | '/create'
     | '/dashboard'
     | '/edit'
+    | '/embed-flipbook-in-notion'
+    | '/embed-flipbook-in-squarespace'
+    | '/embed-flipbook-in-wix'
     | '/fashion-portfolio'
     | '/free-pdf-flipbook'
     | '/free-pdf-portfolio'
@@ -408,6 +468,7 @@ export interface FileRouteTypes {
     | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
     | '/photography-portfolio'
+    | '/portfolio-checker'
     | '/pricing'
     | '/privacy'
     | '/product-design-portfolio'
@@ -424,6 +485,7 @@ export interface FileRouteTypes {
     | '/u/$username'
     | '/api/public/payments/webhook'
     | '/api/public/portfolio-cover/$code'
+    | '/api/public/portfolio-file/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -434,6 +496,9 @@ export interface RootRouteChildren {
   CreateRoute: typeof CreateRoute
   DashboardRoute: typeof DashboardRoute
   EditRoute: typeof EditRoute
+  EmbedFlipbookInNotionRoute: typeof EmbedFlipbookInNotionRoute
+  EmbedFlipbookInSquarespaceRoute: typeof EmbedFlipbookInSquarespaceRoute
+  EmbedFlipbookInWixRoute: typeof EmbedFlipbookInWixRoute
   FashionPortfolioRoute: typeof FashionPortfolioRoute
   FreePdfFlipbookRoute: typeof FreePdfFlipbookRoute
   FreePdfPortfolioRoute: typeof FreePdfPortfolioRoute
@@ -444,6 +509,7 @@ export interface RootRouteChildren {
   IssuuAlternativeRoute: typeof IssuuAlternativeRoute
   LandscapeArchitecturePortfolioRoute: typeof LandscapeArchitecturePortfolioRoute
   PhotographyPortfolioRoute: typeof PhotographyPortfolioRoute
+  PortfolioCheckerRoute: typeof PortfolioCheckerRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   ProductDesignPortfolioRoute: typeof ProductDesignPortfolioRoute
@@ -460,6 +526,7 @@ export interface RootRouteChildren {
   UUsernameRoute: typeof UUsernameRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicPortfolioCoverCodeRoute: typeof ApiPublicPortfolioCoverCodeRoute
+  ApiPublicPortfolioFileCodeRoute: typeof ApiPublicPortfolioFileCodeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -511,6 +578,27 @@ declare module '@tanstack/react-router' {
       path: '/edit'
       fullPath: '/edit'
       preLoaderRoute: typeof EditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/embed-flipbook-in-notion': {
+      id: '/embed-flipbook-in-notion'
+      path: '/embed-flipbook-in-notion'
+      fullPath: '/embed-flipbook-in-notion'
+      preLoaderRoute: typeof EmbedFlipbookInNotionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/embed-flipbook-in-squarespace': {
+      id: '/embed-flipbook-in-squarespace'
+      path: '/embed-flipbook-in-squarespace'
+      fullPath: '/embed-flipbook-in-squarespace'
+      preLoaderRoute: typeof EmbedFlipbookInSquarespaceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/embed-flipbook-in-wix': {
+      id: '/embed-flipbook-in-wix'
+      path: '/embed-flipbook-in-wix'
+      fullPath: '/embed-flipbook-in-wix'
+      preLoaderRoute: typeof EmbedFlipbookInWixRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/fashion-portfolio': {
@@ -581,6 +669,13 @@ declare module '@tanstack/react-router' {
       path: '/photography-portfolio'
       fullPath: '/photography-portfolio'
       preLoaderRoute: typeof PhotographyPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portfolio-checker': {
+      id: '/portfolio-checker'
+      path: '/portfolio-checker'
+      fullPath: '/portfolio-checker'
+      preLoaderRoute: typeof PortfolioCheckerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -695,6 +790,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPortfolioCoverCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/portfolio-file/$code': {
+      id: '/api/public/portfolio-file/$code'
+      path: '/api/public/portfolio-file/$code'
+      fullPath: '/api/public/portfolio-file/$code'
+      preLoaderRoute: typeof ApiPublicPortfolioFileCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -706,6 +808,9 @@ const rootRouteChildren: RootRouteChildren = {
   CreateRoute: CreateRoute,
   DashboardRoute: DashboardRoute,
   EditRoute: EditRoute,
+  EmbedFlipbookInNotionRoute: EmbedFlipbookInNotionRoute,
+  EmbedFlipbookInSquarespaceRoute: EmbedFlipbookInSquarespaceRoute,
+  EmbedFlipbookInWixRoute: EmbedFlipbookInWixRoute,
   FashionPortfolioRoute: FashionPortfolioRoute,
   FreePdfFlipbookRoute: FreePdfFlipbookRoute,
   FreePdfPortfolioRoute: FreePdfPortfolioRoute,
@@ -716,6 +821,7 @@ const rootRouteChildren: RootRouteChildren = {
   IssuuAlternativeRoute: IssuuAlternativeRoute,
   LandscapeArchitecturePortfolioRoute: LandscapeArchitecturePortfolioRoute,
   PhotographyPortfolioRoute: PhotographyPortfolioRoute,
+  PortfolioCheckerRoute: PortfolioCheckerRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   ProductDesignPortfolioRoute: ProductDesignPortfolioRoute,
@@ -732,6 +838,7 @@ const rootRouteChildren: RootRouteChildren = {
   UUsernameRoute: UUsernameRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicPortfolioCoverCodeRoute: ApiPublicPortfolioCoverCodeRoute,
+  ApiPublicPortfolioFileCodeRoute: ApiPublicPortfolioFileCodeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

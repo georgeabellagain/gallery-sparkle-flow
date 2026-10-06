@@ -50,8 +50,9 @@ export default {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       const normalized = await normalizeCatastrophicSsrResponse(response);
-      if (!new URL(request.url).pathname.startsWith("/embed/")) return normalized;
       const headers = new Headers(normalized.headers);
+      if (headers.get("Content-Type")?.includes("text/html")) headers.set("Cache-Control", "private, no-store");
+      if (!new URL(request.url).pathname.startsWith("/embed/")) return new Response(normalized.body, { status: normalized.status, statusText: normalized.statusText, headers });
       headers.set("Content-Security-Policy", "frame-ancestors *");
       headers.set("X-Robots-Tag", "noindex, nofollow");
       return new Response(normalized.body, { status: normalized.status, statusText: normalized.statusText, headers });

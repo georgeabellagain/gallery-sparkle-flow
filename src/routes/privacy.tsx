@@ -27,7 +27,7 @@ function PrivacyPage() {
   return (
     <LegalPage>
       <h1 className="display-title text-3xl">Privacy Notice</h1>
-      <p className="text-xs text-muted-foreground">Last updated 29 September 2026</p>
+      <p className="text-xs text-muted-foreground">Last updated 6 October 2026</p>
 
       <p>
         This notice explains how personal data is handled when you use Portfolia at
@@ -40,7 +40,7 @@ function PrivacyPage() {
       <ul>
         <li>
           <strong>Account details:</strong> your email address and password (stored only
-          as an encrypted hash), and your name if you choose to give it.
+          as a password hash), and your name if you choose to give it.
         </li>
         <li>
           <strong>Portfolio content:</strong> the PDF you upload, the profile details
@@ -92,12 +92,11 @@ function PrivacyPage() {
         </tbody>
       </table>
 
+      <p>Optional portfolio passwords are stored as salted hashes. Access cookies remember an unlocked portfolio for up to twelve hours, bounded by its expiry. Short-lived hashed network identifiers are used to limit repeated password attempts. The PDF checker processes the selected file on your device without uploading it.</p>
+
       <h2>Where your data lives</h2>
       <p>
-        In the current version of Portfolia, your portfolio files, photos and profile
-        details are stored in your own browser — they stay on your device unless you
-        share your link. Your sign-in and billing information is stored online by our
-        hosting provider. If this changes, we’ll update this notice.
+        Unsaved previews are kept in your browser. When you sign in and save, portfolio files and details are synced to your account in private cloud storage, with a browser cache for editing. Publishing permits visitor access through the portfolio link, subject to any password or expiry you set. Sign-in and billing information is also stored online by our service providers.
       </p>
 
       <h2>Who we share it with</h2>
@@ -132,7 +131,7 @@ function PrivacyPage() {
       <h2>Cookies</h2>
       <p>
         Portfolia uses only the essential cookies and browser storage needed to keep
-        you signed in and remember your work. There are no analytics or advertising
+        you signed in, remember your work and retain access to a portfolio you have unlocked. There are no analytics or advertising
         cookies. You can clear cookies and site data in your browser settings at any
         time.
       </p>

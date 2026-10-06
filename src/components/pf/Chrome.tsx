@@ -33,6 +33,8 @@ export function SiteFooter({ className }: { className?: string }) {
         <a href="mailto:hello@portfolia.site" className="hover:underline underline-offset-4">Support</a>
         <Link to="/pricing" className="hover:underline underline-offset-4">Pricing</Link>
         <Link to="/free-pdf-flipbook" className="hover:underline underline-offset-4">Free PDF flipbook</Link>
+        <a href="/portfolio-checker" className="hover:underline underline-offset-4">PDF checker</a>
+        <a href="/embed-flipbook-in-squarespace" className="hover:underline underline-offset-4">Embed guides</a>
         <Link to="/issuu-alternative" className="hover:underline underline-offset-4">Issuu alternative</Link>
         <Link to="/professional-portfolio" className="hover:underline underline-offset-4">Professional portfolio</Link>
         <Link to="/free-pdf-portfolio" className="hover:underline underline-offset-4">Free PDF portfolio</Link>
@@ -134,4 +136,3 @@ export function useObjectUrl(blob: Blob | null) {
   }, [blob]);
   return url;
 }
-

@@ -155,6 +155,46 @@ Earlier suggestions reviewed:
 | Automatic image compression | Current lossless optimiser may save little on image-heavy work; preserve originals and visual quality | Measure first |
 | Page sounds, classroom accounts | Limited immediate value for the focused PDF host | Deferred |
 
+## Iteration 12 — dedicated embed guides
+
+Status: implemented on 6 October 2026; included in this main release.
+
+- Add Squarespace, Wix and Notion guide routes with provider-specific instructions, published-page/mobile checks and troubleshooting.
+- Link the guides from the embed modal and footer; include static routes in the sitemap with canonical URLs.
+- Check the instructions against official provider documentation. Squarespace iframe plan restrictions and Notion app/sign-in limits are explicitly noted; no compatibility guarantee is invented.
+
+## Iteration 13 — local PDF checker
+
+Status: implemented on 6 October 2026; included in this main release.
+
+- Add /portfolio-checker for file size, page count, external link annotations, mixed page sizes, orientation and a first-page preview.
+- Process on the visitor’s device without uploading or changing their account. Bound inputs to 75 MB and inspect at most 300 pages, clearly labelling partial checks.
+- Give plan-size and reader-link guidance. Do not score design quality or claim to verify link destinations.
+
+## Iteration 14 — Personal passwords and expiry
+
+Status: implemented on 6 October 2026; database migration applied before publication. Included in this main release.
+
+- Add separate owner access settings beside sharing. New protection requires a server-verified live Personal subscription; owners can remove all protection after cancellation. Existing protection is retained on downgrade.
+- Store salted scrypt password hashes and random grant secrets in a private table, never in portfolio JSON or browser storage.
+- Enforce access before issuing public portfolio data, through code/personalised/legacy routes and embeds. Protect direct database reads using the published-row RLS policy.
+- Serve protected PDFs and referenced media through a private, uncached endpoint that checks password grants and expiry on every request. Public cover previews are withheld for both password and expiry settings.
+- Bound password attempts per network/portfolio and globally per portfolio using a server-only database limiter. Use HttpOnly, Secure cookies and same-origin POST checks; changing settings rotates grants.
+- Prevent shared caching of HTML and server-function data. Exclude protected/expired portfolios from public discovery metadata.
+- Update pricing/comparison/privacy copy to describe the new controls and actual account storage.
+- File URLs issued before enabling protection can remain valid for up to one hour. Access controls cannot erase previously viewed/downloaded files. Third-party cookie restrictions can require opening protected embeds in a new tab.
+
+Validation: 21 focused tests pass, including salted passwords, incorrect-password rejection, grant tampering/rotation/expiry, file whitelist and access checks before storage, cover suppression, PDF checker bounds and all earlier tests. TypeScript and production build pass. Transactional SQL checks confirm open/password/expired/future-expiry predicates and anonymous RLS protection; all fixtures rolled back. Rate-limit threshold and private table/function grants checked. Existing account count remains one; no existing portfolio settings or files changed. Full signed-in UI validation remains blocked by the earlier Google gateway error.
+
+## Iteration 15 — faster featured example
+
+Status: implemented on 6 October 2026; included in this main release.
+
+- Add a lightweight mode only to the featured example: 1600-pixel textures, no multi-page image-density scan, and reveal after two prepared pages while remaining pages load in the background.
+- Reuse Scarlett’s published PDF and saved Studio appearance, keeping the Simple/Studio switch, forward/back autoplay, interaction stop and readiness/retry controls.
+- Preserve the full visitor reader’s existing resolution and rendering settings. No duplicate public PDF, new storage service or Lovable AI generation call.
+- Expected startup work is reduced; live timing and WebGL-capable visual checks still need verification.
+
 ## Next — remaining release checks
 
 Prioritise desktop/mobile and real-account checks of this batch before further feature work. Verify initial loading, the complete forward/back autoplay cycle and permanent interaction stop, Simple/Studio switching, optional compression acceptance, older-cover generation, sharing metadata and embedding. Confirm the actual live deployment separately from merging GitHub.

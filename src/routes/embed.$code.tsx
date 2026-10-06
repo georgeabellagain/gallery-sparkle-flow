@@ -1,3 +1,4 @@
+import { AccessGate } from "@/components/pf/AccessGate";
 import { createFileRoute } from "@tanstack/react-router";
 import { EmbeddedVisitor, LOCAL_MISSING, Missing } from "@/components/pf/Visitor";
 import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
@@ -33,6 +34,7 @@ export const Route = createFileRoute("/embed/$code")({
 function EmbedPage() {
   const data = Route.useLoaderData();
   const options = Route.useSearch();
-  if (!data) return <Missing title="No portfolio here" body={LOCAL_MISSING} />;
+  const { code } = Route.useParams();
+  if (!data) return <AccessGate by="code" value={code} />;
   return <EmbeddedVisitor data={data} startPage={options.page} mode={options.mode} background={options.background} />;
 }

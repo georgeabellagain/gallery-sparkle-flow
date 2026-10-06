@@ -89,7 +89,7 @@ function PricingPage() {
                 "Up to 10 portfolios, each up to 50 MB",
                 "CV displayed with your profile",
                 "Personalised address such as portfolia.site/marksmith",
-                "Portfolia credit removed",
+                "Password protection and link expiry", "Portfolia credit removed",
               ]}
               action={
                 <Button size="lg" className="mt-5" onClick={() => setUpgrade(true)}>
@@ -184,4 +184,3 @@ function Plan({
     </div>
   );
 }
-

@@ -51,8 +51,9 @@ import { servePortfolioCover } from "../src/lib/portfolia/cover.server";
 test("cover endpoint checks publication before private storage and never caches", async () => {
   let published = true;
   let downloaded = "";
+  let protection: {password_hash?: string; expires_at?: string} | null = null;
   const db = {
-    from: () => ({ select: () => ({ eq: () => ({ eq: (_column: string, status: string) => {
+    from: (table: string) => table === "portfolio_access" ? { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: protection, error: null }) }) }) } : ({ select: () => ({ eq: () => ({ eq: (_column: string, status: string) => {
       assert.equal(status, "published");
       return { maybeSingle: async () => ({ data: published ? { owner_id: "owner", data: portfolio() } : null, error: null }) };
     } }) }) }),
@@ -67,6 +68,14 @@ test("cover endpoint checks publication before private storage and never caches"
   downloaded = "";
   assert.equal((await servePortfolioCover("example", url.replace("abc123", "obsolete"), db)).status, 404);
   assert.equal(downloaded, "");
+  protection = {password_hash:"hash"};
+  assert.equal((await servePortfolioCover("example", url, db)).status, 404);
+  assert.equal(downloaded, "");
+  protection = {expires_at:new Date(Date.now()-1000).toISOString()};
+  assert.equal((await servePortfolioCover("example", url, db)).status, 404);
+  protection = {expires_at:new Date(Date.now()+60000).toISOString()};
+  assert.equal((await servePortfolioCover("example", url, db)).status, 404);
+  protection = null;
   published = false;
   assert.equal((await servePortfolioCover("example", url, db)).status, 404);
   assert.equal(downloaded, "");

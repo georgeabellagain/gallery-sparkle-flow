@@ -34,7 +34,7 @@ function Comparison() {
       <h2 className="mt-9 text-lg font-medium">Moving an existing portfolio</h2>
       <p className="mt-3 text-sm text-muted-foreground">Upload your original PDF, review every page and test your contact links in your chosen reading mode. Publish it, then update the links in your CV, website and applications. An old Issuu address does not redirect automatically to Portfolia.</p>
       <h2 className="mt-7 text-lg font-medium">When to compare more than the viewer</h2>
-      <p className="mt-3 text-sm text-muted-foreground">If you need publication sales, a discovery audience, team workflows or detailed engagement reporting, compare those requirements separately. Portfolia currently provides basic visit statistics and direct portfolio sharing; it has no public discovery gallery. Unlisted links are accessible to anyone who has them and are not password protection.</p>
+      <p className="mt-3 text-sm text-muted-foreground">If you need publication sales, a discovery audience, team workflows or detailed engagement reporting, compare those requirements separately. Portfolia currently provides basic visit statistics and direct portfolio sharing; it has no public discovery gallery. Unlisted links are accessible to anyone who has them. Personal also offers a separate password and expiry setting; protected portfolios are excluded from search and public cover previews.</p>
       <a href="/pricing" className="mt-5 inline-block text-sm underline underline-offset-4">See Portfolia’s Free and Personal plans</a>
     </div>
   </section>;

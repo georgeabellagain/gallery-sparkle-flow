@@ -52,6 +52,7 @@ function pageLoader(
   density: Promise<number> = Promise.resolve(0),
   /** What the graphics card can take, known once the 3D view exists. */
   maxTexture: () => number = () => 4096,
+  lightweight = false,
 ) {
   const faces = new Map<number, HTMLCanvasElement>();
   const pending = new Map<number, Promise<void>>();
@@ -80,7 +81,7 @@ function pageLoader(
   const perPage = split === 0.5 ? 2 : 1;
   const count = layout.leaves.length;
   const tier = deviceTier();
-  const screenLong = Math.min(4096, Math.max(2560, window.innerWidth * Math.min(devicePixelRatio || 1, 3)));
+  const screenLong = lightweight ? 1600 : Math.min(4096, Math.max(2560, window.innerWidth * Math.min(devicePixelRatio || 1, 3)));
   const leafRatio = Math.max(ratio, 1 / ratio);
   const isSplit = (page: number) => (leavesOf.get(page) ?? []).some((index) => !!layout.leaves[index]!.half);
   /** The long side, in PDF points, of what is shown for this page (a whole page, or half of a spread). */
@@ -92,7 +93,7 @@ function pageLoader(
       screenLong,
       density: nativeDensity,
       leafLongPt: leafLongPt(page, width, height),
-      cap: longSideCap({ leafRatio, tier, maxTexture: maxTexture() }),
+      cap: lightweight ? 1600 : longSideCap({ leafRatio, tier, maxTexture: maxTexture() }),
     });
 
   const plan = (async () => {
@@ -171,7 +172,7 @@ function pageLoader(
       await plan;
       const total = Math.min(doc.numPages, Math.floor(keep / perPage));
       // Turning waits until every page is ready, so no page ever has to be prepared during a turn.
-      const gate = total;
+      const gate = lightweight ? Math.min(2, total) : total;
       return new Promise<void>((resolve) => {
         let next = 1;
         let done = 0;
@@ -239,6 +240,7 @@ export function BookView({
   onRenderError,
   autoTurn = false,
   previewable,
+  lightweight = false,
 }: {
   doc: PDFDocumentProxy;
   sizes: { w: number; h: number }[];
@@ -266,6 +268,7 @@ export function BookView({
   autoTurn?: boolean;
   /** The editor's preview: it shows the look whose settings are being edited. */
   previewable?: boolean;
+  lightweight?: boolean;
 }) {
   // A portrait first page followed only by landscape pages is a front cover and then two-page spreads.
   // The flipbook shows it that way whatever "My PDF contains" says; the other reading modes are unaffected.
@@ -358,8 +361,8 @@ export function BookView({
     observer.observe(element);
     setNarrow(element.clientWidth < 720);
     // The detail of the images inside the PDF is read once, in the background; pages wait for it before drawing.
-    const density = loadPdfjs().then((pdfjs) => detectDensity(doc, pdfjs.OPS as never)).catch(() => 0);
-    const source = pageLoader(doc, ratio, layout, density, () => scene.current?.maxTextureSize ?? 4096);
+    const density = lightweight ? Promise.resolve(0) : loadPdfjs().then((pdfjs) => detectDensity(doc, pdfjs.OPS as never)).catch(() => 0);
+    const source = pageLoader(doc, ratio, layout, density, () => scene.current?.maxTextureSize ?? 4096, lightweight);
     loader.current = source;
     setWarm(false);
     setWarmProgress({ done: 0, total: 0 });
@@ -453,7 +456,7 @@ export function BookView({
       scene.current?.dispose();
       scene.current = null;
     };
-  }, [doc, ratio, layout]);
+  }, [doc, ratio, layout, lightweight]);
 
   const faces = useCallback(
     async (value: Spread): Promise<BookFaces> => {
@@ -898,4 +901,3 @@ export function BookView({
     </section>
   );
 }
-

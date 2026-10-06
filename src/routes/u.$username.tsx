@@ -1,3 +1,4 @@
+import { AccessGate } from "@/components/pf/AccessGate";
 import { createFileRoute } from "@tanstack/react-router";
 import { CloudVisitor, LOCAL_MISSING, Missing } from "@/components/pf/Visitor";
 import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
@@ -18,7 +19,7 @@ export const Route = createFileRoute("/u/$username")({
 
 function Page() {
   const { data } = Route.useLoaderData();
-  if (!data) return <Missing title="No portfolio here" body={LOCAL_MISSING} />;
+  const { username } = Route.useParams();
+  if (!data) return <AccessGate by="username" value={username} />;
   return <CloudVisitor data={data} />;
 }
-

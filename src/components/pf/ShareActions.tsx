@@ -1,3 +1,4 @@
+import { AccessSettings } from "./AccessSettings";
 import { ShareCover } from "./ShareCover";
 import { useState } from "react";
 import { Code2, Copy, QrCode } from "lucide-react";
@@ -45,9 +46,9 @@ export function ShareActions({ p }: { p: Portfolio }) {
         {sync.status === "error" ? <>{sync.message || "Couldn’t save the latest changes to your account."} Visitors may still see the previous published version. <button type="button" className="underline underline-offset-4" onClick={retrySync}>Retry saving</button></> : sync.status === "saving" ? "Saving your latest changes. Wait for account sync before sharing the updated version." : sync.status === "saved" ? "Latest changes saved to your account." : "Account sync has not confirmed your latest changes yet."}
       </p>}
       <ShareCover p={p} />
+      {signedIn && <AccessSettings code={p.code} />}
       <PortfolioQrCode open={dialog === "qr"} onClose={() => setDialog(null)} url={origin + sharePath} name={p.profile.name} />
       <EmbedModal open={dialog === "embed"} onClose={() => setDialog(null)} url={`${origin}/embed/${p.code}`} title={p.profile.name || "Portfolio"} />
     </section>
   );
 }
-

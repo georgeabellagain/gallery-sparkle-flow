@@ -142,7 +142,7 @@ function Landing() {
                 price={`${PRICE.month}/month or ${PRICE.year}/year`}
                 description="For professionals managing a broader body of work and a more personal presence."
                 featured
-                items={["Everything included in Free", "Up to 10 portfolios, each up to 50 MB", "CV displayed with your profile", "Personalised address such as portfolia.site/marksmith", "Portfolia credit removed"]}
+                items={["Everything included in Free", "Up to 10 portfolios, each up to 50 MB", "CV displayed with your profile", "Personalised address such as portfolia.site/marksmith", "Password protection and link expiry", "Portfolia credit removed"]}
                 action={<Button size="lg" className="mt-5" onClick={() => setUpgrade(true)}>Choose Personal</Button>}
               />
             </div>
@@ -159,7 +159,7 @@ function Landing() {
             <div>
               <h2 className="text-lg font-medium">Need a hand?</h2>
               <p className="mt-3 text-sm text-muted-foreground">For upload, account or billing questions, email <a href="mailto:hello@portfolia.site" className="underline underline-offset-4">hello@portfolia.site</a>.</p>
-              <p className="mt-3 text-xs text-muted-foreground">Published portfolios are unlisted by default. Anyone with the link can view them; search indexing is optional.</p>
+              <p className="mt-3 text-xs text-muted-foreground">Published portfolios are unlisted by default. Anyone with the link can view them unless you add Personal password protection or expiry; search indexing is optional.</p>
             </div>
           </div>
         </section>
@@ -186,4 +186,3 @@ function Plan({ name, price, description, items, action, featured }: { name: str
     </div>
   );
 }
-

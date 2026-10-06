@@ -367,7 +367,7 @@ export function resetAll() {
 
 /* ---------- Addresses ---------- */
 
-export const RESERVED = ["admin", "support", "www", "api", "app", "mail", "help", "blog", "login", "signin", "portfolia", "status", "billing", "dashboard", "create", "p", "u", "reset-password", "signup", "account", "pricing", "terms", "privacy", "refund", "sitemap.xml", "robots.txt", "sample", "free-pdf-portfolio", "free-portfolio-website", "architecture-portfolio", "fashion-portfolio"];
+export const RESERVED = ["admin", "support", "www", "api", "app", "mail", "help", "blog", "login", "signin", "portfolia", "status", "billing", "dashboard", "create", "p", "u", "reset-password", "signup", "account", "pricing", "terms", "privacy", "refund", "portfolio-checker", "embed-flipbook-in-squarespace", "embed-flipbook-in-wix", "embed-flipbook-in-notion", "sitemap.xml", "robots.txt", "sample", "free-pdf-portfolio", "free-portfolio-website", "architecture-portfolio", "fashion-portfolio"];
 
 export function checkUsername(raw: string): { ok: boolean; msg: string } {
   const u = raw.trim().toLowerCase();
@@ -436,4 +436,3 @@ export function recordDownload(code?: string) {
   const c = code ?? getDoc().portfolio?.code;
   if (c) void logEvent(c, "download");
 }
-
