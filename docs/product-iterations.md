@@ -130,6 +130,31 @@ Status: implemented on 6 October 2026; committed to main after validation. Live 
 
 Validation: TypeScript and production build pass. Live homepage browser check confirmed the example becomes readable with Studio selected and advances automatically in the fallback reader (page 3 of 14 without interaction). This browser has WebGL disabled. Signed-in save/retry and cover generation were not exercised; no signed-in session was available. Mobile viewport emulation is not exposed by this browser interface, so mobile visual checks remain outstanding.
 
+## Iteration 11 — checks and feature priorities
+
+Status: checks and roadmap review recorded on 6 October 2026. No product code changed.
+
+- All 15 focused tests pass: phone camera/spread handling, compression preservation and signature rejection, draft/upload preservation, owner portfolio selection, share metadata and public-cover publication/version checks.
+- Live standalone example loads with Studio selected. Switching to Simple succeeds, and its page remains at page 3 after interaction instead of continuing autoplay.
+- Published embed route loads its PDF and preserves the account’s saved Simple default. This checks the route directly, not an iframe embedded on another provider.
+- Google sign-in was attempted through the secure authentication prompt, but the provider navigation returned a 502 gateway error. A fresh Portfolia tab still showed Sign in. Signed-in save/retry, cover generation and owner routing remain unverified.
+- This browser has WebGL disabled and exposes no mobile viewport control. Phone-layout unit checks pass, but mobile visual and actual 3D checks remain outstanding. No account records or PDFs were changed.
+
+Earlier suggestions reviewed:
+
+| Suggestion | Current position | Priority |
+| --- | --- | --- |
+| Cover link previews, hero upload, pricing, comparison, owner view and editor preview | Implemented; authenticated backfill still needs verification | Finish account checks |
+| Embed guides for Squarespace, Wix and Notion | Generic modal instructions exist; dedicated useful guides are missing | Next low-cost feature |
+| Portfolio checker | Could reuse local PDF parsing for size, pages and link count; subjective design scoring should be avoided | After embed guides |
+| Password protection and expiring links | Strong potential Personal value; requires server-side protection of pages, PDFs, covers and embeds | Next substantial feature |
+| Per-page analytics | Current analytics are basic; consent/privacy and event cost need review | After access controls |
+| Opening alerts | Depends on dependable analytics and email delivery | Later |
+| Public gallery and testimonials | Needs explicit owner opt-in, real submissions and moderation | Later |
+| Custom domains and job-hunt pass | Requires hosting/billing work and evidence of demand | Later |
+| Automatic image compression | Current lossless optimiser may save little on image-heavy work; preserve originals and visual quality | Measure first |
+| Page sounds, classroom accounts | Limited immediate value for the focused PDF host | Deferred |
+
 ## Next — remaining release checks
 
 Prioritise desktop/mobile and real-account checks of this batch before further feature work. Verify initial loading, the complete forward/back autoplay cycle and permanent interaction stop, Simple/Studio switching, optional compression acceptance, older-cover generation, sharing metadata and embedding. Confirm the actual live deployment separately from merging GitHub.
