@@ -35,6 +35,35 @@ export type Database = {
         }
         Relationships: []
       }
+      portfolio_access: {
+        Row: {
+          code: string
+          expires_at: string | null
+          password_hash: string | null
+          secret: string
+        }
+        Insert: {
+          code: string
+          expires_at?: string | null
+          password_hash?: string | null
+          secret: string
+        }
+        Update: {
+          code?: string
+          expires_at?: string | null
+          password_hash?: string | null
+          secret?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_access_code_fkey"
+            columns: ["code"]
+            isOneToOne: true
+            referencedRelation: "portfolios"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
       portfolio_domains: {
         Row: {
           created_at: string
@@ -98,6 +127,24 @@ export type Database = {
             referencedColumns: ["code"]
           },
         ]
+      }
+      portfolio_unlock_limits: {
+        Row: {
+          attempts: number
+          bucket: string
+          window_start: string
+        }
+        Insert: {
+          attempts: number
+          bucket: string
+          window_start: string
+        }
+        Update: {
+          attempts?: number
+          bucket?: string
+          window_start?: string
+        }
+        Relationships: []
       }
       portfolios: {
         Row: {
@@ -195,6 +242,11 @@ export type Database = {
       }
       name_available: {
         Args: { _code: string; _username: string }
+        Returns: boolean
+      }
+      portfolio_is_open: { Args: { portfolio_code: string }; Returns: boolean }
+      portfolio_unlock_attempt: {
+        Args: { bucket_key: string }
         Returns: boolean
       }
     }
