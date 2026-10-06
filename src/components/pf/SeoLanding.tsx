@@ -1,3 +1,5 @@
+import { PROFESSION_GUIDES, withProfessionContent } from "@/lib/portfolia/profession-guides";
+import { ProfessionExample } from "./ProfessionExample";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check } from "lucide-react";
 import { SEO_LINKS } from "@/lib/portfolia/seo-pages";
@@ -15,7 +17,10 @@ export interface SeoContent {
   faqs: { q: string; a: string }[];
 }
 
-export function seoHead(c: SeoContent) {
+export function seoHead(base: SeoContent) {
+  const c = withProfessionContent(base);
+  const guide = PROFESSION_GUIDES[c.path];
+  const image = guide && guide.kind !== "fashion" ? `https://portfolia.site/examples/${guide.kind}-social.jpg` : "https://portfolia.site/og-image.jpg";
   const url = `https://portfolia.site${c.path}`;
   return {
     meta: [
@@ -26,10 +31,11 @@ export function seoHead(c: SeoContent) {
       { property: "og:url", content: url },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Portfolia" },
-      { property: "og:image", content: "https://portfolia.site/og-image.jpg" },
+      { property: "og:image", content: image },
+      { property: "og:image:alt", content: guide ? `${guide.kind.replaceAll("-", " ")} portfolio example on Portfolia` : "Portfolia PDF portfolio hosting" },
       { name: "twitter:title", content: c.title },
       { name: "twitter:description", content: c.description },
-      { name: "twitter:image", content: "https://portfolia.site/og-image.jpg" },
+      { name: "twitter:image", content: image },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [{ rel: "canonical", href: url }],
@@ -58,7 +64,9 @@ export function seoHead(c: SeoContent) {
 
 const OTHERS = SEO_LINKS;
 
-export function SeoLanding({ c, children }: { c: SeoContent; children?: React.ReactNode }) {
+export function SeoLanding({ c: base, children }: { c: SeoContent; children?: React.ReactNode }) {
+  const c = withProfessionContent(base);
+  const guide = PROFESSION_GUIDES[c.path];
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader
@@ -87,6 +95,7 @@ export function SeoLanding({ c, children }: { c: SeoContent; children?: React.Re
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </span>
             </Link>
+            {guide ? <a href="#profession-example" className="text-sm underline underline-offset-4">Explore the {guide.kind.replaceAll("-", " ")} example</a> : (
             <Link
               to="/p/$slug"
               params={{ slug: "sample" }}
@@ -95,11 +104,12 @@ export function SeoLanding({ c, children }: { c: SeoContent; children?: React.Re
             >
               Try the PDF flipbook
             </Link>
+            )}
           </div>
         </section>
 
         {children}
-        <section className="rule-t">
+        {guide ? <ProfessionExample guide={guide} /> : <section className="rule-t">
           <div className="shell grid max-w-4xl items-center gap-6 py-10 sm:grid-cols-2">
             <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="flex aspect-[4/3] flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-[#02011e] p-8 text-center text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
               <span className="display-title text-3xl">Scarlett Bushell</span>
@@ -112,7 +122,7 @@ export function SeoLanding({ c, children }: { c: SeoContent; children?: React.Re
               <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="mt-4 inline-block text-sm underline underline-offset-4">Open the example portfolio</Link>
             </div>
           </div>
-        </section>
+        </section>}
 
         <section className="rule-t">
           <div className="shell grid max-w-5xl gap-5 py-14 sm:grid-cols-3">
@@ -127,6 +137,11 @@ export function SeoLanding({ c, children }: { c: SeoContent; children?: React.Re
             ))}
           </div>
         </section>
+
+        {guide && <section className="rule-t"><div className="shell max-w-4xl space-y-9 py-14">
+          {guide.sections.map(section => <article key={section.title}><h2 className="display-title text-2xl">{section.title}</h2><p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">{section.body}</p></article>)}
+          <div className="rounded-2xl border border-border bg-card p-6"><h2 className="text-base font-medium">Before you share</h2><ul className="mt-4 space-y-3 text-sm">{guide.checklist.map(item=><li key={item} className="flex gap-3"><Check aria-hidden className="mt-0.5 size-4 shrink-0 text-leaf"/>{item}</li>)}</ul><p className="mt-5 text-sm"><Link to="/portfolio-checker" className="underline underline-offset-4">Check your PDF locally</Link> before uploading, or explore our <Link to="/embed-flipbook-in-squarespace" className="underline underline-offset-4">website embedding guide</Link>.</p></div>
+        </div></section>}
 
         <section className="rule-t">
           <div className="shell max-w-4xl py-14">

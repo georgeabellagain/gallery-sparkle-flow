@@ -65,6 +65,8 @@ export function StudioDemo({ className }: { className?: string }) {
         backgroundUrl={p.viewer?.backgroundKey ? data?.urls[p.viewer.backgroundKey] : undefined}
         controls
         lightweight
+        fullSpread
+        autoTurnDelay={1600}
         autoTurn={rendered && visible && motionAllowed && !interacted}
         onBookReadyChange={readyChanged}
         onLoadError={loadError}

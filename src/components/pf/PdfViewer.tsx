@@ -55,6 +55,8 @@ export function PdfViewer({
   backgroundUrl,
   controls,
   autoTurn = false,
+  autoTurnDelay,
+  fullSpread = false,
   onBookReadyChange,
   onLoadError,
   lightweight = false,
@@ -85,6 +87,8 @@ export function PdfViewer({
   /** Whether to show the icons. Defaults to on, except for small thumbnails. */
   controls?: boolean;
   autoTurn?: boolean;
+  autoTurnDelay?: number;
+  fullSpread?: boolean;
   /** A lighter homepage demonstration; full visitor readers keep their resolution. */
   lightweight?: boolean;
   onBookReadyChange?: (ready: boolean) => void;
@@ -566,7 +570,7 @@ export function PdfViewer({
       ) : (
         <div className={cn("transition-opacity duration-300", shownReady ? "opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!shownReady}>
       {mode === "book" ? (
-        <BookView doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={onLoadError} autoTurn={autoTurn} lightweight={lightweight} previewable={compact} />
+        <BookView doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={onLoadError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} />
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div className="overflow-x-auto">

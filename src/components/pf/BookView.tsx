@@ -239,6 +239,8 @@ export function BookView({
   onReadyChange,
   onRenderError,
   autoTurn = false,
+  autoTurnDelay = 3200,
+  fullSpread = false,
   previewable,
   lightweight = false,
 }: {
@@ -266,6 +268,9 @@ export function BookView({
   onRenderError?: (message: string) => void;
   /** Featured demo only; uses the normal animated turn path. */
   autoTurn?: boolean;
+  autoTurnDelay?: number;
+  /** Demo-only: keep both pages centred even in narrow containers. */
+  fullSpread?: boolean;
   /** The editor's preview: it shows the look whose settings are being edited. */
   previewable?: boolean;
   lightweight?: boolean;
@@ -357,9 +362,9 @@ export function BookView({
     let cancelled = false;
     const element = host.current!;
     const generation = epoch;
-    const observer = new ResizeObserver(() => setNarrow(element.clientWidth < 720));
+    const observer = new ResizeObserver(() => setNarrow(!fullSpread && element.clientWidth < 720));
     observer.observe(element);
-    setNarrow(element.clientWidth < 720);
+    setNarrow(!fullSpread && element.clientWidth < 720);
     // The detail of the images inside the PDF is read once, in the background; pages wait for it before drawing.
     const density = lightweight ? Promise.resolve(0) : loadPdfjs().then((pdfjs) => detectDensity(doc, pdfjs.OPS as never)).catch(() => 0);
     const source = pageLoader(doc, ratio, layout, density, () => scene.current?.maxTextureSize ?? 4096, lightweight);
@@ -456,7 +461,7 @@ export function BookView({
       scene.current?.dispose();
       scene.current = null;
     };
-  }, [doc, ratio, layout, lightweight]);
+  }, [doc, ratio, layout, lightweight, fullSpread]);
 
   const faces = useCallback(
     async (value: Spread): Promise<BookFaces> => {
@@ -778,9 +783,9 @@ export function BookView({
     if (!autoTurn || !bookReady || busy || wait || error || (atStart && atEnd)) return;
     if (atEnd) autoDirection.current = -1;
     else if (atStart) autoDirection.current = 1;
-    const timer = setTimeout(() => { void move(autoDirection.current); }, 3200);
+    const timer = setTimeout(() => { void move(autoDirection.current); }, Math.max(800, autoTurnDelay));
     return () => clearTimeout(timer);
-  }, [autoTurn, bookReady, busy, wait, error, atStart, atEnd, move]);
+  }, [autoTurn, autoTurnDelay, bookReady, busy, wait, error, atStart, atEnd, move]);
 
   return (
     <section aria-label="Interactive PDF book" data-look={settings.studio ? "studio" : "simple"}>

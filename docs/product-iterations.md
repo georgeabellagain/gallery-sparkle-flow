@@ -222,7 +222,7 @@ Implemented 6 October 2026. Available on Free and Personal.
 - Validation: all 26 focused tests pass, including five new project tests covering boundaries/overlaps, old or malformed metadata, stable links and PDF replacement. TypeScript and production build pass. Authenticated editor interaction and real-device WebGL navigation still require visual verification; these are not claimed as tested.
 - Publication: main code commit `79e00427383d47bbccc7d1e020541ca58fc6fbe0` synced to Lovable; deployment `ce26013e-fa24-4a8f-a878-fd174ac6ffc5`. Verified live `/edit` responds HTTP 200 and its current editor/viewer assets respond HTTP 200 with Named projects, Save projects, Copy project link and Projects controls. This confirms publication, not a signed-in end-to-end visual test.
 
-## Proposed iteration 17 — richer profession landing pages
+## Iteration 17 — richer profession landing pages
 
 The architecture, graphic-design, fashion and photography landing routes already exist, with canonical URLs, metadata and sitemap entries. Currently their shared template links to the same Scarlett Bushell fashion example.
 
@@ -231,7 +231,27 @@ The architecture, graphic-design, fashion and photography landing routes already
 - Fashion: keep Scarlett's credited lookbook; explain collection process, textiles and garment detail. Architecture: show drawings, plans, sections and project roles. Graphic design: show identity, editorial layouts and process. Photography: show sequencing, series, image detail and client enquiries.
 - Source permission-cleared real examples, or commission clearly labelled fictional demonstration portfolios. Do not present invented work as customer evidence or reuse unrelated fashion work as a discipline-specific example.
 - Keep previews lightweight and load interactive examples on demand or near the viewport, building on the homepage optimisation. No ranking guarantees or unverified keyword-volume claims.
-- This is a proposed next iteration, not implemented in iteration 16. Continue the outstanding signed-in/mobile release checks alongside it.
+- Implemented 6 October 2026 after iteration 16. The four existing URLs now have distinct guidance, additional FAQs, checklists, contextual links, updated titles/descriptions and matching demonstration readers.
+- Architecture and graphic design use original six-page vector PDFs (approximately 7 KB each); photography uses a six-page PDF (approximately 370 KB) with explicitly disclosed AI-generated coastal imagery. All three are fictional examples, not customer work. Covers are approximately 13–40 KB. Profession-specific 1200 × 630 sharing cards are included.
+- The shared professional visual style uses warm paper, muted green, restrained typography and generous space. Assets and generation provenance are recorded in `public/examples/README.md`; the development-only generator is `scripts/build-profession-examples.mjs`.
+- Interactive readers import and load after the visitor selects Open example. Static cover previews and useful page copy are available first. Preparing pages stay hidden until ready, with slow-load retry. Fashion reuses Scarlett’s published PDF/settings and existing copyright credit.
+- No new service, subscription, database migration or runtime AI generation. Other discipline pages retain their existing content and example link.
+- Verification: TypeScript, production build and all 26 existing focused tests pass. All 18 demonstration PDF pages were rendered successfully, disclosures checked and contact-sheet layouts visually reviewed. Real-device WebGL and signed-in visual tests remain outstanding.
+
+## Iteration 18 — faster homepage autoplay and centred spread
+
+Implemented with iteration 17 on 6 October 2026.
+
+- Homepage/featured fashion demo pauses 1.6 seconds between completed page turns, down from 3.2 seconds. It still waits for readiness, reverses at the ends, pauses offscreen and respects reduced motion. Interaction still stops automatic movement.
+- Demo-only `fullSpread` framing keeps both pages centred on narrow screens, using the desktop spread framing. It does not invoke browser fullscreen. Standalone covers still centre as a single page.
+- Ordinary portfolio readers retain the existing phone camera behaviour and resolution. The new profession demonstrations also use centred full-spread framing.
+- These changes adjust framing/timing props; page-turn geometry, materials and lighting are unchanged.
+
+## Next — outstanding verification and future options
+
+- Check the new demos and faster forward/back homepage cycle on a real phone and desktop with WebGL, including interaction stop and reduced-motion preference.
+- Complete the previously recorded real-account checks for project settings, passwords/expiry, cover backfills, compression and sharing.
+- Replace fictional examples with permission-cleared real portfolios when available. Consider tailored editions only after validating demand for the new project navigation.
 
 ## Later — validate demand first
 
