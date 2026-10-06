@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { List, Copy } from "lucide-react";
+import { projectFromHash, projectPath, readableProjects, type PortfolioProject } from "@/lib/portfolia/projects";
 import { BookOpen, ChevronLeft, ChevronRight, Download, FileText, LayoutGrid, Maximize2, Minimize2, ScrollText, User, ZoomIn, ZoomOut } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
@@ -46,6 +48,8 @@ export function PdfViewer({
   backdrop,
   viewer,
   startPage = 1,
+  projects,
+  projectCode,
   profile,
   home,
   backgroundUrl,
@@ -69,6 +73,9 @@ export function PdfViewer({
   backdrop?: string;
   viewer?: ViewerSettings;
   startPage?: number;
+  projects?: PortfolioProject[];
+  /** Enables hash links on public readers. Editor previews never read the URL hash. */
+  projectCode?: string;
   /** The person's details, shown from a small profile icon. */
   profile?: ReactNode;
   /** Shows the small logo that links to the home page. */
@@ -100,7 +107,9 @@ export function PdfViewer({
   // Where the browser cannot take a page full screen (iPhone Safari cannot), the viewer fills the window itself.
   const [pseudoFull, setPseudoFull] = useState(false);
   const full = nativeFull || pseudoFull;
-  const [panel, setPanel] = useState<"profile" | "pages" | null>(null);
+  const [panel, setPanel] = useState<"profile" | "pages" | "projects" | null>(null);
+  const [projectMessage, setProjectMessage] = useState("");
+  const [manualProjectLink, setManualProjectLink] = useState("");
   const [contentReady, setContentReady] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [toolbarHeight, setToolbarHeight] = useState(0);
@@ -218,9 +227,12 @@ export function PdfViewer({
   };
 
   const [mode, setMode] = useState<"scroll" | "paged" | "book">(startMode);
+  const modeLive = useRef(mode);
+  modeLive.current = mode;
   const [jump, setJump] = useState<{ page: number; t: number } | null>(null);
   const z = (d: number) => setZoom((v) => Math.min(3, Math.max(1, Math.round((v + d) * 100) / 100)));
   const total = doc?.numPages ?? 0;
+  const sections = useMemo(() => readableProjects(projects, total), [projects, total]);
   const go = (d: number) => setCurrent((c) => Math.min(total, Math.max(1, c + d)));
   // A portfolio opened from its QR code fills the screen on a phone. (A browser only allows real full screen after
   // a tap, so this is the in-page full screen: it hides the rest of the site and keeps the exit icon.)
@@ -275,10 +287,32 @@ export function PdfViewer({
   }, [mode]);
   useEffect(() => {
     if (!total) return;
-    const page = Math.min(total, Math.max(1, startPage));
-    setCurrent(page);
-    setJump({ page, t: Date.now() });
-  }, [startPage, total]);
+    // Apply after page elements mount, in all three reading modes. Hashes remain
+    // intact through password entry and work on both permanent and personal URLs.
+    let frame = 0;
+    const open = () => {
+      const project = projectCode ? projectFromHash(window.location.hash, sections) : undefined;
+      const page = project?.startPage ?? Math.min(total, Math.max(1, Number.isFinite(startPage) ? Math.floor(startPage) : 1));
+      setCurrent(page);
+      setJump({ page, t: Date.now() });
+      if (modeLive.current === "scroll" && page > 1) {
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => rootRef.current?.querySelector(`[data-page="${page}"]`)?.scrollIntoView({ block: "start" }));
+      }
+    };
+    open();
+    if (projectCode) window.addEventListener("hashchange", open);
+    return () => { cancelAnimationFrame(frame); window.removeEventListener("hashchange", open); };
+    // Mode changes are handled separately to preserve the visitor's current page.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startPage, total, sections, projectCode]);
+  const previousMode = useRef(mode);
+  useEffect(() => {
+    if (previousMode.current === mode) return;
+    previousMode.current = mode;
+    setJump({ page: current, t: Date.now() });
+    if (mode === "scroll") rootRef.current?.querySelector(`[data-page="${current}"]`)?.scrollIntoView({ block: "start" });
+  }, [mode, current]);
 
   useEffect(() => {
     if (mode !== "paged" || !total) return;
@@ -361,7 +395,13 @@ export function PdfViewer({
   const panelFit = { maxHeight: `calc(100svh - ${(toolbarHeight || 36) + 6 + 8 + 12}px)` };
 
   const quiet = tone === "dark" ? "text-white/90" : "text-slate-700";
-  const togglePanel = (name: "profile" | "pages") => setPanel((p) => (p === name ? null : name));
+  const togglePanel = (name: "profile" | "pages" | "projects") => setPanel((p) => (p === name ? null : name));
+  const copyProject = async (id: string) => {
+    if (!projectCode) return;
+    const url = window.location.origin + projectPath(projectCode, id);
+    try { await navigator.clipboard.writeText(url); setProjectMessage("Project link copied."); setManualProjectLink(""); }
+    catch { setManualProjectLink(url); setProjectMessage("Select and copy this project link."); }
+  };
   const pageArrow = (side: "left" | "right") => (
     <div className={cn("pointer-events-none absolute inset-y-0 z-30", side === "left" ? "left-0" : "right-0")}>
       <div className={cn("pointer-events-auto sticky top-[45svh]", side === "left" ? "pl-1.5" : "pr-1.5")}>
@@ -423,6 +463,11 @@ export function PdfViewer({
                   <LayoutGrid className="size-[17px]" />
                 </IconButton>
               )}
+              {sections.length > 0 && (
+                <IconButton label="Projects" tone={tone} pressed={panel === "projects"} onClick={() => togglePanel("projects")}>
+                  <List className="size-[17px]" />
+                </IconButton>
+              )}
               {/* The flipbook shows its own page number at the bottom, so it is not repeated here. */}
               {doc && mode !== "book" && (
                 <span className={cn("hidden px-1 text-[11px] tabular-nums sm:inline", quiet)} aria-live="polite">
@@ -456,6 +501,26 @@ export function PdfViewer({
             {panel === "profile" && profile && (
               <Panel label="Profile" style={panelFit} className="w-[min(24rem,calc(100vw-1.5rem))] max-w-full overflow-y-auto overflow-x-hidden [overflow-wrap:anywhere] overscroll-contain">
                 {profile}
+              </Panel>
+            )}
+            {panel === "projects" && doc && (
+              <Panel label="Projects" style={panelFit} className="w-[min(24rem,calc(100vw-1.5rem))] max-w-full overflow-auto overscroll-contain">
+                <h2 className="mb-3 text-sm font-medium">Projects</h2>
+                <ol className="space-y-2">
+                  {sections.map((project) => (
+                    <li key={project.id} className="flex items-center gap-1 rounded-xl border border-border p-1">
+                      <button type="button" onClick={() => { jumpTo(project.startPage); setPanel(null); }} aria-current={current >= project.startPage && current <= project.endPage ? "true" : undefined} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-2 text-left hover:bg-muted focus-visible:outline focus-visible:outline-2 aria-[current=true]:bg-muted">
+                        <div aria-hidden className="pointer-events-none w-16 shrink-0 overflow-hidden rounded border border-border">
+                          <PdfPage doc={doc} n={project.startPage} size={sizes[project.startPage - 1]!} zoom={0} onVisible={noop} thumb />
+                        </div>
+                        <span className="min-w-0"><span className="block break-words text-sm font-medium">{project.title}</span><span className="mt-1 block text-xs text-muted-foreground">{project.startPage === project.endPage ? `Page ${project.startPage}` : `Pages ${project.startPage}–${project.endPage}`}</span></span>
+                      </button>
+                      {projectCode && <button type="button" aria-label={`Copy link to ${project.title}`} title={`Copy link to ${project.title}`} onClick={() => void copyProject(project.id)} className="shrink-0 rounded-full p-2 text-muted-foreground hover:bg-muted focus-visible:outline focus-visible:outline-2"><Copy className="size-4" /></button>}
+                    </li>
+                  ))}
+                </ol>
+                <p role="status" className="mt-2 text-xs text-muted-foreground">{projectMessage}</p>
+                {manualProjectLink && <input aria-label="Project link" readOnly value={manualProjectLink} onFocus={(e) => e.target.select()} className="mt-2 w-full rounded border p-2 text-xs" />}
               </Panel>
             )}
             {panel === "pages" && doc && (

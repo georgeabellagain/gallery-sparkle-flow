@@ -1,3 +1,4 @@
+import type { PortfolioProject } from "@/lib/portfolia/projects";
 import { usePortfolioFont } from "@/lib/portfolia/fonts";
 import { useMemo } from "react";
 import { Mail } from "lucide-react";
@@ -24,6 +25,8 @@ export function PortfolioPage({
   viewer,
   embed,
   startPage,
+  projects,
+  projectCode,
   startFullscreen,
 }: {
   profile: Profile;
@@ -39,6 +42,8 @@ export function PortfolioPage({
   viewer?: ViewerSettings;
   embed?: boolean;
   startPage?: number;
+  projects?: PortfolioProject[];
+  projectCode?: string;
   /** Open full screen on a phone or tablet (a portfolio opened from its QR code). */
   startFullscreen?: boolean;
 }) {
@@ -106,6 +111,8 @@ export function PortfolioPage({
           backdrop={pageStyle?.backdrop}
           viewer={view}
           startPage={startPage}
+          projects={projects}
+          projectCode={projectCode}
           startFullscreen={startFullscreen}
           profile={details}
           home={!embed && !compact}

@@ -468,11 +468,17 @@ export function BookView({
   useEffect(() => {
     onPage(current.page);
   }, [current.page, onPage]);
+  const handledJump = useRef<typeof jump>(null);
   useEffect(() => {
-    if (!jump) return;
+    // A contents selection during a turn waits for it to land, then runs once.
+    if (!jump || jump === handledJump.current || busy || lock.current) return;
     const found = layout.leaves.findIndex((l) => l.page === jump.page);
-    if (found >= 0 && !lock.current) goTo(found);
-  }, [jump, layout, goTo]);
+    if (found >= 0) {
+      queued.current = 0;
+      handledJump.current = jump;
+      goTo(found);
+    }
+  }, [jump, layout, goTo, busy]);
   useEffect(() => {
     scene.current?.configure(settings);
   }, [settings, ready]);

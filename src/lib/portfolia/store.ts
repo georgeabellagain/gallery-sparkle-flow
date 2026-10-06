@@ -90,6 +90,8 @@ export interface Domain {
 
 export interface PdfFile {
   blobKey: string;
+  /** Project navigation belongs to this exact PDF; replacing the file clears it. */
+  projects?: import("./projects").PortfolioProject[];
   /** Optional derived JPEG used in public link previews. */
   coverKey?: string;
   name: string;

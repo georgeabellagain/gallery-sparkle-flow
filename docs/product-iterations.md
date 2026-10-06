@@ -209,6 +209,29 @@ Code commit: `987eaf89cfb3693442ec5b9923cfdb910a3eb6ca`, fast-forwarded to main.
 
 Prioritise desktop/mobile and real-account checks of this batch before further feature work. Verify initial loading, the complete forward/back autoplay cycle and permanent interaction stop, Simple/Studio switching, optional compression acceptance, older-cover generation, sharing metadata and embedding. Confirm the actual live deployment separately from merging GitHub.
 
+## Iteration 16 — named projects and direct project links
+
+Implemented 6 October 2026. Available on Free and Personal.
+
+- Add **Named projects** to the appearance editor: names, first/last PDF pages, explicit save, removal, and copied public links. Up to 30 projects; 80-character names; integer, non-overlapping page ranges. Covers and interstitial pages may stay ungrouped.
+- Add a visual **Projects** contents panel to public readers, embeds and editor previews, with first-page thumbnails, page ranges and current-project indication. Thumbnails render only as they approach the visible panel.
+- Direct links use stable IDs (`/p/<code>#project=<id>`). Renaming a project or updating its range preserves the link. Unknown/deleted IDs fall back to the opening page. Personal URLs also accept the fragment; copied links use the permanent address.
+- Support project navigation in Scroll, Page by page, Simple and Studio. Preserve the selected page when changing reading modes. A jump requested during a book turn is applied once after that turn finishes; rendering, lighting and animation geometry are unchanged.
+- Store project metadata inside the existing PDF JSON using the existing account sync. No new database tables, services, AI calls or uploaded thumbnail files. PDF replacement clears project ranges, with an explanation in the replacement dialog. Other readers continue to access the full PDF; projects do not hide/reorder/remove pages or bypass password/expiry controls.
+- Existing portfolios keep their current appearance until their owners add project names and ranges. Scarlett's example PDF and saved settings were not modified.
+- Validation: all 26 focused tests pass, including five new project tests covering boundaries/overlaps, old or malformed metadata, stable links and PDF replacement. TypeScript and production build pass. Authenticated editor interaction and real-device WebGL navigation still require visual verification; these are not claimed as tested.
+
+## Proposed iteration 17 — richer profession landing pages
+
+The architecture, graphic-design, fashion and photography landing routes already exist, with canonical URLs, metadata and sitemap entries. Currently their shared template links to the same Scarlett Bushell fashion example.
+
+- Improve these existing URLs instead of creating competing duplicates. Start with the four requested disciplines.
+- Give each page a relevant, lightweight example flipbook, genuinely useful profession-specific advice and FAQs, accurate feature descriptions, a distinct search title/description and contextual internal links.
+- Fashion: keep Scarlett's credited lookbook; explain collection process, textiles and garment detail. Architecture: show drawings, plans, sections and project roles. Graphic design: show identity, editorial layouts and process. Photography: show sequencing, series, image detail and client enquiries.
+- Source permission-cleared real examples, or commission clearly labelled fictional demonstration portfolios. Do not present invented work as customer evidence or reuse unrelated fashion work as a discipline-specific example.
+- Keep previews lightweight and load interactive examples on demand or near the viewport, building on the homepage optimisation. No ranking guarantees or unverified keyword-volume claims.
+- This is a proposed next iteration, not implemented in iteration 16. Continue the outstanding signed-in/mobile release checks alongside it.
+
 ## Later — validate demand first
 
 Measure whether the optional lossless optimiser meaningfully reduces upload failures before considering more aggressive image compression; preserve legibility and original files. Consider passwords, expiry, analytics and a job-hunt pass after validating demand and operating cost. A public social gallery, sounds and classroom tooling are deferred.
