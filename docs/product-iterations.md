@@ -220,6 +220,7 @@ Implemented 6 October 2026. Available on Free and Personal.
 - Store project metadata inside the existing PDF JSON using the existing account sync. No new database tables, services, AI calls or uploaded thumbnail files. PDF replacement clears project ranges, with an explanation in the replacement dialog. Other readers continue to access the full PDF; projects do not hide/reorder/remove pages or bypass password/expiry controls.
 - Existing portfolios keep their current appearance until their owners add project names and ranges. Scarlett's example PDF and saved settings were not modified.
 - Validation: all 26 focused tests pass, including five new project tests covering boundaries/overlaps, old or malformed metadata, stable links and PDF replacement. TypeScript and production build pass. Authenticated editor interaction and real-device WebGL navigation still require visual verification; these are not claimed as tested.
+- Publication: main code commit `79e00427383d47bbccc7d1e020541ca58fc6fbe0` synced to Lovable; deployment `ce26013e-fa24-4a8f-a878-fd174ac6ffc5`. Verified live `/edit` responds HTTP 200 and its current editor/viewer assets respond HTTP 200 with Named projects, Save projects, Copy project link and Projects controls. This confirms publication, not a signed-in end-to-end visual test.
 
 ## Proposed iteration 17 — richer profession landing pages
 
