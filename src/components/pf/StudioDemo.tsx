@@ -61,7 +61,7 @@ export function StudioDemo({ className }: { className?: string }) {
       <PdfViewer
         source={source}
         fileName={p.pdf.name}
-        viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "studio", modes: ["book"], looks: ["clean", "studio"] }}
+        viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "studio", studioBrightness: Math.min(1, (p.viewer?.studioBrightness ?? 0.5) + 0.08), modes: ["book"], looks: ["clean", "studio"] }}
         backgroundUrl={p.viewer?.backgroundKey ? data?.urls[p.viewer.backgroundKey] : undefined}
         controls
         lightweight

@@ -263,3 +263,10 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Before publication, review homepage and creation layouts on mobile and desktop.
 - After publication, verify upload-to-preview, pricing links, footer anchors and support links.
 - Treat successful GitHub merging and successful live deployment as separate facts.
+
+## Iteration 19 — slightly brighter Studio examples
+
+- Increase the architecture, graphic-design and photography example brightness from the default 50% to 58%.
+- Apply an eight-percentage-point uplift to Scarlett's saved brightness in the featured demo, capped at 100%. This is a presentation override only; the account's saved settings and ordinary visitor reader are unchanged.
+- Simple view, HDRI choice, page-turn timing and centred spread framing remain unchanged.
+- Next priority: complete the real-device and real-account release checks recorded above, then assess demand for tailored project editions. Passwords and expiry are already implemented (iteration 14); they are not future feature work.
