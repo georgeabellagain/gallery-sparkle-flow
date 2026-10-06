@@ -1,0 +1,1 @@
+Full left and right page sides support click-and-drag page turns at normal zoom. Zoomed dragging preserves positioning.

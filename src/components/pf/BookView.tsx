@@ -17,6 +17,7 @@ import { useTouchGestures } from "@/components/pf/touch-gestures";
 import { CPU_BYTES, deviceTier, detectDensity, longSideCap, longSideFor } from "@/lib/portfolia/resolution";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import type { BackgroundFit } from "@/lib/portfolia/background";
 import { BackdropLayer, IconButton, Segmented, type Tone } from "@/components/pf/viewer-ui";
 
@@ -684,6 +685,7 @@ export function BookView({
   }, [busy, wait, atEnd, atStart, move]);
 
   const beginCornerDrag = (e: React.PointerEvent<HTMLButtonElement>, direction: 1 | -1) => {
+    if (!e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
     if (lock.current) {
       if (!wait) queueStep(direction);
       return;
@@ -846,22 +848,26 @@ export function BookView({
             <p>3D is unavailable on this device. You can still read every page.</p>
           </div>
         )}
-        {/* Invisible but fully working: click a bottom corner, or drag it to turn. */}
+        {/* Each full page side turns at normal zoom; zoomed pages keep drag-to-pan. */}
         {!narrow &&
           !fallback &&
+          zoom <= 1 &&
           (
             [
               [-1, "left"],
               [1, "right"],
             ] as const
           ).map(([d, side]) => (
-            <button
+            <Button
               key={side}
               type="button"
-              className={`pf-corner-zone pf-corner-${side}`}
+              variant="ghost"
+              className="absolute z-10 cursor-grab touch-none rounded-none border-0 bg-transparent p-0 shadow-none hover:bg-transparent active:cursor-grabbing"
               style={{
-                left: `${corners[side === "left" ? 0 : 1]!.x}%`,
-                top: `${corners[side === "left" ? 0 : 1]!.y}%`,
+                left: `${side === "left" ? (corners[0]?.x ?? 8) : ((corners[0]?.x ?? 8) + (corners[1]?.x ?? 92)) / 2}%`,
+                top: `${100 - (corners[0]?.y ?? 86)}%`,
+                width: `${((corners[1]?.x ?? 92) - (corners[0]?.x ?? 8)) / 2}%`,
+                height: `${Math.max(0, 2 * (corners[0]?.y ?? 86) - 100)}%`,
               }}
               aria-label={d === 1 ? "Turn to next page" : "Turn to previous page"}
               disabled={wait || (d === 1 ? atEnd : atStart)}
@@ -870,8 +876,8 @@ export function BookView({
                 const gesture = drag.current;
                 if (!gesture || gesture.id !== e.pointerId) return;
                 if (Math.abs(e.clientX - gesture.x) > 4 || Math.abs(e.clientY - gesture.y) > 4) gesture.moved = true;
-                const width = viewportRef.current?.clientWidth ?? 1;
-                gesture.progress = Math.min(1, Math.max(0, gesture.dir * (gesture.x - e.clientX) / (width * 0.66)));
+                const width = e.currentTarget.clientWidth || 1;
+                gesture.progress = Math.min(1, Math.max(0, gesture.dir * (gesture.x - e.clientX) / width));
                 scene.current?.dragTurn(gesture.progress);
               }}
               onPointerUp={(e) => void finishCornerDrag(e)}
