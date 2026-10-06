@@ -53,7 +53,7 @@ function EditPortfolio() {
         <section id="edit-settings" aria-label="Edit options" className="order-2 min-w-0 border-border px-5 py-6 lg:order-1 lg:border-r">
           <h1 className="display-title text-2xl">Edit portfolio</h1>
           <p className="mt-1 text-xs text-muted-foreground">Style and experience settings</p>
-          <div className="mt-6"><StyleForm sidebar p={p} onSaveError={setSaveErr} /></div>
+          <div className="mt-6"><StyleForm sidebar part="experience" p={p} onSaveError={setSaveErr} /></div>
           <ProjectSettings key={`${p.code}:${p.pdf.blobKey}`} p={p} />
           <div className="mt-6 space-y-3 rule-t pt-5">
             <label className="flex items-center gap-2 text-sm">

@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
 import { ProfileForm } from "@/components/pf/ProfileForm";
+import { StyleForm } from "@/components/pf/StyleForm";
 import { PortfolioPage, useStoredMedia } from "@/components/pf/PortfolioPage";
 import { Button } from "@/components/ui/button";
 import { patchPortfolio, useDoc } from "@/lib/portfolia/store";
@@ -59,6 +60,7 @@ function Create() {
            <h1 className="display-title text-2xl">Edit profile</h1>
           <p className="mt-1 text-xs text-muted-foreground">{p.pdf.name} · {p.pdf.pages} pages</p>
           <div className="mt-6"><ProfileForm p={p} onSaveError={setSaveErr} /></div>
+          <div className="mt-8 rule-t pt-5"><StyleForm sidebar part="appearance" p={p} onSaveError={setSaveErr} /></div>
           {saveErr && <p role="alert" className="mt-4 text-sm text-destructive">{saveErr}</p>}
           <div className="mt-8 rule-t pt-5">
             <p className="text-xs text-muted-foreground">Will be published at <span className="font-mono text-foreground">/p/{p.code}</span>. Unlisted: anyone with your link can view. Your portfolio will not appear in a public directory.</p>

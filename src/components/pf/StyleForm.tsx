@@ -31,7 +31,9 @@ async function prepareBackground(file: File): Promise<Blob> {
 }
 
 /** Paid-plan page styling: heading font, colours and an optional banner. */
-export function StyleForm({ p, onSaveError, sidebar = false }: { p: Portfolio; onSaveError: (msg: string | null) => void; sidebar?: boolean }) {
+export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p: Portfolio; onSaveError: (msg: string | null) => void; sidebar?: boolean; part?: "all" | "appearance" | "experience" }) {
+  const showAppearance = part !== "experience";
+  const showExperience = part !== "appearance";
   const style = p.style ?? DEFAULT_STYLE;
   usePortfolioFont(style.font);
   const paid = p.plan === "personal";
@@ -128,8 +130,8 @@ export function StyleForm({ p, onSaveError, sidebar = false }: { p: Portfolio; o
   };
 
   return (
-    <div className={`grid min-w-0 items-start gap-x-10 gap-y-6 ${sidebar ? "" : "lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]"}`}>
-      <div>
+    <div className={`grid min-w-0 items-start gap-x-10 gap-y-6 ${sidebar || part !== "all" ? "" : "lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]"}`}>
+      {showAppearance && <div>
       <p className="flex items-center gap-2 text-xs font-medium">
         <Palette className="size-4 text-leaf" aria-hidden /> Portfolio appearance
         {!paid && <span className="rounded-full bg-leaf-soft px-2 py-0.5 text-xxs text-leaf">Personal plan</span>}
@@ -163,8 +165,8 @@ export function StyleForm({ p, onSaveError, sidebar = false }: { p: Portfolio; o
         </div>
       )}
       {cropFile && <BannerCropper file={cropFile} onCancel={() => setCropFile(null)} onSave={saveBanner} />}
-      </div>
-      <div className={`rule-t pt-4 ${sidebar ? "" : "lg:border-t-0 lg:pt-0"}`}>
+      </div>}
+      {showExperience && <div className={part === "experience" ? "" : `rule-t pt-4 ${sidebar ? "" : "lg:border-t-0 lg:pt-0"}`}>
         <p className="text-xs font-medium">Portfolio experience</p>
         <div className={`mt-3 grid items-start gap-x-10 gap-y-4 text-xs ${sidebar ? "" : "lg:grid-cols-2"}`}>
           <div className="space-y-3">
@@ -301,7 +303,7 @@ export function StyleForm({ p, onSaveError, sidebar = false }: { p: Portfolio; o
           </div>
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
