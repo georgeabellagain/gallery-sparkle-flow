@@ -1,3 +1,5 @@
+import { AnalyticsPanel } from "@/components/pf/AnalyticsPanel";
+import { totalAnalytics } from "@/lib/portfolia/analytics";
 import { createFileRoute, Link, useHydrated, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Code2, Copy, Eye, Pencil, QrCode, Share2, Upload } from "lucide-react";
@@ -9,7 +11,6 @@ import { PortfolioQrCode } from "@/components/pf/PortfolioQrCode";
 import { EmbedModal } from "@/components/pf/EmbedModal";
 import { Button } from "@/components/ui/button";
 import { formatBytes } from "@/lib/portfolia/assets";
-import { sampleAnalytics } from "@/lib/portfolia/sample";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { useAccount } from "@/hooks/useAccount";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,7 +20,7 @@ import { getPaddleEnvironment } from "@/lib/paddle";
 import { submitFeedback } from "@/lib/feedback.functions";
 import {
   allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, switchPortfolio,
-  getDoc, startPortfolio, personalActive, update, uploadLimitMb, useDoc, type Analytics,
+  getDoc, startPortfolio, personalActive, update, uploadLimitMb, useDoc,
 } from "@/lib/portfolia/store";
 
 export const Route = createFileRoute("/dashboard")({
@@ -185,7 +186,7 @@ function Dashboard() {
               </>}
             </div>
           </div>
-          <AnalyticsPanel data={doc.analytics} />
+          <AnalyticsPanel data={totalAnalytics(doc)} title="Total portfolio statistics" description="Combined visits and download clicks across all your portfolios. A browser viewing two portfolios counts as two visits and one estimated unique visitor." />
         </section>
         <DemoNote className="max-w-2xl">{LOCAL_NOTE}</DemoNote>
         <div className="mt-10 max-w-2xl"><FeedbackBox /></div>
@@ -241,54 +242,6 @@ function Confirm({ onCancel, onConfirm, label }: { onCancel: () => void; onConfi
     <div className="mt-6 flex justify-end gap-2">
       <Button variant="line" onClick={onCancel}>Keep as is</Button>
       <Button variant="destructive" onClick={onConfirm}>{label}</Button>
-    </div>
-  );
-}
-
-function AnalyticsPanel({ data, sample }: { data: Analytics; sample?: boolean }) {
-  const [range, setRange] = useState<7 | 30 | 0>(30);
-  const since = range ? Date.now() - range * 864e5 : 0;
-  const visits = data.visits.filter((v) => v.t >= since);
-  const uniques = new Set(visits.map((v) => v.v)).size;
-  const downloads = data.downloads.filter((t) => t >= since).length;
-  const days = range || Math.max(7, Math.ceil((Date.now() - Math.min(Date.now(), ...data.visits.map((v) => v.t))) / 864e5) + 1);
-  const buckets = Array.from({ length: Math.min(days, 90) }, (_, i) => {
-    const start = new Date(); start.setHours(0, 0, 0, 0);
-    const s = start.getTime() - (Math.min(days, 90) - 1 - i) * 864e5;
-    return visits.filter((v) => v.t >= s && v.t < s + 864e5).length;
-  });
-  const max = Math.max(1, ...buckets);
-  return (
-    <div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-medium">Visit statistics {sample && <span className="ml-2 rounded-full border border-border px-2.5 py-0.5 text-xxs uppercase tracking-wider text-muted-foreground">Sample data — example portfolio</span>}</h2>
-        <div role="group" aria-label="Time range" className="flex gap-1 text-xs">
-          {([[7, "7 days"], [30, "30 days"], [0, "All time"]] as const).map(([r, l]) => (
-            <button key={r} onClick={() => setRange(r)} aria-pressed={range === r} className={`rounded-full border px-3 py-1 ${range === r ? "border-foreground" : "border-border text-muted-foreground"}`}>{l}</button>
-          ))}
-        </div>
-      </div>
-      <dl className="mt-5 grid grid-cols-3 gap-4">
-        <Stat label="Visits" value={visits.length} />
-        <Stat label="Unique visitors (est.)" value={uniques} />
-        <Stat label="Download clicks" value={downloads} />
-      </dl>
-      <div className="mt-6 flex h-24 items-end gap-px" role="img" aria-label={`Visits per day, ${visits.length} total`}>
-        {buckets.map((b, i) => <div key={i} className="flex-1 bg-foreground/70" style={{ height: `${(b / max) * 100}%`, minHeight: b ? 2 : 1, opacity: b ? 1 : 0.15 }} />)}
-      </div>
-      <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-        A visit is one viewing session — scrolling, zooming or loading more pages doesn’t add visits. Your own previews and known bots are excluded. Unique visitors are estimated per browser. Download clicks count button presses, not completed downloads. Statistics can’t identify who visited or show whether anyone read your work.
-        
-      </p>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="display-title text-3xl tabular-nums">{value}</dd>
     </div>
   );
 }

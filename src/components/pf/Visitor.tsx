@@ -1,9 +1,11 @@
+import { AnalyticsPanel } from "./AnalyticsPanel";
+import { portfolioAnalytics } from "@/lib/portfolia/analytics";
 import { StudioDemo } from "./StudioDemo";
 import { useEffect, useState } from "react";
 import { Link, useHydrated } from "@tanstack/react-router";
 import { Eye } from "lucide-react";
 import { PortfolioPage, useStoredMedia } from "./PortfolioPage";
-import { Wordmark } from "./Chrome";
+import { Modal, Wordmark } from "./Chrome";
 import { registerPublicUrls } from "@/lib/portfolia/assets";
 import { useOpenedFromQr } from "@/lib/portfolia/scan";
 import type { PublicPortfolio } from "@/lib/portfolia/public.functions";
@@ -81,16 +83,20 @@ export function CloudVisitor({ data }: { data: NonNullable<PublicPortfolio> }) {
   const hydrated = useHydrated();
   const own = useOwn((p) => p.code === data.portfolio.code);
   const [editError, setEditError] = useState(false);
+  const doc = useDoc();
+  const [showStats, setShowStats] = useState(false);
   return (
     <div className="relative">
       {/* Bottom-left, so it never covers the viewer's icons at the top. */}
       {hydrated && own && (
         <div className="fixed bottom-3 left-3 z-[70] flex gap-2 rounded-full border border-border bg-background/95 p-1 shadow-soft backdrop-blur">
           <Link to="/edit" onClick={(event) => { if (!switchPortfolio(data.portfolio.code)) { event.preventDefault(); setEditError(true); } }} className="rounded-full px-3 py-1.5 text-xs font-medium hover:bg-muted">Edit portfolio</Link>
+          {doc.account.signedIn && <button type="button" onClick={() => setShowStats(true)} className="rounded-full px-3 py-1.5 text-xs hover:bg-muted">Statistics</button>}
           <Link to="/dashboard" className="rounded-full px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">Dashboard</Link>
         </div>
       )}
       {editError && <p role="alert" className="fixed bottom-16 left-3 z-[70] rounded-lg border bg-background p-3 text-xs">Couldn’t open the editor. Free some browser storage and try again.</p>}
+      {hydrated && own && doc.account.signedIn && <Modal open={showStats} onClose={() => setShowStats(false)} title="Portfolio statistics"><AnalyticsPanel data={portfolioAnalytics(doc, data.portfolio.code)} title="This portfolio only" description={data.portfolio.pdf?.name} /></Modal>}
       <OwnVisitor p={data.portfolio} preview={false} trackActivity={hydrated && !own} />
     </div>
   );

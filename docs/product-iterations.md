@@ -278,3 +278,16 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Published portfolios show the dashboard action instead of accepting an accidental replacement. Recheck publication after upload in case account sync completes during processing.
 - Scrapbook feasibility: optional coloured tabs can map to named project start pages. A subsequent, larger feature could let creators attach images to per-page fold-out panels, store their positions and hinge sides, and open/close them on tap/click. Panels should close before page turns and inherit portfolio access controls. These would be interactive web additions; the original PDF download would not contain them. Not implemented in this iteration.
 - Next priority remains mobile/account release checks; optional coloured project tabs are the smallest proposed scrapbook step. Fold-out image editing and animation require a separate scoped iteration.
+
+## Iteration 21 — zines, magazines, homepage navigation and statistics scope
+
+- Preserve intervening Lovable changes to upload redirects, profile appearance settings and page-edge controls. Include the previous industry drop zones and 64% demo brightness in this publication.
+- Add `/zine-flipbook` and `/magazine-flipbook` with distinct copy, FAQs, canonical/search/social metadata, sitemap entries, reserved paths, direct uploads, export guidance and internal links. Do not pretend existing fashion/identity demos are magazine or zine examples, or advertise unfinished scrapbook/media capabilities.
+- Add a wrapping homepage top navigation for Architecture, Graphic design, Fashion, Photography, Zines, Magazines, PDF checker and Pricing.
+- Dashboard statistics combine all owned portfolios and default to All time. Individual editors show only their selected portfolio; the public viewing page has an owner-only Statistics panel. Visitors do not receive account analytics through the public portfolio response.
+- Keep viewing sessions distinct from actual reads. Estimate unique browsers across the combined dataset, exclude missing visitor IDs from the estimate, and label the chart's 90-day all-time display window.
+- Fetch event history in stable, ordered 1,000-row batches using an as-of cutoff instead of a capped query. Errors fail visibly rather than displaying a partial result as a total. No database migration or new tracking event is introduced.
+- “Project-specific” here means the individual uploaded portfolio. Named-section engagement would require new tracking and is not retrospectively available.
+- Record the official-source Heyzine gap review and proposed priorities in `docs/heyzine-feature-review.md`. Coloured tabs and scrapbook fold-outs remain proposed, not shipped.
+
+- Validation: TypeScript and the production build pass; all 30 focused tests pass, including combined/per-portfolio totals and multi-batch event loading. Real-account and real-device visual checks remain outstanding.

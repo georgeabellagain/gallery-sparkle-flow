@@ -65,10 +65,10 @@ export function seoHead(base: SeoContent) {
 
 const OTHERS = SEO_LINKS;
 
-export function SeoLanding({ c: base, children }: { c: SeoContent; children?: React.ReactNode }) {
+export function SeoLanding({ c: base, children, hideDefaultExample = false }: { c: SeoContent; children?: React.ReactNode; hideDefaultExample?: boolean }) {
   const c = withProfessionContent(base);
   const guide = PROFESSION_GUIDES[c.path];
-  const industry = c.path === "/architecture-portfolio" || Boolean(DISCIPLINE_PAGES[c.path.slice(1)]);
+  const industry = ["/architecture-portfolio", "/zine-flipbook", "/magazine-flipbook"].includes(c.path) || Boolean(DISCIPLINE_PAGES[c.path.slice(1)]);
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader
@@ -112,7 +112,7 @@ export function SeoLanding({ c: base, children }: { c: SeoContent; children?: Re
         </section>
 
         {children}
-        {guide ? <ProfessionExample guide={guide} /> : <section className="rule-t">
+        {guide ? <ProfessionExample guide={guide} /> : !hideDefaultExample && <section className="rule-t">
           <div className="shell grid max-w-4xl items-center gap-6 py-10 sm:grid-cols-2">
             <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="flex aspect-[4/3] flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-[#02011e] p-8 text-center text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
               <span className="display-title text-3xl">Scarlett Bushell</span>

@@ -1,3 +1,4 @@
+import { AnalyticsPanel } from "@/components/pf/AnalyticsPanel";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE, Modal, useBlob } from "@/components/pf/Chrome";
@@ -100,6 +101,7 @@ function EditPortfolio() {
               <Button asChild className="w-full" variant="line"><Link to="/dashboard">Back to dashboard</Link></Button>
               <Button asChild className="w-full" variant="quiet"><Link to="/create">Edit profile details</Link></Button>
             </div>
+            {doc.account.signedIn && <section id="statistics"><AnalyticsPanel data={doc.analytics} title="This portfolio’s statistics" description={p.pdf.name} /></section>}
             <ShareActions p={p} />
             <DemoNote>{LOCAL_NOTE}</DemoNote>
           </div>

@@ -28,6 +28,7 @@ import { Route as IllustrationPortfolioRouteImport } from './routes/illustration
 import { Route as InteriorDesignPortfolioRouteImport } from './routes/interior-design-portfolio'
 import { Route as IssuuAlternativeRouteImport } from './routes/issuu-alternative'
 import { Route as LandscapeArchitecturePortfolioRouteImport } from './routes/landscape-architecture-portfolio'
+import { Route as MagazineFlipbookRouteImport } from './routes/magazine-flipbook'
 import { Route as PhotographyPortfolioRouteImport } from './routes/photography-portfolio'
 import { Route as PortfolioCheckerRouteImport } from './routes/portfolio-checker'
 import { Route as PricingRouteImport } from './routes/pricing'
@@ -41,6 +42,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as StudentPortfolioRouteImport } from './routes/student-portfolio'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as UxDesignPortfolioRouteImport } from './routes/ux-design-portfolio'
+import { Route as ZineFlipbookRouteImport } from './routes/zine-flipbook'
 import { Route as EmbedCodeRouteImport } from './routes/embed.$code'
 import { Route as PSlugRouteImport } from './routes/p.$slug'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
@@ -145,6 +147,11 @@ const LandscapeArchitecturePortfolioRoute =
     path: '/landscape-architecture-portfolio',
     getParentRoute: () => rootRouteImport,
   } as any)
+const MagazineFlipbookRoute = MagazineFlipbookRouteImport.update({
+  id: '/magazine-flipbook',
+  path: '/magazine-flipbook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PhotographyPortfolioRoute = PhotographyPortfolioRouteImport.update({
   id: '/photography-portfolio',
   path: '/photography-portfolio',
@@ -210,6 +217,11 @@ const UxDesignPortfolioRoute = UxDesignPortfolioRouteImport.update({
   path: '/ux-design-portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ZineFlipbookRoute = ZineFlipbookRouteImport.update({
+  id: '/zine-flipbook',
+  path: '/zine-flipbook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EmbedCodeRoute = EmbedCodeRouteImport.update({
   id: '/embed/$code',
   path: '/embed/$code',
@@ -264,6 +276,7 @@ export interface FileRoutesByFullPath {
   '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
   '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
+  '/magazine-flipbook': typeof MagazineFlipbookRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
   '/portfolio-checker': typeof PortfolioCheckerRoute
   '/pricing': typeof PricingRoute
@@ -277,6 +290,7 @@ export interface FileRoutesByFullPath {
   '/student-portfolio': typeof StudentPortfolioRoute
   '/terms': typeof TermsRoute
   '/ux-design-portfolio': typeof UxDesignPortfolioRoute
+  '/zine-flipbook': typeof ZineFlipbookRoute
   '/embed/$code': typeof EmbedCodeRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
@@ -304,6 +318,7 @@ export interface FileRoutesByTo {
   '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
   '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
+  '/magazine-flipbook': typeof MagazineFlipbookRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
   '/portfolio-checker': typeof PortfolioCheckerRoute
   '/pricing': typeof PricingRoute
@@ -317,6 +332,7 @@ export interface FileRoutesByTo {
   '/student-portfolio': typeof StudentPortfolioRoute
   '/terms': typeof TermsRoute
   '/ux-design-portfolio': typeof UxDesignPortfolioRoute
+  '/zine-flipbook': typeof ZineFlipbookRoute
   '/embed/$code': typeof EmbedCodeRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
@@ -345,6 +361,7 @@ export interface FileRoutesById {
   '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
   '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
+  '/magazine-flipbook': typeof MagazineFlipbookRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
   '/portfolio-checker': typeof PortfolioCheckerRoute
   '/pricing': typeof PricingRoute
@@ -358,6 +375,7 @@ export interface FileRoutesById {
   '/student-portfolio': typeof StudentPortfolioRoute
   '/terms': typeof TermsRoute
   '/ux-design-portfolio': typeof UxDesignPortfolioRoute
+  '/zine-flipbook': typeof ZineFlipbookRoute
   '/embed/$code': typeof EmbedCodeRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
@@ -387,6 +405,7 @@ export interface FileRouteTypes {
     | '/interior-design-portfolio'
     | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
+    | '/magazine-flipbook'
     | '/photography-portfolio'
     | '/portfolio-checker'
     | '/pricing'
@@ -400,6 +419,7 @@ export interface FileRouteTypes {
     | '/student-portfolio'
     | '/terms'
     | '/ux-design-portfolio'
+    | '/zine-flipbook'
     | '/embed/$code'
     | '/p/$slug'
     | '/u/$username'
@@ -427,6 +447,7 @@ export interface FileRouteTypes {
     | '/interior-design-portfolio'
     | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
+    | '/magazine-flipbook'
     | '/photography-portfolio'
     | '/portfolio-checker'
     | '/pricing'
@@ -440,6 +461,7 @@ export interface FileRouteTypes {
     | '/student-portfolio'
     | '/terms'
     | '/ux-design-portfolio'
+    | '/zine-flipbook'
     | '/embed/$code'
     | '/p/$slug'
     | '/u/$username'
@@ -467,6 +489,7 @@ export interface FileRouteTypes {
     | '/interior-design-portfolio'
     | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
+    | '/magazine-flipbook'
     | '/photography-portfolio'
     | '/portfolio-checker'
     | '/pricing'
@@ -480,6 +503,7 @@ export interface FileRouteTypes {
     | '/student-portfolio'
     | '/terms'
     | '/ux-design-portfolio'
+    | '/zine-flipbook'
     | '/embed/$code'
     | '/p/$slug'
     | '/u/$username'
@@ -508,6 +532,7 @@ export interface RootRouteChildren {
   InteriorDesignPortfolioRoute: typeof InteriorDesignPortfolioRoute
   IssuuAlternativeRoute: typeof IssuuAlternativeRoute
   LandscapeArchitecturePortfolioRoute: typeof LandscapeArchitecturePortfolioRoute
+  MagazineFlipbookRoute: typeof MagazineFlipbookRoute
   PhotographyPortfolioRoute: typeof PhotographyPortfolioRoute
   PortfolioCheckerRoute: typeof PortfolioCheckerRoute
   PricingRoute: typeof PricingRoute
@@ -521,6 +546,7 @@ export interface RootRouteChildren {
   StudentPortfolioRoute: typeof StudentPortfolioRoute
   TermsRoute: typeof TermsRoute
   UxDesignPortfolioRoute: typeof UxDesignPortfolioRoute
+  ZineFlipbookRoute: typeof ZineFlipbookRoute
   EmbedCodeRoute: typeof EmbedCodeRoute
   PSlugRoute: typeof PSlugRoute
   UUsernameRoute: typeof UUsernameRoute
@@ -664,6 +690,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LandscapeArchitecturePortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/magazine-flipbook': {
+      id: '/magazine-flipbook'
+      path: '/magazine-flipbook'
+      fullPath: '/magazine-flipbook'
+      preLoaderRoute: typeof MagazineFlipbookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/photography-portfolio': {
       id: '/photography-portfolio'
       path: '/photography-portfolio'
@@ -755,6 +788,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UxDesignPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/zine-flipbook': {
+      id: '/zine-flipbook'
+      path: '/zine-flipbook'
+      fullPath: '/zine-flipbook'
+      preLoaderRoute: typeof ZineFlipbookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/embed/$code': {
       id: '/embed/$code'
       path: '/embed/$code'
@@ -820,6 +860,7 @@ const rootRouteChildren: RootRouteChildren = {
   InteriorDesignPortfolioRoute: InteriorDesignPortfolioRoute,
   IssuuAlternativeRoute: IssuuAlternativeRoute,
   LandscapeArchitecturePortfolioRoute: LandscapeArchitecturePortfolioRoute,
+  MagazineFlipbookRoute: MagazineFlipbookRoute,
   PhotographyPortfolioRoute: PhotographyPortfolioRoute,
   PortfolioCheckerRoute: PortfolioCheckerRoute,
   PricingRoute: PricingRoute,
@@ -833,6 +874,7 @@ const rootRouteChildren: RootRouteChildren = {
   StudentPortfolioRoute: StudentPortfolioRoute,
   TermsRoute: TermsRoute,
   UxDesignPortfolioRoute: UxDesignPortfolioRoute,
+  ZineFlipbookRoute: ZineFlipbookRoute,
   EmbedCodeRoute: EmbedCodeRoute,
   PSlugRoute: PSlugRoute,
   UUsernameRoute: UUsernameRoute,

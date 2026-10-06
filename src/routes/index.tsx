@@ -1,3 +1,4 @@
+import { HomeNavigation } from "@/components/pf/HomeNavigation";
 import { FeatureShowcase } from "@/components/pf/FeatureShowcase";
 import { softwareSchema } from "@/lib/portfolia/software-schema";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
@@ -65,6 +66,7 @@ function Landing() {
           )
         }
       />
+      <HomeNavigation />
       <main className="flex-1">
         {/* Try a PDF immediately, beside the existing live example. */}
         <section className="shell py-12 sm:py-16">

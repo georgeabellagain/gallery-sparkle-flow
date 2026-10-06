@@ -1,0 +1,5 @@
+import { SeoLanding } from './SeoLanding';
+import { PUBLICATION_ADVICE, PUBLICATION_PAGES } from '@/lib/portfolia/publication-pages';
+export function PublicationLanding({kind}:{kind:'zine'|'magazine'}) {
+ return <SeoLanding c={PUBLICATION_PAGES[kind]} hideDefaultExample><section className="rule-t"><div className="shell max-w-4xl space-y-9 py-12">{PUBLICATION_ADVICE[kind].map(s=><article key={s.title}><h2 className="display-title text-2xl">{s.title}</h2><p className="mt-3 text-sm leading-7 text-muted-foreground">{s.body}</p></article>)}<p className="text-sm">Before uploading, use the <a href="/portfolio-checker" className="underline underline-offset-4">local PDF checker</a>. For an existing website, see our <a href="/embed-flipbook-in-wix" className="underline underline-offset-4">Wix</a>, <a href="/embed-flipbook-in-squarespace" className="underline underline-offset-4">Squarespace</a> and <a href="/embed-flipbook-in-notion" className="underline underline-offset-4">Notion</a> embedding guides.</p></div></section></SeoLanding>;
+}

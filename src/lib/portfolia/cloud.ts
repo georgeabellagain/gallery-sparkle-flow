@@ -1,3 +1,4 @@
+import { allAnalyticsEvents } from "./analytics";
 import { useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -92,7 +93,8 @@ async function push() {
 async function loadAnalytics(codes: string[]): Promise<Map<string, Analytics>> {
   const out = new Map<string, Analytics>(codes.map((c) => [c, { visits: [], downloads: [] }]));
   if (!codes.length) return out;
-  const { data } = await supabase.from("portfolio_events").select("portfolio_code, kind, visitor, created_at").in("portfolio_code", codes).limit(10000);
+  const asOf = new Date().toISOString();
+  const data = await allAnalyticsEvents((from, to) => supabase.from("portfolio_events").select("portfolio_code, kind, visitor, created_at").in("portfolio_code", codes).lte("created_at", asOf).order("created_at").order("id").range(from, to));
   for (const e of data ?? []) {
     const a = out.get(e.portfolio_code);
     const t = Date.parse(e.created_at);
@@ -121,7 +123,9 @@ async function pull(uid: string) {
     }
   }
   const list: Portfolio[] = [...toMove.map((p) => ({ ...p, synced: true })), ...cloud.values()];
-  const analytics = await loadAnalytics(list.map((p) => p.code));
+  let analytics: Map<string, Analytics>;
+  try { analytics = await loadAnalytics(list.map((p) => p.code)); }
+  catch (error) { setStatus("error", error instanceof Error ? error.message : "Couldn’t load visit statistics. Please refresh."); return; }
   const activeCode = local.portfolio && list.some((p) => p.code === local.portfolio!.code) ? local.portfolio.code : list[0]?.code;
   const active = list.find((p) => p.code === activeCode) ?? null;
   const next: Doc = {
