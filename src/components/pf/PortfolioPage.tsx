@@ -1,3 +1,4 @@
+import type { Foldout } from "@/lib/portfolia/foldouts";
 import type { PortfolioProject } from "@/lib/portfolia/projects";
 import { usePortfolioFont } from "@/lib/portfolia/fonts";
 import { useMemo } from "react";
@@ -26,6 +27,7 @@ export function PortfolioPage({
   embed,
   startPage,
   projects,
+  foldouts,
   projectCode,
   startFullscreen,
 }: {
@@ -43,6 +45,7 @@ export function PortfolioPage({
   embed?: boolean;
   startPage?: number;
   projects?: PortfolioProject[];
+  foldouts?: Foldout[];
   projectCode?: string;
   /** Open full screen on a phone or tablet (a portfolio opened from its QR code). */
   startFullscreen?: boolean;
@@ -112,6 +115,7 @@ export function PortfolioPage({
           viewer={view}
           startPage={startPage}
           projects={projects}
+          foldouts={foldouts}
           projectCode={projectCode}
           startFullscreen={startFullscreen}
           profile={details}

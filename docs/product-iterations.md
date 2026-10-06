@@ -291,3 +291,16 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Record the official-source Heyzine gap review and proposed priorities in `docs/heyzine-feature-review.md`. Coloured tabs and scrapbook fold-outs remain proposed, not shipped.
 
 - Validation: TypeScript and the production build pass; all 30 focused tests pass, including combined/per-portfolio totals and multi-batch event loading. Real-account and real-device visual checks remain outstanding.
+
+
+## Iteration 22 — scrapbook fold-out prototype (unpublished)
+
+- Branch-only experiment; do not merge to main or deploy until reviewed. Iteration 21 is the last published release.
+- Add optional PDF-bound image fold-outs in the appearance editor. Creators choose PDF page, spread half, caption, left/right hinge, colour, size and position. A small interactive placement preview updates while editing; Save fold-out applies the changes to the book.
+- Readers click/tap the flap to unfold a two-panel image in Simple or Studio. Enter/Space work on the focused flap; Escape closes it. Reduced-motion preferences disable the transition. Page turns, jumps and look changes reset the panels; overlays are hidden during page animation to avoid floating over the turning sheet.
+- Keep both opened panels within their physical page for phone framing. Pre-arranged PDF spreads attach the fold-out to the selected half only. Zoom and pan use the scene's projected page bounds.
+- Restrict uploads to JPEG/PNG/WebP, maximum 8 MB input, 12 fold-outs per PDF. Re-encode images at up to 2,400 pixels on the long edge. Preserve aspect ratio across the two panels without cropping.
+- Store images using existing private portfolio assets. Include them in account sync, published signed assets and password/expiry-checked file responses. Remove them on explicit removal, PDF replacement or portfolio deletion. No live database migration or account content changes were made for this prototype.
+- Add `/scrapbook-preview` as a noindex, non-sitemap review route, with hinge/colour/phone-width controls and an optional actual flipbook demo. The route exists only on this branch; it is not a live URL.
+- Scope: animated DOM paper overlays, not physically simulated Three.js sheets. Fold-outs are available in the functioning 3D book (Simple/Studio), not Scroll, Page by page, graphics fallback or the original PDF download. Coloured project navigation tabs remain separate, unbuilt work.
+- Checks: production build and TypeScript pass; all 34 focused tests pass. New tests cover placement validation, spread-half mapping, safe image keys and password/expiry protection. Browser visual verification was blocked by unavailable Chromium and a failed browser download; desktop/mobile interaction, camera alignment and cloud persistence still require manual review before any release.

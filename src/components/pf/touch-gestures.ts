@@ -48,6 +48,7 @@ export function useTouchGestures(ref: RefObject<HTMLElement | null>, options: Op
       followed.clear();
     };
     const start = (event: TouchEvent) => {
+      if ((event.target as Element | null)?.closest?.("[data-foldout]")) { tap = null; pinch = null; return; }
       follow(event.target);
       if (!latest.current.enabled) {
         tap = null;
@@ -110,3 +111,4 @@ export function useTouchGestures(ref: RefObject<HTMLElement | null>, options: Op
     };
   }, [ref, options.enabled]);
 }
+

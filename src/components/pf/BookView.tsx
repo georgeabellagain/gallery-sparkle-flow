@@ -1,3 +1,5 @@
+import { StoredFoldout } from "./FoldoutCard";
+import { foldoutsForLeaf, readableFoldouts, type Foldout, type PageBounds } from "@/lib/portfolia/foldouts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
@@ -244,6 +246,7 @@ export function BookView({
   fullSpread = false,
   previewable,
   lightweight = false,
+  foldouts,
 }: {
   doc: PDFDocumentProxy;
   sizes: { w: number; h: number }[];
@@ -275,6 +278,7 @@ export function BookView({
   /** The editor's preview: it shows the look whose settings are being edited. */
   previewable?: boolean;
   lightweight?: boolean;
+  foldouts?: Foldout[];
 }) {
   // A portrait first page followed only by landscape pages is a front cover and then two-page spreads.
   // The flipbook shows it that way whatever "My PDF contains" says; the other reading modes are unaffected.
@@ -304,6 +308,9 @@ export function BookView({
     { x: 8, y: 86 },
     { x: 92, y: 86 },
   ]);
+  const [pageBounds, setPageBounds] = useState<PageBounds[]>([]);
+  const syncBounds = () => { if (scene.current) { setCorners(scene.current.corners()); setPageBounds(scene.current.pageBounds()); } };
+  const additions = useMemo(() => readableFoldouts(foldouts, doc.numPages), [foldouts, doc.numPages]);
   const [leaf, setLeaf] = useState(0);
   // The page the book is really on. Updated the instant a turn lands, so a very quick
   // click never works from stale information while React is still catching up.
@@ -363,7 +370,7 @@ export function BookView({
     let cancelled = false;
     const element = host.current!;
     const generation = epoch;
-    const observer = new ResizeObserver(() => setNarrow(!fullSpread && element.clientWidth < 720));
+    const observer = new ResizeObserver(() => { setNarrow(!fullSpread && element.clientWidth < 720); requestAnimationFrame(syncBounds); });
     observer.observe(element);
     setNarrow(!fullSpread && element.clientWidth < 720);
     // The detail of the images inside the PDF is read once, in the background; pages wait for it before drawing.
@@ -492,7 +499,7 @@ export function BookView({
     if (!busy && scene.current) {
       // A wheel gesture that has not reached the parent yet owns the zoom.
       scene.current.viewport(narrow, zoomFrame.current ? wheelZoom.current : zoom, focus);
-      setCorners(scene.current.corners());
+      syncBounds();
     }
     if (!zoomFrame.current) wheelZoom.current = zoom;
   }, [narrow, zoom, focus, busy, ready, settings]);
@@ -511,7 +518,7 @@ export function BookView({
       zoomFrame.current = requestAnimationFrame(() => {
         zoomFrame.current = 0;
         onZoomChange(wheelZoom.current);
-        if (scene.current) setCorners(scene.current.corners());
+        if (scene.current) syncBounds();
       });
     }
   };
@@ -547,7 +554,7 @@ export function BookView({
         zoomFrame.current = requestAnimationFrame(() => {
           zoomFrame.current = 0;
           onZoomChange(wheelZoom.current);
-          if (scene.current) setCorners(scene.current.corners());
+          if (scene.current) syncBounds();
         });
       }
     };
@@ -813,7 +820,7 @@ export function BookView({
           scene.current?.dragPan(e.clientX - pan.x, e.clientY - pan.y);
           pan.x = e.clientX;
           pan.y = e.clientY;
-          if (scene.current) setCorners(scene.current.corners());
+          if (scene.current) syncBounds();
         }}
         onPointerUp={(e) => {
           if (panning.current?.id === e.pointerId) panning.current = null;
@@ -848,6 +855,14 @@ export function BookView({
             <p>3D is unavailable on this device. You can still read every page.</p>
           </div>
         )}
+        {bookReady && !busy && !wait && !fallback && spread.map((n, side) => {
+          const bounds = pageBounds[side];
+          if (n === null || !bounds || (narrow && n !== leaf)) return null;
+          const visible = foldoutsForLeaf(additions, layout.leaves[n]!);
+          return <div key={`${n}:${settings.studio}`} className="pointer-events-none absolute z-30" style={{ left: `${bounds.x}%`, top: `${bounds.y}%`, width: `${bounds.width}%`, height: `${bounds.height}%` }}>
+            {visible.map(item => <StoredFoldout key={`${item.id}:${JSON.stringify(item)}`} item={item} />)}
+          </div>;
+        })}
         {/* Each full page side turns at normal zoom; zoomed pages keep drag-to-pan. */}
         {!narrow &&
           !fallback &&

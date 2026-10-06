@@ -1,3 +1,4 @@
+import { foldoutKeys } from "./foldouts";
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -35,7 +36,7 @@ export const getPublicPortfolio = createServerFn({ method: "GET" })
     const access = await requestAccess(row.code);
     if (access.state !== "open") return null;
     const p = row.data as unknown as Portfolio;
-    const keys = [p.pdf?.blobKey, p.profile?.photoKey, p.plan === "personal" ? p.profile?.cv?.blobKey : undefined, p.plan === "personal" ? p.style?.bannerKey : undefined, p.viewer?.backgroundKey].filter(Boolean) as string[];
+    const keys = [p.pdf?.blobKey, p.profile?.photoKey, p.plan === "personal" ? p.profile?.cv?.blobKey : undefined, p.plan === "personal" ? p.style?.bannerKey : undefined, p.viewer?.backgroundKey, ...foldoutKeys(p.pdf)].filter(Boolean) as string[];
     const urls: Record<string, string> = {};
     if (keys.length) {
       // Signing needs privileged access; only files referenced by this published portfolio are signed.

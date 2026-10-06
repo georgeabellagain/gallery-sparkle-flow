@@ -37,6 +37,7 @@ import { Route as ProductDesignPortfolioRouteImport } from './routes/product-des
 import { Route as ProfessionalPortfolioRouteImport } from './routes/professional-portfolio'
 import { Route as RefundRouteImport } from './routes/refund'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ScrapbookPreviewRouteImport } from './routes/scrapbook-preview'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as StudentPortfolioRouteImport } from './routes/student-portfolio'
@@ -192,6 +193,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ScrapbookPreviewRoute = ScrapbookPreviewRouteImport.update({
+  id: '/scrapbook-preview',
+  path: '/scrapbook-preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SigninRoute = SigninRouteImport.update({
   id: '/signin',
   path: '/signin',
@@ -285,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/professional-portfolio': typeof ProfessionalPortfolioRoute
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/scrapbook-preview': typeof ScrapbookPreviewRoute
   '/signin': typeof SigninRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/student-portfolio': typeof StudentPortfolioRoute
@@ -327,6 +334,7 @@ export interface FileRoutesByTo {
   '/professional-portfolio': typeof ProfessionalPortfolioRoute
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/scrapbook-preview': typeof ScrapbookPreviewRoute
   '/signin': typeof SigninRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/student-portfolio': typeof StudentPortfolioRoute
@@ -370,6 +378,7 @@ export interface FileRoutesById {
   '/professional-portfolio': typeof ProfessionalPortfolioRoute
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/scrapbook-preview': typeof ScrapbookPreviewRoute
   '/signin': typeof SigninRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/student-portfolio': typeof StudentPortfolioRoute
@@ -414,6 +423,7 @@ export interface FileRouteTypes {
     | '/professional-portfolio'
     | '/refund'
     | '/reset-password'
+    | '/scrapbook-preview'
     | '/signin'
     | '/sitemap.xml'
     | '/student-portfolio'
@@ -456,6 +466,7 @@ export interface FileRouteTypes {
     | '/professional-portfolio'
     | '/refund'
     | '/reset-password'
+    | '/scrapbook-preview'
     | '/signin'
     | '/sitemap.xml'
     | '/student-portfolio'
@@ -498,6 +509,7 @@ export interface FileRouteTypes {
     | '/professional-portfolio'
     | '/refund'
     | '/reset-password'
+    | '/scrapbook-preview'
     | '/signin'
     | '/sitemap.xml'
     | '/student-portfolio'
@@ -541,6 +553,7 @@ export interface RootRouteChildren {
   ProfessionalPortfolioRoute: typeof ProfessionalPortfolioRoute
   RefundRoute: typeof RefundRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ScrapbookPreviewRoute: typeof ScrapbookPreviewRoute
   SigninRoute: typeof SigninRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StudentPortfolioRoute: typeof StudentPortfolioRoute
@@ -753,6 +766,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/scrapbook-preview': {
+      id: '/scrapbook-preview'
+      path: '/scrapbook-preview'
+      fullPath: '/scrapbook-preview'
+      preLoaderRoute: typeof ScrapbookPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signin': {
       id: '/signin'
       path: '/signin'
@@ -869,6 +889,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfessionalPortfolioRoute: ProfessionalPortfolioRoute,
   RefundRoute: RefundRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ScrapbookPreviewRoute: ScrapbookPreviewRoute,
   SigninRoute: SigninRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StudentPortfolioRoute: StudentPortfolioRoute,
