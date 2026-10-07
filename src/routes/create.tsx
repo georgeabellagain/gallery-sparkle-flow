@@ -1,3 +1,4 @@
+import { FoldoutSettings } from "@/components/pf/FoldoutSettings";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
@@ -55,6 +56,7 @@ function Create() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader right={<span className="text-xs text-muted-foreground">{saveErr || sync.status === "error" ? <>Couldn’t save · <button className="underline" onClick={retrySync}>Retry</button></> : !doc.account.signedIn ? "Draft — sign in to save to your account" : sync.status === "saving" ? "Saving…" : "Saved to your account"}</span>} />
+      <div className="shell pb-5"><FoldoutSettings key={`foldouts:${p.code}:${p.pdf.blobKey}`} p={p} /></div>
       <div className="grid flex-1 lg:grid-cols-[380px_1fr]">
         <aside id="profile-details" className="order-2 scroll-mt-6 border-border p-5 lg:order-1 lg:border-r lg:p-7">
            <h1 className="display-title text-2xl">Edit profile</h1>

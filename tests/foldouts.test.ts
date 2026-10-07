@@ -239,3 +239,72 @@ test("turning page artwork contains the outside surface, never the hidden interi
   assert.ok(texts.join("").includes("OUTSIDE"));
   assert.ok(!texts.join("").includes("SECRET"));
 });
+
+test("all hinge choices and bounded independent image treatments round-trip", () => {
+  for (const hinge of ["left", "right", "top", "bottom", "none"] as const) {
+    const f = {
+      ...item,
+      hinge,
+      outside: {
+        colour: "#ffffff",
+        text: "A note",
+        font: "mono" as const,
+        imageFit: "cover" as const,
+        imageScale: 2,
+        imageX: -0.5,
+        imageY: 0.4,
+      },
+    };
+    assert.equal(validateFoldout(f, 4), null);
+    assert.deepEqual(readableFoldouts([f], 4), [f]);
+    for (const bad of [
+      { imageScale: Infinity },
+      { imageScale: 0 },
+      { imageX: 2 },
+      { font: "bad" },
+      { imageFit: "bad" },
+    ]) {
+      assert.ok(
+        validateFoldout(
+          { ...f, outside: { ...f.outside, ...bad } } as Foldout,
+          4,
+        ),
+      );
+    }
+  }
+});
+
+test("crop and image translation are applied without changing the original image", async () => {
+  const { paintNoteSurface } =
+    await import("../src/lib/portfolia/foldout-paint");
+  let draw: unknown[] = [];
+  const ctx = {
+    save() {},
+    restore() {},
+    beginPath() {},
+    rect() {},
+    clip() {},
+    fillRect() {},
+    drawImage(...args: unknown[]) {
+      draw = args;
+    },
+  } as unknown as CanvasRenderingContext2D;
+  const image = { width: 200, height: 100 } as ImageBitmap;
+  paintNoteSurface(
+    ctx,
+    100,
+    100,
+    {
+      colour: "#ffffff",
+      text: "",
+      imageKey: "image",
+      imageFit: "cover",
+      imageScale: 2,
+      imageX: 0.25,
+      imageY: -0.1,
+    },
+    new Map([["image", image]]),
+  );
+  assert.deepEqual(draw, [image, -125, -60, 400, 200]);
+  assert.equal(image.width, 200);
+});

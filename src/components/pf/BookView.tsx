@@ -792,6 +792,19 @@ export function BookView({
   // Tell the viewer when the book is rendered and ready, so it can show nothing but a loader until then.
   useEffect(() => { if (error) onRenderError?.(error); }, [error, onRenderError]);
   const bookReady = (ready > 0 || fallback) && warm && !loading && !error;
+  const [litNotesKey, setLitNotesKey] = useState("");
+  const notesKey = JSON.stringify([ready,spread,narrow,leaf,additions,bookReady,busy,wait,fallback]);
+  useEffect(() => {
+    const renderer = scene.current;
+    if (!renderer) return;
+    let cancelled = false;
+    setLitNotesKey("");
+    if (!bookReady || busy || wait || fallback) { renderer.clearNotes(); return; }
+    const visible = spread.flatMap((n,side) => n === null || (narrow && n !== leaf) ? [] : foldoutsForLeaf(additions,layout.leaves[n]!).map(item=>({item,side})));
+    void renderer.setNotes(visible).then(()=>{if(!cancelled)setLitNotesKey(notesKey);});
+    return ()=>{cancelled=true;renderer.clearNotes();};
+  }, [notesKey]);
+
   useEffect(() => {
     onReadyChange?.(bookReady);
   }, [bookReady, onReadyChange]);
@@ -869,7 +882,7 @@ export function BookView({
           if (n === null || !bounds || (narrow && n !== leaf)) return null;
           const visible = foldoutsForLeaf(additions, layout.leaves[n]!);
           return <div key={`${n}:${settings.studio}`} className="pointer-events-none absolute z-30" style={{ left: `${bounds.x}%`, top: `${bounds.y}%`, width: `${bounds.width}%`, height: `${bounds.height}%` }}>
-            {visible.map(item => <StoredFoldout key={`${item.id}:${JSON.stringify(item)}`} item={item} baked />)}
+            {visible.map(item => <StoredFoldout key={`${item.id}:${litNotesKey === notesKey}:${JSON.stringify(item)}`} item={item} baked sceneRendered={litNotesKey === notesKey} onProgress={p=>scene.current?.noteProgress(item.id,p)} />)}
           </div>;
         })}
         {/* Each full page side turns at normal zoom; zoomed pages keep drag-to-pan. */}

@@ -51,12 +51,12 @@ function EditPortfolio() {
     <div className="flex min-h-screen flex-col">
       <SiteHeader right={<span className="text-xs text-muted-foreground">{saveErr || sync.status === "error" ? <>Couldn’t save · <button className="underline" onClick={retrySync}>Retry</button></> : !doc.account.signedIn ? "Draft — sign in to save" : sync.status === "saving" ? "Saving…" : "Saved"}</span>} />
       <main className="flex-1">
+        <div className="shell pb-5"><FoldoutSettings key={`foldouts:${p.code}:${p.pdf.blobKey}`} p={p} /></div>
         <div className="grid items-start lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)]">
         <section id="edit-settings" aria-label="Edit options" className="order-2 min-w-0 border-border px-5 py-6 lg:order-1 lg:border-r">
           <h1 className="display-title text-2xl">Edit portfolio</h1>
           <p className="mt-1 text-xs text-muted-foreground">Style and experience settings</p>
           <div className="mt-6"><StyleForm sidebar part="experience" p={p} onSaveError={setSaveErr} /></div>
-          <FoldoutSettings key={`foldouts:${p.code}:${p.pdf.blobKey}`} p={p} />
           <ProjectSettings key={`${p.code}:${p.pdf.blobKey}`} p={p} />
           <div className="mt-6 space-y-3 rule-t pt-5">
             <label className="flex items-center gap-2 text-sm">

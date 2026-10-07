@@ -316,4 +316,23 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Closed notes may be positioned anywhere on the physical page and resized from 8% to 100% in either dimension. Opened panels may extend beyond the page; choose the appropriate opening direction. Both the desktop editor and phone use normalized page coordinates, including the existing mixed cover/spread layout.
 - Render outside artwork at the existing PDF page resolution. Decode outside images only for the PDF page being prepared, then release the bitmaps; interior images load when a note opens. Original PDF downloads are unchanged.
 - Validation: production build, TypeScript and 37 focused tests pass, including text-only/legacy compatibility, both surface asset keys, resize bounds and proof that only outside artwork is painted into the turning page. Real-device visual checks and signed-in cloud round trips remain outstanding in this environment.
-- No merge or deployment performed for this iteration. Keep the new review branch unpublished until instructed.
+- Merged as PR #10 after approval. Not published.
+
+
+## Iteration 24 — make scrapbook editing easy to find (unpublished)
+
+- Confirmed that GitHub main and Lovable both contained iteration 23; no overwritten code was found. This does not establish which preview build was displayed in the user’s browser.
+- Move the Scrapbook notes entry above the entire appearance editor and preview. Add the same entry to Edit profile, so both editing routes expose it without searching through long forms. On phones it appears before the preview.
+- Included with iteration 25 for review. Not published.
+
+
+## Iteration 25 — interactive, lit scrapbook flaps (unpublished)
+
+- Remove the flap close X. Click either the note or its unfolded panel to close; drag in the unfolding direction to open and reverse the drag to close. Keyboard activation and Escape remain supported.
+- Add top/bottom hinges and a no-flap option for flat notes, alongside left/right.
+- Add independent image fit/crop, scale and horizontal/vertical placement for both surfaces, including dragging the artwork preview. Original image files remain intact.
+- Add serif, sans serif, typewriter and handwritten system-font choices without adding font downloads.
+- Render opened flaps as Three.js paper meshes in the same book scene, sharing material, HDRI, lighting and shadows. Closed artwork remains baked into the turning page. Release meshes/textures when leaving the spread.
+- Keep the scrapbook editor prominent on both editing routes (iteration 24).
+- Review branch only; no deployment. Browser/device interaction and visual lighting review remain required before publishing.
+- Validation: production build and TypeScript pass; all 40 focused tests pass, including bounded crop settings, non-destructive image transforms, four hinge directions, shared paper materials and mesh cleanup.
