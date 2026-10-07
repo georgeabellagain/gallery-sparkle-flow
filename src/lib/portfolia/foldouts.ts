@@ -1,14 +1,20 @@
 import type { Leaf } from "./book-layout";
-
+export interface FoldoutSurface {
+  colour: string;
+  text: string;
+  imageKey?: string;
+}
 export interface Foldout {
   id: string;
   page: number;
-  /** Which physical half to use when the PDF page is a complete spread. */
   half: "left" | "right";
   title: string;
-  imageKey: string;
-  hinge: "left" | "right";
+  /** Legacy image/colour fields remain readable. New notes use independent surfaces. */
+  imageKey?: string;
   colour: string;
+  outside?: FoldoutSurface;
+  inside?: FoldoutSurface;
+  hinge: "left" | "right";
   x: number;
   y: number;
   width: number;
@@ -22,10 +28,20 @@ export interface PageBounds {
 }
 export const MAX_FOLDOUTS = 12;
 export const FOLDOUT_IMAGE_LIMIT = 8 * 1024 * 1024;
+export const NOTE_TEXT_LIMIT = 1200;
 const key = /^[a-zA-Z0-9_.-]{1,120}$/;
+export function foldoutSurfaces(f: Foldout): {
+  outside: FoldoutSurface;
+  inside: FoldoutSurface;
+} {
+  return {
+    outside: f.outside ?? { colour: f.colour, text: f.title },
+    inside: f.inside ?? { colour: "#f5f1e7", text: "", imageKey: f.imageKey },
+  };
+}
 export function validateFoldout(f: Foldout, pages: number): string | null {
-  if (!f || !key.test(f.id) || !key.test(f.imageKey))
-    return "Choose an image for this fold-out.";
+  if (!f || typeof f !== "object" || !key.test(f.id))
+    return "Choose a valid note.";
   if (!Number.isInteger(f.page) || f.page < 1 || f.page > pages)
     return "Choose a page in this PDF.";
   if (
@@ -34,20 +50,37 @@ export function validateFoldout(f: Foldout, pages: number): string | null {
   )
     return "Choose an opening direction and spread half.";
   if (typeof f.title !== "string" || !f.title.trim() || f.title.length > 60)
-    return "Add a short image description (up to 60 characters).";
+    return "Add a short note label (up to 60 characters).";
   if (!/^#[a-fA-F0-9]{6}$/.test(f.colour)) return "Choose a flap colour.";
   if (
-    ![f.x, f.y, f.width, f.height].every(Number.isFinite) ||
-    f.width < 0.18 ||
-    f.width > 0.45 ||
-    f.height < 0.18 ||
-    f.height > 0.7
+    f.imageKey !== undefined &&
+    (typeof f.imageKey !== "string" || !key.test(f.imageKey))
   )
-    return "Choose a valid fold-out size.";
-  const left = f.hinge === "left" ? f.x - f.width : f.x;
-  const right = f.hinge === "left" ? f.x + f.width : f.x + 2 * f.width;
-  if (left < -0.0001 || right > 1.0001 || f.y < 0 || f.y + f.height > 1.0001)
-    return "Keep the opened fold-out inside the page.";
+    return "Choose a valid image.";
+  for (const side of Object.values(foldoutSurfaces(f))) {
+    if (
+      !side ||
+      !/^#[a-fA-F0-9]{6}$/.test(side.colour) ||
+      typeof side.text !== "string" ||
+      side.text.length > NOTE_TEXT_LIMIT
+    )
+      return "Choose a colour and text up to 1,200 characters for each side.";
+    if (
+      side.imageKey !== undefined &&
+      (typeof side.imageKey !== "string" || !key.test(side.imageKey))
+    )
+      return "Choose a valid image.";
+  }
+  if (
+    ![f.x, f.y, f.width, f.height].every(Number.isFinite) ||
+    f.width < 0.08 - 1e-9 ||
+    f.width > 1 ||
+    f.height < 0.08 - 1e-9 ||
+    f.height > 1
+  )
+    return "Choose a valid note size.";
+  if (f.x < 0 || f.y < 0 || f.x + f.width > 1.0001 || f.y + f.height > 1.0001)
+    return "Keep the closed note on the page.";
   return null;
 }
 export function readableFoldouts(value: unknown, pages: number): Foldout[] {
@@ -66,7 +99,11 @@ export function foldoutKeys(
 ): string[] {
   return [
     ...new Set(
-      readableFoldouts(pdf?.foldouts, pdf?.pages ?? 0).map((f) => f.imageKey),
+      readableFoldouts(pdf?.foldouts, pdf?.pages ?? 0).flatMap((f) =>
+        Object.values(foldoutSurfaces(f))
+          .map((s) => s.imageKey)
+          .filter((k): k is string => !!k),
+      ),
     ),
   ];
 }
@@ -75,13 +112,37 @@ export function foldoutsForLeaf(items: Foldout[], leaf: Leaf): Foldout[] {
     (f) => f.page === leaf.page && (!leaf.half || f.half === leaf.half),
   );
 }
-/** Changing hinge/size keeps both opened panels on their physical page. */
 export function fitFoldout(f: Foldout): Foldout {
-  const min = f.hinge === "left" ? f.width : 0;
-  const max = f.hinge === "left" ? 1 - f.width : 1 - 2 * f.width;
+  const width = Math.min(1, Math.max(0.08, f.width)),
+    height = Math.min(1, Math.max(0.08, f.height));
   return {
     ...f,
-    x: Math.min(max, Math.max(min, f.x)),
-    y: Math.min(1 - f.height, Math.max(0, f.y)),
+    width,
+    height,
+    x: Math.min(1 - width, Math.max(0, f.x)),
+    y: Math.min(1 - height, Math.max(0, f.y)),
   };
+}
+export type ResizeCorner = "nw" | "ne" | "sw" | "se";
+/** Normalised pointer deltas; resize pins the opposite corner. */
+export function transformFoldout(
+  f: Foldout,
+  dx: number,
+  dy: number,
+  handle: "move" | ResizeCorner,
+): Foldout {
+  if (handle === "move") return fitFoldout({ ...f, x: f.x + dx, y: f.y + dy });
+  const left = handle.includes("w")
+    ? Math.max(0, Math.min(f.x + f.width - 0.08, f.x + dx))
+    : f.x;
+  const top = handle.includes("n")
+    ? Math.max(0, Math.min(f.y + f.height - 0.08, f.y + dy))
+    : f.y;
+  const right = handle.includes("e")
+    ? Math.min(1, Math.max(f.x + 0.08, f.x + f.width + dx))
+    : f.x + f.width;
+  const bottom = handle.includes("s")
+    ? Math.min(1, Math.max(f.y + 0.08, f.y + f.height + dy))
+    : f.y + f.height;
+  return { ...f, x: left, y: top, width: right - left, height: bottom - top };
 }

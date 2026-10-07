@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   fitFoldout,
+  foldoutSurfaces,
+  transformFoldout,
   foldoutKeys,
   foldoutsForLeaf,
   readableFoldouts,
@@ -30,7 +32,7 @@ test("fold-outs cannot escape a page or reference unsafe images", () => {
     { page: 0 },
     { page: 5 },
     { page: 1.5 },
-    { x: 0.1 },
+    { x: -0.1 },
     { y: 0.9 },
     { imageKey: "../private" },
     { imageKey: "https://other/image" },
@@ -51,7 +53,7 @@ test("fold-outs cannot escape a page or reference unsafe images", () => {
     ["foldout_123"],
   );
 });
-test("hinge and size changes retain both unfolded panels within the page", () => {
+test("hinge and size changes retain closed notes within the page", () => {
   for (const hinge of ["left", "right"] as const)
     for (const width of [0.18, 0.32, 0.45])
       for (const x of [0, 0.5, 1]) {
@@ -132,4 +134,108 @@ test("fold-out images inherit portfolio access and cannot fetch unrelated files"
   assert.equal(downloaded, "owner/foldout_123");
   assert.equal(response.headers.get("content-type"), "image/jpeg");
   assert.equal(response.headers.get("cache-control"), "private, no-store");
+});
+
+test("text-only notes and independent surfaces retain legacy compatibility", () => {
+  const text = {
+    ...item,
+    imageKey: undefined,
+    outside: { colour: "#223344", text: "Outside" },
+    inside: { colour: "#fffaf0", text: "Inside" },
+  };
+  assert.equal(validateFoldout(text, 4), null);
+  assert.deepEqual(foldoutKeys({ pages: 4, foldouts: [text] }), []);
+  assert.equal(foldoutSurfaces(item).inside.imageKey, "foldout_123");
+  const pictured = {
+    ...text,
+    outside: { ...text.outside, imageKey: "outer_image" },
+    inside: { ...text.inside, imageKey: "inner_image" },
+  };
+  assert.deepEqual(foldoutKeys({ pages: 4, foldouts: [pictured] }), [
+    "outer_image",
+    "inner_image",
+  ]);
+  assert.ok(
+    validateFoldout(
+      { ...pictured, inside: { ...pictured.inside, imageKey: "../private" } },
+      4,
+    ),
+  );
+  assert.ok(
+    validateFoldout(
+      { ...text, inside: { ...text.inside, text: "a".repeat(1201) } },
+      4,
+    ),
+  );
+});
+test("dragging and corner resizing clamp to page and retain the opposite corner", () => {
+  const moved = transformFoldout(item, -10, 10, "move");
+  assert.equal(moved.x, 0);
+  assert.equal(moved.y, 1 - item.height);
+  const resized = transformFoldout(item, -0.1, -0.1, "nw");
+  assert.ok(Math.abs(resized.x + resized.width - item.x - item.width) < 1e-9);
+  assert.ok(Math.abs(resized.y + resized.height - item.y - item.height) < 1e-9);
+  for (const corner of ["nw", "ne", "sw", "se"] as const)
+    for (const delta of [-10, 10]) {
+      const result = transformFoldout(item, delta, delta, corner);
+      assert.equal(validateFoldout(result, 4), null);
+      assert.ok(result.width >= 0.08 - 1e-9 && result.height >= 0.08 - 1e-9);
+    }
+});
+
+test("turning page artwork contains the outside surface, never the hidden interior", async () => {
+  const { paintClosedNotes } =
+    await import("../src/lib/portfolia/foldout-paint");
+  const images: any[] = [];
+  const texts: string[] = [];
+  const translations: number[][] = [];
+  const ctx = {
+    save() {},
+    restore() {},
+    beginPath() {},
+    rect() {},
+    clip() {},
+    fillRect() {},
+    translate(x: number, y: number) {
+      translations.push([x, y]);
+    },
+    drawImage(image: any) {
+      images.push(image);
+    },
+    measureText(text: string) {
+      return { width: text.length * 5 };
+    },
+    fillText(text: string) {
+      texts.push(text);
+    },
+  };
+  const canvas = {
+    width: 1000,
+    height: 1400,
+    getContext: () => ctx,
+  } as unknown as HTMLCanvasElement;
+  const outer = { width: 200, height: 100 },
+    inner = { width: 100, height: 100 };
+  paintClosedNotes(
+    canvas,
+    [
+      {
+        ...item,
+        outside: { colour: "#eeeeee", text: "OUTSIDE", imageKey: "outer" },
+        inside: {
+          colour: "#ffffff",
+          text: "SECRET INTERIOR",
+          imageKey: "inner",
+        },
+      },
+    ],
+    new Map([
+      ["outer", outer],
+      ["inner", inner],
+    ]) as any,
+  );
+  assert.deepEqual(translations, [[550, 420]]);
+  assert.deepEqual(images, [outer]);
+  assert.ok(texts.join("").includes("OUTSIDE"));
+  assert.ok(!texts.join("").includes("SECRET"));
 });

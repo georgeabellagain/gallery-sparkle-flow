@@ -540,3 +540,14 @@
 .pf-foldout-flap:focus-visible { outline: 2px solid #3e624e; outline-offset: 4px; }
 .pf-foldout-flap:disabled { cursor: wait; }
 @media (prefers-reduced-motion: reduce) { .pf-foldout-flap { transition: none; } }
+
+/* Closed scrapbook artwork is painted into the PDF texture, including during turns. */
+.pf-foldout-front { display: block; padding: 0; background: transparent; }
+.pf-foldout-base, .pf-foldout-front, .pf-foldout-back { border-radius: 0; box-shadow: none; }
+.pf-foldout[data-open="true"] .pf-foldout-back { box-shadow: 0 2px 5px #00000014; }
+.pf-foldout[data-baked="true"][data-revealed="false"] .pf-foldout-base,
+.pf-foldout[data-baked="true"][data-revealed="false"] .pf-foldout-front,
+.pf-foldout[data-baked="true"][data-revealed="false"] .pf-foldout-back { visibility: hidden; }
+.pf-foldout[data-baked="true"] .pf-foldout-flap:focus-visible { outline: 2px solid #355c48; }
+.pf-note-selected { outline: 2px solid #355c48; outline-offset: 2px; }
+.pf-note-handle { position: absolute; width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; background: #355c48; box-shadow: 0 0 0 1px #355c48; touch-action: none; z-index: 5; }
