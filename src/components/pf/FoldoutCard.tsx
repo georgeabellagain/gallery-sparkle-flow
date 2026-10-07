@@ -5,6 +5,7 @@ import {
   type FoldoutSurface,
 } from "@/lib/portfolia/foldouts";
 import {
+  loadNoteFonts,
   loadNoteImages,
   paintNoteSurface,
 } from "@/lib/portfolia/foldout-paint";
@@ -40,6 +41,7 @@ export function NoteSurface({
     const observer = new ResizeObserver(paint);
     observer.observe(canvas);
     paint();
+    void loadNoteFonts([side]).then(() => paint());
     void loadNoteImages(side.imageKey ? [side.imageKey] : []).then((next) => {
       if (cancelled) {
         next.forEach((i) => i.close());
@@ -69,6 +71,8 @@ type CardProps = {
   baked?: boolean;
   sceneRendered?: boolean;
   onProgress?: (progress: number) => void;
+  /** Lets the book close this note (and wait for it) before a page turns away from it. */
+  closers?: { current: Map<string, () => Promise<void>> };
 };
 export function StoredFoldout(props: CardProps) {
   return <FoldoutCard {...props} />;
@@ -78,6 +82,7 @@ export function FoldoutCard({
   baked = false,
   sceneRendered = false,
   onProgress,
+  closers,
 }: CardProps) {
   const [progress, setProgress] = useState(0);
   const current = useRef(0);
@@ -100,21 +105,37 @@ export function FoldoutCard({
     setProgress(p);
     callback.current?.(p);
   };
-  const settle = (target: number) => {
-    cancelAnimationFrame(frame.current);
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      update(target);
-      return;
-    }
-    const start = current.current,
-      time = performance.now();
-    const step = (now: number) => {
-      const t = Math.min(1, (now - time) / 420);
-      update(start + (target - start) * (1 - Math.pow(1 - t, 3)));
-      if (t < 1) frame.current = requestAnimationFrame(step);
+  const settle = (target: number, duration = 420) =>
+    new Promise<void>((done) => {
+      cancelAnimationFrame(frame.current);
+      if (
+        duration <= 0 ||
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ) {
+        update(target);
+        done();
+        return;
+      }
+      const start = current.current,
+        time = performance.now();
+      const step = (now: number) => {
+        const t = Math.min(1, (now - time) / duration);
+        update(start + (target - start) * (1 - Math.pow(1 - t, 3)));
+        if (t < 1) frame.current = requestAnimationFrame(step);
+        else done();
+      };
+      frame.current = requestAnimationFrame(step);
+    });
+  useEffect(() => {
+    if (!closers) return;
+    const map = closers.current;
+    // Closing is quick: the page is about to turn, so the note tucks away first.
+    const close = () => (current.current > 0 ? settle(0, 240) : Promise.resolve());
+    map.set(item.id, close);
+    return () => {
+      if (map.get(item.id) === close) map.delete(item.id);
     };
-    frame.current = requestAnimationFrame(step);
-  };
+  }, [item.id, closers]);
   useEffect(
     () => () => {
       cancelAnimationFrame(frame.current);

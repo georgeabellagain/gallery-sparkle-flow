@@ -1,4 +1,5 @@
 import { createBookNotes } from "./book-notes";
+import { pageRelief } from "./page-relief";
 import * as THREE from "three";
 import { surfaceCanvas, type SurfaceKind } from "./surface";
 import { parseRgbe } from "./rgbe";
@@ -28,7 +29,6 @@ const smooth = (t: number) => {
   const c = Math.min(1, Math.max(0, t));
   return c * c * (3 - 2 * c);
 };
-const fract = (x: number) => x - Math.floor(x);
 
 /** Page textures kept on the GPU at once (current, next and previous spreads). */
 const MAX_TEXTURES = 8;
@@ -37,28 +37,6 @@ const MAX_SURFACE_PIXELS = 4_200_000;
 const MAX_SURFACE_PIXELS_SMALL = 2_500_000;
 /** Gap between a turning sheet and the pages beneath it; larger than any page imperfection. */
 const SHEET_CLEARANCE = 0.01;
-
-/**
- * Height of a page above the table at distance `d` from the spine (0..1) and
- * height `v` (0 bottom .. 1 top). Pages lie flat apart from the small lift at
- * the gutter. A little waviness and a slightly lifted corner differ for every
- * page, so no two pages look machine-made.
- */
-function pageRelief(d: number, v: number, seed: number) {
-  const spine = 0.014 * Math.pow(1 - d, 6);
-  // Imperfections fade out at the gutter so both pages meet cleanly there.
-  const s = seed * 12.9898;
-  const fade = Math.min(1, d / 0.18);
-  const ripple =
-    (Math.sin(d * 5.4 + s) * Math.sin(v * 4.3 + s * 1.7) * 0.0018 +
-      Math.sin(d * 12.1 + v * 3.3 + s * 2.3) * 0.0006) *
-    fade;
-  const k = 0.35 + 0.65 * fract(Math.sin(seed * 78.233) * 43758.5453);
-  const cu = Math.min(1, Math.max(0, (d - 0.55) / 0.45));
-  const cv = Math.min(1, Math.max(0, (0.4 - v) / 0.4));
-  const corner = 0.005 * k * cu * cu * cv * cv;
-  return spine + ripple + corner;
-}
 
 /** One persistent, demand-rendered scene. Static and moving pages share lights/materials. */
 export function createBookScene(host: HTMLElement, ratio: number, onLost: () => void, onRestored?: () => void) {
@@ -757,7 +735,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const u = uv.getX(i),
         v = uv.getY(i);
       const a = Math.PI * progress;
-      const curl = Math.sin(a) * 0.16 * Math.sin(Math.PI * u);
+      // The free edge trails the corner being pulled, so the sheet bows like real paper in the hand.
+      const curl = Math.sin(a) * 0.22 * Math.sin(Math.PI * u) * (1 + 0.35 * (0.5 - v));
       const x = dir * (u * Math.cos(a) + curl * Math.sin(a));
       const z = u * Math.sin(a) - curl * Math.cos(a);
       // At rest the sheet matches the curved, imperfect page it came from or lands on.

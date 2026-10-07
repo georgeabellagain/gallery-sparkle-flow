@@ -336,3 +336,16 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Keep the scrapbook editor prominent on both editing routes (iteration 24).
 - Review branch only; no deployment. Browser/device interaction and visual lighting review remain required before publishing.
 - Validation: production build and TypeScript pass; all 40 focused tests pass, including bounded crop settings, non-destructive image transforms, four hinge directions, shared paper materials and mesh cleanup.
+
+
+## Iteration 26 — scrapbook polish: handwriting, alignment, page tabs, website links, curved paper (unpublished)
+
+- Notes: add Handwritten (Caveat), Neat pen (Patrick Hand), Script (Dancing Script) and Marker (Permanent Marker) beside the system fonts. They load from Google Fonts only when a note uses one, and artwork waits for the font before painting. The font picker shows each font as itself.
+- Notes: left, centre, right and justified text, plus top, middle and bottom positioning, on the 3D paper and the flat preview alike.
+- Page tabs: coloured tabs with text stick out of the book's edges, including when it is closed (right edge for pages ahead, left for pages passed). Pressing one turns the book to that page in one smooth turn.
+- Website links: place a website's logo on any page; it opens the site in a new tab (`noopener noreferrer`, http/https only). The logo is the site's favicon, requested from Google's favicon service when a visitor sees the page; a creator can upload their own logo or return to the site's. Falls back to a letter tile if the icon cannot load.
+- Editor: Notes / Tabs / Links panels in the one scrapbook editor, one Save. Links are dragged on the page; tabs and links have colour/page/caption/size controls. Custom logos use the existing private file store, publishing and cleanup (`foldoutKeys` now includes them).
+- Curvature: flipbook pages rise from the gutter in a soft arch, and the turning sheet bows more. Scrapbook flaps are shaped each frame: they trail as they lift, and settle onto the curve of the page they land on.
+- Open scrapbook notes fold shut before the page turns away (click, drag, swipe or tab).
+- Data: `pdf.tags` and `pdf.links` live beside `pdf.foldouts`, so they sync and publish with the portfolio. Replacing the PDF clears them.
+- Review branch only; no deployment. Tests: new `tests/page-extras.test.ts`; `tests/book-notes.test.ts` now checks the flap bends and lies on the page. A full build and device visual review are still needed.

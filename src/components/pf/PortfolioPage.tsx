@@ -1,4 +1,5 @@
 import type { Foldout } from "@/lib/portfolia/foldouts";
+import type { PageLink, PageTag } from "@/lib/portfolia/page-extras";
 import type { PortfolioProject } from "@/lib/portfolia/projects";
 import { usePortfolioFont } from "@/lib/portfolia/fonts";
 import { useMemo } from "react";
@@ -28,6 +29,8 @@ export function PortfolioPage({
   startPage,
   projects,
   foldouts,
+  tags,
+  links,
   projectCode,
   startFullscreen,
 }: {
@@ -46,6 +49,8 @@ export function PortfolioPage({
   startPage?: number;
   projects?: PortfolioProject[];
   foldouts?: Foldout[];
+  tags?: PageTag[];
+  links?: PageLink[];
   projectCode?: string;
   /** Open full screen on a phone or tablet (a portfolio opened from its QR code). */
   startFullscreen?: boolean;
@@ -115,7 +120,7 @@ export function PortfolioPage({
           viewer={view}
           startPage={startPage}
           projects={projects}
-          foldouts={foldouts}
+          foldouts={foldouts} tags={tags} links={links}
           projectCode={projectCode}
           startFullscreen={startFullscreen}
           profile={details}

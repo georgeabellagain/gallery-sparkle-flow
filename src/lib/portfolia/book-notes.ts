@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { foldoutSurfaces, type Foldout } from "./foldouts";
-import { loadNoteImages, paintNoteSurface } from "./foldout-paint";
+import { flapGeometry, flapGrid, flapShape, NOTE_LIFT, FLAP_LIFT, PAPER_GAP, FLAP_SEGMENTS, FLAP_ACROSS } from "./note-flap";
+import { pageRelief } from "./page-relief";
+import { loadNoteFonts, loadNoteImages, paintNoteSurface } from "./foldout-paint";
 
 /** Real paper meshes share the book's scene, materials, environment and shadows. */
 export function createBookNotes(
@@ -13,10 +15,12 @@ export function createBookNotes(
   let generation = 0;
   const entries = new Map<
     string,
-    { group: THREE.Group; pivot: THREE.Group; vertical: boolean; sign: number }
+    { group: THREE.Group; shapeFlap: (p: number) => void }
   >();
   const resources: Array<{ dispose: () => void }> = [];
   const ownMaterials: THREE.MeshPhysicalMaterial[] = [];
+  /** Height of the page at a point of the book (book units): both pages share one arch, measured from the gutter. */
+  const reliefAt = (x: number, y: number) => pageRelief(Math.abs(x), y / ratio + 0.5, 0);
   const clear = () => {
     generation++;
     entries.forEach((e) => book.remove(e.group));
@@ -32,6 +36,8 @@ export function createBookNotes(
   const set = async (notes: Array<{ item: Foldout; side: number }>) => {
     clear();
     const ticket = generation;
+    await loadNoteFonts(notes.flatMap(({ item }) => Object.values(foldoutSurfaces(item))));
+    if (ticket !== generation) return;
     const images = await loadNoteImages(
       notes.flatMap(({ item }) =>
         Object.values(foldoutSurfaces(item)).flatMap((s) =>
@@ -92,15 +98,14 @@ export function createBookNotes(
           );
           return c;
         };
-        const geometry = new THREE.PlaneGeometry(w, h);
-        resources.push(geometry);
-        const mesh = (art: HTMLCanvasElement) => {
+        const mesh = (art: HTMLCanvasElement, geometry: THREE.BufferGeometry, side: THREE.Side) => {
           const texture = new THREE.CanvasTexture(art);
           texture.colorSpace = THREE.SRGBColorSpace;
           texture.anisotropy = 4;
           resources.push(texture);
           const mat = template().clone();
           mat.map = texture;
+          mat.side = side;
           mat.emissiveMap = mat.emissive.getHex() ? texture : null;
           materials.push(mat);
           ownMaterials.push(mat);
@@ -108,35 +113,66 @@ export function createBookNotes(
           const m = new THREE.Mesh(geometry, mat);
           m.castShadow = true;
           m.receiveShadow = true;
+          m.frustumCulled = false;
           return m;
         };
         const group = new THREE.Group();
-        group.position.set(
-          (side === 0 ? -1 : 0) + f.x + w / 2,
-          ratio / 2 - f.y * ratio - h / 2,
-          0.022,
-        );
-        const base = mesh(half(negative));
-        group.add(base);
-        const pivot = new THREE.Group();
-        pivot.position.set(
-          vertical ? 0 : negative ? -w / 2 : w / 2,
-          vertical ? (negative ? h / 2 : -h / 2) : 0,
-          0.001,
-        );
-        const frontMesh = mesh(front),
-          back = mesh(half(!negative));
-        const cx = vertical ? 0 : negative ? w / 2 : -w / 2,
-          cy = vertical ? (negative ? -h / 2 : h / 2) : 0;
-        frontMesh.position.set(cx, cy, 0.0005);
-        back.position.set(cx, cy, -0.0005);
-        if (vertical) back.rotation.x = Math.PI;
-        else back.rotation.y = Math.PI;
-        pivot.add(frontMesh, back);
-        group.add(pivot);
+        const centre = {
+          x: (side === 0 ? -1 : 0) + f.x + w / 2,
+          y: ratio / 2 - f.y * ratio - h / 2,
+        };
+        group.position.set(centre.x, centre.y, 0);
+        // The paper under the flap follows the page's own curve, so a note never floats or sinks into it.
+        const baseGeometry = new THREE.PlaneGeometry(w, h, 8, 8);
+        resources.push(baseGeometry);
+        const basePos = baseGeometry.getAttribute("position") as THREE.BufferAttribute;
+        for (let i = 0; i < basePos.count; i++)
+          basePos.setZ(
+            i,
+            NOTE_LIFT + reliefAt(centre.x + basePos.getX(i), centre.y + basePos.getY(i)),
+          );
+        baseGeometry.computeVertexNormals();
+        group.add(mesh(half(negative), baseGeometry, THREE.FrontSide));
+        // The flap is a gridded sheet shaped every frame: it rotates about its hinge, trails like paper in the
+        // hand, and settles onto the page's curve wherever it lands.
+        const along = vertical ? h : w,
+          across = vertical ? w : h;
+        const e = negative ? (vertical ? -1 : 1) : vertical ? 1 : -1;
+        const hinge = (vertical ? h : w) / 2 * (e === 1 ? -1 : 1);
+        const grid = flapGrid(FLAP_SEGMENTS, FLAP_ACROSS);
+        const frontGeometry = flapGeometry(grid, vertical, e, false);
+        const backGeometry = flapGeometry(grid, vertical, e, true);
+        resources.push(frontGeometry, backGeometry);
+        const frontMesh = mesh(front, frontGeometry, THREE.FrontSide),
+          back = mesh(half(!negative), backGeometry, THREE.BackSide);
+        group.add(frontMesh, back);
         group.visible = false;
         book.add(group);
-        entries.set(f.id, { group, pivot, vertical, sign: negative ? -1 : 1 });
+        const shapeFlap = (p: number) => {
+          const points = flapShape(
+            { along, across, e, hinge, vertical, centre },
+            grid,
+            p,
+            reliefAt,
+          );
+          for (const [geometry, sign] of [[frontGeometry, 1], [backGeometry, -1]] as const) {
+            const pos = geometry.getAttribute("position") as THREE.BufferAttribute;
+            for (let i = 0; i < points.length; i++) {
+              const q = points[i]!;
+              pos.setXYZ(
+                i,
+                q.x + q.nx * sign * PAPER_GAP,
+                q.y + q.ny * sign * PAPER_GAP,
+                q.z + q.nz * sign * PAPER_GAP + NOTE_LIFT + FLAP_LIFT,
+              );
+            }
+            pos.needsUpdate = true;
+            geometry.computeVertexNormals();
+            geometry.computeBoundingSphere();
+          }
+        };
+        shapeFlap(0);
+        entries.set(f.id, { group, shapeFlap });
       }
     } finally {
       images.forEach((i) => i.close());
@@ -150,8 +186,7 @@ export function createBookNotes(
       const e = entries.get(id);
       if (!e) return;
       e.group.visible = p > 0.0001;
-      if (e.vertical) e.pivot.rotation.x = p * Math.PI * e.sign;
-      else e.pivot.rotation.y = p * Math.PI * e.sign;
+      if (e.group.visible) e.shapeFlap(p);
       repaint();
     },
   };

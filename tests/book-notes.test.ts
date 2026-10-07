@@ -53,29 +53,37 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
         notes.clear();
         continue;
       }
+      const flap = () => {
+        const mesh = book.children[0].children[1] as THREE.Mesh;
+        const pos = mesh.geometry.getAttribute("position");
+        let far = 0, farPoint = new THREE.Vector3(), maxZ = -1;
+        for (let i = 0; i < pos.count; i++) {
+          const v = new THREE.Vector3().fromBufferAttribute(pos, i).add(book.children[0].position);
+          if (v.length() > far) { far = v.length(); farPoint = v; }
+          maxZ = Math.max(maxZ, v.z);
+        }
+        return { maxZ, mesh };
+      };
       notes.progress("a", 0.5);
-      book.updateMatrixWorld(true);
-      const group = book.children[0],
-        pivot = group.children[1];
-      const point = pivot.children[0].getWorldPosition(new THREE.Vector3());
-      assert.ok(point.z > 0.1, "flap lifts above the book");
-      assert.equal(
-        (
-          pivot.children[0] as THREE.Mesh<
-            THREE.PlaneGeometry,
-            THREE.MeshPhysicalMaterial
-          >
-        ).material.roughness,
-        paper.roughness,
-      );
+      const mid = flap();
+      assert.ok(mid.maxZ > 0.1, "flap lifts above the book");
+      assert.equal(mid.mesh.material.roughness, paper.roughness);
+      // The flap bends: its points do not all lie in one plane.
+      const pos = mid.mesh.geometry.getAttribute("position");
+      const sample = new Set<string>();
+      for (let i = 0; i < pos.count; i++) sample.add(pos.getZ(i).toFixed(4));
+      assert.ok(sample.size > 8, "flap is curved while turning");
       notes.progress("a", 1);
-      book.updateMatrixWorld(true);
-      const opened = pivot.children[0].getWorldPosition(new THREE.Vector3()),
-        base = group.getWorldPosition(new THREE.Vector3());
-      if (hinge === "left") assert.ok(opened.x < base.x);
-      if (hinge === "right") assert.ok(opened.x > base.x);
-      if (hinge === "top") assert.ok(opened.y > base.y);
-      if (hinge === "bottom") assert.ok(opened.y < base.y);
+      const opened = flap();
+      assert.ok(opened.maxZ < 0.1, "open flap lies down on the page");
+      const group = book.children[0];
+      const centre = new THREE.Vector3();
+      const box = new THREE.Box3().setFromBufferAttribute(opened.mesh.geometry.getAttribute("position") as THREE.BufferAttribute);
+      box.getCenter(centre);
+      if (hinge === "left") assert.ok(centre.x < 0);
+      if (hinge === "right") assert.ok(centre.x > 0);
+      if (hinge === "top") assert.ok(centre.y > 0);
+      if (hinge === "bottom") assert.ok(centre.y < 0);
       notes.progress("a", 0);
       assert.equal(group.visible, false);
       notes.clear();

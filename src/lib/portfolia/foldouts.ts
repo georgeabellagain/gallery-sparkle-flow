@@ -1,9 +1,20 @@
 import type { Leaf } from "./book-layout";
+import { readablePageLinks } from "./page-extras";
+export const NOTE_FONT_IDS = ["serif", "sans", "mono", "hand", "neat", "script", "marker"] as const;
+export type NoteFont = (typeof NOTE_FONT_IDS)[number];
+export const NOTE_ALIGNS = ["left", "center", "right", "justify"] as const;
+export type NoteAlign = (typeof NOTE_ALIGNS)[number];
+export const NOTE_VALIGNS = ["top", "middle", "bottom"] as const;
+export type NoteValign = (typeof NOTE_VALIGNS)[number];
 export interface FoldoutSurface {
   colour: string;
   text: string;
   imageKey?: string;
-  font?: "serif" | "sans" | "mono" | "hand";
+  font?: NoteFont;
+  /** Horizontal text alignment. Missing means left. */
+  align?: NoteAlign;
+  /** Vertical text position. Missing means top. */
+  valign?: NoteValign;
   imageFit?: "contain" | "cover";
   imageScale?: number;
   imageX?: number;
@@ -65,9 +76,16 @@ export function validateFoldout(f: Foldout, pages: number): string | null {
   for (const side of Object.values(foldoutSurfaces(f))) {
     if (
       side?.font !== undefined &&
-      !["serif", "sans", "mono", "hand"].includes(side.font)
+      !(NOTE_FONT_IDS as readonly string[]).includes(side.font)
     )
       return "Choose a valid font.";
+    if (
+      (side?.align !== undefined &&
+        !(NOTE_ALIGNS as readonly string[]).includes(side.align)) ||
+      (side?.valign !== undefined &&
+        !(NOTE_VALIGNS as readonly string[]).includes(side.valign))
+    )
+      return "Choose a valid text alignment.";
     if (
       side?.imageFit !== undefined &&
       !["contain", "cover"].includes(side.imageFit)
@@ -122,16 +140,20 @@ export function readableFoldouts(value: unknown, pages: number): Foldout[] {
     .slice(0, MAX_FOLDOUTS);
 }
 export function foldoutKeys(
-  pdf?: { foldouts?: Foldout[]; pages: number } | null,
+  pdf?: { foldouts?: Foldout[]; links?: unknown; pages: number } | null,
 ): string[] {
   return [
-    ...new Set(
-      readableFoldouts(pdf?.foldouts, pdf?.pages ?? 0).flatMap((f) =>
+    ...new Set([
+      ...readableFoldouts(pdf?.foldouts, pdf?.pages ?? 0).flatMap((f) =>
         Object.values(foldoutSurfaces(f))
           .map((s) => s.imageKey)
           .filter((k): k is string => !!k),
       ),
-    ),
+      // Custom website logos are stored like note images, so they sync, publish and clean up the same way.
+      ...readablePageLinks(pdf?.links, pdf?.pages ?? 0)
+        .map((l) => l.iconKey)
+        .filter((k): k is string => !!k),
+    ]),
   ];
 }
 export function foldoutsForLeaf(items: Foldout[], leaf: Leaf): Foldout[] {

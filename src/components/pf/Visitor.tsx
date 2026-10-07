@@ -47,7 +47,7 @@ export function OwnVisitor({ p, preview, trackActivity = true }: { p: Portfolio;
         onDownload={preview || !trackActivity ? undefined : () => recordDownload(p.code)}
         pageStyle={p.plan === "personal" ? p.style : undefined}
         viewer={p.viewer}
-        projects={p.pdf?.projects} foldouts={p.pdf?.foldouts}
+        projects={p.pdf?.projects} foldouts={p.pdf?.foldouts} tags={p.pdf?.tags} links={p.pdf?.links}
         projectCode={p.code}
         cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined}
         immersive
@@ -120,7 +120,7 @@ export function EmbeddedVisitor({ data, startPage, mode, background }: { data: N
       pageStyle={pageStyle}
       viewer={{ ...DEFAULT_VIEWER, ...p.viewer, ...(mode ? { mode } : {}), ...(background ? { background, backgroundColor: undefined, backgroundKey: undefined } : {}), showHeader: false }}
       startPage={startPage}
-      projects={p.pdf?.projects} foldouts={p.pdf?.foldouts}
+      projects={p.pdf?.projects} foldouts={p.pdf?.foldouts} tags={p.pdf?.tags} links={p.pdf?.links}
       projectCode={p.code}
       immersive
       embed

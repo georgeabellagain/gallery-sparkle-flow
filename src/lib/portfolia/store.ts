@@ -95,6 +95,10 @@ export interface PdfFile {
   projects?: import("./projects").PortfolioProject[];
   /** Optional interactive additions, bound to this exact PDF. */
   foldouts?: import("./foldouts").Foldout[];
+  /** Coloured page tabs, visible on the closed book; they jump to their page. */
+  tags?: import("./page-extras").PageTag[];
+  /** Clickable website links placed on pages. */
+  links?: import("./page-extras").PageLink[];
   /** Optional derived JPEG used in public link previews. */
   coverKey?: string;
   name: string;

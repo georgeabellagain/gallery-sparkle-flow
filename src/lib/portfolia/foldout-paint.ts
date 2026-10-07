@@ -1,11 +1,42 @@
+import { layoutNoteText } from "./note-text";
 import { getBlob } from "./assets";
-import { foldoutSurfaces, type Foldout, type FoldoutSurface } from "./foldouts";
-export const NOTE_FONTS = {
-  serif: "Georgia, serif",
-  sans: "Arial, sans-serif",
-  mono: "Courier New, monospace",
-  hand: "cursive",
+import { foldoutSurfaces, type Foldout, type FoldoutSurface, type NoteFont } from "./foldouts";
+/** Handwriting fonts come from Google Fonts and load the first time a note uses one. */
+export const NOTE_FONT_FAMILIES: Record<NoteFont, { css: string; google?: string }> = {
+  serif: { css: "Georgia, serif" },
+  sans: { css: "Arial, sans-serif" },
+  mono: { css: "Courier New, monospace" },
+  hand: { css: '"Caveat", cursive', google: "Caveat:wght@400..700" },
+  neat: { css: '"Patrick Hand", cursive', google: "Patrick+Hand" },
+  script: { css: '"Dancing Script", cursive', google: "Dancing+Script:wght@400..700" },
+  marker: { css: '"Permanent Marker", cursive', google: "Permanent+Marker" },
 };
+export const NOTE_FONTS = Object.fromEntries(
+  Object.entries(NOTE_FONT_FAMILIES).map(([k, v]) => [k, v.css]),
+) as Record<NoteFont, string>;
+/** Makes sure every font the notes use is ready before they are painted, so artwork never flashes the fallback. */
+export async function loadNoteFonts(sides: Array<{ font?: NoteFont } | undefined>) {
+  if (typeof document === "undefined") return;
+  const wanted = [...new Set(sides.map((s) => s?.font).filter((f): f is NoteFont => !!f && !!NOTE_FONT_FAMILIES[f]?.google))];
+  await Promise.all(
+    wanted.map(async (font) => {
+      const { css, google } = NOTE_FONT_FAMILIES[font];
+      const id = `note-font-${font}`;
+      if (!document.getElementById(id)) {
+        const link = document.createElement("link");
+        link.id = id;
+        link.rel = "stylesheet";
+        link.href = `https://fonts.googleapis.com/css2?family=${google}&display=swap`;
+        document.head.appendChild(link);
+      }
+      try {
+        await Promise.race([document.fonts.load(`32px ${css}`, "Aa"), new Promise((r) => setTimeout(r, 4000))]);
+      } catch {
+        /* the fallback script font still reads fine */
+      }
+    }),
+  );
+}
 export type NoteImages = Map<string, ImageBitmap>;
 export async function loadNoteImages(keys: string[]): Promise<NoteImages> {
   const images: NoteImages = new Map();
@@ -57,54 +88,43 @@ export function paintNoteSurface(
   }
   const pad = Math.min(w, h) * 0.09;
   if (side.text.trim()) {
-    let size = Math.min(w * 0.115, h * 0.18);
-    let lines: string[] = [];
-    const wrap = () => {
-      const out: string[] = [];
-      for (const para of side.text.split("\n")) {
-        let line = "";
-        for (const word of para.split(/\s+/)) {
-          const candidate = line ? `${line} ${word}` : word;
-          if (ctx.measureText(candidate).width <= w - pad * 2) {
-            line = candidate;
-            continue;
-          }
-          if (line) {
-            out.push(line);
-            line = "";
-          }
-          for (const char of word) {
-            if (line && ctx.measureText(line + char).width > w - pad * 2) {
-              out.push(line);
-              line = "";
-            }
-            line += char;
-          }
-        }
-        out.push(line);
-      }
-      return out;
+    const family = NOTE_FONTS[side.font ?? "serif"];
+    const measure = (t: string, size: number) => {
+      ctx.font = `${size}px ${family}`;
+      return ctx.measureText(t).width;
     };
-    for (let i = 0; i < 40; i++) {
-      ctx.font = `${size}px ${NOTE_FONTS[side.font ?? "serif"]}`;
-      lines = wrap();
-      if (lines.length * size * 1.3 <= h - pad * 2) break;
-      size *= 0.88;
-    }
+    const { size, lines } = layoutNoteText(side.text, w - pad * 2, h - pad * 2, Math.min(w * 0.115, h * 0.18), measure);
+    const lineHeight = size * 1.3;
+    const textHeight = lines.length * lineHeight;
+    const valign = side.valign ?? "top";
+    const top = valign === "middle" ? Math.max(pad, (h - textHeight) / 2) : valign === "bottom" ? Math.max(pad, h - pad - textHeight) : pad;
     if (img) {
       ctx.fillStyle = side.colour;
       ctx.globalAlpha = 0.9;
-      ctx.fillRect(
-        pad * 0.5,
-        pad * 0.5,
-        w - pad,
-        Math.min(h - pad, lines.length * size * 1.3 + pad),
-      );
+      ctx.fillRect(pad * 0.5, Math.max(0, top - pad * 0.5), w - pad, Math.min(h - pad, textHeight + pad));
       ctx.globalAlpha = 1;
     }
+    ctx.font = `${size}px ${family}`;
     ctx.fillStyle = noteInk(side.colour);
     ctx.textBaseline = "top";
-    lines.forEach((line, i) => ctx.fillText(line, pad, pad + i * size * 1.3));
+    const align = side.align ?? "left";
+    lines.forEach((line, i) => {
+      const y = top + i * lineHeight;
+      const words = line.text.split(" ");
+      if (align === "justify" && !line.last && words.length > 1) {
+        // Spread the spare room evenly between the words so both edges are straight.
+        const gap = (w - pad * 2 - words.reduce((n, word) => n + ctx.measureText(word).width, 0)) / (words.length - 1);
+        let x = pad;
+        for (const word of words) {
+          ctx.fillText(word, x, y);
+          x += ctx.measureText(word).width + gap;
+        }
+        return;
+      }
+      const lineWidth = ctx.measureText(line.text).width;
+      const x = align === "center" ? (w - lineWidth) / 2 : align === "right" ? w - pad - lineWidth : pad;
+      ctx.fillText(line.text, x, y);
+    });
   }
   ctx.restore();
 }

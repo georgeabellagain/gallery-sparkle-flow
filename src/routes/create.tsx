@@ -84,7 +84,7 @@ function Create() {
             <a href="#profile-details" className="text-xs underline underline-offset-4 lg:hidden">Add details to publish</a>
           </div>
           <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
-            <PortfolioPage profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} showCredit={p.plan === "free"} pageStyle={p.plan === "personal" ? p.style : undefined} viewer={p.viewer} projects={p.pdf?.projects} foldouts={p.pdf?.foldouts} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />
+            <PortfolioPage profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} showCredit={p.plan === "free"} pageStyle={p.plan === "personal" ? p.style : undefined} viewer={p.viewer} projects={p.pdf?.projects} foldouts={p.pdf?.foldouts} tags={p.pdf?.tags} links={p.pdf?.links} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />
           </div>
         </section>
       </div>

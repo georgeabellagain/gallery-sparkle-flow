@@ -81,7 +81,7 @@ function EditPortfolio() {
             <Link to="/p/$slug" params={{ slug: p.code }} search={{ preview: "1" }} className="text-xxs underline underline-offset-4 text-muted-foreground hover:text-foreground">Full preview</Link>
           </div>
           <div className="max-h-[55svh] overflow-auto rounded-2xl border border-border bg-card shadow-soft lg:max-h-[calc(100svh-5rem)]">
-            <PortfolioPage showCredit={p.plan === "free"} profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.plan === "personal" ? p.style : undefined} viewer={p.viewer} projects={p.pdf.projects} foldouts={p.pdf.foldouts} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />
+            <PortfolioPage showCredit={p.plan === "free"} profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.plan === "personal" ? p.style : undefined} viewer={p.viewer} projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />
           </div>
         </section>
         </div>

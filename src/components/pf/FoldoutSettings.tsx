@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
+import { AlignCenter, AlignJustify, AlignLeft, AlignRight } from "lucide-react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +24,28 @@ import {
   type FoldoutSurface,
   type ResizeCorner,
 } from "@/lib/portfolia/foldouts";
+import {
+  NOTE_FONT_FAMILIES,
+  loadNoteFonts,
+} from "@/lib/portfolia/foldout-paint";
+import {
+  LINK_SIZE,
+  MAX_LINKS,
+  MAX_TAGS,
+  TAG_COLOURS,
+  TAG_LABEL_LIMIT,
+  linkName,
+  linksForLeaf,
+  normaliseUrl,
+  placeLink,
+  readablePageLinks,
+  readablePageTags,
+  validatePageLink,
+  validatePageTag,
+  type PageLink,
+  type PageTag,
+} from "@/lib/portfolia/page-extras";
+import { LinkLogo } from "./PageLinks";
 import { prepareFoldoutImage } from "@/lib/portfolia/foldout-image";
 import {
   coverWithSpreads,
@@ -94,6 +117,16 @@ function ScrapbookWorkspace({
   );
   const itemsRef = useRef(items);
   itemsRef.current = items;
+  const [tags, setTags] = useState(() => readablePageTags(pdf.tags, pdf.pages));
+  const tagsRef = useRef(tags);
+  tagsRef.current = tags;
+  const [links, setLinks] = useState(() => readablePageLinks(pdf.links, pdf.pages));
+  const linksRef = useRef(links);
+  linksRef.current = links;
+  const [panel, setPanel] = useState<"notes" | "tabs" | "links">("notes");
+  const [selectedLink, setSelectedLink] = useState<string | null>(links[0]?.id ?? null);
+  const iconInput = useRef<HTMLInputElement>(null);
+  const iconTarget = useRef<string | null>(null);
   const [selected, setSelected] = useState<string | null>(items[0]?.id ?? null);
   const [side, setSide] = useState<"outside" | "inside">("outside");
   const [preview, setPreview] = useState(false);
@@ -128,6 +161,72 @@ function ScrapbookWorkspace({
     setItems(next);
     setDirty(true);
     setError("");
+  };
+  const changeTags = (next: PageTag[]) => {
+    tagsRef.current = next;
+    setTags(next);
+    setDirty(true);
+    setError("");
+  };
+  const changeLinks = (next: PageLink[]) => {
+    linksRef.current = next;
+    setLinks(next);
+    setDirty(true);
+    setError("");
+  };
+  const editLink = (id: string, patch: Partial<PageLink>) =>
+    changeLinks(linksRef.current.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  const editTag = (id: string, patch: Partial<PageTag>) =>
+    changeTags(tagsRef.current.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  const addTag = () => {
+    if (!leaf) return;
+    if (tagsRef.current.length >= MAX_TAGS) return setError(`Use up to ${MAX_TAGS} tabs.`);
+    changeTags([
+      ...tagsRef.current,
+      { id: uid("tab"), page: leaf.page, label: "", colour: TAG_COLOURS[tagsRef.current.length % TAG_COLOURS.length]! },
+    ]);
+    setPanel("tabs");
+  };
+  const addLink = () => {
+    if (!leaf) return;
+    if (linksRef.current.length >= MAX_LINKS) return setError(`Use up to ${MAX_LINKS} links.`);
+    const link: PageLink = {
+      id: uid("link"),
+      page: leaf.page,
+      half: leaf.half ?? "right",
+      url: "",
+      x: 0.5 - LINK_SIZE.default / 2,
+      y: 0.4,
+      size: LINK_SIZE.default,
+    };
+    changeLinks([...linksRef.current, link]);
+    setSelectedLink(link.id);
+    setPanel("links");
+    setPreview(false);
+  };
+  const uploadIcon = async (file: File | undefined, id: string | null) => {
+    if (!file || !id || busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      assertCurrent();
+      const prepared = await prepareFoldoutImage(file);
+      if (!live.current) return;
+      const key = uid("foldout");
+      await putBlob(key, prepared);
+      if (!live.current) {
+        await deleteBlob(key).catch(() => {});
+        return;
+      }
+      staged.current.add(key);
+      editLink(id, { iconKey: key });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      busyRef.current = false;
+      if (live.current) setBusy(false);
+    }
   };
   const edit = (id: string, patch: Partial<Foldout>) =>
     change(
@@ -344,7 +443,7 @@ function ScrapbookWorkspace({
       if (
         key &&
         staged.current.has(key) &&
-        !foldoutKeys({ pages: pdf.pages, foldouts: itemsRef.current }).includes(
+        !foldoutKeys({ pages: pdf.pages, foldouts: itemsRef.current, links: linksRef.current }).includes(
           key,
         )
       ) {
@@ -363,12 +462,36 @@ function ScrapbookWorkspace({
         const invalid = validateFoldout(f, current.pages);
         if (invalid) throw new Error(invalid);
       }
-      if (!patchPortfolio({ pdf: { ...current, foldouts: itemsRef.current } }))
+      const savedLinks = linksRef.current.map((l) => ({
+        ...l,
+        url: normaliseUrl(l.url) ?? l.url,
+        label: l.label?.trim() || undefined,
+      }));
+      for (const l of savedLinks) {
+        if (!l.url.trim()) throw new Error("Add a web address to each link, or remove the empty one.");
+        const invalid = validatePageLink(l, current.pages);
+        if (invalid) throw new Error(`${linkName(l) || "A link"}: ${invalid}`);
+      }
+      const savedTags = tagsRef.current.map((t) => ({ ...t, label: t.label.trim() }));
+      for (const t of savedTags) {
+        const invalid = validatePageTag(t, current.pages);
+        if (invalid) throw new Error(invalid);
+      }
+      if (
+        !patchPortfolio({
+          pdf: {
+            ...current,
+            foldouts: itemsRef.current,
+            tags: savedTags.length ? savedTags : undefined,
+            links: savedLinks.length ? savedLinks : undefined,
+          },
+        })
+      )
         throw new Error(
           "Could not save these notes. Free some browser storage and retry.",
         );
       const keep = new Set(
-        foldoutKeys({ pages: pdf.pages, foldouts: itemsRef.current }),
+        foldoutKeys({ pages: pdf.pages, foldouts: itemsRef.current, links: savedLinks }),
       );
       const remove = new Set([...foldoutKeys(current), ...staged.current]);
       staged.current.clear();
@@ -469,6 +592,12 @@ function ScrapbookWorkspace({
         >
           + Image note
         </Button>
+        <Button size="sm" variant="line" disabled={!leaf || busy} onClick={addLink}>
+          + Website link
+        </Button>
+        <Button size="sm" variant="line" disabled={!leaf || busy} onClick={addTag}>
+          + Page tab
+        </Button>
         <Button
           size="sm"
           variant={preview ? "default" : "line"}
@@ -499,6 +628,17 @@ function ScrapbookWorkspace({
         aria-label="Note image"
         onChange={(e) => {
           void upload(e.target.files?.[0], uploadTarget.current);
+          e.currentTarget.value = "";
+        }}
+      />
+      <input
+        ref={iconInput}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="sr-only"
+        aria-label="Link logo"
+        onChange={(e) => {
+          void uploadIcon(e.target.files?.[0], iconTarget.current);
           e.currentTarget.value = "";
         }}
       />
@@ -681,17 +821,89 @@ function ScrapbookWorkspace({
                   </div>
                 ),
               )}
+            {!rendering &&
+              leaf &&
+              linksForLeaf(links, leaf).map((l) => (
+                <LinkChip
+                  key={l.id}
+                  link={l}
+                  selected={!preview && l.id === selectedLink && panel === "links"}
+                  inert={preview}
+                  page={page}
+                  onSelect={() => {
+                    setSelectedLink(l.id);
+                    setPanel("links");
+                  }}
+                  onMove={(x, y) => editLink(l.id, placeLink(l, x, y))}
+                />
+              ))}
           </div>
           <p className="mx-auto mt-4 max-w-xl text-center text-xs text-muted-foreground">
             {preview
               ? "Click a note to unfold it. Escape closes the flap."
-              : "Drop a picture anywhere on this page. Select a note to move it; use corner handles to resize. Arrow keys nudge; Shift + arrows moves farther."}
+              : "Drop a picture anywhere on this page. Select a note or link to move it; use corner handles to resize. Arrow keys nudge; Shift + arrows moves farther."}
           </p>
         </section>
         <aside
           className="border-l bg-background p-4"
           aria-label="Note settings"
         >
+          <div className="mb-4 grid grid-cols-3 gap-1 rounded-lg bg-muted p-1" role="tablist" aria-label="What to edit">
+            {([["notes", `Notes`, items.length], ["tabs", "Tabs", tags.length], ["links", "Links", links.length]] as const).map(([id, name, n]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={panel === id}
+                className={`rounded py-2 text-sm ${panel === id ? "bg-background shadow-sm" : ""}`}
+                onClick={() => setPanel(id)}
+              >
+                {name}
+                {n ? <span className="ml-1 text-xs text-muted-foreground">{n}</span> : null}
+              </button>
+            ))}
+          </div>
+          {panel === "tabs" ? (
+            <TagsPanel
+              tags={tags}
+              leaves={leaves}
+              leaf={leaf}
+              onAdd={addTag}
+              onEdit={editTag}
+              onRemove={(id) => changeTags(tagsRef.current.filter((t) => t.id !== id))}
+            />
+          ) : panel === "links" ? (
+            <LinksPanel
+              links={links}
+              selected={selectedLink}
+              leaves={leaves}
+              busy={busy}
+              onSelect={(id) => {
+                setSelectedLink(id);
+                const l = linksRef.current.find((x) => x.id === id);
+                const i = l ? leaves.findIndex((x) => x.page === l.page && (!x.half || x.half === l.half)) : -1;
+                if (i >= 0) choosePage(i, selected);
+              }}
+              onAdd={addLink}
+              onEdit={editLink}
+              onMovePage={(id, i) => {
+                const target = leaves[i];
+                if (target) {
+                  editLink(id, { page: target.page, half: target.half ?? "right" });
+                  choosePage(i, selected);
+                }
+              }}
+              onLogo={(id) => {
+                iconTarget.current = id;
+                iconInput.current?.click();
+              }}
+              onRemove={(id) => {
+                changeLinks(linksRef.current.filter((l) => l.id !== id));
+                setSelectedLink(null);
+              }}
+            />
+          ) : (
+          <>
           <label className="block text-xs">
             Select note
             <select
@@ -841,6 +1053,8 @@ function ScrapbookWorkspace({
               Add a text note or drop an image onto the page to begin.
             </p>
           )}
+          </>
+          )}
           <p className="mt-6 border-t pt-3 text-xs leading-5 text-muted-foreground">
             Changes apply when you save. Notes are web additions; PDF downloads
             stay unchanged. Open panels can extend beyond the page. Images:
@@ -922,24 +1136,7 @@ function SurfaceControls({
           </Button>
         )}
       </div>
-      <label className="block text-xs">
-        Font
-        <select
-          className="mt-1 w-full rounded border bg-background p-2"
-          value={side.font ?? "serif"}
-          onChange={(e) =>
-            onChange({
-              ...side,
-              font: e.target.value as FoldoutSurface["font"],
-            })
-          }
-        >
-          <option value="serif">Editorial serif</option>
-          <option value="sans">Clean sans serif</option>
-          <option value="mono">Typewriter</option>
-          <option value="hand">Handwritten</option>
-        </select>
-      </label>
+      <TextStyleControls side={side} onChange={onChange} />
       {side.imageKey && (
         <div className="space-y-3">
           <label className="block text-xs">
@@ -1044,6 +1241,397 @@ function SurfaceControls({
       >
         <NoteSurface side={side} label={`${name} artwork preview`} />
       </div>
+    </div>
+  );
+}
+
+const FONT_CHOICES: Array<[NonNullable<FoldoutSurface["font"]>, string]> = [
+  ["serif", "Editorial"],
+  ["sans", "Clean"],
+  ["mono", "Typewriter"],
+  ["hand", "Handwritten"],
+  ["neat", "Neat pen"],
+  ["script", "Script"],
+  ["marker", "Marker"],
+];
+const ALIGN_CHOICES = [
+  ["left", "Align left", AlignLeft],
+  ["center", "Centre", AlignCenter],
+  ["right", "Align right", AlignRight],
+  ["justify", "Justify", AlignJustify],
+] as const;
+
+/** Fonts are shown as themselves, so choosing one is a look rather than a guess; alignment is one tap. */
+function TextStyleControls({
+  side,
+  onChange,
+}: {
+  side: FoldoutSurface;
+  onChange: (next: FoldoutSurface) => void;
+}) {
+  const [ready, setReady] = useState(0);
+  useEffect(() => {
+    void loadNoteFonts(FONT_CHOICES.map(([font]) => ({ font }))).then(() =>
+      setReady(1),
+    );
+  }, []);
+  const font = side.font ?? "serif";
+  const align = side.align ?? "left";
+  const valign = side.valign ?? "top";
+  const pill = (active: boolean) =>
+    `rounded-md border px-2 py-1.5 text-xs transition-colors ${active ? "border-foreground bg-foreground text-background" : "bg-background hover:bg-muted"}`;
+  return (
+    <div className="space-y-3" data-fonts-ready={ready}>
+      <div>
+        <p className="text-xs">Font</p>
+        <div className="mt-1 grid grid-cols-2 gap-1.5" role="radiogroup" aria-label="Font">
+          {FONT_CHOICES.map(([id, name]) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={font === id}
+              className={pill(font === id)}
+              style={{ fontFamily: NOTE_FONT_FAMILIES[id].css, fontSize: "1rem", lineHeight: 1.2 }}
+              onClick={() => onChange({ ...side, font: id })}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <p className="text-xs">Text position</p>
+        <div className="mt-1 flex gap-1.5" role="radiogroup" aria-label="Text alignment">
+          {ALIGN_CHOICES.map(([id, label, Icon]) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={align === id}
+              aria-label={label}
+              title={label}
+              className={`${pill(align === id)} flex-1 px-0`}
+              onClick={() => onChange({ ...side, align: id })}
+            >
+              <Icon className="mx-auto size-4" />
+            </button>
+          ))}
+        </div>
+        <div className="mt-1.5 flex gap-1.5" role="radiogroup" aria-label="Vertical position">
+          {(["top", "middle", "bottom"] as const).map((id) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={valign === id}
+              className={`${pill(valign === id)} flex-1 capitalize`}
+              onClick={() => onChange({ ...side, valign: id })}
+            >
+              {id}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** A link sitting on the page in the editor: drag to move, arrow keys to nudge. */
+function LinkChip({
+  link,
+  selected,
+  inert,
+  page,
+  onSelect,
+  onMove,
+}: {
+  link: PageLink;
+  selected: boolean;
+  inert: boolean;
+  page: RefObject<HTMLDivElement | null>;
+  onSelect: () => void;
+  onMove: (x: number, y: number) => void;
+}) {
+  const start = useRef<{ id: number; px: number; py: number; x: number; y: number } | null>(null);
+  return (
+    <button
+      type="button"
+      aria-label={`Move link: ${linkName(link) || "new link"}`}
+      aria-pressed={selected}
+      disabled={inert}
+      className={`absolute touch-none ${inert ? "" : "cursor-move"} rounded-[22%] ${selected ? "z-10 outline outline-2 outline-offset-2 outline-[var(--color-leaf,#6b8f4e)]" : ""}`}
+      style={{ left: `${link.x * 100}%`, top: `${link.y * 100}%`, width: `${link.size * 100}%` }}
+      onFocus={onSelect}
+      onPointerDown={(e) => {
+        if (!e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        onSelect();
+        e.currentTarget.setPointerCapture(e.pointerId);
+        start.current = { id: e.pointerId, px: e.clientX, py: e.clientY, x: link.x, y: link.y };
+      }}
+      onPointerMove={(e) => {
+        const g = start.current;
+        const rect = page.current?.getBoundingClientRect();
+        if (!g || g.id !== e.pointerId || !rect) return;
+        onMove(g.x + (e.clientX - g.px) / rect.width, g.y + (e.clientY - g.py) / rect.height);
+      }}
+      onPointerUp={(e) => {
+        if (start.current?.id === e.pointerId) start.current = null;
+      }}
+      onPointerCancel={() => (start.current = null)}
+      onKeyDown={(e) => {
+        const d = e.shiftKey ? 0.02 : 0.005;
+        const v: Record<string, [number, number]> = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] };
+        if (v[e.key]) {
+          e.preventDefault();
+          e.stopPropagation();
+          onMove(link.x + v[e.key]![0], link.y + v[e.key]![1]);
+        }
+      }}
+    >
+      <LinkLogo link={link} />
+    </button>
+  );
+}
+
+const pageOptions = (leaves: Leaf[]) =>
+  leaves.map((l, i) => (
+    <option key={i} value={i}>
+      Page {l.page}
+      {l.half ? ` · ${l.half} half` : ""}
+    </option>
+  ));
+
+function TagsPanel({
+  tags,
+  leaves,
+  leaf,
+  onAdd,
+  onEdit,
+  onRemove,
+}: {
+  tags: PageTag[];
+  leaves: Leaf[];
+  leaf?: Leaf;
+  onAdd: () => void;
+  onEdit: (id: string, patch: Partial<PageTag>) => void;
+  onRemove: (id: string) => void;
+}) {
+  const pages = [...new Set(leaves.map((l) => l.page))];
+  return (
+    <div className="space-y-4">
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        Tabs stick out of the edge of the book, even when it is closed. Tap one and the book turns straight to its page.
+      </p>
+      <Button size="sm" variant="line" disabled={!leaf || tags.length >= MAX_TAGS} onClick={onAdd}>
+        + Add a tab{leaf ? ` to page ${leaf.page}` : ""}
+      </Button>
+      {tags.length === 0 && <p className="text-sm text-muted-foreground">No tabs yet.</p>}
+      <ul className="space-y-3">
+        {[...tags].sort((a, b) => a.page - b.page).map((t) => (
+          <li key={t.id} className="space-y-2 rounded-lg border p-3">
+            <div className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className="h-7 w-5 shrink-0 rounded-r-md shadow-sm"
+                style={{ background: t.colour }}
+              />
+              <input
+                aria-label="Tab text"
+                className="min-w-0 flex-1 rounded border bg-background p-2 text-sm"
+                placeholder="Tab text, e.g. Contact"
+                maxLength={TAG_LABEL_LIMIT}
+                value={t.label}
+                onChange={(e) => onEdit(t.id, { label: e.target.value })}
+              />
+              <button
+                type="button"
+                aria-label="Remove tab"
+                className="rounded p-2 text-xs text-destructive hover:bg-muted"
+                onClick={() => onRemove(t.id)}
+              >
+                Remove
+              </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Tab colour">
+              {TAG_COLOURS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  role="radio"
+                  aria-checked={t.colour === c}
+                  aria-label={`Colour ${c}`}
+                  className={`size-6 rounded-full border ${t.colour === c ? "ring-2 ring-foreground ring-offset-1" : ""}`}
+                  style={{ background: c }}
+                  onClick={() => onEdit(t.id, { colour: c })}
+                />
+              ))}
+              <label className="ml-1 text-xs">
+                <span className="sr-only">Custom colour</span>
+                <input
+                  type="color"
+                  className="size-7 cursor-pointer rounded border bg-background p-0.5"
+                  value={t.colour}
+                  onChange={(e) => onEdit(t.id, { colour: e.target.value })}
+                />
+              </label>
+            </div>
+            <label className="block text-xs">
+              Opens page
+              <select
+                className="mt-1 w-full rounded border bg-background p-2 text-sm"
+                value={t.page}
+                onChange={(e) => onEdit(t.id, { page: Number(e.target.value) })}
+              >
+                {pages.map((n) => (
+                  <option key={n} value={n}>
+                    Page {n}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function LinksPanel({
+  links,
+  selected,
+  leaves,
+  busy,
+  onSelect,
+  onAdd,
+  onEdit,
+  onMovePage,
+  onLogo,
+  onRemove,
+}: {
+  links: PageLink[];
+  selected: string | null;
+  leaves: Leaf[];
+  busy: boolean;
+  onSelect: (id: string) => void;
+  onAdd: () => void;
+  onEdit: (id: string, patch: Partial<PageLink>) => void;
+  onMovePage: (id: string, leafIndex: number) => void;
+  onLogo: (id: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  const link = links.find((l) => l.id === selected);
+  const [draft, setDraft] = useState(link?.url ?? "");
+  useEffect(() => setDraft(link?.url ?? ""), [link?.id]);
+  const leafIndex = link ? Math.max(0, leaves.findIndex((l) => l.page === link.page && (!l.half || l.half === link.half))) : 0;
+  const bad = !!draft.trim() && !normaliseUrl(draft);
+  return (
+    <div className="space-y-4">
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        Add a link to any website. Visitors tap its logo to open the site in a new tab. The logo is the website's own unless you choose another.
+      </p>
+      <Button size="sm" variant="line" disabled={links.length >= MAX_LINKS} onClick={onAdd}>
+        + Add a link to this page
+      </Button>
+      {links.length > 1 && (
+        <label className="block text-xs">
+          Select link
+          <select
+            className="mt-1 w-full rounded border bg-background p-2 text-sm"
+            value={selected ?? ""}
+            onChange={(e) => onSelect(e.target.value)}
+          >
+            {links.map((l) => (
+              <option key={l.id} value={l.id}>
+                {linkName(l) || "New link"} · page {l.page}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {link ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-14 shrink-0">
+              <LinkLogo link={link} />
+            </div>
+            <div className="min-w-0 text-xs">
+              <p className="truncate font-medium">{linkName(link) || "New link"}</p>
+              <div className="mt-1 flex flex-wrap gap-1">
+                <Button size="sm" variant="line" disabled={busy} onClick={() => onLogo(link.id)}>
+                  {link.iconKey ? "Change logo" : "Use my own logo"}
+                </Button>
+                {link.iconKey && (
+                  <Button size="sm" variant="quiet" onClick={() => onEdit(link.id, { iconKey: undefined })}>
+                    Use the site's logo
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+          <label className="block text-xs">
+            Web address
+            <input
+              className={`mt-1 w-full rounded border bg-background p-2 text-sm ${bad ? "border-destructive" : ""}`}
+              placeholder="behance.net/yourname"
+              inputMode="url"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              value={draft}
+              aria-invalid={bad}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                const n = normaliseUrl(e.target.value);
+                if (n) onEdit(link.id, { url: n });
+              }}
+              onBlur={() => {
+                const n = normaliseUrl(draft);
+                if (n) setDraft(n);
+              }}
+            />
+            {bad && <span className="mt-1 block text-destructive">That doesn't look like a web address.</span>}
+          </label>
+          <label className="block text-xs">
+            Caption (optional)
+            <input
+              className="mt-1 w-full rounded border bg-background p-2 text-sm"
+              maxLength={40}
+              placeholder="My Behance"
+              value={link.label ?? ""}
+              onChange={(e) => onEdit(link.id, { label: e.target.value })}
+            />
+          </label>
+          <label className="block text-xs">
+            Size
+            <input
+              type="range"
+              className="mt-1 w-full"
+              min={LINK_SIZE.min * 100}
+              max={LINK_SIZE.max * 100}
+              value={Math.round(link.size * 100)}
+              onChange={(e) => onEdit(link.id, placeLink({ ...link, size: Number(e.target.value) / 100 }, link.x, link.y))}
+            />
+          </label>
+          <label className="block text-xs">
+            On page
+            <select
+              className="mt-1 w-full rounded border bg-background p-2 text-sm"
+              value={leafIndex}
+              onChange={(e) => onMovePage(link.id, Number(e.target.value))}
+            >
+              {pageOptions(leaves)}
+            </select>
+          </label>
+          <Button size="sm" variant="quiet" className="text-destructive" onClick={() => onRemove(link.id)}>
+            Remove link
+          </Button>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">Add a link, then drag its logo where you want it on the page.</p>
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { Foldout } from "@/lib/portfolia/foldouts";
+import type { PageLink, PageTag } from "@/lib/portfolia/page-extras";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { List, Copy } from "lucide-react";
 import { projectFromHash, projectPath, readableProjects, type PortfolioProject } from "@/lib/portfolia/projects";
@@ -51,6 +52,8 @@ export function PdfViewer({
   startPage = 1,
   projects,
   foldouts,
+  tags,
+  links,
   projectCode,
   profile,
   home,
@@ -79,6 +82,8 @@ export function PdfViewer({
   startPage?: number;
   projects?: PortfolioProject[];
   foldouts?: Foldout[];
+  tags?: PageTag[];
+  links?: PageLink[];
   /** Enables hash links on public readers. Editor previews never read the URL hash. */
   projectCode?: string;
   /** The person's details, shown from a small profile icon. */
@@ -573,7 +578,7 @@ export function PdfViewer({
       ) : (
         <div className={cn("transition-opacity duration-300", shownReady ? "opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!shownReady}>
       {mode === "book" ? (
-        <BookView foldouts={foldouts} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={onLoadError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} />
+        <BookView foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={onLoadError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} />
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div className="overflow-x-auto">
