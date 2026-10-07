@@ -370,3 +370,10 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Preserve the latest editor, scrapbook, tabs and links work from main.
 - Merge requested by the user; no live publication.
 - Validation: production build and TypeScript pass. Real-browser visual and pointer checks remain outstanding.
+
+## Iteration 29 — correct editor height cascade and dock drag offset
+
+- Apply the editor viewport height in the same unlayered CSS cascade as the reader; Tailwind's layered height utility was losing to the default 66vh reader height.
+- Reset the separate CSS translate property when switching the dock from centred placement to pointer positioning. Resetting transform alone left the negative half-height translation active, moving the handle out of reach.
+- Prevent focus-triggered scrolling when grabbing the handle. Preserve bounds, resize clamping and keyboard reset.
+- Follow-up fix to iteration 28; no live publication.
