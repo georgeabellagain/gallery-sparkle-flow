@@ -64,8 +64,8 @@ export function PortfolioPage({
   const backgroundBlob = useBlob(view.backgroundKey);
   const backgroundUrl = useObjectUrl(backgroundBlob);
   const cv = cvBlobKey ? profile.cv : undefined;
-  const links = profile.links.filter((l) => l.url.trim());
-  const hasProfile = view.showHeader && !embed && Boolean(profile.name?.trim() || profile.title || profile.intro || profile.email || links.length > 0 || cv || photoUrl || bannerUrl);
+  const profileLinks = profile.links.filter((l) => l.url.trim());
+  const hasProfile = view.showHeader && !embed && Boolean(profile.name?.trim() || profile.title || profile.intro || profile.email || profileLinks.length > 0 || cv || photoUrl || bannerUrl);
 
   const details = hasProfile ? (
     <div className="-m-3 rounded-2xl p-3" style={pageStyle ? { background: pageStyle.background, color: pageStyle.text } : undefined}>
@@ -82,7 +82,7 @@ export function PortfolioPage({
         </div>
       </div>
       {profile.intro && <p className="mt-3 text-sm leading-relaxed">{profile.intro}</p>}
-      {(profile.email || links.length > 0 || cv) && (
+      {(profile.email || profileLinks.length > 0 || cv) && (
         <div className="mt-3 flex flex-col gap-1.5 text-sm">
           {profile.email && (
             <a href={`mailto:${profile.email}`} className="inline-flex items-center gap-1.5 underline-offset-4 hover:underline">
@@ -94,7 +94,7 @@ export function PortfolioPage({
               <CvIcon className="size-3.5" /> CV
             </a>
           )}
-          {links.map((l, i) => (
+          {profileLinks.map((l, i) => (
             <a key={i} href={withProtocol(l.url)} target="_blank" rel="noopener noreferrer" className="underline-offset-4 hover:underline">
               {l.label || prettyUrl(l.url)}
             </a>
