@@ -360,3 +360,13 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Fix: an open scrapbook note could block the next page turn (the turn waited on a close animation whose card was removed as the book went busy), leaving the book on page 1. Notes now close before the book is marked busy, a removed card always finishes its pending close, and a press on the page edge while a note is open closes it, then a plain click turns.
 - Smoothness: the book no longer re-renders when panning/zooming/turning produces unchanged edge positions.
 - Review branch only; no deployment. Browser and device review of the new editor, tabs and links is still needed.
+
+
+## Iteration 28 — full-height editor canvas and movable tools
+
+- Extend the portfolio canvas to the full viewport height below the editor header. Preserve page proportions while fitting the available height/width; remove extra editor camera inset and mobile bottom padding.
+- Keep the book framing stable when opening settings and narrow the desktop settings panel to 19rem.
+- Add a top grip to the editing widget. Drag with mouse, touch or pen; movement stays inside the canvas and is clamped again after resizing. Arrow keys move it, Shift increases the step, Home or double-click resets its position.
+- Preserve the latest editor, scrapbook, tabs and links work from main.
+- Merge requested by the user; no live publication.
+- Validation: production build and TypeScript pass. Real-browser visual and pointer checks remain outstanding.
