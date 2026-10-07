@@ -105,7 +105,6 @@ function ScrapbookPreview() {
           <FoldoutCard
             key={`${item.hinge}:${item.colour}`}
             item={item}
-            imageUrl="/examples/quiet-coast.jpg"
           />
           <p className="absolute bottom-[7%] left-[9%] text-[10px] uppercase tracking-widest">
             Collected moments / Portfolia

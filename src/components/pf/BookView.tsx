@@ -1,3 +1,5 @@
+import { loadNoteImages, paintClosedNotes } from "@/lib/portfolia/foldout-paint";
+import { foldoutSurfaces } from "@/lib/portfolia/foldouts";
 import { StoredFoldout } from "./FoldoutCard";
 import { foldoutsForLeaf, readableFoldouts, type Foldout, type PageBounds } from "@/lib/portfolia/foldouts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -56,6 +58,7 @@ function pageLoader(
   /** What the graphics card can take, known once the 3D view exists. */
   maxTexture: () => number = () => 4096,
   lightweight = false,
+  notes: Foldout[] = [],
 ) {
   const faces = new Map<number, HTMLCanvasElement>();
   const pending = new Map<number, Promise<void>>();
@@ -106,7 +109,7 @@ function pageLoader(
     // Enough pages stay in memory to turn through the book; the rest are prepared as they are needed.
     keep = Math.max(6, Math.min(count, Math.floor(CPU_BYTES[tier] / ((4 * long * long) / leafRatio))));
   })();
-  const compose = (raw: HTMLCanvasElement, leaf: Leaf, index: number) => {
+  const compose = (raw: HTMLCanvasElement, leaf: Leaf, index: number, noteImages: Awaited<ReturnType<typeof loadNoteImages>>) => {
     const canvas = document.createElement("canvas");
     canvas.width = leaf.half ? Math.floor(raw.width / 2) : raw.width;
     canvas.height = Math.round(canvas.width * ratio);
@@ -132,6 +135,7 @@ function pageLoader(
       w,
       h,
     );
+    paintClosedNotes(canvas, foldoutsForLeaf(notes, leaf), noteImages);
     return canvas;
   };
 
@@ -157,7 +161,11 @@ function pageLoader(
         tasks.delete(task);
       }
       if (closed) throw new Error("Viewer closed");
-      for (const index of leavesOf.get(page) ?? []) faces.set(index, compose(raw, layout.leaves[index]!, index));
+      const images = await loadNoteImages(notes.filter(f => f.page === page).flatMap(f => { const key = foldoutSurfaces(f).outside.imageKey; return key ? [key] : []; }));
+      try {
+        if (closed) throw new Error("Viewer closed");
+        for (const index of leavesOf.get(page) ?? []) faces.set(index, compose(raw, layout.leaves[index]!, index, images));
+      } finally { images.forEach(image => image.close()); }
       // The faces hold the pixels now; release the full-size render straight away.
       raw.width = raw.height = 0;
       while (faces.size > keep) faces.delete(faces.keys().next().value!);
@@ -310,7 +318,8 @@ export function BookView({
   ]);
   const [pageBounds, setPageBounds] = useState<PageBounds[]>([]);
   const syncBounds = () => { if (scene.current) { setCorners(scene.current.corners()); setPageBounds(scene.current.pageBounds()); } };
-  const additions = useMemo(() => readableFoldouts(foldouts, doc.numPages), [foldouts, doc.numPages]);
+  const notesSignature = JSON.stringify(foldouts ?? []);
+  const additions = useMemo(() => readableFoldouts(JSON.parse(notesSignature), doc.numPages), [notesSignature, doc.numPages]);
   const [leaf, setLeaf] = useState(0);
   // The page the book is really on. Updated the instant a turn lands, so a very quick
   // click never works from stale information while React is still catching up.
@@ -375,7 +384,7 @@ export function BookView({
     setNarrow(!fullSpread && element.clientWidth < 720);
     // The detail of the images inside the PDF is read once, in the background; pages wait for it before drawing.
     const density = lightweight ? Promise.resolve(0) : loadPdfjs().then((pdfjs) => detectDensity(doc, pdfjs.OPS as never)).catch(() => 0);
-    const source = pageLoader(doc, ratio, layout, density, () => scene.current?.maxTextureSize ?? 4096, lightweight);
+    const source = pageLoader(doc, ratio, layout, density, () => scene.current?.maxTextureSize ?? 4096, lightweight, additions);
     loader.current = source;
     setWarm(false);
     setWarmProgress({ done: 0, total: 0 });
@@ -469,7 +478,7 @@ export function BookView({
       scene.current?.dispose();
       scene.current = null;
     };
-  }, [doc, ratio, layout, lightweight, fullSpread]);
+  }, [doc, ratio, layout, lightweight, fullSpread, additions]);
 
   const faces = useCallback(
     async (value: Spread): Promise<BookFaces> => {
@@ -860,7 +869,7 @@ export function BookView({
           if (n === null || !bounds || (narrow && n !== leaf)) return null;
           const visible = foldoutsForLeaf(additions, layout.leaves[n]!);
           return <div key={`${n}:${settings.studio}`} className="pointer-events-none absolute z-30" style={{ left: `${bounds.x}%`, top: `${bounds.y}%`, width: `${bounds.width}%`, height: `${bounds.height}%` }}>
-            {visible.map(item => <StoredFoldout key={`${item.id}:${JSON.stringify(item)}`} item={item} />)}
+            {visible.map(item => <StoredFoldout key={`${item.id}:${JSON.stringify(item)}`} item={item} baked />)}
           </div>;
         })}
         {/* Each full page side turns at normal zoom; zoomed pages keep drag-to-pan. */}

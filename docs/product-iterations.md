@@ -295,12 +295,25 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 
 ## Iteration 22 — scrapbook fold-out prototype (unpublished)
 
-- Branch-only experiment; do not merge to main or deploy until reviewed. Iteration 21 is the last published release.
+- Merged into main via PR #9 on 7 October at the user’s request; not published. Iteration 21 remains the last published release.
 - Add optional PDF-bound image fold-outs in the appearance editor. Creators choose PDF page, spread half, caption, left/right hinge, colour, size and position. A small interactive placement preview updates while editing; Save fold-out applies the changes to the book.
 - Readers click/tap the flap to unfold a two-panel image in Simple or Studio. Enter/Space work on the focused flap; Escape closes it. Reduced-motion preferences disable the transition. Page turns, jumps and look changes reset the panels; overlays are hidden during page animation to avoid floating over the turning sheet.
 - Keep both opened panels within their physical page for phone framing. Pre-arranged PDF spreads attach the fold-out to the selected half only. Zoom and pan use the scene's projected page bounds.
 - Restrict uploads to JPEG/PNG/WebP, maximum 8 MB input, 12 fold-outs per PDF. Re-encode images at up to 2,400 pixels on the long edge. Preserve aspect ratio across the two panels without cropping.
 - Store images using existing private portfolio assets. Include them in account sync, published signed assets and password/expiry-checked file responses. Remove them on explicit removal, PDF replacement or portfolio deletion. No live database migration or account content changes were made for this prototype.
-- Add `/scrapbook-preview` as a noindex, non-sitemap review route, with hinge/colour/phone-width controls and an optional actual flipbook demo. The route exists only on this branch; it is not a live URL.
+- Add `/scrapbook-preview` as a noindex, non-sitemap review route, with hinge/colour/phone-width controls and an optional actual flipbook demo. The route is present in main after the requested merge, but is not a live URL until publication.
 - Scope: animated DOM paper overlays, not physically simulated Three.js sheets. Fold-outs are available in the functioning 3D book (Simple/Studio), not Scroll, Page by page, graphics fallback or the original PDF download. Coloured project navigation tabs remain separate, unbuilt work.
 - Checks: production build and TypeScript pass; all 34 focused tests pass. New tests cover placement validation, spread-half mapping, safe image keys and password/expiry protection. Browser visual verification was blocked by unavailable Chromium and a failed browser download; desktop/mobile interaction, camera alignment and cloud persistence still require manual review before any release.
+
+
+## Iteration 23 — direct scrapbook editing and attached page artwork (unpublished)
+
+- Replace the small placement sliders with a large, focus-trapped scrapbook editor showing the actual PDF page. Drag notes to position them and resize from any corner, including with touch. Arrow keys provide precise movement/resizing; Shift increases the step. Numeric width/height controls remain available.
+- Drop a raster image directly onto the page to create a note at that position. Choose Text note for an image-free note. Move existing notes between PDF pages or spread halves from the inspector.
+- Give the outside and interior separate colour, text and optional image settings. Each surface supports image replacement/removal and its own drop target. Existing image-only prototypes remain readable without migration.
+- Keep edits local to the editor until Save changes. Cancel discards placements and staged images; save checks that the same portfolio/PDF is still selected. Replacement/removal cleanup includes both image surfaces, using the existing private storage/access rules.
+- Paint closed outside artwork into each actual page canvas before Three.js uploads it. The note therefore stays flush with the page, receives its material/lighting and follows the bending page through forward/backward turns, instead of vanishing from a turning sheet. A transparent hit target opens the interactive hinge over that location when the page is still.
+- Closed notes may be positioned anywhere on the physical page and resized from 8% to 100% in either dimension. Opened panels may extend beyond the page; choose the appropriate opening direction. Both the desktop editor and phone use normalized page coordinates, including the existing mixed cover/spread layout.
+- Render outside artwork at the existing PDF page resolution. Decode outside images only for the PDF page being prepared, then release the bitmaps; interior images load when a note opens. Original PDF downloads are unchanged.
+- Validation: production build, TypeScript and 37 focused tests pass, including text-only/legacy compatibility, both surface asset keys, resize bounds and proof that only outside artwork is painted into the turning page. Real-device visual checks and signed-in cloud round trips remain outstanding in this environment.
+- No merge or deployment performed for this iteration. Keep the new review branch unpublished until instructed.
