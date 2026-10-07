@@ -1,3 +1,4 @@
+import { foldoutKeys } from "./foldouts";
 import { allAnalyticsEvents } from "./analytics";
 import { useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,7 +36,7 @@ let pushed = new Map<string, string>();
 let timer: ReturnType<typeof setTimeout> | null = null;
 
 function fileKeys(p: Portfolio): string[] {
-  return [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey, p.style?.bannerKey, p.viewer?.backgroundKey].filter(Boolean) as string[];
+  return [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey, p.style?.bannerKey, p.viewer?.backgroundKey, ...foldoutKeys(p.pdf)].filter(Boolean) as string[];
 }
 
 function schedulePush() {

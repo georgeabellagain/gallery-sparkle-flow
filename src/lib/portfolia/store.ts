@@ -1,3 +1,4 @@
+import { foldoutKeys } from "./foldouts";
 import { useSyncExternalStore } from "react";
 import { deleteBlob, uid } from "./assets";
 
@@ -92,6 +93,8 @@ export interface PdfFile {
   blobKey: string;
   /** Project navigation belongs to this exact PDF; replacing the file clears it. */
   projects?: import("./projects").PortfolioProject[];
+  /** Optional interactive additions, bound to this exact PDF. */
+  foldouts?: import("./foldouts").Foldout[];
   /** Optional derived JPEG used in public link previews. */
   coverKey?: string;
   name: string;
@@ -260,6 +263,7 @@ export async function replacePdf(pdf: PdfFile): Promise<boolean> {
   const old = getDoc().portfolio?.pdf;
   const ok = patchPortfolio({ pdf });
   if (ok && old && old.blobKey !== pdf.blobKey) {
+    await Promise.all(foldoutKeys(old).map(key => deleteBlob(key).catch(() => {})));
     await deleteBlob(old.blobKey).catch(() => {});
     if (old.coverKey) await deleteBlob(old.coverKey).catch(() => {});
   }
@@ -268,6 +272,7 @@ export async function replacePdf(pdf: PdfFile): Promise<boolean> {
 
 export async function deletePortfolio(): Promise<void> {
   const p = getDoc().portfolio;
+  await Promise.all(foldoutKeys(p?.pdf).map(key => deleteBlob(key).catch(() => {})));
   if (p?.pdf) await deleteBlob(p.pdf.blobKey).catch(() => {});
   if (p?.pdf?.coverKey) await deleteBlob(p.pdf.coverKey).catch(() => {});
   if (p?.profile.photoKey) await deleteBlob(p.profile.photoKey).catch(() => {});
@@ -371,7 +376,7 @@ export function resetAll() {
 
 /* ---------- Addresses ---------- */
 
-export const RESERVED = ["zine-flipbook", "magazine-flipbook", "admin", "support", "www", "api", "app", "mail", "help", "blog", "login", "signin", "portfolia", "status", "billing", "dashboard", "create", "p", "u", "reset-password", "signup", "account", "pricing", "terms", "privacy", "refund", "portfolio-checker", "embed-flipbook-in-squarespace", "embed-flipbook-in-wix", "embed-flipbook-in-notion", "sitemap.xml", "robots.txt", "sample", "free-pdf-portfolio", "free-portfolio-website", "architecture-portfolio", "fashion-portfolio"];
+export const RESERVED = ["scrapbook-preview", "zine-flipbook", "magazine-flipbook", "admin", "support", "www", "api", "app", "mail", "help", "blog", "login", "signin", "portfolia", "status", "billing", "dashboard", "create", "p", "u", "reset-password", "signup", "account", "pricing", "terms", "privacy", "refund", "portfolio-checker", "embed-flipbook-in-squarespace", "embed-flipbook-in-wix", "embed-flipbook-in-notion", "sitemap.xml", "robots.txt", "sample", "free-pdf-portfolio", "free-portfolio-website", "architecture-portfolio", "fashion-portfolio"];
 
 export function checkUsername(raw: string): { ok: boolean; msg: string } {
   const u = raw.trim().toLowerCase();

@@ -845,6 +845,14 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         frameCamera();
       });
     },
+    pageBounds() {
+      camera.updateMatrixWorld();
+      return [-1, 0].map(x => {
+        const top = new THREE.Vector3(x, ratio / 2, 0).project(camera);
+        const bottom = new THREE.Vector3(x + 1, -ratio / 2, 0).project(camera);
+        return { x: (top.x + 1) * 50, y: (1 - top.y) * 50, width: (bottom.x - top.x) * 50, height: (top.y - bottom.y) * 50 };
+      });
+    },
     corners() {
       camera.updateMatrixWorld();
       return [-1, 1].map((x) => {
@@ -959,3 +967,4 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   };
 }
 export type BookScene = ReturnType<typeof createBookScene>;
+

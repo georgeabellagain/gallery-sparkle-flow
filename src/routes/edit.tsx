@@ -2,6 +2,7 @@ import { AnalyticsPanel } from "@/components/pf/AnalyticsPanel";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE, Modal, useBlob } from "@/components/pf/Chrome";
+import { FoldoutSettings } from "@/components/pf/FoldoutSettings";
 import { ProjectSettings } from "@/components/pf/ProjectSettings";
 import { StyleForm } from "@/components/pf/StyleForm";
 import { PortfolioPage, useStoredMedia } from "@/components/pf/PortfolioPage";
@@ -55,6 +56,7 @@ function EditPortfolio() {
           <h1 className="display-title text-2xl">Edit portfolio</h1>
           <p className="mt-1 text-xs text-muted-foreground">Style and experience settings</p>
           <div className="mt-6"><StyleForm sidebar part="experience" p={p} onSaveError={setSaveErr} /></div>
+          <FoldoutSettings key={`foldouts:${p.code}:${p.pdf.blobKey}`} p={p} />
           <ProjectSettings key={`${p.code}:${p.pdf.blobKey}`} p={p} />
           <div className="mt-6 space-y-3 rule-t pt-5">
             <label className="flex items-center gap-2 text-sm">
@@ -79,7 +81,7 @@ function EditPortfolio() {
             <Link to="/p/$slug" params={{ slug: p.code }} search={{ preview: "1" }} className="text-xxs underline underline-offset-4 text-muted-foreground hover:text-foreground">Full preview</Link>
           </div>
           <div className="max-h-[55svh] overflow-auto rounded-2xl border border-border bg-card shadow-soft lg:max-h-[calc(100svh-5rem)]">
-            <PortfolioPage showCredit={p.plan === "free"} profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.plan === "personal" ? p.style : undefined} viewer={p.viewer} projects={p.pdf.projects} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />
+            <PortfolioPage showCredit={p.plan === "free"} profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.plan === "personal" ? p.style : undefined} viewer={p.viewer} projects={p.pdf.projects} foldouts={p.pdf.foldouts} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />
           </div>
         </section>
         </div>
@@ -127,7 +129,7 @@ function EditReplaceModal({ open, onClose, current, limitMb }: { open: boolean; 
   const blob = useBlob(next?.blobKey);
   const close = () => { if (next) { void deleteBlob(next.blobKey); if (next.coverKey) void deleteBlob(next.coverKey); } setNext(null); setErr(null); onClose(); };
   return <Modal open={open} onClose={close} title="Replace PDF">
-    <p className="text-muted-foreground">{current.name} stays published until you confirm its replacement. Named project ranges will be cleared because the new file may have different pages.</p>
+    <p className="text-muted-foreground">{current.name} stays published until you confirm its replacement. Named project ranges and scrapbook fold-outs will be cleared because the new file may have different pages.</p>
     <div className="mt-4">{!next ? <DropZone small label="Choose replacement PDF" limitMb={limitMb} onAccepted={setNext} /> : <>
       <p className="text-xs">{next.name} · {next.pages} pages · {formatBytes(next.bytes)}</p>
       <div className="mt-2 h-72 overflow-hidden border border-border"><PdfViewer source={blob ? { blob } : null} fileName={next.name} compact viewer={{ mode: "paged", look: "clean", background: "paper", finish: "matte", paper: "smooth", light: "soft", shadow: "none", thickness: "thin", spreads: "single", showHeader: false }} /></div>
