@@ -11,6 +11,7 @@ import { Segmented } from "@/components/pf/viewer-ui";
 import { formatBytes } from "@/lib/portfolia/assets";
 import { DEFAULT_VIEWER, patchPortfolio, type Portfolio } from "@/lib/portfolia/store";
 import { getPreviewLook, pinPreviewLook, subscribePreviewLook, type PreviewLook } from "@/lib/portfolia/preview-look";
+import { setBookInset } from "@/lib/portfolia/book-framing";
 import { readablePageLinks, readablePageTags } from "@/lib/portfolia/page-extras";
 import { readableFoldouts } from "@/lib/portfolia/foldouts";
 import { cn } from "@/lib/utils";
@@ -106,6 +107,11 @@ export function EditorStage({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [scrapbook]);
+  // The page fills the whole stage and the tools float over it, so the book is framed a little further out to stay clear of them.
+  useEffect(() => {
+    setBookInset(tool ? 0.34 : 0.16);
+  }, [tool]);
+  useEffect(() => () => setBookInset(0), []);
   const pdf = p.pdf!;
   const notes = readableFoldouts(pdf.foldouts, pdf.pages).length;
   const tabs = readablePageTags(pdf.tags, pdf.pages).length;
@@ -114,7 +120,7 @@ export function EditorStage({
   const row = "flex items-center justify-between gap-3";
   return (
     <div className="relative h-[calc(100svh-3.5rem)] min-h-[520px] overflow-hidden bg-muted/50">
-      <div className="absolute inset-0 overflow-auto pb-16 lg:pb-0 lg:pl-20" onPointerDown={() => undefined}>
+      <div className="absolute inset-0 overflow-auto pb-16 lg:pb-0" onPointerDown={() => undefined}>
         {preview}
       </div>
       <nav

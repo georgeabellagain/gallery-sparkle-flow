@@ -378,11 +378,13 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   };
   // Room around the book, the same above and below so it sits exactly in the middle, with enough for its shadow to fade out.
   const FRAME_PAD = 0.12 + 0.08 * ratio;
+  /** Extra room around the book (the editor uses it to keep the book clear of its tools). */
+  let inset = 0;
   const cameraHeight = (scale: number) => {
     const aspect = Math.max(1, host.clientWidth) / Math.max(1, host.clientHeight);
     // Frame a lone cover as a page, but leave room for both pages once open.
     const width = narrow ? 1.08 : THREE.MathUtils.lerp(2.32, 1.32, Math.min(1, Math.abs(focus) * 2));
-    return Math.max(ratio * 1.1 + FRAME_PAD, width / aspect) / scale;
+    return (Math.max(ratio * 1.1 + FRAME_PAD, width / aspect) / scale) * (1 + inset);
   };
   /** Dragging may never move the view outside the initial framing. */
   const clampPan = () => {
@@ -775,6 +777,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     setNotes: notes.set,
     clearNotes: notes.clear,
     noteProgress: notes.progress,
+    setInset(value: number) {
+      inset = Math.max(0, value);
+      frameCamera();
+      requestPaint();
+    },
     setTabs: tabs.set,
     setTabRest(edges: Record<string, TabEdge>) {
       tabs.setRest(edges);

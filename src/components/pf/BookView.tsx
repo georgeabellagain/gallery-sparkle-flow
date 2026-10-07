@@ -1,6 +1,7 @@
 import { loadNoteFonts, loadNoteImages, paintClosedNotes } from "@/lib/portfolia/foldout-paint";
 import { foldoutSurfaces } from "@/lib/portfolia/foldouts";
 import { StoredFoldout } from "./FoldoutCard";
+import { getBookInset, subscribeBookInset } from "@/lib/portfolia/book-framing";
 import { PageLinkAnchor } from "./PageLinks";
 import { loadLinkIcons, paintPageLinks, type LinkIcons } from "@/lib/portfolia/link-paint";
 import { PageTabButtons } from "./PageTabs";
@@ -431,6 +432,12 @@ export function BookView({
         : null,
     [tabEntries, narrow],
   );
+  useEffect(() => {
+    if (!ready || !scene.current) return;
+    scene.current.setInset(getBookInset());
+    const apply = (value: number) => { scene.current?.setInset(value); syncBounds(); };
+    return subscribeBookInset(apply);
+  }, [ready]);
   useEffect(() => {
     if (!ready || fallback || !scene.current) return;
     scene.current.setTabs(tabEntries.map((t) => ({ id: t.id, text: t.label || String(t.page), colour: t.colour })), narrow);
