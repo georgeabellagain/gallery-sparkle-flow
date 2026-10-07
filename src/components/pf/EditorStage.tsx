@@ -138,14 +138,14 @@ export function EditorStage({
   const title = TOOLS.find(([id]) => id === tool)?.[1];
   const row = "flex items-center justify-between gap-3";
   return (
-    <div ref={stageRef} className="relative h-[calc(100dvh-3.5rem)] overflow-hidden bg-muted/50 [&_.pf-book-viewport]:h-[calc(100dvh-3.5rem)]">
+    <div ref={stageRef} className="pf-editor-stage relative h-[calc(100dvh-3.5rem)] overflow-hidden bg-muted/50">
       <div className="absolute inset-0 overflow-auto" onPointerDown={() => undefined}>
         {preview}
       </div>
       <nav
         ref={dockRef}
         aria-label="Editing tools"
-        style={position ? { left: position.left, top: position.top, bottom: "auto", right: "auto", transform: "none" } : undefined}
+        style={position ? { left: position.left, top: position.top, bottom: "auto", right: "auto", transform: "none", translate: "none" } : undefined}
         className="absolute bottom-3 left-3 z-20 flex max-h-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col rounded-2xl border border-border bg-background/95 p-1.5 shadow-soft backdrop-blur lg:bottom-auto lg:left-4 lg:top-1/2 lg:-translate-y-1/2"
       >
         <button
@@ -160,7 +160,7 @@ export function EditorStage({
             dragRef.current = { x: e.clientX, y: e.clientY, left: dock.left - stage.left, top: dock.top - stage.top };
             setPosition(clampPosition(dock.left - stage.left, dock.top - stage.top));
             setDragging(true);
-            e.currentTarget.focus();
+            e.currentTarget.focus({ preventScroll: true });
             e.currentTarget.setPointerCapture(e.pointerId);
           }}
           onPointerMove={e => {
