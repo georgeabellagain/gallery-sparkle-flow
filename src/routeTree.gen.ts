@@ -47,6 +47,7 @@ import { Route as ZineFlipbookRouteImport } from './routes/zine-flipbook'
 import { Route as EmbedCodeRouteImport } from './routes/embed.$code'
 import { Route as PSlugRouteImport } from './routes/p.$slug'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
+import { Route as ApiPublicFaviconRouteImport } from './routes/api/public/favicon'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicPortfolioCoverCodeRouteImport } from './routes/api/public/portfolio-cover/$code'
 import { Route as ApiPublicPortfolioFileCodeRouteImport } from './routes/api/public/portfolio-file/$code'
@@ -243,6 +244,11 @@ const UUsernameRoute = UUsernameRouteImport.update({
   path: '/u/$username',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicFaviconRoute = ApiPublicFaviconRouteImport.update({
+  id: '/api/public/favicon',
+  path: '/api/public/favicon',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
@@ -301,6 +307,7 @@ export interface FileRoutesByFullPath {
   '/embed/$code': typeof EmbedCodeRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
+  '/api/public/favicon': typeof ApiPublicFaviconRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
   '/api/public/portfolio-file/$code': typeof ApiPublicPortfolioFileCodeRoute
@@ -344,6 +351,7 @@ export interface FileRoutesByTo {
   '/embed/$code': typeof EmbedCodeRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
+  '/api/public/favicon': typeof ApiPublicFaviconRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
   '/api/public/portfolio-file/$code': typeof ApiPublicPortfolioFileCodeRoute
@@ -388,6 +396,7 @@ export interface FileRoutesById {
   '/embed/$code': typeof EmbedCodeRoute
   '/p/$slug': typeof PSlugRoute
   '/u/$username': typeof UUsernameRoute
+  '/api/public/favicon': typeof ApiPublicFaviconRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
   '/api/public/portfolio-file/$code': typeof ApiPublicPortfolioFileCodeRoute
@@ -433,6 +442,7 @@ export interface FileRouteTypes {
     | '/embed/$code'
     | '/p/$slug'
     | '/u/$username'
+    | '/api/public/favicon'
     | '/api/public/payments/webhook'
     | '/api/public/portfolio-cover/$code'
     | '/api/public/portfolio-file/$code'
@@ -476,6 +486,7 @@ export interface FileRouteTypes {
     | '/embed/$code'
     | '/p/$slug'
     | '/u/$username'
+    | '/api/public/favicon'
     | '/api/public/payments/webhook'
     | '/api/public/portfolio-cover/$code'
     | '/api/public/portfolio-file/$code'
@@ -519,6 +530,7 @@ export interface FileRouteTypes {
     | '/embed/$code'
     | '/p/$slug'
     | '/u/$username'
+    | '/api/public/favicon'
     | '/api/public/payments/webhook'
     | '/api/public/portfolio-cover/$code'
     | '/api/public/portfolio-file/$code'
@@ -563,6 +575,7 @@ export interface RootRouteChildren {
   EmbedCodeRoute: typeof EmbedCodeRoute
   PSlugRoute: typeof PSlugRoute
   UUsernameRoute: typeof UUsernameRoute
+  ApiPublicFaviconRoute: typeof ApiPublicFaviconRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicPortfolioCoverCodeRoute: typeof ApiPublicPortfolioCoverCodeRoute
   ApiPublicPortfolioFileCodeRoute: typeof ApiPublicPortfolioFileCodeRoute
@@ -836,6 +849,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UUsernameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/favicon': {
+      id: '/api/public/favicon'
+      path: '/api/public/favicon'
+      fullPath: '/api/public/favicon'
+      preLoaderRoute: typeof ApiPublicFaviconRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
@@ -899,6 +919,7 @@ const rootRouteChildren: RootRouteChildren = {
   EmbedCodeRoute: EmbedCodeRoute,
   PSlugRoute: PSlugRoute,
   UUsernameRoute: UUsernameRoute,
+  ApiPublicFaviconRoute: ApiPublicFaviconRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicPortfolioCoverCodeRoute: ApiPublicPortfolioCoverCodeRoute,
   ApiPublicPortfolioFileCodeRoute: ApiPublicPortfolioFileCodeRoute,
