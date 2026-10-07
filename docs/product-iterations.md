@@ -349,3 +349,14 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Open scrapbook notes fold shut before the page turns away (click, drag, swipe or tab).
 - Data: `pdf.tags` and `pdf.links` live beside `pdf.foldouts`, so they sync and publish with the portfolio. Replacing the PDF clears them.
 - Review branch only; no deployment. Tests: new `tests/page-extras.test.ts`; `tests/book-notes.test.ts` now checks the flap bends and lies on the page. A full build and device visual review are still needed.
+
+
+## Iteration 27 — dock editor, tabs and links on the paper, fixes (unpublished)
+
+- Editor: a top bar (name, save status, Simple/Studio preview switch, Preview, Publish), a left dock of tool icons, and a card on the right that opens the chosen tool's options over a full-width preview: Reading, Lighting & look, Background, Scrapbook, Projects, Page style, Share, File & publishing. The scrapbook opens its editor (Notes, Tabs, Links) from the dock. Statistics stay under the editor.
+- The Simple/Studio switch pins the preview's look until the other is chosen (`pinPreviewLook`); editing a look's options still shows that look briefly.
+- Page tabs are now paper in the 3D book: they sit on the page edge (right for pages ahead, left for pages passed, visible when closed), travel with their own sheet during a turn, hop edge halfway for jumps, and take the same light and shadow as the pages in Studio. Invisible buttons over them make them pressable.
+- Website links are printed on the page texture: flat, no shadow, and they curve and turn with the page. Smallest size is now 2% of the page width. Logos are fetched by our own `/api/public/favicon` route (the visitor's browser no longer contacts a third party) and fall back to a letter tile after 4 seconds.
+- Fix: an open scrapbook note could block the next page turn (the turn waited on a close animation whose card was removed as the book went busy), leaving the book on page 1. Notes now close before the book is marked busy, a removed card always finishes its pending close, and a press on the page edge while a note is open closes it, then a plain click turns.
+- Smoothness: the book no longer re-renders when panning/zooming/turning produces unchanged edge positions.
+- Review branch only; no deployment. Browser and device review of the new editor, tabs and links is still needed.

@@ -72,7 +72,7 @@ type CardProps = {
   sceneRendered?: boolean;
   onProgress?: (progress: number) => void;
   /** Lets the book close this note (and wait for it) before a page turns away from it. */
-  closers?: { current: Map<string, () => Promise<void>> };
+  closers?: { current: Map<string, () => Promise<void> | null> };
 };
 export function StoredFoldout(props: CardProps) {
   return <FoldoutCard {...props} />;
@@ -105,8 +105,15 @@ export function FoldoutCard({
     setProgress(p);
     callback.current?.(p);
   };
+  // A closing animation that is cut short (the card is removed) still reports done, so nothing waits on it forever.
+  const waiting = useRef(new Set<() => void>());
   const settle = (target: number, duration = 420) =>
-    new Promise<void>((done) => {
+    new Promise<void>((finish) => {
+      const done = () => {
+        waiting.current.delete(done);
+        finish();
+      };
+      waiting.current.add(done);
       cancelAnimationFrame(frame.current);
       if (
         duration <= 0 ||
@@ -130,7 +137,7 @@ export function FoldoutCard({
     if (!closers) return;
     const map = closers.current;
     // Closing is quick: the page is about to turn, so the note tucks away first.
-    const close = () => (current.current > 0 ? settle(0, 240) : Promise.resolve());
+    const close = () => (current.current > 0 ? settle(0, 240) : null);
     map.set(item.id, close);
     return () => {
       if (map.get(item.id) === close) map.delete(item.id);
@@ -139,6 +146,7 @@ export function FoldoutCard({
   useEffect(
     () => () => {
       cancelAnimationFrame(frame.current);
+      waiting.current.forEach((done) => done());
       callback.current?.(0);
     },
     [],

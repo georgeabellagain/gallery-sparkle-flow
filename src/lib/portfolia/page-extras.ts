@@ -25,7 +25,7 @@ export interface PageLink {
 export const MAX_TAGS = 24;
 export const MAX_LINKS = 24;
 export const TAG_LABEL_LIMIT = 24;
-export const LINK_SIZE = { min: 0.05, max: 0.4, default: 0.12 };
+export const LINK_SIZE = { min: 0.02, max: 0.4, default: 0.1 };
 export const TAG_COLOURS = ["#e8604c", "#f2a93b", "#f4d35e", "#6bbf8a", "#4fa3d1", "#8c79d8", "#e98bb5", "#3b3a36"];
 const key = /^[a-zA-Z0-9_.-]{1,120}$/;
 const hex = /^#[a-fA-F0-9]{6}$/;
@@ -52,9 +52,9 @@ export function hostOf(url: string): string {
     return "";
   }
 }
-/** The website's own logo. It is requested from a favicon service only when a visitor sees the page. */
-export function siteIconUrl(url: string, size = 128): string {
-  return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostOf(url))}&sz=${size}`;
+/** The website's own logo, served from our own address (the server fetches it, so visitors never contact a third party). */
+export function siteIconUrl(url: string): string {
+  return `/api/public/favicon?host=${encodeURIComponent(hostOf(url))}`;
 }
 /** A readable name for a link without a caption: "behance.net". */
 export function linkName(link: Pick<PageLink, "url" | "label">): string {
@@ -102,20 +102,7 @@ export const linksForLeaf = (links: PageLink[], leaf: { page: number; half?: "le
   links.filter((l) => l.page === leaf.page && (!leaf.half || l.half === leaf.half));
 export const tagsForLeaf = (tags: PageTag[], leaf: { page: number; half?: "left" | "right" }) =>
   tags.filter((t) => t.page === leaf.page);
-/** Pointer position as a fraction of the page, clamped so a link stays fully on it. */
-export function placeLink(l: PageLink, x: number, y: number): PageLink {
-  return { ...l, x: Math.min(Math.max(0, x), 1 - l.size), y: Math.min(Math.max(0, y), 1) };
+/** Pointer position as a fraction of the page, clamped so a link stays fully on it (`ratio` is page height over width). */
+export function placeLink(l: PageLink, x: number, y: number, ratio = 1.4): PageLink {
+  return { ...l, x: Math.min(Math.max(0, x), 1 - l.size), y: Math.min(Math.max(0, y), Math.max(0, 1 - l.size / ratio)) };
 }
-
-export type TabEdge = "left" | "right";
-/**
- * Where a tab sits, like the tabs of a real book: tabs for pages still ahead stick out of the right edge,
- * tabs for pages already passed out of the left edge, and a tab for a page on show stays on its own page's edge.
- */
-export function tabEdge(target: number, spread: Array<number | null>, narrow: boolean, leaf: number): TabEdge {
-  if (narrow) return target < leaf ? "left" : "right";
-  const shown = spread.filter((n): n is number => n !== null);
-  if (shown.includes(target)) return spread[0] === target ? "left" : "right";
-  return target < Math.min(...shown) ? "left" : "right";
-}
-

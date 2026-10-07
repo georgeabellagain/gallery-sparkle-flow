@@ -13,7 +13,7 @@ test("web addresses are made safe", () => {
 });
 test("host and logo address", () => {
   assert.equal(hostOf("https://www.behance.net/me"), "behance.net");
-  assert.match(siteIconUrl("https://www.behance.net/me"), /domain=behance\.net/);
+  assert.match(siteIconUrl("https://www.behance.net/me"), /host=behance\.net/);
   assert.equal(linkName(link), "behance.net");
   assert.equal(linkName({ ...link, label: "My work" }), "My work");
 });
@@ -49,18 +49,32 @@ test("note text wraps, keeps paragraph ends, and shrinks to fit", () => {
   assert.ok(tight.lines.length * tight.size * 1.3 <= 60 + 1e-6 || tight.size < 1);
 });
 
-import { tabEdge } from "../src/lib/portfolia/page-extras";
+import { tabEdge } from "../src/lib/portfolia/tab-geometry";
 test("tabs stick out of the edge their page lies toward", () => {
-  // closed front cover: spread [null, 0]
-  assert.equal(tabEdge(3, [null, 0], false, 0), "right");
-  // open on leaves 1|2
-  assert.equal(tabEdge(5, [1, 2], false, 1), "right");
-  assert.equal(tabEdge(0, [1, 2], false, 1), "left");
-  assert.equal(tabEdge(1, [1, 2], false, 1), "left");
-  assert.equal(tabEdge(2, [1, 2], false, 1), "right");
-  // back cover [n, null]
-  assert.equal(tabEdge(1, [5, null], false, 5), "left");
-  // phone: single page
-  assert.equal(tabEdge(2, [null, 4], true, 4), "left");
-  assert.equal(tabEdge(6, [null, 4], true, 4), "right");
+  assert.equal(tabEdge(3, [null, 0], false), "right");
+  assert.equal(tabEdge(5, [1, 2], false), "right");
+  assert.equal(tabEdge(0, [1, 2], false), "left");
+  assert.equal(tabEdge(1, [1, 2], false), "left");
+  assert.equal(tabEdge(2, [1, 2], false), "right");
+  assert.equal(tabEdge(1, [5, null], false), "left");
+  assert.equal(tabEdge(2, [null, 4], true), "right");
+});
+
+import { paintPageLinks, iconKeyOf } from "../src/lib/portfolia/link-paint";
+test("links are printed flat on the page, with no shadow, at their place", () => {
+  const calls: string[] = [];
+  const shadows: unknown[] = [];
+  const ctx = new Proxy({}, {
+    get: (_t, name: string) => (name === "measureText" ? () => ({ width: 10 }) : (...args: unknown[]) => { calls.push(`${name}:${args.join(",")}`); },),
+    set: (_t, name: string, value) => { if (name.startsWith("shadow")) shadows.push(value); return true; },
+  }) as unknown as CanvasRenderingContext2D;
+  const link: PageLink = { id: "l", page: 1, half: "right", url: "https://behance.net/me", x: 0.1, y: 0.2, size: 0.1, label: "Work" };
+  paintPageLinks(ctx, 1000, 1400, [link], new Map());
+  assert.deepEqual(shadows, []);
+  // letter tile + caption, starting at x=100, y=280
+  assert.ok(calls.some((c) => c === "moveTo:122,280"));
+  assert.ok(calls.some((c) => c.startsWith("fillText:W,")));
+  assert.ok(calls.some((c) => c.startsWith("fillText:Work,")));
+  assert.equal(iconKeyOf(link), "site:behance.net");
+  assert.equal(iconKeyOf({ ...link, iconKey: "k1" }), "own:k1");
 });

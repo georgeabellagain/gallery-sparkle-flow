@@ -6,16 +6,28 @@
 export type PreviewLook = "clean" | "studio";
 
 let current: PreviewLook | null = null;
+/** A look the creator chose with the editor's Simple / Studio switch: it holds until they pick the other. */
+let pinned: PreviewLook | null = null;
 const listeners = new Set<(look: PreviewLook | null) => void>();
 
+const effective = () => current ?? pinned;
 export function setPreviewLook(look: PreviewLook | null) {
-  if (look === current) return;
+  const before = effective();
   current = look;
-  listeners.forEach((listener) => listener(look));
+  if (effective() !== before) listeners.forEach((listener) => listener(effective()));
+}
+export function pinPreviewLook(look: PreviewLook | null) {
+  const before = effective();
+  pinned = look;
+  current = null;
+  if (effective() !== before) listeners.forEach((listener) => listener(effective()));
+}
+export function getPinnedLook() {
+  return pinned;
 }
 
 export function getPreviewLook() {
-  return current;
+  return effective();
 }
 
 export function subscribePreviewLook(listener: (look: PreviewLook | null) => void) {

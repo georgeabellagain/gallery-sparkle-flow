@@ -1,14 +1,11 @@
 import { AnalyticsPanel } from "@/components/pf/AnalyticsPanel";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE, Modal, useBlob } from "@/components/pf/Chrome";
-import { FoldoutSettings } from "@/components/pf/FoldoutSettings";
-import { ProjectSettings } from "@/components/pf/ProjectSettings";
-import { StyleForm } from "@/components/pf/StyleForm";
+import { SiteFooter, DemoNote, LOCAL_NOTE, Modal, useBlob } from "@/components/pf/Chrome";
+import { EditorBar, EditorStage } from "@/components/pf/EditorStage";
 import { PortfolioPage, useStoredMedia } from "@/components/pf/PortfolioPage";
 import { DropZone } from "@/components/pf/DropZone";
 import { PdfViewer } from "@/components/pf/PdfViewer";
-import { ShareActions } from "@/components/pf/ShareActions";
 import { Button } from "@/components/ui/button";
 import { deleteBlob, formatBytes } from "@/lib/portfolia/assets";
 import { deletePortfolio, patchPortfolio, replacePdf, uploadLimitMb, useDoc, type PdfFile } from "@/lib/portfolia/store";
@@ -47,64 +44,24 @@ function EditPortfolio() {
 
   if (!p || !p.pdf) return null;
 
+  const publish = () => setSaveErr(patchPortfolio({ status: "published", publishedAt: Date.now() }) ? null : "Publishing failed — nothing changed.");
+  const status = saveErr || sync.status === "error" ? <>Couldn’t save · <button className="underline" onClick={retrySync}>Retry</button></> : !doc.account.signedIn ? "Draft — sign in to save" : sync.status === "saving" ? "Saving…" : "Saved";
   return (
     <div className="flex min-h-screen flex-col">
-      <SiteHeader right={<span className="text-xs text-muted-foreground">{saveErr || sync.status === "error" ? <>Couldn’t save · <button className="underline" onClick={retrySync}>Retry</button></> : !doc.account.signedIn ? "Draft — sign in to save" : sync.status === "saving" ? "Saving…" : "Saved"}</span>} />
+      <EditorBar p={p} status={status} onPublish={publish} onUnpublish={() => setDialog("unpublish")} />
       <main className="flex-1">
-        <div className="shell pb-5"><FoldoutSettings key={`foldouts:${p.code}:${p.pdf.blobKey}`} p={p} /></div>
-        <div className="grid items-start lg:grid-cols-[minmax(320px,380px)_minmax(0,1fr)]">
-        <section id="edit-settings" aria-label="Edit options" className="order-2 min-w-0 border-border px-5 py-6 lg:order-1 lg:border-r">
-          <h1 className="display-title text-2xl">Edit portfolio</h1>
-          <p className="mt-1 text-xs text-muted-foreground">Style and experience settings</p>
-          <div className="mt-6"><StyleForm sidebar part="experience" p={p} onSaveError={setSaveErr} /></div>
-          <ProjectSettings key={`${p.code}:${p.pdf.blobKey}`} p={p} />
-          <div className="mt-6 space-y-3 rule-t pt-5">
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={p.allowDownload} onChange={(e) => setSaveErr(patchPortfolio({ allowDownload: e.target.checked }) ? null : "Couldn’t save that setting.")} />
-              Let visitors download the PDF
-            </label>
-            <label className="flex items-start gap-2 text-sm">
-              <input type="checkbox" className="mt-1" checked={Boolean(p.searchIndexing)} onChange={(e) => setSaveErr(patchPortfolio({ searchIndexing: e.target.checked }) ? null : "Couldn’t save that setting.")} />
-              <span>
-                Allow search engines to list my portfolio
-                <span className="block text-xs text-muted-foreground">Off by default. Turning it off doesn’t stop people with your link from viewing it.</span>
-              </span>
-            </label>
-          </div>
-          {saveErr && <p role="alert" className="mt-4 text-sm text-destructive">{saveErr}</p>}
-        </section>
-        {/* Keep the existing viewer visible beside controls on desktop. */}
-        <section id="edit-preview" aria-label="Preview" className="order-1 min-w-0 bg-muted/50 p-3 sm:p-6 lg:sticky lg:top-0 lg:order-2">
-          <div className="flex items-center justify-between mb-2">
-            <p className="label-xs">Live preview</p>
-            <a href="#edit-settings" className="text-xs underline underline-offset-4 lg:hidden">Edit settings</a>
-            <Link to="/p/$slug" params={{ slug: p.code }} search={{ preview: "1" }} className="text-xxs underline underline-offset-4 text-muted-foreground hover:text-foreground">Full preview</Link>
-          </div>
-          <div className="max-h-[55svh] overflow-auto rounded-2xl border border-border bg-card shadow-soft lg:max-h-[calc(100svh-5rem)]">
-            <PortfolioPage showCredit={p.plan === "free"} profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.plan === "personal" ? p.style : undefined} viewer={p.viewer} projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />
-          </div>
-        </section>
-        </div>
-        <a href="#edit-preview" className="fixed bottom-4 right-4 z-40 rounded-full border border-border bg-background px-4 py-2 text-xs shadow-soft lg:hidden">Back to preview</a>
-        {/* Under the preview: the file and publishing, the way back, and sharing. */}
-        <section aria-label="Publishing and sharing" className="shell py-6 sm:py-8">
-          <div className="max-w-xl space-y-8">
-            <section>
-              <h2 className="text-sm font-medium">Portfolio file and publishing</h2>
-              <p className="mt-1 text-xs text-muted-foreground">{p.pdf.name} · {p.pdf.pages} pages · {formatBytes(p.pdf.bytes)}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button size="sm" variant="line" onClick={() => setDialog("replace")}>Replace PDF</Button>
-                {p.status === "published" ? <Button size="sm" variant="line" onClick={() => setDialog("unpublish")}>Unpublish</Button> : <Button size="sm" onClick={() => setSaveErr(patchPortfolio({ status: "published", publishedAt: Date.now() }) ? null : "Publishing failed — nothing changed.")}>Publish</Button>}
-                <Button size="sm" variant="quiet" onClick={() => setDialog("delete")}>Delete</Button>
-              </div>
-              {saveErr && <p role="alert" className="mt-4 text-sm text-destructive">{saveErr}</p>}
-            </section>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Button asChild className="w-full" variant="line"><Link to="/dashboard">Back to dashboard</Link></Button>
-              <Button asChild className="w-full" variant="quiet"><Link to="/create">Edit profile details</Link></Button>
-            </div>
+        <EditorStage
+          p={p}
+          onSaveError={setSaveErr}
+          onDialog={setDialog}
+          onPublish={publish}
+          onUnpublish={() => setDialog("unpublish")}
+          preview={<PortfolioPage showCredit={p.plan === "free"} profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.plan === "personal" ? p.style : undefined} viewer={p.viewer} projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />}
+        />
+        {saveErr && <p role="alert" className="shell py-3 text-sm text-destructive">{saveErr}</p>}
+        <section aria-label="Statistics" className="shell py-6 sm:py-8">
+          <div className="max-w-xl space-y-6">
             {doc.account.signedIn && <section id="statistics"><AnalyticsPanel data={doc.analytics} title="This portfolio’s statistics" description={p.pdf.name} /></section>}
-            <ShareActions p={p} />
             <DemoNote>{LOCAL_NOTE}</DemoNote>
           </div>
         </section>

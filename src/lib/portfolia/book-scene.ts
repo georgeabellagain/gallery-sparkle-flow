@@ -1,5 +1,7 @@
 import { createBookNotes } from "./book-notes";
 import { pageRelief } from "./page-relief";
+import { createBookTabs } from "./book-tabs";
+import type { TabEdge, TabPlan } from "./tab-geometry";
 import * as THREE from "three";
 import { surfaceCanvas, type SurfaceKind } from "./surface";
 import { parseRgbe } from "./rgbe";
@@ -760,15 +762,32 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     attr.needsUpdate = true;
     geometry.computeVertexNormals();
+    if (tabPlan) tabs.turn(tabPlan, progress, dir);
     driveContact(progress);
   };
   const notes = createBookNotes(book, ratio, pageMaterials, () => right.material as THREE.MeshPhysicalMaterial, requestPaint);
+  const tabs = createBookTabs(book, ratio, pageMaterials, () => right.material as THREE.MeshPhysicalMaterial, requestPaint);
+  /** How the tabs move during the turn in progress (set when a turn is prepared). */
+  let tabPlan: TabPlan[] | null = null;
   configure(settings);
   resize();
   return {
     setNotes: notes.set,
     clearNotes: notes.clear,
     noteProgress: notes.progress,
+    setTabs: tabs.set,
+    setTabRest(edges: Record<string, TabEdge>) {
+      tabs.setRest(edges);
+    },
+    /** Where the tabs lie now, as % of the view, for the invisible buttons that make them pressable. */
+    tabRects() {
+      camera.updateMatrixWorld();
+      return tabs.rects().map((r) => {
+        const a = new THREE.Vector3(r.x0, r.y1, 0.01).project(camera);
+        const b = new THREE.Vector3(r.x1, r.y0, 0.01).project(camera);
+        return { id: r.id, x: (a.x + 1) * 50, y: (1 - a.y) * 50, width: (b.x - a.x) * 50, height: (a.y - b.y) * 50 };
+      });
+    },
     configure,
     show,
     /** Uploads a page to the GPU ahead of time so a later turn does not stall. */
@@ -846,8 +865,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     },
     pan,
     /** `speed` 1 is the normal pace; smaller is quicker (used when pages are turned in quick succession). */
-    async prepareTurn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number, speed = 1) {
+    async prepareTurn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number, speed = 1, plan: TabPlan[] | null = null) {
       notes.clear();
+      tabPlan = plan;
       const originalFocus = focus;
       // A cover first aligns with the open spread. The sheet then turns.
       if (!narrow && focus !== 0) await pan(0, 420 * speed);
@@ -908,19 +928,24 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       // the textures in the same frame as hiding it is invisible.
       sheet.visible = false;
       contactTurn = null;
+      if (tabPlan) {
+        tabs.setRest(Object.fromEntries(tabPlan.map((p) => [p.id, complete ? p.to : p.from])));
+        tabPlan = null;
+      }
       show(complete ? to : from, false);
       draggedTurn = null;
       paint();
       await pan(complete ? destinationFocus : originalFocus, narrow ? 0 : 260 * speed);
     },
-    async turn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number, speed = 1) {
-      await this.prepareTurn(from, to, dir, destinationFocus, speed);
+    async turn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number, speed = 1, plan: TabPlan[] | null = null) {
+      await this.prepareTurn(from, to, dir, destinationFocus, speed, plan);
       // One frame to let everything settle, so the turn's clock starts on a quiet frame.
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
       await this.settleTurn(true);
     },
     dispose() {
       notes.clear();
+      tabs.clear();
       disposed = true;
       cancelAnimationFrame(frame);
       finishAnimation?.();

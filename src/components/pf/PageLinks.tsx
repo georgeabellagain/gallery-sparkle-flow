@@ -11,7 +11,7 @@ export function LinkLogo({ link, className = "" }: { link: Pick<PageLink, "url" 
   const letter = (linkName(link as PageLink) || "?").charAt(0).toUpperCase();
   return (
     <span
-      className={`flex aspect-square w-full items-center justify-center overflow-hidden rounded-[22%] bg-white shadow-[0_2px_8px_rgba(0,0,0,.28)] ring-1 ring-black/10 ${className}`}
+      className={`flex aspect-square w-full items-center justify-center overflow-hidden rounded-[22%] bg-white ring-1 ring-black/15 ${className}`}
     >
       {src && !failed ? (
         <img
@@ -42,23 +42,15 @@ export function PageLinkAnchor({ link }: { link: PageLink }) {
       title={`${name} (opens in a new tab)`}
       aria-label={`${name} (opens in a new tab)`}
       data-page-link
-      className="group pointer-events-auto absolute block touch-manipulation outline-none"
-      style={{ left: `${link.x * 100}%`, top: `${link.y * 100}%`, width: `${link.size * 100}%`, fontSize: "clamp(10px, 1.6cqw, 18px)" }}
+      className="group pointer-events-auto absolute block cursor-pointer touch-manipulation outline-none"
+      style={{ left: `${link.x * 100}%`, top: `${link.y * 100}%`, width: `${link.size * 100}%` }}
       onPointerDown={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.stopPropagation()}
       onTouchEnd={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
-      <LinkLogo
-        link={link}
-        className="transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-105 group-focus-visible:ring-2 group-focus-visible:ring-offset-2"
-      />
-      {link.label?.trim() && (
-        <span className="pointer-events-none mt-1 block truncate rounded-full bg-white/90 px-1.5 py-0.5 text-center text-[0.8em] leading-tight text-neutral-800 shadow-sm">
-          {link.label.trim()}
-        </span>
-      )}
+      <span className="block aspect-square w-full rounded-[22%] transition-colors group-hover:bg-black/5 group-focus-visible:ring-2 group-focus-visible:ring-black/60" />
     </a>
   );
 }

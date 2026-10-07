@@ -1,82 +1,49 @@
-import { noteInk } from "@/lib/portfolia/foldout-paint";
 import type { PageTag } from "@/lib/portfolia/page-extras";
-import type { PageBounds } from "@/lib/portfolia/foldouts";
 
-import { tabEdge, type TabEdge } from "@/lib/portfolia/page-extras";
-export { tabEdge };
-
-/** Coloured index tabs along the edges of the book. They show on a closed book and jump to their page when pressed. */
-export function PageTabs({
+/**
+ * The tabs themselves are paper in the book (see book-tabs.ts), lit and turned with their pages. These are the
+ * invisible buttons laid exactly over them, so a tab can be pressed, tabbed to and read aloud.
+ */
+export function PageTabButtons({
+  rects,
   tags,
-  edgeBounds,
-  viewportWidth,
-  onGo,
+  current,
   disabled,
+  onGo,
 }: {
-  tags: Array<PageTag & { edge: TabEdge; current: boolean }>;
-  /** The left and right edge of the book on screen, in % of the viewport, and where the pages begin and end vertically. */
-  edgeBounds: { left: number; right: number; top: number; height: number };
-  viewportWidth: number;
-  onGo: (page: number) => void;
+  rects: Array<{ id: string; x: number; y: number; width: number; height: number }>;
+  tags: Map<string, PageTag>;
+  current: Set<string>;
   disabled?: boolean;
+  onGo: (page: number) => void;
 }) {
-  const sides: TabEdge[] = ["left", "right"];
-  const room = (edge: TabEdge) => (edge === "left" ? edgeBounds.left : 100 - edgeBounds.right) * viewportWidth / 100;
   return (
     <>
-      {sides.map((edge) => {
-        const group = tags.filter((t) => t.edge === edge);
-        if (!group.length) return null;
-        const gap = 1.2;
-        const each = Math.min(15, (edgeBounds.height - gap * (group.length + 1)) / group.length);
-        // With little room beside the book (a phone) the tab overlaps the page edge instead of sticking out of it.
-        const out = Math.min(26, Math.max(0, room(edge) - 4));
-        const overlap = out >= 18 ? 4 : 22;
-        const width = out >= 18 ? out + overlap : overlap;
-        return group.map((tag, i) => {
-          const top = edgeBounds.top + gap + i * (each + gap);
-          const ink = noteInk(tag.colour);
-          const x = edge === "right" ? edgeBounds.right : edgeBounds.left;
-          return (
-            <button
-              key={tag.id}
-              type="button"
-              disabled={disabled}
-              aria-label={`Go to page ${tag.page}${tag.label ? `: ${tag.label}` : ""}`}
-              aria-current={tag.current ? "page" : undefined}
-              title={tag.label ? `${tag.label} · page ${tag.page}` : `Page ${tag.page}`}
-              data-page-tab
-              className="pf-page-tab absolute z-30 flex items-center justify-center text-[11px] font-medium leading-none shadow-[0_2px_6px_rgba(0,0,0,.28)] transition-transform duration-200 hover:scale-x-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-default"
-              style={{
-                top: `${top}%`,
-                height: `${each}%`,
-                width,
-                background: tag.colour,
-                color: ink,
-                ...(edge === "right"
-                  ? { left: `calc(${x}% - ${overlap}px)`, borderRadius: "0 8px 8px 0", transformOrigin: "left center" }
-                  : { left: `calc(${x}% - ${width - overlap}px)`, borderRadius: "8px 0 0 8px", transformOrigin: "right center" }),
-                ...(tag.current ? { filter: "brightness(1.08)" } : null),
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              onTouchEnd={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                onGo(tag.page);
-              }}
-            >
-              <span
-                className="max-h-full overflow-hidden whitespace-nowrap px-0.5"
-                style={{ writingMode: "vertical-rl", textOrientation: "mixed", transform: edge === "left" ? "rotate(180deg)" : undefined }}
-              >
-                {tag.label || tag.page}
-              </span>
-            </button>
-          );
-        });
+      {rects.map((r) => {
+        const tag = tags.get(r.id);
+        if (!tag) return null;
+        const name = tag.label ? `${tag.label} · page ${tag.page}` : `Page ${tag.page}`;
+        return (
+          <button
+            key={r.id}
+            type="button"
+            disabled={disabled}
+            aria-label={`Go to ${name.toLowerCase()}`}
+            aria-current={current.has(r.id) ? "page" : undefined}
+            title={name}
+            data-page-tab
+            className="absolute z-30 cursor-pointer rounded-sm bg-transparent p-0 outline-offset-2 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 disabled:cursor-default"
+            style={{ left: `${r.x}%`, top: `${r.y}%`, width: `${r.width}%`, height: `${r.height}%` }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onGo(tag.page);
+            }}
+          />
+        );
       })}
     </>
   );
 }
-export type { PageBounds };

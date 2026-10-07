@@ -31,9 +31,13 @@ async function prepareBackground(file: File): Promise<Blob> {
 }
 
 /** Paid-plan page styling: heading font, colours and an optional banner. */
-export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p: Portfolio; onSaveError: (msg: string | null) => void; sidebar?: boolean; part?: "all" | "appearance" | "experience" }) {
-  const showAppearance = part !== "experience";
-  const showExperience = part !== "appearance";
+export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p: Portfolio; onSaveError: (msg: string | null) => void; sidebar?: boolean; part?: "all" | "appearance" | "experience" | "reading" | "look" | "background" }) {
+  const showAppearance = part === "all" || part === "appearance";
+  const showReading = part === "all" || part === "experience" || part === "reading";
+  const showLook = part === "all" || part === "experience" || part === "look";
+  const showBackground = part === "all" || part === "experience" || part === "background";
+  const showExperience = showReading || showLook || showBackground;
+  const titled = part === "all" || part === "experience";
   const style = p.style ?? DEFAULT_STYLE;
   usePortfolioFont(style.font);
   const paid = p.plan === "personal";
@@ -166,10 +170,10 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
       )}
       {cropFile && <BannerCropper file={cropFile} onCancel={() => setCropFile(null)} onSave={saveBanner} />}
       </div>}
-      {showExperience && <div className={part === "experience" ? "" : `rule-t pt-4 ${sidebar ? "" : "lg:border-t-0 lg:pt-0"}`}>
-        <p className="text-xs font-medium">Portfolio experience</p>
-        <div className={`mt-3 grid items-start gap-x-10 gap-y-4 text-xs ${sidebar ? "" : "lg:grid-cols-2"}`}>
-          <div className="space-y-3">
+      {showExperience && <div className={part !== "all" ? "" : `rule-t pt-4 ${sidebar ? "" : "lg:border-t-0 lg:pt-0"}`}>
+        {titled && <p className="text-xs font-medium">Portfolio experience</p>}
+        <div className={`${titled ? "mt-3" : ""} grid items-start gap-x-10 gap-y-4 text-xs ${sidebar || !titled ? "" : "lg:grid-cols-2"}`}>
+          {showReading && <div className="space-y-3">
           <div className="space-y-2">
             <p>Reading modes visitors can use</p>
             <div className="grid gap-2">
@@ -193,9 +197,10 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
             <Segmented label="My PDF contains" value={viewer.spreads} options={[["single", "Single pages"], ["ready", "Two-page spreads"]] as const} onChange={(spreads) => setViewer({ spreads })} />
           </div>
           <label className="flex items-center justify-between gap-3"><span>Show profile icon</span><input type="checkbox" checked={viewer.showHeader} onChange={(e) => setViewer({ showHeader: e.target.checked })} /></label>
-          </div>
-          <div className="space-y-3">
-          {enabledModes.includes("book") && (
+          </div>}
+          {(showLook || showBackground) && <div className="space-y-3">
+          {showLook && !enabledModes.includes("book") && part === "look" && <p className="text-muted-foreground">Turn on Flipbook under Reading to choose how the book looks.</p>}
+          {showLook && enabledModes.includes("book") && (
             <div
               ref={flipbookBox}
               className="space-y-3 rounded-xl border border-border p-3"
@@ -271,7 +276,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
               )}
             </div>
           )}
-          <div className="space-y-2">
+          {showBackground && <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
               <span>Viewer background</span>
               <span className="flex items-center gap-2">
@@ -300,8 +305,8 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
               </div>
             )}
             {backgroundErr && <p role="alert" className="text-destructive">{backgroundErr}</p>}
-          </div>
-          </div>
+          </div>}
+          </div>}
         </div>
       </div>}
     </div>

@@ -2,7 +2,9 @@ import { loadNoteFonts, loadNoteImages, paintClosedNotes } from "@/lib/portfolia
 import { foldoutSurfaces } from "@/lib/portfolia/foldouts";
 import { StoredFoldout } from "./FoldoutCard";
 import { PageLinkAnchor } from "./PageLinks";
-import { PageTabs, tabEdge } from "./PageTabs";
+import { loadLinkIcons, paintPageLinks, type LinkIcons } from "@/lib/portfolia/link-paint";
+import { PageTabButtons } from "./PageTabs";
+import { planTabs, tabEdge } from "@/lib/portfolia/tab-geometry";
 import { linksForLeaf, readablePageLinks, readablePageTags, tabSlots, type PageLink, type PageTag } from "@/lib/portfolia/page-extras";
 import { foldoutsForLeaf, readableFoldouts, type Foldout, type PageBounds } from "@/lib/portfolia/foldouts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -62,7 +64,9 @@ function pageLoader(
   maxTexture: () => number = () => 4096,
   lightweight = false,
   notes: Foldout[] = [],
+  links: PageLink[] = [],
 ) {
+  const linkIcons: LinkIcons = new Map();
   const faces = new Map<number, HTMLCanvasElement>();
   const pending = new Map<number, Promise<void>>();
   const tasks = new Set<RenderTask>();
@@ -139,6 +143,8 @@ function pageLoader(
       h,
     );
     paintClosedNotes(canvas, foldoutsForLeaf(notes, leaf), noteImages);
+    // Links are printed on the page itself, so they curve, turn and catch the light with it.
+    paintPageLinks(ctx, canvas.width, canvas.height, linksForLeaf(links, leaf), linkIcons);
     return canvas;
   };
 
@@ -164,6 +170,7 @@ function pageLoader(
         tasks.delete(task);
       }
       if (closed) throw new Error("Viewer closed");
+      await loadLinkIcons(links.filter((l) => l.page === page), linkIcons);
       await loadNoteFonts(notes.filter(f => f.page === page).map(f => foldoutSurfaces(f).outside));
       const images = await loadNoteImages(notes.filter(f => f.page === page).flatMap(f => { const key = foldoutSurfaces(f).outside.imageKey; return key ? [key] : []; }));
       try {
@@ -327,19 +334,40 @@ export function BookView({
     { x: 92, y: 86 },
   ]);
   const [pageBounds, setPageBounds] = useState<PageBounds[]>([]);
-  const syncBounds = () => { if (scene.current) { setCorners(scene.current.corners()); setPageBounds(scene.current.pageBounds()); } };
+  const [tabRects, setTabRects] = useState<Array<{ id: string; x: number; y: number; width: number; height: number }>>([]);
+  // Positions are only handed to React when they actually moved, so panning, zooming and turning do not re-render the whole book for nothing.
+  const keep = <T,>(next: T) => (previous: T): T => (JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
+  const syncBounds = () => {
+    const s = scene.current;
+    if (!s) return;
+    setCorners(keep(s.corners()));
+    setPageBounds(keep(s.pageBounds()));
+    setTabRects(keep(s.tabRects()));
+  };
   const notesSignature = JSON.stringify(foldouts ?? []);
   const additions = useMemo(() => readableFoldouts(JSON.parse(notesSignature), doc.numPages), [notesSignature, doc.numPages]);
   const tagsSignature = JSON.stringify(tags ?? []);
   const linksSignature = JSON.stringify(links ?? []);
   const pageTags = useMemo(() => readablePageTags(JSON.parse(tagsSignature), doc.numPages), [tagsSignature, doc.numPages]);
   const pageLinks = useMemo(() => readablePageLinks(JSON.parse(linksSignature), doc.numPages), [linksSignature, doc.numPages]);
-  const noteClosers = useRef(new Map<string, () => Promise<void>>());
-  /** Any open scrapbook note folds shut before the page turns away from it. */
+  const noteClosers = useRef(new Map<string, () => Promise<void> | null>());
+  /**
+   * Any open scrapbook note folds shut before the page turns away from it. Called before the book is marked busy
+   * (which hides the notes), and holding the book's lock meanwhile so a quick click cannot start a second turn.
+   */
   const closeNotes = useCallback(async () => {
-    await Promise.all([...noteClosers.current.values()].map((close) => close()));
+    const closing = [...noteClosers.current.values()].map((close) => close()).filter((p): p is Promise<void> => !!p);
+    if (!closing.length) return;
+    const owned = !lock.current;
+    lock.current = true;
+    try {
+      await Promise.all(closing);
+    } finally {
+      if (owned) lock.current = false;
+    }
   }, []);
   const [leaf, setLeaf] = useState(0);
+  const tagById = useMemo(() => new Map(pageTags.map((t) => [t.id, t])), [pageTags]);
   // The page the book is really on. Updated the instant a turn lands, so a very quick
   // click never works from stale information while React is still catching up.
   const leafRef = useRef(0);
@@ -386,6 +414,34 @@ export function BookView({
   const atEnd = narrow ? leaf === layout.leaves.length - 1 : index === layout.spreads.length - 1;
   const current = layout.leaves[leaf]!;
   const pages = spread.filter((n): n is number => n !== null).map((n) => layout.leaves[n]!.page);
+  const tabEntries = useMemo(
+    () =>
+      tabSlots(pageTags).flatMap((t) => {
+        const target = layout.leaves.findIndex((l) => l.page === t.page);
+        return target < 0 ? [] : [{ ...t, leaf: target }];
+      }),
+    [pageTags, layout],
+  );
+  const currentTabs = new Set(tabEntries.filter((t) => (narrow ? t.leaf === leaf : spread.includes(t.leaf))).map((t) => t.id));
+  /** How the tabs travel in a turn from one spread to another: with their own sheet, or hopping edge halfway. */
+  const tabPlanFor = useCallback(
+    (fromSpread: Array<number | null>, toSpread: Array<number | null>, dir: 1 | -1) =>
+      tabEntries.length
+        ? planTabs(tabEntries.map((t) => ({ id: t.id, leaf: t.leaf })), fromSpread, toSpread, [fromSpread[dir === 1 ? 1 : 0] ?? null, toSpread[dir === 1 ? 0 : 1] ?? null], narrow)
+        : null,
+    [tabEntries, narrow],
+  );
+  useEffect(() => {
+    if (!ready || fallback || !scene.current) return;
+    scene.current.setTabs(tabEntries.map((t) => ({ id: t.id, text: t.label || String(t.page), colour: t.colour })), narrow);
+    scene.current.setTabRest(Object.fromEntries(tabEntries.map((t) => [t.id, tabEdge(t.leaf, spread, narrow)])));
+    syncBounds();
+  }, [ready, fallback, tabEntries, narrow]);
+  useEffect(() => {
+    if (!ready || fallback || busy || !scene.current || !tabEntries.length) return;
+    scene.current.setTabRest(Object.fromEntries(tabEntries.map((t) => [t.id, tabEdge(t.leaf, spread, narrow)])));
+    syncBounds();
+  }, [leaf, busy]);
   /** Turning waits until every page has been prepared. */
   const wait = loading || !warm;
   const label =
@@ -403,7 +459,7 @@ export function BookView({
     setNarrow(!fullSpread && element.clientWidth < 720);
     // The detail of the images inside the PDF is read once, in the background; pages wait for it before drawing.
     const density = lightweight ? Promise.resolve(0) : loadPdfjs().then((pdfjs) => detectDensity(doc, pdfjs.OPS as never)).catch(() => 0);
-    const source = pageLoader(doc, ratio, layout, density, () => scene.current?.maxTextureSize ?? 4096, lightweight, additions);
+    const source = pageLoader(doc, ratio, layout, density, () => scene.current?.maxTextureSize ?? 4096, lightweight, additions, pageLinks);
     loader.current = source;
     setWarm(false);
     setWarmProgress({ done: 0, total: 0 });
@@ -497,7 +553,7 @@ export function BookView({
       scene.current?.dispose();
       scene.current = null;
     };
-  }, [doc, ratio, layout, lightweight, fullSpread, additions]);
+  }, [doc, ratio, layout, lightweight, fullSpread, additions, pageLinks]);
 
   const faces = useCallback(
     async (value: Spread): Promise<BookFaces> => {
@@ -670,6 +726,11 @@ export function BookView({
         queueStep(direction);
         return;
       }
+      await closeNotes();
+      if (lock.current) {
+        queueStep(direction);
+        return;
+      }
       const fromLeaf = leafRef.current;
       const fromIndex = spreadIndex(layout.spreads, fromLeaf);
       const fromSpread = layout.spreads[fromIndex]!;
@@ -686,7 +747,6 @@ export function BookView({
       setBusy(true);
       setError(null);
       try {
-        await closeNotes();
         const [from, to] = await Promise.all([faces(fromSpread), faces(nextSpread)]);
         if (!alive.current) return;
         if (!fallback && scene.current) {
@@ -694,7 +754,7 @@ export function BookView({
           if (alive.current) onZoomChange(1);
           if (!alive.current) return;
           if (fromIndex === nextIndex) await scene.current.pan(target, quick ? 200 : 420);
-          else await scene.current.turn(from, to, direction, target, quick ? 0.5 : 1);
+          else await scene.current.turn(from, to, direction, target, quick ? 0.5 : 1, tabPlanFor(fromSpread, nextSpread, direction));
           shown.current = `${ready}|${nextSpread.join(",")}|`;
         }
         if (alive.current) goTo(nextLeaf);
@@ -705,13 +765,15 @@ export function BookView({
         if (alive.current) setBusy(false);
       }
     },
-    [wait, narrow, layout, faces, fallback, onZoomChange, ready, goTo, closeNotes],
+    [wait, narrow, layout, faces, fallback, onZoomChange, ready, goTo, closeNotes, tabPlanFor],
   );
 
   /** Goes straight to the spread holding a page (used by the page tabs) with one smooth turn. */
   const jumpTo = useCallback(
     async (targetLeaf: number) => {
       if (wait || lock.current || targetLeaf < 0 || targetLeaf >= layout.leaves.length) return;
+      await closeNotes();
+      if (lock.current) return;
       const fromLeaf = leafRef.current;
       const fromIndex = spreadIndex(layout.spreads, fromLeaf);
       const toIndex = spreadIndex(layout.spreads, targetLeaf);
@@ -726,7 +788,6 @@ export function BookView({
       setBusy(true);
       setError(null);
       try {
-        await closeNotes();
         const [from, to] = await Promise.all([faces(fromSpread), faces(nextSpread)]);
         if (!alive.current) return;
         if (!fallback && scene.current) {
@@ -734,7 +795,7 @@ export function BookView({
           if (alive.current) onZoomChange(1);
           if (!alive.current) return;
           if (fromIndex === toIndex) await scene.current.pan(target, 300);
-          else await scene.current.turn(from, to, direction, target, 0.6);
+          else await scene.current.turn(from, to, direction, target, 0.6, tabPlanFor(fromSpread, nextSpread, direction));
           shown.current = `${ready}|${nextSpread.join(",")}|`;
         }
         if (alive.current) goTo(nextLeaf);
@@ -745,7 +806,7 @@ export function BookView({
         if (alive.current) setBusy(false);
       }
     },
-    [wait, narrow, layout, faces, fallback, onZoomChange, ready, goTo, closeNotes],
+    [wait, narrow, layout, faces, fallback, onZoomChange, ready, goTo, closeNotes, tabPlanFor],
   );
 
   // When a turn ends, carry on with any clicks that arrived during it.
@@ -760,8 +821,16 @@ export function BookView({
     void move(direction, true);
   }, [busy, wait, atEnd, atStart, move]);
 
+  /** A press on the page edge while a note is open: the note closes first, then a plain click turns the page. */
+  const afterClose = useRef<{ id: number; x: number; y: number; dir: 1 | -1 } | null>(null);
   const beginCornerDrag = (e: React.PointerEvent<HTMLButtonElement>, direction: 1 | -1) => {
     if (!e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
+    if (!lock.current && !wait && [...noteClosers.current.values()].some((close) => close() !== null)) {
+      e.preventDefault();
+      afterClose.current = { id: e.pointerId, x: e.clientX, y: e.clientY, dir: direction };
+      void closeNotes();
+      return;
+    }
     if (lock.current) {
       if (!wait) queueStep(direction);
       return;
@@ -787,13 +856,12 @@ export function BookView({
     };
     drag.current = gesture;
     gesture.prepared = (async () => {
-      await closeNotes();
       const [from, to] = await Promise.all([faces(fromSpread), faces(nextSpread)]);
       if (!alive.current || !scene.current) return;
       await scene.current.resetZoom();
       if (!alive.current || !scene.current) return;
       onZoomChange(1);
-      await scene.current.prepareTurn(from, to, direction, target);
+      await scene.current.prepareTurn(from, to, direction, target, 1, tabPlanFor(fromSpread, nextSpread, direction));
       if (drag.current === gesture) scene.current.dragTurn(gesture.progress);
     })();
   };
@@ -943,31 +1011,20 @@ export function BookView({
           if (n === null || !bounds || (narrow && n !== leaf)) return null;
           const visible = foldoutsForLeaf(additions, layout.leaves[n]!);
           const onLeaf = linksForLeaf(pageLinks, layout.leaves[n]!);
-          return <div key={`${n}:${settings.studio}`} className="pointer-events-none absolute z-30" style={{ left: `${bounds.x}%`, top: `${bounds.y}%`, width: `${bounds.width}%`, height: `${bounds.height}%`, containerType: "inline-size" }}>
+          return <div key={`${n}:${settings.studio}`} className="pointer-events-none absolute z-30" style={{ left: `${bounds.x}%`, top: `${bounds.y}%`, width: `${bounds.width}%`, height: `${bounds.height}%` }}>
             {onLeaf.map(link => <PageLinkAnchor key={link.id} link={link} />)}
             {visible.map(item => <StoredFoldout key={`${item.id}:${litNotesKey === notesKey}:${JSON.stringify(item)}`} item={item} baked sceneRendered={litNotesKey === notesKey} onProgress={p=>scene.current?.noteProgress(item.id,p)} closers={noteClosers} />)}
           </div>;
         })}
-        {bookReady && !fallback && pageTags.length > 0 && pageBounds.length === 2 && (() => {
-          const left = pageBounds[0]!, right = pageBounds[1]!;
-          const single = narrow ? pageBounds[spread.findIndex((n) => n === leaf)] ?? right : null;
-          const leftEdge = single ? single.x : spread[0] === null ? right.x : left.x;
-          const rightEdge = single ? single.x + single.width : spread[1] === null ? left.x + left.width : right.x + right.width;
-          const entries = tabSlots(pageTags).flatMap((t) => {
-            const target = layout.leaves.findIndex((l) => l.page === t.page);
-            if (target < 0) return [];
-            return [{ ...t, target, edge: tabEdge(target, spread, narrow, leaf), current: narrow ? target === leaf : spread.includes(target) }];
-          });
-          return (
-            <PageTabs
-              tags={entries}
-              edgeBounds={{ left: leftEdge, right: rightEdge, top: left.y, height: left.height }}
-              viewportWidth={viewportRef.current?.clientWidth ?? 800}
-              disabled={busy || wait}
-              onGo={(page) => void jumpTo(layout.leaves.findIndex((l) => l.page === page))}
-            />
-          );
-        })()}
+        {bookReady && !fallback && tabRects.length > 0 && (
+          <PageTabButtons
+            rects={tabRects}
+            tags={tagById}
+            current={currentTabs}
+            disabled={busy || wait}
+            onGo={(page) => void jumpTo(layout.leaves.findIndex((l) => l.page === page))}
+          />
+        )}
         {/* Each full page side turns at normal zoom; zoomed pages keep drag-to-pan. */}
         {!narrow &&
           !fallback &&
@@ -1000,7 +1057,15 @@ export function BookView({
                 gesture.progress = Math.min(1, Math.max(0, gesture.dir * (gesture.x - e.clientX) / width));
                 scene.current?.dragTurn(gesture.progress);
               }}
-              onPointerUp={(e) => void finishCornerDrag(e)}
+              onPointerUp={(e) => {
+                const pending = afterClose.current;
+                if (pending && pending.id === e.pointerId) {
+                  afterClose.current = null;
+                  if (Math.abs(e.clientX - pending.x) < 6 && Math.abs(e.clientY - pending.y) < 6) void move(pending.dir);
+                  return;
+                }
+                void finishCornerDrag(e);
+              }}
               onPointerCancel={(e) => void finishCornerDrag(e, true)}
               onClick={(e) => { if (e.detail === 0) void move(d); }}
             />

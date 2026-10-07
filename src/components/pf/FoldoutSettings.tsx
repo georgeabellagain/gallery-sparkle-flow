@@ -61,11 +61,9 @@ export function FoldoutSettings({ p }: { p: Portfolio }) {
   const count = readableFoldouts(p.pdf?.foldouts, p.pdf?.pages ?? 0).length;
   return (
     <section className="mt-6 rule-t pt-5" aria-label="Scrapbook fold-outs">
-      <h2 className="text-sm font-medium">Scrapbook notes</h2>
+      <h2 className="text-sm font-medium">Scrapbook</h2>
       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-        Stick a note to any page. Drop in pictures or write text, then drag and
-        resize it. The outside and inside each have their own colours, text and
-        image.
+        Stick notes to any page, add page tabs, and link to your websites.
       </p>
       <Button
         className="mt-3"
@@ -75,40 +73,60 @@ export function FoldoutSettings({ p }: { p: Portfolio }) {
       >
         Edit scrapbook{count ? ` · ${count} notes` : ""}
       </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent
-          className="flex h-[94dvh] w-[96vw] max-w-[1400px] flex-col gap-0 overflow-hidden p-0 sm:max-w-[1400px]"
-          onInteractOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => {
-            if (
-              (e.target as Element | null)?.closest?.(
-                '[data-foldout][data-open="true"]',
-              )
-            )
-              e.preventDefault();
-          }}
-          onKeyDown={(e) => e.stopPropagation()}
-        >
-          <DialogTitle className="px-5 pt-5">Scrapbook editor</DialogTitle>
-          <DialogDescription className="px-5 pb-4 pt-2 text-xs">
-            Drag notes to move them. Pull a corner to resize. Drop an image on
-            the page to add a note.
-          </DialogDescription>
-          {open && p.pdf && (
-            <ScrapbookWorkspace p={p} onClose={() => setOpen(false)} />
-          )}
-        </DialogContent>
-      </Dialog>
+      <ScrapbookDialog p={p} open={open} onOpenChange={setOpen} />
     </section>
+  );
+}
+
+export type ScrapbookPanel = "notes" | "tabs" | "links";
+/** The scrapbook editor: notes, page tabs and website links, over a big view of the page. */
+export function ScrapbookDialog({
+  p,
+  open,
+  onOpenChange,
+  panel = "notes",
+}: {
+  p: Portfolio;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  panel?: ScrapbookPanel;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="flex h-[94dvh] w-[96vw] max-w-[1400px] flex-col gap-0 overflow-hidden p-0 sm:max-w-[1400px]"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => {
+          if (
+            (e.target as Element | null)?.closest?.(
+              '[data-foldout][data-open="true"]',
+            )
+          )
+            e.preventDefault();
+        }}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        <DialogTitle className="px-5 pt-5">Scrapbook</DialogTitle>
+        <DialogDescription className="px-5 pb-4 pt-2 text-xs">
+          Drag notes and links to move them. Pull a corner to resize a note.
+          Drop an image on the page to add a note.
+        </DialogDescription>
+        {open && p.pdf && (
+          <ScrapbookWorkspace p={p} initialPanel={panel} onClose={() => onOpenChange(false)} />
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
 function ScrapbookWorkspace({
   p,
   onClose,
+  initialPanel = "notes",
 }: {
   p: Portfolio;
   onClose: () => void;
+  initialPanel?: ScrapbookPanel;
 }) {
   const pdf = p.pdf!;
   const blob = useBlob(pdf.blobKey);
@@ -123,7 +141,7 @@ function ScrapbookWorkspace({
   const [links, setLinks] = useState(() => readablePageLinks(pdf.links, pdf.pages));
   const linksRef = useRef(links);
   linksRef.current = links;
-  const [panel, setPanel] = useState<"notes" | "tabs" | "links">("notes");
+  const [panel, setPanel] = useState<ScrapbookPanel>(initialPanel);
   const [selectedLink, setSelectedLink] = useState<string | null>(links[0]?.id ?? null);
   const iconInput = useRef<HTMLInputElement>(null);
   const iconTarget = useRef<string | null>(null);
