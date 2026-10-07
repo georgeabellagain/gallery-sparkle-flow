@@ -1,6 +1,6 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { BookOpen, FolderOpen, Image as ImageIcon, Palette, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
+import { BookOpen, GripHorizontal, FolderOpen, Image as ImageIcon, Palette, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/pf/Chrome";
 import { ScrapbookDialog, type ScrapbookPanel } from "@/components/pf/FoldoutSettings";
@@ -98,6 +98,25 @@ export function EditorStage({
   onPublish: () => void;
   onUnpublish: () => void;
 }) {
+  const stageRef = useRef<HTMLDivElement>(null);
+  const dockRef = useRef<HTMLElement>(null);
+  const dragRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const clampPosition = (left: number, top: number) => {
+    const stage = stageRef.current, dock = dockRef.current;
+    if (!stage || !dock) return { left, top };
+    return {
+      left: Math.max(8, Math.min(left, Math.max(8, stage.clientWidth - dock.offsetWidth - 8))),
+      top: Math.max(8, Math.min(top, Math.max(8, stage.clientHeight - dock.offsetHeight - 8))),
+    };
+  };
+  useEffect(() => {
+    const observer = new ResizeObserver(() => setPosition(current => current ? clampPosition(current.left, current.top) : null));
+    if (stageRef.current) observer.observe(stageRef.current);
+    if (dockRef.current) observer.observe(dockRef.current);
+    return () => observer.disconnect();
+  }, []);
   const [tool, setTool] = useState<Tool | null>(null);
   const [scrapbook, setScrapbook] = useState<ScrapbookPanel | null>(null);
   useEffect(() => {
@@ -107,10 +126,10 @@ export function EditorStage({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [scrapbook]);
-  // The page fills the whole stage and the tools float over it, so the book is framed a little further out to stay clear of them.
+  // Fit the book to the full-height canvas; opening tools must not shrink it.
   useEffect(() => {
-    setBookInset(tool ? 0.34 : 0.16);
-  }, [tool]);
+    setBookInset(0);
+  }, []);
   useEffect(() => () => setBookInset(0), []);
   const pdf = p.pdf!;
   const notes = readableFoldouts(pdf.foldouts, pdf.pages).length;
@@ -119,14 +138,52 @@ export function EditorStage({
   const title = TOOLS.find(([id]) => id === tool)?.[1];
   const row = "flex items-center justify-between gap-3";
   return (
-    <div className="relative h-[calc(100svh-3.5rem)] min-h-[520px] overflow-hidden bg-muted/50">
-      <div className="absolute inset-0 overflow-auto pb-16 lg:pb-0" onPointerDown={() => undefined}>
+    <div ref={stageRef} className="relative h-[calc(100dvh-3.5rem)] overflow-hidden bg-muted/50 [&_.pf-book-viewport]:h-[calc(100dvh-3.5rem)]">
+      <div className="absolute inset-0 overflow-auto" onPointerDown={() => undefined}>
         {preview}
       </div>
       <nav
+        ref={dockRef}
         aria-label="Editing tools"
-        className="absolute inset-x-0 bottom-0 z-20 flex justify-start gap-1 overflow-x-auto border-t border-border bg-background/95 p-2 backdrop-blur lg:inset-x-auto lg:bottom-auto lg:left-4 lg:top-1/2 lg:-translate-y-1/2 lg:flex-col lg:overflow-visible lg:rounded-2xl lg:border lg:p-2 lg:shadow-soft"
+        style={position ? { left: position.left, top: position.top, bottom: "auto", right: "auto", transform: "none" } : undefined}
+        className="absolute bottom-3 left-3 z-20 flex max-h-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col rounded-2xl border border-border bg-background/95 p-1.5 shadow-soft backdrop-blur lg:bottom-auto lg:left-4 lg:top-1/2 lg:-translate-y-1/2"
       >
+        <button
+          type="button"
+          aria-label="Move editing tools"
+          title="Drag to move · arrow keys to nudge · Home to reset"
+          className={cn("flex h-7 shrink-0 touch-none select-none items-center justify-center rounded-lg text-muted-foreground hover:bg-muted focus-visible:outline focus-visible:outline-2", dragging ? "cursor-grabbing" : "cursor-grab")}
+          onPointerDown={e => {
+            if (e.button !== 0 || !stageRef.current || !dockRef.current) return;
+            e.preventDefault();
+            const stage = stageRef.current.getBoundingClientRect(), dock = dockRef.current.getBoundingClientRect();
+            dragRef.current = { x: e.clientX, y: e.clientY, left: dock.left - stage.left, top: dock.top - stage.top };
+            setPosition(clampPosition(dock.left - stage.left, dock.top - stage.top));
+            setDragging(true);
+            e.currentTarget.focus();
+            e.currentTarget.setPointerCapture(e.pointerId);
+          }}
+          onPointerMove={e => {
+            const drag = dragRef.current;
+            if (drag) setPosition(clampPosition(drag.left + e.clientX - drag.x, drag.top + e.clientY - drag.y));
+          }}
+          onPointerUp={e => {
+            dragRef.current = null;
+            setDragging(false);
+            if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+          }}
+          onPointerCancel={() => { dragRef.current = null; setDragging(false); }}
+          onLostPointerCapture={() => { dragRef.current = null; setDragging(false); }}
+          onDoubleClick={() => setPosition(null)}
+          onKeyDown={e => {
+            if (e.key === "Home") { e.preventDefault(); e.stopPropagation(); setPosition(null); return; }
+            if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key) || !stageRef.current || !dockRef.current) return;
+            e.preventDefault(); e.stopPropagation();
+            const stage = stageRef.current.getBoundingClientRect(), dock = dockRef.current.getBoundingClientRect(), step = e.shiftKey ? 40 : 10;
+            setPosition(clampPosition(dock.left - stage.left + (e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0), dock.top - stage.top + (e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0)));
+          }}
+        ><GripHorizontal className="size-4" aria-hidden /></button>
+        <div className="flex min-h-0 gap-1 overflow-auto lg:flex-col">
         {TOOLS.map(([id, label, Icon]) => (
           <button
             key={id}
@@ -146,11 +203,12 @@ export function EditorStage({
             </span>
           </button>
         ))}
+        </div>
       </nav>
       {tool && (
         <section
           aria-label={title}
-          className="absolute inset-x-2 bottom-[4.25rem] z-30 max-h-[62%] overflow-auto rounded-2xl border border-border bg-background p-4 shadow-soft lg:inset-x-auto lg:bottom-4 lg:right-4 lg:top-4 lg:max-h-none lg:w-[22rem]"
+          className="absolute inset-x-2 bottom-[4.25rem] z-30 max-h-[62%] overflow-auto rounded-2xl border border-border bg-background p-4 shadow-soft lg:inset-x-auto lg:bottom-4 lg:right-4 lg:top-4 lg:max-h-none lg:w-[19rem]"
         >
           <div className="mb-3 flex items-center justify-between border-b border-border pb-2">
             <h2 className="text-sm font-medium">{title}</h2>
