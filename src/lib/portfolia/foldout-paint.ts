@@ -1,5 +1,11 @@
 import { getBlob } from "./assets";
 import { foldoutSurfaces, type Foldout, type FoldoutSurface } from "./foldouts";
+export const NOTE_FONTS = {
+  serif: "Georgia, serif",
+  sans: "Arial, sans-serif",
+  mono: "Courier New, monospace",
+  hand: "cursive",
+};
 export type NoteImages = Map<string, ImageBitmap>;
 export async function loadNoteImages(keys: string[]): Promise<NoteImages> {
   const images: NoteImages = new Map();
@@ -37,11 +43,14 @@ export function paintNoteSurface(
   ctx.fillRect(0, 0, w, h);
   const img = side.imageKey ? images.get(side.imageKey) : undefined;
   if (img) {
-    const scale = Math.min(w / img.width, h / img.height);
+    const scale =
+      (side.imageFit === "cover"
+        ? Math.max(w / img.width, h / img.height)
+        : Math.min(w / img.width, h / img.height)) * (side.imageScale ?? 1);
     ctx.drawImage(
       img,
-      (w - img.width * scale) / 2,
-      (h - img.height * scale) / 2,
+      (w - img.width * scale) / 2 + (side.imageX ?? 0) * w,
+      (h - img.height * scale) / 2 + (side.imageY ?? 0) * h,
       img.width * scale,
       img.height * scale,
     );
@@ -77,7 +86,7 @@ export function paintNoteSurface(
       return out;
     };
     for (let i = 0; i < 40; i++) {
-      ctx.font = `${size}px Georgia, serif`;
+      ctx.font = `${size}px ${NOTE_FONTS[side.font ?? "serif"]}`;
       lines = wrap();
       if (lines.length * size * 1.3 <= h - pad * 2) break;
       size *= 0.88;

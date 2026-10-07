@@ -3,6 +3,11 @@ export interface FoldoutSurface {
   colour: string;
   text: string;
   imageKey?: string;
+  font?: "serif" | "sans" | "mono" | "hand";
+  imageFit?: "contain" | "cover";
+  imageScale?: number;
+  imageX?: number;
+  imageY?: number;
 }
 export interface Foldout {
   id: string;
@@ -14,7 +19,7 @@ export interface Foldout {
   colour: string;
   outside?: FoldoutSurface;
   inside?: FoldoutSurface;
-  hinge: "left" | "right";
+  hinge: "left" | "right" | "top" | "bottom" | "none";
   x: number;
   y: number;
   width: number;
@@ -45,7 +50,7 @@ export function validateFoldout(f: Foldout, pages: number): string | null {
   if (!Number.isInteger(f.page) || f.page < 1 || f.page > pages)
     return "Choose a page in this PDF.";
   if (
-    !["left", "right"].includes(f.hinge) ||
+    !["left", "right", "top", "bottom", "none"].includes(f.hinge) ||
     !["left", "right"].includes(f.half)
   )
     return "Choose an opening direction and spread half.";
@@ -58,6 +63,28 @@ export function validateFoldout(f: Foldout, pages: number): string | null {
   )
     return "Choose a valid image.";
   for (const side of Object.values(foldoutSurfaces(f))) {
+    if (
+      side?.font !== undefined &&
+      !["serif", "sans", "mono", "hand"].includes(side.font)
+    )
+      return "Choose a valid font.";
+    if (
+      side?.imageFit !== undefined &&
+      !["contain", "cover"].includes(side.imageFit)
+    )
+      return "Choose a valid image fit.";
+    for (const [field, min, max] of [
+      ["imageScale", 0.25, 4],
+      ["imageX", -1, 1],
+      ["imageY", -1, 1],
+    ] as const) {
+      const value = side?.[field];
+      if (
+        value !== undefined &&
+        (!Number.isFinite(value) || value < min || value > max)
+      )
+        return "Choose a valid image crop.";
+    }
     if (
       !side ||
       !/^#[a-fA-F0-9]{6}$/.test(side.colour) ||

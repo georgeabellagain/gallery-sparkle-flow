@@ -1,3 +1,4 @@
+import { createBookNotes } from "./book-notes";
 import * as THREE from "three";
 import { surfaceCanvas, type SurfaceKind } from "./surface";
 import { parseRgbe } from "./rgbe";
@@ -782,9 +783,13 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     geometry.computeVertexNormals();
     driveContact(progress);
   };
+  const notes = createBookNotes(book, ratio, pageMaterials, () => right.material as THREE.MeshPhysicalMaterial, requestPaint);
   configure(settings);
   resize();
   return {
+    setNotes: notes.set,
+    clearNotes: notes.clear,
+    noteProgress: notes.progress,
     configure,
     show,
     /** Uploads a page to the GPU ahead of time so a later turn does not stall. */
@@ -863,6 +868,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     pan,
     /** `speed` 1 is the normal pace; smaller is quicker (used when pages are turned in quick succession). */
     async prepareTurn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number, speed = 1) {
+      notes.clear();
       const originalFocus = focus;
       // A cover first aligns with the open spread. The sheet then turns.
       if (!narrow && focus !== 0) await pan(0, 420 * speed);
@@ -935,6 +941,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       await this.settleTurn(true);
     },
     dispose() {
+      notes.clear();
       disposed = true;
       cancelAnimationFrame(frame);
       finishAnimation?.();

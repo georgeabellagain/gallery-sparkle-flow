@@ -53,7 +53,7 @@ export function NoteSurface({
       observer.disconnect();
       images.forEach((i) => i.close());
     };
-  }, [side.colour, side.text, side.imageKey]);
+  }, [JSON.stringify(side)]);
   return (
     <canvas
       ref={ref}
@@ -64,108 +64,210 @@ export function NoteSurface({
     />
   );
 }
-export function StoredFoldout({
-  item,
-  baked = false,
-}: {
+type CardProps = {
   item: Foldout;
   baked?: boolean;
-}) {
-  return <FoldoutCard item={item} baked={baked} />;
+  sceneRendered?: boolean;
+  onProgress?: (progress: number) => void;
+};
+export function StoredFoldout(props: CardProps) {
+  return <FoldoutCard {...props} />;
 }
 export function FoldoutCard({
   item,
   baked = false,
-}: {
-  item: Foldout;
-  baked?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [revealed, setRevealed] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  sceneRendered = false,
+  onProgress,
+}: CardProps) {
+  const [progress, setProgress] = useState(0);
+  const current = useRef(0);
+  const frame = useRef(0);
+  const callback = useRef(onProgress);
+  callback.current = onProgress;
+  const drag = useRef<{
+    x: number;
+    y: number;
+    start: number;
+    size: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressClick = useRef(false);
+  const vertical = item.hinge === "top" || item.hinge === "bottom";
+  const negative = item.hinge === "left" || item.hinge === "top";
   const { outside, inside } = foldoutSurfaces(item);
-  const close = () => {
-    setOpen(false);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setRevealed(false), 560);
+  const update = (p: number) => {
+    current.current = p;
+    setProgress(p);
+    callback.current?.(p);
   };
-  const toggle = () => {
-    if (open) {
-      close();
+  const settle = (target: number) => {
+    cancelAnimationFrame(frame.current);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      update(target);
       return;
     }
-    if (timer.current) clearTimeout(timer.current);
-    setRevealed(true);
-    requestAnimationFrame(() => setOpen(true));
+    const start = current.current,
+      time = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - time) / 420);
+      update(start + (target - start) * (1 - Math.pow(1 - t, 3)));
+      if (t < 1) frame.current = requestAnimationFrame(step);
+    };
+    frame.current = requestAnimationFrame(step);
   };
   useEffect(
     () => () => {
-      if (timer.current) clearTimeout(timer.current);
+      cancelAnimationFrame(frame.current);
+      callback.current?.(0);
     },
     [],
   );
-  const image = (right: boolean) => (
+  const image = (second: boolean) => (
     <span className="pf-foldout-image" style={{ background: inside.colour }}>
       <span
-        className="absolute inset-y-0 w-[200%]"
-        style={{ left: right ? "-100%" : 0 }}
+        className="absolute"
+        style={
+          vertical
+            ? {
+                width: "100%",
+                height: "200%",
+                left: 0,
+                top: second ? "-100%" : 0,
+              }
+            : {
+                height: "100%",
+                width: "200%",
+                top: 0,
+                left: second ? "-100%" : 0,
+              }
+        }
       >
-        {revealed && <NoteSurface side={inside} />}
+        {progress > 0 && !sceneRendered && <NoteSurface side={inside} />}
       </span>
     </span>
   );
+  const style = {
+    left: `${item.x * 100}%`,
+    top: `${item.y * 100}%`,
+    width: `${item.width * 100}%`,
+    height: `${item.height * 100}%`,
+  };
+  if (item.hinge === "none")
+    return baked ? null : (
+      <div className="pf-foldout" style={style}>
+        <NoteSurface side={outside} label={item.title} />
+      </div>
+    );
   return (
     <div
       className="pf-foldout"
       data-foldout
-      data-open={open}
-      data-revealed={revealed}
+      data-open={progress > 0.5}
+      data-revealed={progress > 0}
       data-baked={baked}
       data-hinge={item.hinge}
-      style={{
-        left: `${item.x * 100}%`,
-        top: `${item.y * 100}%`,
-        width: `${item.width * 100}%`,
-        height: `${item.height * 100}%`,
-      }}
-      onPointerDown={(e) => e.stopPropagation()}
+      style={{ ...style, touchAction: "none" }}
       onTouchStart={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.stopPropagation()}
       onTouchEnd={(e) => e.stopPropagation()}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        if (e.button !== 0) return;
+        cancelAnimationFrame(frame.current);
+        const rect = e.currentTarget.getBoundingClientRect();
+        drag.current = {
+          x: e.clientX,
+          y: e.clientY,
+          start: current.current,
+          size: vertical ? rect.height : rect.width,
+          moved: false,
+        };
+        e.currentTarget.setPointerCapture(e.pointerId);
+      }}
+      onPointerMove={(e) => {
+        const d = drag.current;
+        if (!d) return;
+        e.stopPropagation();
+        const delta = vertical ? e.clientY - d.y : e.clientX - d.x;
+        if (Math.abs(delta) > 4) d.moved = true;
+        if (d.moved)
+          update(
+            Math.max(
+              0,
+              Math.min(
+                1,
+                d.start + (delta * (negative ? -1 : 1)) / (d.size * 1.5),
+              ),
+            ),
+          );
+      }}
+      onPointerUp={(e) => {
+        e.stopPropagation();
+        const d = drag.current;
+        drag.current = null;
+        if (d?.moved) {
+          suppressClick.current = true;
+          settle(current.current >= 0.5 ? 1 : 0);
+        }
+        if (e.currentTarget.hasPointerCapture(e.pointerId))
+          e.currentTarget.releasePointerCapture(e.pointerId);
+      }}
+      onPointerCancel={() => {
+        drag.current = null;
+        settle(current.current >= 0.5 ? 1 : 0);
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (suppressClick.current) {
+          suppressClick.current = false;
+          return;
+        }
+        settle(current.current > 0.5 ? 0 : 1);
+      }}
       onKeyDown={(e) => {
         if (e.key === "Escape") {
           e.preventDefault();
           e.stopPropagation();
-          close();
+          settle(0);
         }
       }}
     >
-      <div className="pf-foldout-base">{image(item.hinge === "left")}</div>
+      <div
+        className="pf-foldout-base"
+        style={{ opacity: sceneRendered ? 0 : 1 }}
+      >
+        {image(negative)}
+      </div>
       <button
         type="button"
         className="pf-foldout-flap"
-        aria-expanded={open}
-        aria-label={`${open ? "Close" : "Open"} fold-out: ${item.title}`}
-        title={`${open ? "Close" : "Open"} ${item.title}`}
-        onClick={toggle}
+        aria-expanded={progress > 0.5}
+        aria-label={`${progress > 0.5 ? "Close" : "Open"} note: ${item.title}`}
+        title="Click or drag to open and close"
+        style={{
+          transition: "none",
+          transformOrigin: item.hinge,
+          transform: `rotate${vertical ? "X" : "Y"}(${progress * 180 * (negative ? -1 : 1)}deg)`,
+        }}
       >
-        <span className="pf-foldout-front">
-          <NoteSurface side={outside} />
-        </span>
-        <span className="pf-foldout-back">{image(item.hinge !== "left")}</span>
-      </button>
-      {open && (
-        <button
-          type="button"
-          className="pf-foldout-close"
-          aria-label={`Close fold-out: ${item.title}`}
-          onClick={close}
+        <span
+          className="pf-foldout-front"
+          style={{ opacity: sceneRendered ? 0 : 1 }}
         >
-          ×
-        </button>
-      )}
+          {!sceneRendered && <NoteSurface side={outside} />}
+        </span>
+        <span
+          className="pf-foldout-back"
+          style={{
+            opacity: sceneRendered ? 0 : 1,
+            transform: vertical ? "rotateX(180deg)" : "rotateY(180deg)",
+          }}
+        >
+          {image(!negative)}
+        </span>
+      </button>
       <span className="sr-only">
-        {open ? inside.text || `Revealed image: ${item.title}` : outside.text}
+        {progress > 0.5 ? inside.text : outside.text}
       </span>
     </div>
   );

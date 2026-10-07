@@ -119,6 +119,9 @@ function ScrapbookWorkspace({
   const staged = useRef(new Set<string>());
   const leaf = leaves[index];
   const note = items.find((f) => f.id === selected);
+  useEffect(() => {
+    if (note?.hinge === "none") setSide("outside");
+  }, [note?.id, note?.hinge]);
   const visible = leaf ? foldoutsForLeaf(items, leaf) : [];
   const change = (next: Foldout[]) => {
     itemsRef.current = next;
@@ -761,12 +764,18 @@ function ScrapbookWorkspace({
                 <select
                   className="mt-1 w-full rounded border bg-background p-2 text-sm"
                   value={note.hinge}
-                  onChange={(e) =>
-                    edit(note.id, { hinge: e.target.value as Foldout["hinge"] })
-                  }
+                  onChange={(e) => {
+                    edit(note.id, {
+                      hinge: e.target.value as Foldout["hinge"],
+                    });
+                    if (e.target.value === "none") setSide("outside");
+                  }}
                 >
                   <option value="left">Unfold left</option>
                   <option value="right">Unfold right</option>
+                  <option value="top">Unfold up</option>
+                  <option value="bottom">Unfold down</option>
+                  <option value="none">No flap · flat note</option>
                 </select>
               </label>
               <div
@@ -774,7 +783,10 @@ function ScrapbookWorkspace({
                 role="group"
                 aria-label="Edit note surface"
               >
-                {(["outside", "inside"] as const).map((s) => (
+                {(note.hinge === "none"
+                  ? (["outside"] as const)
+                  : (["outside", "inside"] as const)
+                ).map((s) => (
                   <button
                     type="button"
                     key={s}
@@ -854,6 +866,13 @@ function SurfaceControls({
   onImage: () => void;
   onDrop: (file: File) => void;
 }) {
+  const imageDrag = useRef<{
+    x: number;
+    y: number;
+    initial: FoldoutSurface;
+    width: number;
+    height: number;
+  } | null>(null);
   return (
     <div className="space-y-3">
       <label className="flex items-center justify-between text-xs">
@@ -903,7 +922,126 @@ function SurfaceControls({
           </Button>
         )}
       </div>
-      <div className="aspect-[2/1] overflow-hidden rounded border">
+      <label className="block text-xs">
+        Font
+        <select
+          className="mt-1 w-full rounded border bg-background p-2"
+          value={side.font ?? "serif"}
+          onChange={(e) =>
+            onChange({
+              ...side,
+              font: e.target.value as FoldoutSurface["font"],
+            })
+          }
+        >
+          <option value="serif">Editorial serif</option>
+          <option value="sans">Clean sans serif</option>
+          <option value="mono">Typewriter</option>
+          <option value="hand">Handwritten</option>
+        </select>
+      </label>
+      {side.imageKey && (
+        <div className="space-y-3">
+          <label className="block text-xs">
+            Image fit
+            <select
+              className="mt-1 w-full rounded border bg-background p-2"
+              value={side.imageFit ?? "contain"}
+              onChange={(e) =>
+                onChange({
+                  ...side,
+                  imageFit: e.target.value as FoldoutSurface["imageFit"],
+                })
+              }
+            >
+              <option value="contain">Show entire image</option>
+              <option value="cover">Fill and crop</option>
+            </select>
+          </label>
+          {(
+            [
+              ["imageScale", "Image scale", 0.25, 4, 1],
+              ["imageX", "Horizontal position", -1, 1, 0],
+              ["imageY", "Vertical position", -1, 1, 0],
+            ] as const
+          ).map(([key, label, min, max, fallback]) => (
+            <label key={key} className="block text-xs">
+              {label}
+              <input
+                className="mt-1 w-full"
+                type="range"
+                min={min}
+                max={max}
+                step=".01"
+                value={side[key] ?? fallback}
+                onChange={(e) =>
+                  onChange({ ...side, [key]: Number(e.target.value) })
+                }
+              />
+            </label>
+          ))}
+          <button
+            type="button"
+            className="text-xs underline"
+            onClick={() =>
+              onChange({ ...side, imageScale: 1, imageX: 0, imageY: 0 })
+            }
+          >
+            Reset image placement
+          </button>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {side.imageKey
+          ? "Drag the image below to reposition it. The sliders also allow precise placement."
+          : "Artwork preview"}
+      </p>
+      <div
+        className="aspect-[2/1] overflow-hidden rounded border"
+        style={{
+          touchAction: "none",
+          cursor: side.imageKey ? "move" : undefined,
+        }}
+        onPointerDown={(e) => {
+          if (!side.imageKey || e.button !== 0) return;
+          const r = e.currentTarget.getBoundingClientRect();
+          imageDrag.current = {
+            x: e.clientX,
+            y: e.clientY,
+            initial: side,
+            width: r.width,
+            height: r.height,
+          };
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }}
+        onPointerMove={(e) => {
+          const d = imageDrag.current;
+          if (!d) return;
+          onChange({
+            ...d.initial,
+            imageX: Math.max(
+              -1,
+              Math.min(
+                1,
+                (d.initial.imageX ?? 0) + (e.clientX - d.x) / d.width,
+              ),
+            ),
+            imageY: Math.max(
+              -1,
+              Math.min(
+                1,
+                (d.initial.imageY ?? 0) + (e.clientY - d.y) / d.height,
+              ),
+            ),
+          });
+        }}
+        onPointerUp={() => {
+          imageDrag.current = null;
+        }}
+        onPointerCancel={() => {
+          imageDrag.current = null;
+        }}
+      >
         <NoteSurface side={side} label={`${name} artwork preview`} />
       </div>
     </div>
