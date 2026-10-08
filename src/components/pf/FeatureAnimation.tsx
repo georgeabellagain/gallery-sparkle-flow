@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { Code, Link, MousePointer2, Check } from "lucide-react";
 import { BookView } from "./BookView";
+import { registerPublicUrls, uid } from "@/lib/portfolia/assets";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 import type { Foldout } from "@/lib/portfolia/foldouts";
@@ -18,39 +19,53 @@ export type FeatureId =
   | "share";
 const MIDNIGHT = "#10162e";
 const noop = () => {};
+const START: Record<FeatureId, number> = {
+  book: 3,
+  paged: 4,
+  scroll: 5,
+  background: 6,
+  lighting: 9,
+  notes: 10,
+  tabs: 11,
+  share: 12,
+};
+const LOOP = [0, 1, 2, 3, 2, 1];
 // Local demonstration only. These are supported scrapbook settings, never saved to the portfolio.
 const NOTES: Foldout[] = [
   {
     id: "showcase_note",
-    page: 9,
+    page: 10,
     half: "right",
     title: "A closer look",
-    colour: "#ded2bb",
+    colour: "#efe5d2",
     hinge: "top",
     x: 0.18,
     y: 0.5,
     width: 0.46,
     height: 0.32,
     outside: {
-      colour: "#ded2bb",
+      colour: "#efe5d2",
       text: "A closer look",
-      font: "serif",
+      font: "hand",
       align: "center",
       valign: "middle",
     },
     inside: {
       colour: "#f5f0e7",
-      text: "Ideas, details,\nand the story behind the work.",
-      font: "serif",
+      text: "",
+      imageFit: "cover",
+      font: "hand",
       align: "center",
       valign: "middle",
     },
   },
 ];
-const TAGS: PageTag[] = [
-  { id: "showcase_9", page: 9, label: "09", colour: "#dfaa70" },
-  { id: "showcase_10", page: 10, label: "10", colour: "#9aaed0" },
-];
+const TAGS: PageTag[] = [11, 12, 13, 14].map((page) => ({
+  id: `showcase_${page}`,
+  page,
+  label: String(page),
+  colour: ["#dfaa70", "#9aaed0", "#b8bc9c", "#d1abb2"][page - 11]!,
+}));
 
 /** Presentation-only loops: PDF artwork plus the actual book renderer, with no reader/editor UI. */
 export function FeatureAnimation({
@@ -69,6 +84,15 @@ export function FeatureAnimation({
   onError: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
+  const [detailKey] = useState(() => uid("showcase_detail"));
+  const notes = useMemo(
+    () =>
+      NOTES.map((note) => ({
+        ...note,
+        inside: { ...note.inside!, imageKey: detailKey },
+      })),
+    [detailKey],
+  );
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
   const [images, setImages] = useState<Record<number, string>>({});
@@ -90,8 +114,8 @@ export function FeatureAnimation({
       if (cancelled) return;
       task = pdfjs.getDocument({ url });
       const loaded = await task.promise;
-      if (loaded.numPages < 10)
-        throw new Error("The demonstration needs pages 9–10.");
+      if (loaded.numPages < 14)
+        throw new Error("The demonstration needs all 14 lookbook pages.");
       const dimensions: { w: number; h: number }[] = [];
       const artwork: Record<number, string> = {};
       for (let n = 1; n <= loaded.numPages; n++) {
@@ -99,7 +123,7 @@ export function FeatureAnimation({
         const page = await loaded.getPage(n);
         const base = page.getViewport({ scale: 1 });
         dimensions.push({ w: base.width, h: base.height });
-        if ([2, 3, 9, 10].includes(n)) {
+        if ([4, 5, 6, 7, 8, 10, 12, 13].includes(n)) {
           const viewport = page.getViewport({
             scale: Math.min(1600 / base.width, 1600 / base.height),
           });
@@ -111,6 +135,29 @@ export function FeatureAnimation({
             viewport,
           }).promise;
           artwork[n] = canvas.toDataURL("image/webp", 0.92);
+          if (n === START.notes) {
+            // A close-up taken directly from the right-hand artwork of this PDF page.
+            const detail = document.createElement("canvas");
+            detail.width = 1000;
+            detail.height = 700;
+            detail
+              .getContext("2d")!
+              .drawImage(
+                canvas,
+                canvas.width * 0.58,
+                canvas.height * 0.2,
+                canvas.width * 0.34,
+                canvas.height * 0.58,
+                0,
+                0,
+                1000,
+                700,
+              );
+            registerPublicUrls({
+              [detailKey]: detail.toDataURL("image/webp", 0.94),
+            });
+            detail.width = detail.height = 0;
+          }
           canvas.width = canvas.height = 0;
         }
       }
@@ -126,7 +173,7 @@ export function FeatureAnimation({
       cancelled = true;
       void task?.destroy();
     };
-  }, [url, onError]);
+  }, [url, onError, detailKey]);
   useEffect(() => {
     setReady(false);
     setBeat(0);
@@ -141,21 +188,24 @@ export function FeatureAnimation({
     [onReady],
   );
   useEffect(() => {
-    if (!isBook && images[2] && images[3]) {
+    if (!isBook && images[START[feature]] && images[START[feature] + 1]) {
       setReady(true);
       onReady(true);
     }
   }, [images, isBook, feature, onReady]);
   useEffect(() => {
     if (!playing || !ready) return;
-    const timer = setInterval(() => setBeat((n) => n + 1), 2800);
+    const timer = setInterval(
+      () => setBeat((n) => n + 1),
+      feature === "lighting" ? 3500 : 2800,
+    );
     return () => clearInterval(timer);
   }, [playing, ready, feature]);
   useEffect(() => {
     if (!beat || !playing || !isBook || feature === "notes") return;
     if (feature === "tabs") {
       const target = host.current?.querySelector<HTMLButtonElement>(
-        `button[data-page-tab][aria-label="Go to ${beat % 2 ? "10 · page 10" : "09 · page 9"}"]`,
+        `button[data-page-tab][aria-label="Go to ${11 + LOOP[beat % LOOP.length]!} · page ${11 + LOOP[beat % LOOP.length]!}"]`,
       );
       if (!target || target.disabled) return;
       const bounds = target.getBoundingClientRect(),
@@ -173,7 +223,7 @@ export function FeatureAnimation({
     }
     host.current
       ?.querySelector<HTMLButtonElement>(
-        `button[aria-label="Turn to ${beat % 2 ? "next" : "previous"} page"]`,
+        `button[aria-label="Turn to ${(beat - 1) % 6 < 3 ? "next" : "previous"} page"]`,
       )
       ?.click();
     return undefined;
@@ -190,7 +240,9 @@ export function FeatureAnimation({
       backgroundColor:
         feature === "background"
           ? [MIDNIGHT, "#b5a68d", "#d5d7dd"][beat % 3]
-          : MIDNIGHT,
+          : feature === "lighting"
+            ? "#d9cdb6"
+            : MIDNIGHT,
       ...(feature === "lighting"
         ? { studioLighting: (["1", "2", "3"] as const)[beat % 3] }
         : {}),
@@ -199,13 +251,19 @@ export function FeatureAnimation({
   );
   const jump = useMemo(
     () => ({
-      page: ["lighting", "notes", "tabs"].includes(feature) ? 9 : 2,
+      page: START[feature],
       t: 1,
     }),
     [feature],
   );
-  const art = (page: number, className = "") => (
-    <img className={className} src={images[page]} alt="" draggable={false} />
+  const art = (page: number, className = "", key?: number) => (
+    <img
+      key={key}
+      className={className}
+      src={images[page]}
+      alt=""
+      draggable={false}
+    />
   );
   return (
     <div
@@ -237,34 +295,32 @@ export function FeatureAnimation({
             lightweight
             onReadyChange={bookReady}
             onRenderError={onError}
-            foldouts={feature === "notes" ? NOTES : undefined}
+            demoTurnDurationScale={feature === "lighting" ? 2.5 : 1}
+            foldouts={feature === "notes" ? notes : undefined}
             tags={feature === "tabs" ? TAGS : undefined}
             demoNotes={feature === "notes" && playing && beat % 3 !== 2}
           />
         )}
-        {!isBook && images[2] && (
+        {!isBook && images[START[feature]] && (
           <>
             {feature === "paged" && (
               <div className="pf-motion-window">
                 <div className="pf-motion-pages">
-                  {art(2)}
-                  {art(3)}
+                  {[4, 5, 6, 7, 4].map((page, index) => art(page, "", index))}
                 </div>
               </div>
             )}
             {feature === "scroll" && (
               <div className="pf-motion-scroll">
                 <div>
-                  {art(2)}
-                  {art(3)}
-                  {art(2)}
+                  {[5, 6, 7, 8, 5].map((page, index) => art(page, "", index))}
                 </div>
               </div>
             )}
             {feature === "share" && (
               <div className="pf-motion-share">
                 <div className="pf-share-source">
-                  {art(2)}
+                  {art(12)}
                   <span>Scarlett Bushell</span>
                 </div>
                 <div className="pf-share-link">
@@ -277,7 +333,7 @@ export function FeatureAnimation({
                     <i />
                     <Code size={16} />
                   </div>
-                  {art(3)}
+                  {art(13)}
                   <span>Your website</span>
                 </div>
               </div>
@@ -296,7 +352,7 @@ export function FeatureAnimation({
       {ready && (
         <span className="pf-animation-caption">
           {feature === "lighting"
-            ? `Studio · Lighting ${(beat % 3) + 1} · Pages 9–10`
+            ? `Studio · Lighting ${(beat % 3) + 1} · Pages 9–12`
             : feature === "notes"
               ? "Scrapbook · Demonstration note"
               : ""}
