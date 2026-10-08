@@ -415,4 +415,15 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Show a simple link-to-website embedding animation using PDF artwork. Remove reader tools and share dialogs from this presentation section.
 - Decode the PDF once per section visit and reuse the prepared artwork across tabs. Keep the section hidden until ready; respect pause, reduced motion and off-screen states. Selecting a feature keeps its loop playing while stopping automatic feature changes.
 - Validation: TypeScript and production build. Real-browser visual review remains outstanding after the preview timeout; review loop framing and tab cursor positioning before publication.
-- Follow-up review branch only; not published.
+- Merged in PR #16 at the user’s request; not published.
+
+
+## Iteration 33 — varied pages and gentler detail demonstrations
+
+- Give each feature a distinct starting PDF page: flipbook 3, page-by-page 4, scroll 5, backgrounds 6, Studio 9, scrapbook 10, tabs 11, sharing 12. Exclude pages 1–2 from the demonstration sequences.
+- Extend reading and tab loops to up to four pages; turn forward and back within those ranges.
+- Speed up continuous scrolling and remove both fading edges; retain seamless duplicate end frames.
+- Use beige behind Studio, slow demonstration turns to 2.5 times their normal duration, and allow extra carousel dwell time to see the lighting on the moving paper.
+- Use a lighter beige scrapbook flap, handwriting text and a close-up cropped directly from page 10 inside it. Open over 1.8 seconds and close over 1 second. The crop stays in browser memory and the example data is not saved.
+- Validation: TypeScript, production build and existing regression tests. Browser visual review of the new crop/framing remains outstanding.
+- Review branch only; not merged or published.

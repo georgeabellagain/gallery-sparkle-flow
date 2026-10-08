@@ -37,7 +37,7 @@ const FEATURES = [
     id: "lighting",
     label: "Studio light",
     title: "Paper in a different light.",
-    text: "Soft shadows and changing light bring pages 9–10 of the lookbook into focus.",
+    text: "Soft shadows and changing light bring pages 9–12 of the lookbook into focus.",
   },
   {
     id: "notes",
@@ -153,7 +153,7 @@ export function FeatureShowcase() {
   }, [ready, failed, selected, attempt]);
   useEffect(() => {
     if (!playing || !autoAdvance || !ready || failed) return;
-    const next = setTimeout(() => choose(selected + 1, false), SLIDE_MS);
+    const next = setTimeout(() => choose(selected + 1, false), feature.id === "lighting" ? 22000 : SLIDE_MS);
     return () => clearTimeout(next);
   }, [playing, autoAdvance, ready, failed, selected]);
   return (

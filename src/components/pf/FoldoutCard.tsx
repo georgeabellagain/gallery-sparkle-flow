@@ -137,8 +137,8 @@ export function FoldoutCard({
     });
   useEffect(() => {
     if (!demoAnimate || item.hinge === "none") return;
-    const open = window.setTimeout(() => void settle(1), 1000);
-    const close = window.setTimeout(() => void settle(0), 4500);
+    const open = window.setTimeout(() => void settle(1, 1800), 700);
+    const close = window.setTimeout(() => void settle(0, 1000), 4500);
     return () => { clearTimeout(open); clearTimeout(close); };
   }, [demoAnimate, item.id]);
   useEffect(() => {

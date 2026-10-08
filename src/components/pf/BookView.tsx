@@ -266,6 +266,7 @@ export function BookView({
   fullSpread = false,
   previewable,
   demoNotes = false,
+  demoTurnDurationScale = 1,
   lightweight = false,
   foldouts,
   tags,
@@ -301,6 +302,8 @@ export function BookView({
   /** The editor's preview: it shows the look whose settings are being edited. */
   previewable?: boolean;
   demoNotes?: boolean;
+  /** Presentation-only timing; normal readers retain their existing pace. */
+  demoTurnDurationScale?: number;
   lightweight?: boolean;
   foldouts?: Foldout[];
   /** Coloured tabs on the edges of the book; each jumps to its page. */
@@ -763,7 +766,7 @@ export function BookView({
           if (alive.current) onZoomChange(1);
           if (!alive.current) return;
           if (fromIndex === nextIndex) await scene.current.pan(target, quick ? 200 : 420);
-          else await scene.current.turn(from, to, direction, target, quick ? 0.5 : 1, tabPlanFor(fromSpread, nextSpread, direction));
+          else await scene.current.turn(from, to, direction, target, (quick ? 0.5 : 1) * demoTurnDurationScale, tabPlanFor(fromSpread, nextSpread, direction));
           shown.current = `${ready}|${nextSpread.join(",")}|`;
         }
         if (alive.current) goTo(nextLeaf);
@@ -774,7 +777,7 @@ export function BookView({
         if (alive.current) setBusy(false);
       }
     },
-    [wait, narrow, layout, faces, fallback, onZoomChange, ready, goTo, closeNotes, tabPlanFor],
+    [wait, narrow, layout, faces, fallback, onZoomChange, ready, goTo, closeNotes, tabPlanFor, demoTurnDurationScale],
   );
 
   /** Goes straight to the spread holding a page (used by the page tabs) with one smooth turn. */
@@ -815,7 +818,7 @@ export function BookView({
         if (alive.current) setBusy(false);
       }
     },
-    [wait, narrow, layout, faces, fallback, onZoomChange, ready, goTo, closeNotes, tabPlanFor],
+    [wait, narrow, layout, faces, fallback, onZoomChange, ready, goTo, closeNotes, tabPlanFor, demoTurnDurationScale],
   );
 
   // When a turn ends, carry on with any clicks that arrived during it.
