@@ -265,6 +265,7 @@ export function BookView({
   autoTurnDelay = 3200,
   fullSpread = false,
   previewable,
+  demoNotes = false,
   lightweight = false,
   foldouts,
   tags,
@@ -299,6 +300,7 @@ export function BookView({
   fullSpread?: boolean;
   /** The editor's preview: it shows the look whose settings are being edited. */
   previewable?: boolean;
+  demoNotes?: boolean;
   lightweight?: boolean;
   foldouts?: Foldout[];
   /** Coloured tabs on the edges of the book; each jumps to its page. */
@@ -1020,7 +1022,7 @@ export function BookView({
           const onLeaf = linksForLeaf(pageLinks, layout.leaves[n]!);
           return <div key={`${n}:${settings.studio}`} className="pointer-events-none absolute z-30" style={{ left: `${bounds.x}%`, top: `${bounds.y}%`, width: `${bounds.width}%`, height: `${bounds.height}%` }}>
             {onLeaf.map(link => <PageLinkAnchor key={link.id} link={link} />)}
-            {visible.map(item => <StoredFoldout key={`${item.id}:${litNotesKey === notesKey}:${JSON.stringify(item)}`} item={item} baked sceneRendered={litNotesKey === notesKey} onProgress={p=>scene.current?.noteProgress(item.id,p)} closers={noteClosers} />)}
+            {visible.map(item => <StoredFoldout key={`${item.id}:${litNotesKey === notesKey}:${JSON.stringify(item)}`} item={item} demoAnimate={demoNotes} baked sceneRendered={litNotesKey === notesKey} onProgress={p=>scene.current?.noteProgress(item.id,p)} closers={noteClosers} />)}
           </div>;
         })}
         {bookReady && !fallback && tabRects.length > 0 && (

@@ -378,7 +378,7 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Prevent focus-triggered scrolling when grabbing the handle. Preserve bounds, resize clamping and keyboard reset.
 - Follow-up fix to iteration 28; no live publication.
 
-## Iteration 30 — simplify the website and workspace (review branch)
+## Iteration 30 — simplify the website and workspace
 
 - Simplify homepage navigation, hero scale, onboarding explanation, plan summaries and footer groups.
 - Make dashboard actions always visible, add loading feedback, correct Free capacity and soften cover styling.
@@ -390,4 +390,16 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Remove an unnecessary homepage metadata server request.
 - TypeScript, production build and 51 existing tests pass in the workspace. Browser review blocked by a public homepage error and preview timeout; no claim of visual sign-off.
 - See experience-review-2026-10-08.md for the full assessment, limitations and prioritised additions.
-- Review branch only; not merged or published.
+- Merged in PR #14 at the user’s request; not published.
+
+
+## Iteration 31 — editorial feature showcase using the real portfolio
+
+- Apply selected style A: approximately 75% reader and 25% explanation on desktop; stack on smaller screens.
+- Replace illustrative feature artwork with the actual published Scarlett Bushell PDF and the existing portfolio renderer. No generated or substitute imagery.
+- Add eight feature tags, keyboard navigation, arrows and a ten-second automatic slideshow. Pause on interaction and hover; respect reduced motion and hidden/off-screen states.
+- Demonstrate genuine reading modes, background colours, Studio lighting, saved scrapbook notes and page tabs. Animate notes through their existing renderer/lighting and page turns through the real reader.
+- Reuse actual QR and embed dialogs and the public example URL. Keep Scarlett’s saved data/settings unchanged and retain the ownership credit.
+- Load the reader only when the section enters view. Hide it until rendering reports readiness; offer retry for slow/failed loading rather than reveal unprepared white pages.
+- Validation: TypeScript, production build and existing regression suite; browser visual review remains outstanding because the available preview session timed out.
+- Draft review branch only; no merge or publication. Next: browser/device review of layout, playback and saved note lighting before approval.
