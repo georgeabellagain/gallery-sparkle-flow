@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { getBlob } from "@/lib/portfolia/assets";
 import { cn } from "@/lib/utils";
@@ -27,20 +27,28 @@ export function SiteHeader({ right }: { right?: ReactNode }) {
 export function SiteFooter({ className }: { className?: string }) {
   return (
     <footer className={cn("rule-t mt-auto", className)}>
-      <div className="shell flex flex-wrap items-center gap-x-6 gap-y-2 py-6 text-xs text-muted-foreground">
-        <span>© {new Date().getFullYear()} George Bell</span>
-        <Link to="/" hash="about" className="hover:underline underline-offset-4">About</Link>
-        <a href="mailto:hello@portfolia.site" className="hover:underline underline-offset-4">Support</a>
-        <Link to="/pricing" className="hover:underline underline-offset-4">Pricing</Link>
-        <Link to="/free-pdf-flipbook" className="hover:underline underline-offset-4">Free PDF flipbook</Link>
-        <a href="/portfolio-checker" className="hover:underline underline-offset-4">PDF checker</a>
-        <a href="/embed-flipbook-in-squarespace" className="hover:underline underline-offset-4">Embed guides</a>
-        <Link to="/issuu-alternative" className="hover:underline underline-offset-4">Issuu alternative</Link>
-        <Link to="/professional-portfolio" className="hover:underline underline-offset-4">Professional portfolio</Link>
-        <Link to="/free-pdf-portfolio" className="hover:underline underline-offset-4">Free PDF portfolio</Link>
-        <Link to="/terms" className="hover:underline underline-offset-4">Terms</Link>
-        <Link to="/privacy" className="hover:underline underline-offset-4">Privacy</Link>
-        <Link to="/refund" className="hover:underline underline-offset-4">Refund policy</Link>
+      <div className="shell grid gap-8 py-8 sm:grid-cols-[1.2fr_1fr_1fr]">
+        <div><Wordmark /><p className="mt-3 max-w-xs text-sm text-muted-foreground">Your PDF. One simple link.</p><p className="mt-4 text-xs text-muted-foreground">© {new Date().getFullYear()} George Bell</p></div>
+        <nav aria-label="Product resources" className="text-xs text-muted-foreground">
+          <p className="mb-3 font-medium text-foreground">Explore</p>
+          <div className="grid gap-2.5">
+            <Link to="/pricing" className="hover:underline">Plans and pricing</Link>
+            <Link to="/free-pdf-flipbook" className="hover:underline">PDF flipbooks</Link>
+            <a href="/portfolio-checker" className="hover:underline">PDF checker</a>
+            <a href="/embed-flipbook-in-squarespace" className="hover:underline">Embedding guides</a>
+            <Link to="/issuu-alternative" className="hover:underline">Compare with Issuu</Link>
+          </div>
+        </nav>
+        <nav aria-label="Help and legal" className="text-xs text-muted-foreground">
+          <p className="mb-3 font-medium text-foreground">Help</p>
+          <div className="grid gap-2.5">
+            <Link to="/" hash="about" className="hover:underline">About Portfolia</Link>
+            <a href="mailto:hello@portfolia.site" className="hover:underline">Contact support</a>
+            <Link to="/terms" className="hover:underline">Terms</Link>
+            <Link to="/privacy" className="hover:underline">Privacy</Link>
+            <Link to="/refund" className="hover:underline">Refund policy</Link>
+          </div>
+        </nav>
       </div>
     </footer>
   );
@@ -70,6 +78,7 @@ export function Modal({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   // When the page closes this dialog itself (because another one is opening, say), the browser still reports "closed".
   // That report must not reach onClose: the page's answer to it would close whatever has just opened. Only a close
   // the page did not ask for (the Escape key) is passed on.
@@ -93,13 +102,13 @@ export function Modal({
         }
         onClose();
       }}
-      aria-labelledby="modal-title"
+      aria-labelledby={titleId}
       className="m-auto w-[min(92vw,30rem)] rounded-3xl border border-border bg-card p-0 text-foreground shadow-lift backdrop:bg-foreground/30"
     >
       {open && (
         <div className="p-6">
           <div className="flex items-start justify-between gap-4">
-            <h2 id="modal-title" className="text-base font-medium">
+            <h2 id={titleId} className="text-base font-medium">
               {title}
             </h2>
             <button type="button" onClick={onClose} aria-label="Close" className="-m-1 p-1 text-muted-foreground hover:text-foreground">

@@ -29,11 +29,14 @@ export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (ms
       return setCvErr("Browser storage is full, so the CV wasn’t saved.");
     }
     const old = pr.cv?.blobKey;
-    set({ cv: { blobKey: key, name: f.name, bytes: f.size } });
+    if (!set({ cv: { blobKey: key, name: f.name, bytes: f.size } })) { void deleteBlob(key); return; }
     if (old) void deleteBlob(old);
   };
-  const set = (patch: Parameters<typeof patchProfile>[0]) =>
-    onSaveError(patchProfile(patch) ? null : "Couldn’t save — this browser’s storage is full or blocked. Your last change wasn’t kept.");
+  const set = (patch: Parameters<typeof patchProfile>[0]) => {
+    const saved = patchProfile(patch);
+    onSaveError(saved ? null : "Couldn’t save — this browser’s storage is full or blocked. Your last change wasn’t kept.");
+    return saved;
+  };
 
   const onPhoto = (f?: File) => {
     setPhotoErr(null);
@@ -52,7 +55,7 @@ export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (ms
       return;
     }
     const old = pr.photoKey;
-    set({ photoKey: key });
+    if (!set({ photoKey: key })) { void deleteBlob(key); return; }
     setCropFile(null);
     if (old) void deleteBlob(old);
   };
@@ -63,6 +66,9 @@ export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (ms
         <Label htmlFor="f-name" className="text-xs">Name <span className="text-muted-foreground">(required)</span></Label>
         <Input id="f-name" className="mt-1.5" value={pr.name} onChange={(e) => set({ name: e.target.value })} required aria-required />
       </div>
+      <details className="rounded-xl border border-border p-4">
+        <summary className="cursor-pointer text-sm font-medium">About you, contact details and CV</summary>
+        <div className="mt-4 space-y-4">
       <div>
         <Label htmlFor="f-title" className="text-xs">Discipline or title</Label>
         <Input id="f-title" className="mt-1.5" value={pr.title} placeholder="Architect, Photographer…" onChange={(e) => set({ title: e.target.value })} />
@@ -76,7 +82,7 @@ export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (ms
         <div className="mt-1.5 flex items-center gap-3">
           <input id="f-photo" type="file" accept="image/*" className="text-xs file:mr-3 file:cursor-pointer file:rounded-full file:border file:border-border file:bg-background file:px-3 file:py-1.5 file:text-xs" onChange={(e) => { onPhoto(e.target.files?.[0]); e.currentTarget.value = ""; }} />
           {pr.photoKey && (
-            <Button size="xs" variant="quiet" onClick={() => { const k = pr.photoKey; if (!k) return; set({ photoKey: undefined }); void deleteBlob(k); }}>Remove</Button>
+            <Button size="xs" variant="quiet" onClick={() => { const k = pr.photoKey; if (!k) return; if (set({ photoKey: undefined })) void deleteBlob(k); }}>Remove</Button>
           )}
         </div>
         {photoErr && <p role="alert" className="mt-1 text-xs text-destructive">{photoErr}</p>}
@@ -94,7 +100,7 @@ export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (ms
                 <CvIcon className="text-muted-foreground" />
                 <span className="min-w-0 flex-1 truncate">{pr.cv.name} · {formatBytes(pr.cv.bytes)}</span>
                 <Button size="xs" variant="line" onClick={() => cvInput.current?.click()}>Replace</Button>
-                <Button size="xs" variant="quiet" onClick={() => { const k = pr.cv?.blobKey; set({ cv: undefined }); if (k) void deleteBlob(k); }}>Remove</Button>
+                <Button size="xs" variant="quiet" onClick={() => { const k = pr.cv?.blobKey; if (set({ cv: undefined }) && k) void deleteBlob(k); }}>Remove</Button>
               </div>
             ) : (
               <Button size="xs" variant="line" onClick={() => cvInput.current?.click()}><CvIcon className="size-3.5" /> Upload CV (PDF)</Button>
@@ -124,6 +130,8 @@ export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (ms
         )}
       </div>
       <p className="text-xs text-muted-foreground">Empty fields are hidden on your page.</p>
+        </div>
+      </details>
       {cropFile && <PhotoCropper file={cropFile} onCancel={() => setCropFile(null)} onSave={savePhoto} />}
     </div>
   );
@@ -206,3 +214,4 @@ function PhotoCropper({ file, onCancel, onSave }: { file: File; onCancel: () => 
     </dialog>
   );
 }
+

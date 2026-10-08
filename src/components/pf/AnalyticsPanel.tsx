@@ -33,11 +33,11 @@ export function AnalyticsPanel({ data, title = "Portfolio statistics", descripti
       <div className="mt-6 flex h-24 items-end gap-px" role="img" aria-label={`Visits per day, ${visits.length} total`}>
         {buckets.map((b, i) => <div key={i} className="flex-1 bg-foreground/70" style={{ height: `${(b / max) * 100}%`, minHeight: b ? 2 : 1, opacity: b ? 1 : 0.15 }} />)}
       </div>
-      <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+      <details className="mt-4 text-xs leading-relaxed text-muted-foreground"><summary className="cursor-pointer">How statistics are counted</summary><p className="mt-2">
         {range === 0 && <>All-time totals; the chart shows up to the last 90 days. </>}
         A visit is one viewing session — scrolling, zooming or loading more pages doesn’t add visits. Your own previews and known bots are excluded. Unique visitors are estimated per browser. Download clicks count button presses, not completed downloads. Statistics can’t identify who visited or show whether anyone read your work.
         
-      </p>
+      </p></details>
     </div>
   );
 }

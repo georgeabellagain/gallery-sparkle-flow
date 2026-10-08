@@ -58,7 +58,7 @@ export function DropZone({ onAccepted, label = "Upload your PDF", small, limitMb
           void handle(e.dataTransfer.files[0]);
         }}
         className={cn(
-          "flex flex-col items-center justify-center rounded-[1.75rem] border-2 border-dashed bg-card text-center shadow-soft transition-colors duration-200",
+          "flex flex-col items-center justify-center rounded-[1.75rem] border border-dashed bg-card text-center transition-colors duration-200",
           small ? "px-5 py-8" : "px-6 py-12",
           over ? "border-foreground bg-accent" : "border-border-strong hover:border-border-strong hover:bg-accent/40",
         )}
@@ -66,17 +66,21 @@ export function DropZone({ onAccepted, label = "Upload your PDF", small, limitMb
         <span className="flex size-11 items-center justify-center rounded-full bg-leaf-soft text-leaf" aria-hidden>
           <FileUp className="size-5" />
         </span>
-        <p className="mt-3 text-sm">{phase ? `${phase}…` : "Drag your PDF here"}</p>
+        <p role="status" aria-live="polite" className="mt-3 text-sm">{phase ? `${phase}…` : "Drag your PDF here"}</p>
         <p className="mt-1 text-xs text-muted-foreground">PDF only · up to {limitMb} MB on your current plan</p>
         <input ref={input} type="file" accept="application/pdf,.pdf" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => void handle(e.target.files?.[0])} />
         <Button className="mt-5" onClick={() => input.current?.click()} disabled={Boolean(phase)}>
           {label}
         </Button>
       </div>
-      <label className="mt-3 flex items-start justify-center gap-2 text-xs text-muted-foreground">
+      <details className="mt-3 text-xs text-muted-foreground" open={optimise || undefined}>
+        <summary className="cursor-pointer py-1 underline underline-offset-4">Large PDF? Upload options</summary>
+      <label className="mt-3 flex items-start gap-2 text-xs text-muted-foreground">
         <input type="checkbox" checked={optimise} disabled={Boolean(phase)} onChange={(e) => setOptimise(e.target.checked)} />
         Try PDF compression on my device before upload
       </label>
+        <p className="mt-2 leading-relaxed">Keep your original and try a smaller copy. Image-heavy PDFs may need a compressed web export from your design app. Personal accepts files up to 50 MB.</p>
+      </details>
       {candidate && <div className="mt-3 rounded-xl border border-border p-4 text-sm" role="status">
         <p>{candidate.smaller ? `Original: ${(candidate.original.size / 1048576).toFixed(2)} MB → smaller copy: ${(candidate.smaller.size / 1048576).toFixed(2)} MB.` : "This PDF is already compact; no smaller copy was produced."}</p>
         <p className="mt-2 text-xs text-muted-foreground">Your original file is unchanged. Pages are not converted to images or downsampled. Review the smaller copy before using it; image-heavy PDFs may need a smaller export from your design app.</p>
@@ -88,10 +92,6 @@ export function DropZone({ onAccepted, label = "Upload your PDF", small, limitMb
         </div>
         {(candidate.smaller ?? candidate.original).size > limitMb * 1048576 && <p className="mt-2 text-xs">This copy still exceeds your {limitMb} MB limit. Try a smaller web export.</p>}
       </div>}
-      <details className="mt-3 text-xs text-muted-foreground">
-        <summary className="cursor-pointer underline underline-offset-4">PDF larger than {limitMb} MB?</summary>
-        <p className="mt-2">Export a separate web copy from your design app using its PDF image-compression settings. Check small text and drawings at full size before uploading, and keep your original. Personal accepts PDFs up to 50 MB; compression is optional and may not reduce already-compressed images.</p>
-      </details>
       {error && (
         <p role="alert" className="mt-3 rounded-2xl bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
           {error}

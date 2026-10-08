@@ -32,7 +32,7 @@ export function ShareActions({ p }: { p: Portfolio }) {
   };
   return (
     <section aria-label="Share portfolio">
-      <h2 className="text-sm font-medium">Share portfolio</h2>
+      
       <p className="mt-1 text-xs text-muted-foreground">Share the published version by link, embed or personal QR code.</p>
       <code className="mt-3 block overflow-x-auto rounded-xl border border-border bg-muted p-3 text-xs select-all">{origin}{sharePath}</code>
       {msg && <p role="alert" className="mt-2 text-sm text-destructive">{msg}</p>}
@@ -41,12 +41,16 @@ export function ShareActions({ p }: { p: Portfolio }) {
         <Button size="sm" variant="line" disabled={!published} onClick={() => setDialog("qr")}><QrCode /> QR code</Button>
         {published && <Button size="sm" variant="line" onClick={() => setDialog("embed")}><Code2 /> Embed</Button>}
       </div>
+      <span role="status" className="sr-only">{copied ? "Portfolio link copied" : ""}</span>
       {!published && <p className="mt-3 text-xs text-muted-foreground">Publish this portfolio before sharing it with visitors.</p>}
       {signedIn && published && <p className="mt-3 text-xs text-muted-foreground" role={sync.status === "error" ? "alert" : "status"}>
         {sync.status === "error" ? <>{sync.message || "Couldn’t save the latest changes to your account."} Visitors may still see the previous published version. <button type="button" className="underline underline-offset-4" onClick={retrySync}>Retry saving</button></> : sync.status === "saving" ? "Saving your latest changes. Wait for account sync before sharing the updated version." : sync.status === "saved" ? "Latest changes saved to your account." : "Account sync has not confirmed your latest changes yet."}
       </p>}
-      <ShareCover p={p} />
-      {signedIn && <AccessSettings code={p.code} />}
+      <details className="mt-5 border-t border-border pt-4">
+        <summary className="cursor-pointer text-sm font-medium">Link preview image</summary>
+        <ShareCover p={p} />
+      </details>
+      {signedIn && <details className="mt-4 border-t border-border pt-4"><summary className="cursor-pointer text-sm font-medium">Password and expiry</summary><AccessSettings code={p.code} /></details>}
       <PortfolioQrCode open={dialog === "qr"} onClose={() => setDialog(null)} url={origin + sharePath} name={p.profile.name} />
       <EmbedModal open={dialog === "embed"} onClose={() => setDialog(null)} url={`${origin}/embed/${p.code}`} title={p.profile.name || "Portfolio"} />
     </section>

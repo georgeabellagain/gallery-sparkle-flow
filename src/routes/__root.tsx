@@ -17,8 +17,9 @@ function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-7xl font-bold text-foreground">404</h1>
-        <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
+        <a href="/" className="display-title text-3xl">Portfolia</a>
+        <p className="mt-8 text-xs text-muted-foreground">404</p>
+        <h1 className="display-title mt-3 text-3xl text-foreground">This page isn’t here.</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           The page you're looking for doesn't exist or has been moved.
         </p>
@@ -45,16 +46,17 @@ function ErrorComponent({ error, reset }: import("@tanstack/react-router").Error
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+        <a href="/" className="display-title text-3xl">Portfolia</a>
+        <h1 className="mt-8 text-xl font-semibold tracking-tight text-foreground">
           This page didn't load
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Try loading the page again. If the problem continues, contact us and tell us which page you were opening.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
-              router.invalidate();
+              void router.invalidate();
               reset();
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
@@ -67,6 +69,7 @@ function ErrorComponent({ error, reset }: import("@tanstack/react-router").Error
           >
             Go home
           </a>
+          <a href="mailto:hello@portfolia.site" className="rounded-md px-4 py-2 text-sm underline underline-offset-4">Contact support</a>
         </div>
       </div>
     </div>
