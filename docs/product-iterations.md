@@ -402,4 +402,17 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Reuse actual QR and embed dialogs and the public example URL. Keep Scarlett’s saved data/settings unchanged and retain the ownership credit.
 - Load the reader only when the section enters view. Hide it until rendering reports readiness; offer retry for slow/failed loading rather than reveal unprepared white pages.
 - Validation: TypeScript, production build and existing regression suite; browser visual review remains outstanding because the available preview session timed out.
-- Draft review branch only; no merge or publication. Next: browser/device review of layout, playback and saved note lighting before approval.
+- Merged in PR #15 at the user’s request; no publication. Superseded by the presentation-only direction below.
+
+
+## Iteration 32 — short feature loops, without reader controls
+
+- Retain the approved editorial layout, top feature tags, arrows and 75/25 desktop proportions.
+- Replace the interactive reader with presentation-only animations on midnight blue. Reuse actual PDF artwork; no generated images.
+- Loop a real page turn between two spreads; slide between PDF pages in Page by page; slowly pan through pages in Scroll.
+- Cycle actual Studio lighting presets while turning the pages starting at PDF page 9; alternate forwards/backwards. Backdrops cycles real background colours.
+- Add a local demonstration flap on page 9 using the actual scrapbook renderer and lighting. Add two local page tabs and animate a cursor clicking their real navigation buttons. These demonstration extras never change Scarlett’s saved portfolio.
+- Show a simple link-to-website embedding animation using PDF artwork. Remove reader tools and share dialogs from this presentation section.
+- Decode the PDF once per section visit and reuse the prepared artwork across tabs. Keep the section hidden until ready; respect pause, reduced motion and off-screen states. Selecting a feature keeps its loop playing while stopping automatic feature changes.
+- Validation: TypeScript and production build. Real-browser visual review remains outstanding after the preview timeout; review loop framing and tab cursor positioning before publication.
+- Follow-up review branch only; not published.
