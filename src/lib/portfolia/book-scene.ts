@@ -1,3 +1,4 @@
+import { dappleTexture } from "./dapple-light";
 import { createBookNotes } from "./book-notes";
 import { pageRelief } from "./page-relief";
 import { createBookTabs } from "./book-tabs";
@@ -100,7 +101,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     if (hit) return Promise.resolve(hit);
     let promise = loading.get(id);
     if (!promise) {
-      const preset = HDRI_PRESETS.find((h) => h.id === id)!;
+      const preset = HDRI_PRESETS.find((h) => h.id === id) ?? HDRI_PRESETS[3]!;
       promise = fetch(preset.file)
         .then((response) => {
           if (!response.ok) throw new Error(`Lighting file ${response.status}`);
@@ -152,6 +153,16 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   light.shadow.bias = -0.0001;
   light.shadow.radius = 3;
   scene.add(ambient, light);
+  const sunPatch = new THREE.SpotLight(0xfff3dc, 0, 0, Math.PI / 5, .35, 0);
+  sunPatch.position.set(-1.8, 2.8, 5.5);
+  sunPatch.target.position.set(0, 0, 0);
+  sunPatch.shadow.mapSize.set(512, 512);
+  sunPatch.shadow.normalBias = .012;
+  sunPatch.shadow.bias = -.0001;
+  sunPatch.shadow.camera.near = .1;
+  sunPatch.shadow.camera.far = 12;
+  const dapples = new Map<string, THREE.CanvasTexture>();
+  scene.add(sunPatch, sunPatch.target);
 
   // The book floats this far above the background, which is what makes its shadow show.
   const BOOK_LIFT = 0.07;
@@ -313,7 +324,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const backMat = material(THREE.BackSide);
   const front = new THREE.Mesh(geometry, frontMat);
   const back = new THREE.Mesh(reverseGeometry, backMat);
-  front.castShadow = back.castShadow = true;
+  front.castShadow = true;
+  // Both faces share geometry and double-sided shadow material; cast this sheet only once.
+  back.castShadow = false;
   front.receiveShadow = back.receiveShadow = true;
   front.frustumCulled = back.frustumCulled = false;
   const sheet = new THREE.Group();
@@ -321,7 +334,14 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   sheet.visible = false;
   book.add(sheet);
   for (const m of pageMaterials) m.map = placeholder;
+  (geometry.getAttribute("position") as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
+  (geometry.getAttribute("normal") as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
   let sheetSeeds: [number, number] = [0, 0];
+  let reliefKey = "";
+  const uvSheet = geometry.getAttribute("uv");
+  const reliefFrom = new Float32Array(uvSheet.count);
+  const reliefTo = new Float32Array(uvSheet.count);
+  const curlProfile = Float32Array.from({ length: uvSheet.count }, (_, i) => .22 * Math.sin(Math.PI * uvSheet.getX(i)) * (1 + .35 * (.5 - uvSheet.getY(i))));
   let draggedTurn: { from: BookFaces; to: BookFaces; dir: 1 | -1; destinationFocus: number; originalFocus: number; progress: number; speed: number } | null = null;
 
   // Pages kept on the graphics card are limited by count and by memory, so the browser never has a reason to take the context away.
@@ -589,13 +609,19 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         });
       }
     }
-    scene.environmentIntensity = next.studio ? 1 : 0;
+    const pattern = next.studio ? HDRI_PRESETS.find(p => p.id === next.hdri)?.dapple : undefined;
+    if (pattern && !dapples.has(pattern)) dapples.set(pattern, dappleTexture(pattern));
+    sunPatch.map = pattern ? dapples.get(pattern)! : null;
+    sunPatch.intensity = pattern ? 1.8 : 0;
+    sunPatch.castShadow = Boolean(pattern);
+    sunPatch.visible = Boolean(pattern);
+    scene.environmentIntensity = next.studio ? (pattern ? .7 : 1) : 0;
     // The studio's own light is the same whatever the lighting, so the shadow always falls the same way.
     light.position.set(...KEY_LIGHT);
     light.color.set(0xffffff);
     light.intensity = next.studio ? 0.55 : 0;
     light.shadow.radius = 6;
-    ambient.intensity = next.studio ? 0.65 : Math.PI;
+    ambient.intensity = next.studio ? (pattern ? .4 : .65) : Math.PI;
     ambient.color.set(0xffffff);
     ambient.groundColor.set(next.studio ? 0xb7bdca : 0xffffff);
     // Studio shows only the real shadow cast by the light and the paper; the soft shadow is the Simple look's.
@@ -604,7 +630,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     applyContact();
     shadowCatcher.material.opacity = 0.45;
     shadowCatcher.visible = next.studio;
-    light.castShadow = next.studio;
+    light.castShadow = next.studio && !pattern;
     let bump: THREE.CanvasTexture | null = null;
     if (variantChanged && next.studio) {
       const key = next.material;
@@ -735,16 +761,24 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // Halfway through, the face the viewer sees changes from one page to the
     // other, so the sheet's relief blends from the first page's to the second's.
     const blend = smooth((progress - 0.3) / 0.4);
+    const key = sheetSeeds.join(":");
+    if (key !== reliefKey) {
+      for (let i = 0; i < attr.count; i++) {
+        reliefFrom[i] = pageRelief(uv.getX(i), uv.getY(i), sheetSeeds[0]);
+        reliefTo[i] = pageRelief(uv.getX(i), uv.getY(i), sheetSeeds[1]);
+      }
+      reliefKey = key;
+    }
+    const angle = Math.PI * progress, sin = Math.sin(angle), cos = Math.cos(angle);
     for (let i = 0; i < attr.count; i++) {
       const u = uv.getX(i),
         v = uv.getY(i);
-      const a = Math.PI * progress;
       // The free edge trails the corner being pulled, so the sheet bows like real paper in the hand.
-      const curl = Math.sin(a) * 0.22 * Math.sin(Math.PI * u) * (1 + 0.35 * (0.5 - v));
-      const x = dir * (u * Math.cos(a) + curl * Math.sin(a));
-      const z = u * Math.sin(a) - curl * Math.cos(a);
+      const curl = sin * curlProfile[i]!;
+      const x = dir * (u * cos + curl * sin);
+      const z = u * sin - curl * cos;
       // At rest the sheet matches the curved, imperfect page it came from or lands on.
-      const relief = pageRelief(u, v, sheetSeeds[0]) * (1 - blend) + pageRelief(u, v, sheetSeeds[1]) * blend;
+      const relief = reliefFrom[i]! * (1 - blend) + reliefTo[i]! * blend;
       attr.setXYZ(i, x, (v - 0.5) * ratio, z + relief + SHEET_CLEARANCE);
     }
     // Reversing travel reverses winding; preserve the physical front face.
@@ -892,8 +926,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       applyPendingQuality();
       // Everything this turn needs reaches the graphics card now (the pictures, the sheet in mid-turn), and the card
       // is waited for, so the first frames of the animation have nothing left to stall on.
-      shape(0.5, dir);
-      paint();
+      for (const canvas of [...from, ...to]) if (canvas) renderer.initTexture(textureFor(canvas));
       shape(0, dir);
       paint();
       try {
@@ -968,6 +1001,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       pageArt.texture.dispose();
       environments.forEach((target) => target.dispose());
       evenLight?.dispose();
+      dapples.forEach(texture => texture.dispose());
+      sunPatch.shadow.map?.dispose();
+      light.shadow.map?.dispose();
       const geometries = new Set<THREE.BufferGeometry>();
       scene.traverse((o) => {
         if (o instanceof THREE.Mesh) geometries.add(o.geometry);

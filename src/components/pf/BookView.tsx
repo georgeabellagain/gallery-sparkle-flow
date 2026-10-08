@@ -702,8 +702,8 @@ export function BookView({
   useEffect(() => {
     if (!ready || !warm || busy || loading || fallback) return;
     const token = ++prefetchToken.current;
-    // The next spread first (most likely), then the previous, then the one after: all on the card before they are needed.
-    const targets = [index + 1, index - 1, index + 2]
+    // The next spread first (most likely), then the previous. Stay within the cache budget so speculative pages cannot evict the next turn.
+    const targets = [index + 1, index - 1]
       .flatMap((i) => layout.spreads[i] ?? [])
       .filter((n): n is number => n !== null);
     let timer: ReturnType<typeof setTimeout> | undefined;
