@@ -77,3 +77,5 @@
 - [x] Remove free-plan viewer branding and corresponding plan copy.
 - [x] Show a different second page in the homepage page-by-page example.
 - [x] Keep the flipbook readable when 3D fails and restore it after temporary graphics loss.
+
+- [ ] Flipbook: remove drag-to-turn delay; preload all pages behind a loading animation
