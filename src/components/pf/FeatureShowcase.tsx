@@ -117,7 +117,7 @@ export function FeatureShowcase() {
           preload.disconnect();
         }
       },
-      { rootMargin: "600px" },
+      { rootMargin: "1600px" },
     );
     if (ref.current) {
       observer.observe(ref.current);
