@@ -35,7 +35,7 @@ const smooth = (t: number) => {
 /** Page textures kept on the GPU at once (current, next and previous spreads). */
 const MAX_TEXTURES = 8;
 /** The drawing surface, in pixels. With edge smoothing it costs several times its size in graphics memory. */
-const MAX_SURFACE_PIXELS = 4_200_000;
+const MAX_SURFACE_PIXELS = 2_600_000;
 const MAX_SURFACE_PIXELS_SMALL = 2_500_000;
 /** Gap between a turning sheet and the pages beneath it; larger than any page imperfection. */
 const SHEET_CLEARANCE = 0.01;
@@ -46,7 +46,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const dpr = window.devicePixelRatio || 1;
   // Edges are smoothed by multisampling (always on), so the picture does not need to be drawn at more than
   // twice the screen's own detail. Drawing fewer pixels is what keeps Studio's paper shading quick.
-  let pixelRatio = Math.min(Math.max(dpr, 1.5), 2);
+  let pixelRatio = Math.min(Math.max(dpr, 1), 1.5);
   let appliedRatio = pixelRatio;
   const renderer = new THREE.WebGLRenderer({
     alpha: true,
@@ -142,7 +142,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   light.castShadow = true;
   // A tight frustum keeps shadow detail high.
   const shadowExtent = Math.hypot(1, ratio / 2) + 0.7;
-  light.shadow.mapSize.set(1024, 1024);
+  light.shadow.mapSize.set(512, 512);
   light.shadow.camera.left = -shadowExtent;
   light.shadow.camera.right = shadowExtent;
   light.shadow.camera.top = shadowExtent;
@@ -897,7 +897,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       shape(0, dir);
       paint();
       try {
-        renderer.getContext().finish();
+        /* no blocking GPU flush: it froze the first frame */
       } catch {
         /* not available: the turn simply starts */
       }
