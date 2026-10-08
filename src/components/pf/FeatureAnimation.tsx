@@ -100,7 +100,7 @@ function acquireArtwork(url: string) {
         dimensions.push({ w: base.width, h: base.height });
         if ([4, 5, 6, 7, 8, 10, 12, 13].includes(n)) {
           const viewport = page.getViewport({
-            scale: Math.min(1600 / base.width, 1600 / base.height),
+            scale: Math.min(1100 / base.width, 1100 / base.height),
           });
           const canvas = document.createElement("canvas");
           canvas.width = Math.ceil(viewport.width);
@@ -109,7 +109,7 @@ function acquireArtwork(url: string) {
             canvasContext: canvas.getContext("2d")!,
             viewport,
           }).promise;
-          artwork[n] = canvas.toDataURL("image/webp", 0.92);
+          artwork[n] = canvas.toDataURL("image/webp", 0.82);
           if (n === START.notes) {
             // A close-up taken directly from the right-hand artwork of this PDF page.
             const detail = document.createElement("canvas");

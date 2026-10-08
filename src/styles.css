@@ -604,3 +604,4 @@
 .pf-home-demo section[aria-label="Interactive PDF book"] { height: 100%; }
 @media (min-width: 640px) { .pf-home-demo { height: 36rem; } }
 @media (min-width: 1024px) { .pf-home-demo { height: 40rem; } }
+.pf-home-demo .isolate > div:not(.sticky):not(.absolute) { height: 100%; }
