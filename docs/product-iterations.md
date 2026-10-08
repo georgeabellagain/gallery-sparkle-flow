@@ -436,4 +436,15 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Verify the shared note image painter uses one uniform scale when fitting, zooming and repositioning images in wide, tall and square notes. Cover crops; contain fits; neither stretches the original image.
 - Add a regression test for resized note image proportions across both fitting modes and zoom/position changes.
 - Validation: TypeScript, production build and existing tests plus the new image-fit regression. Visual browser review remains outstanding.
+- Merged in PR #18 at the user’s request; not published.
+
+
+## Iteration 35 — prepare previews early and place the profile beside the logo
+
+- Reserve the homepage book frame height at each responsive breakpoint through loading, rendering, errors and retries.
+- Start the PDF module alongside the published-example metadata request; share that short-lived request between homepage demonstrations. Read lightweight preview page dimensions concurrently.
+- Remove Flipbook from the feature carousel and start with Page by page.
+- Begin preparation before the carousel reaches the viewport. Keep the next slide mounted and prepared while the current slide plays, sharing its parsed PDF and raster artwork. Automatic advancement waits for the next slide to report readiness. Only current and next scenes are retained.
+- Move the enabled portfolio profile button beside the top-left logo, with its panel below. Use the uploaded photo as a circular button, falling back to the profile icon if absent or unavailable. Preserve outside-click/Escape dismissal and reserve room for mobile controls.
+- Validation: TypeScript, production build and regression suite. Browser performance/layout verification remains outstanding; no measured loading-time claim.
 - Review branch only; not merged or published.

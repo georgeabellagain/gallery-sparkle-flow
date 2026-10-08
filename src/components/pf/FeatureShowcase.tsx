@@ -1,20 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Pause, Play } from "lucide-react";
 import { FeatureAnimation } from "./FeatureAnimation";
-import { FEATURED_CREDIT, FEATURED_PORTFOLIO_CODE } from "./StudioDemo";
 import {
-  getPublicPortfolio,
-  type PublicPortfolio,
-} from "@/lib/portfolia/public.functions";
+  FEATURED_CREDIT,
+  FEATURED_PORTFOLIO_CODE,
+  loadFeaturedPortfolio,
+} from "./StudioDemo";
+import { type PublicPortfolio } from "@/lib/portfolia/public.functions";
 import { registerPublicUrls } from "@/lib/portfolia/assets";
 
 const FEATURES = [
-  {
-    id: "book",
-    label: "Flipbook",
-    title: "Let the work lead.",
-    text: "A clean page turn that keeps your original layout, from one spread to the next.",
-  },
   {
     id: "paged",
     label: "Page by page",
@@ -66,21 +61,39 @@ export function FeatureShowcase() {
   const [data, setData] = useState<PublicPortfolio>(null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const [ready, setReady] = useState(false);
+  const [readiness, setReadiness] = useState<Record<string, boolean>>({});
+  const [slideErrors, setSlideErrors] = useState<Record<string, boolean>>({});
   const [slow, setSlow] = useState(false);
   const feature = FEATURES[selected]!;
   const p = data?.portfolio;
   const url = p?.pdf && data?.urls[p.pdf.blobKey];
   const playing = motion && visible && !paused;
   const publicUrl = `https://portfolia.site/p/${FEATURED_PORTFOLIO_CODE}`;
-  const onReady = useCallback((value: boolean) => setReady(value), []);
-  const onError = useCallback(() => setFailed(true), []);
+  const ready = Boolean(readiness[feature.id]);
+  const upcoming = FEATURES[(selected + 1) % FEATURES.length]!;
+  const slideFailed = failed || slideErrors[feature.id];
+  const handlers = useMemo(
+    () =>
+      Object.fromEntries(
+        FEATURES.map((f) => [
+          f.id,
+          {
+            onReady: (value: boolean) =>
+              setReadiness((prev) =>
+                prev[f.id] === value ? prev : { ...prev, [f.id]: value },
+              ),
+            onError: () =>
+              setSlideErrors((prev) => ({ ...prev, [f.id]: true })),
+          },
+        ]),
+      ),
+    [],
+  );
   const choose = (index: number, manual = true) => {
     if (manual) setAutoAdvance(false);
     const next = (index + FEATURES.length) % FEATURES.length;
     if (next === selected) return;
     setSelected(next);
-    setReady(false);
     setSlow(false);
   };
 
@@ -97,11 +110,24 @@ export function FeatureShowcase() {
       },
       { threshold: 0.15 },
     );
-    if (ref.current) observer.observe(ref.current);
+    const preload = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setNear(true);
+          preload.disconnect();
+        }
+      },
+      { rootMargin: "600px" },
+    );
+    if (ref.current) {
+      observer.observe(ref.current);
+      preload.observe(ref.current);
+    }
     return () => {
       media.removeEventListener("change", update);
       document.removeEventListener("visibilitychange", update);
       observer.disconnect();
+      preload.disconnect();
     };
   }, []);
   useEffect(() => {
@@ -109,13 +135,13 @@ export function FeatureShowcase() {
     let cancelled = false;
     setFailed(false);
     setData(null);
+    setReadiness({});
+    setSlideErrors({});
     const timeout = setTimeout(() => {
       cancelled = true;
       setFailed(true);
     }, 30000);
-    void getPublicPortfolio({
-      data: { by: "code", value: FEATURED_PORTFOLIO_CODE },
-    })
+    void loadFeaturedPortfolio(attempt > 0)
       .then((result) => {
         if (cancelled) return;
         clearTimeout(timeout);
@@ -147,10 +173,14 @@ export function FeatureShowcase() {
     return () => clearTimeout(timer);
   }, [ready, failed, selected, attempt]);
   useEffect(() => {
-    if (!playing || !autoAdvance || !ready || failed) return;
-    const next = setTimeout(() => choose(selected + 1, false), feature.id === "lighting" ? 22000 : SLIDE_MS);
+    if (!playing || !autoAdvance || !ready || failed || !readiness[upcoming.id])
+      return;
+    const next = setTimeout(
+      () => choose(selected + 1, false),
+      feature.id === "lighting" ? 22000 : SLIDE_MS,
+    );
     return () => clearTimeout(next);
-  }, [playing, autoAdvance, ready, failed, selected]);
+  }, [playing, autoAdvance, ready, failed, selected, readiness, upcoming.id]);
   return (
     <section ref={ref} className="rule-t" aria-label="Portfolio features">
       <div className="mx-auto w-full max-w-[1800px] px-4 py-12 sm:px-8 lg:px-12">
@@ -210,42 +240,56 @@ export function FeatureShowcase() {
         >
           <div className="min-w-0">
             <div className="pf-feature-live relative isolate overflow-hidden rounded-xl border border-border bg-[#10162e]">
-              {near && url && p?.pdf && !failed && (
-                <FeatureAnimation
-                  key={attempt}
-                  url={url}
-                  feature={feature.id}
-                  playing={playing}
-                  settings={p.viewer}
-                  onReady={onReady}
-                  onError={onError}
-                />
-              )}
-              {(!ready || failed) && (
+              {near &&
+                url &&
+                p?.pdf &&
+                !failed &&
+                [feature, upcoming].map((f) => (
+                  <div
+                    key={`${f.id}:${attempt}`}
+                    className="absolute inset-0"
+                    style={{
+                      visibility: f.id === feature.id ? "visible" : "hidden",
+                      opacity: f.id === feature.id ? 1 : 0,
+                      pointerEvents: f.id === feature.id ? "auto" : "none",
+                    }}
+                    aria-hidden={f.id !== feature.id}
+                    inert={f.id !== feature.id}
+                  >
+                    <FeatureAnimation
+                      url={url}
+                      feature={f.id}
+                      playing={playing && f.id === feature.id}
+                      settings={p.viewer}
+                      onReady={handlers[f.id]!.onReady}
+                      onError={handlers[f.id]!.onError}
+                    />
+                  </div>
+                ))}
+              {(!ready || slideFailed) && (
                 <div
                   className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center text-sm text-white/80"
                   role="status"
                 >
                   <p>
-                    {failed
+                    {slideFailed
                       ? "The example is temporarily unavailable."
                       : slow
                         ? "Preparing the real pages is taking longer than usual."
                         : "Preparing Scarlett’s lookbook…"}
                   </p>
-                  {(failed || slow) && (
+                  {(slideFailed || slow) && (
                     <button
                       type="button"
                       className="underline"
                       onClick={() => {
-                        setReady(false);
                         setAttempt((n) => n + 1);
                       }}
                     >
                       Try again
                     </button>
                   )}
-                  {failed && (
+                  {slideFailed && (
                     <a href={publicUrl} className="underline">
                       Open the example
                     </a>

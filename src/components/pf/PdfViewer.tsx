@@ -56,6 +56,7 @@ export function PdfViewer({
   links,
   projectCode,
   profile,
+  profileImageUrl,
   home,
   backgroundUrl,
   controls,
@@ -90,6 +91,7 @@ export function PdfViewer({
   projectCode?: string;
   /** The person's details, shown from a small profile icon. */
   profile?: ReactNode;
+  profileImageUrl?: string;
   /** Shows the small logo that links to the home page. */
   home?: boolean;
   /** An uploaded picture to show behind the PDF instead of the colour. */
@@ -139,8 +141,12 @@ export function PdfViewer({
   useEffect(() => { if (error) onLoadError?.(error); }, [error, onLoadError]);
   const rootRef = useRef<HTMLDivElement>(null);
   const clusterRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const [profileImageFailed, setProfileImageFailed] = useState(false);
+  useEffect(() => setProfileImageFailed(false), [profileImageUrl]);
+  useDismiss(profileRef, panel === "profile", () => setPanel(null));
   const [downloadUrl, setDownloadUrl] = useState<string>();
-  useDismiss(clusterRef, panel !== null, () => setPanel(null));
+  useDismiss(clusterRef, panel !== null && panel !== "profile", () => setPanel(null));
 
   useEffect(() => {
     if (!source) return;
@@ -166,11 +172,15 @@ export function PdfViewer({
         };
         loaded = await task.promise;
         if (cancelled) return void loaded.destroy();
-        const s: { w: number; h: number }[] = [];
-        for (let i = 1; i <= loaded.numPages; i++) {
-          const vp = (await loaded.getPage(i)).getViewport({ scale: 1 });
-          s.push({ w: vp.width, h: vp.height });
-        }
+        const document = loaded;
+        const dimensions = async (i: number) => {
+          const vp = (await document.getPage(i)).getViewport({ scale: 1 });
+          return { w: vp.width, h: vp.height };
+        };
+        const s: { w: number; h: number }[] = lightweight
+          ? await Promise.all(Array.from({ length: document.numPages }, (_, i) => dimensions(i + 1)))
+          : [];
+        if (!lightweight) for (let i = 1; i <= document.numPages; i++) s.push(await dimensions(i));
         if (cancelled) return;
         setSizes(s);
         setDoc(loaded);
@@ -184,7 +194,7 @@ export function PdfViewer({
       if (objUrl) URL.revokeObjectURL(objUrl);
       void loaded?.destroy();
     };
-  }, [source]);
+  }, [source, lightweight]);
 
   type FullscreenDoc = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void; webkitFullscreenEnabled?: boolean };
   type FullscreenEl = HTMLDivElement & { webkitRequestFullscreen?: () => void };
@@ -455,18 +465,19 @@ export function PdfViewer({
 
       {showControls && (
         <div className="pointer-events-none sticky top-0 z-50 h-0">
-          {home && (
-            <div className={cn("pointer-events-auto absolute left-3 top-3 transition-opacity duration-300", fade)}>
-              <LogoMark tone={tone} />
+          {(home || profile) && (
+            <div ref={profileRef} className={cn("pointer-events-auto absolute left-3 top-3 transition-opacity duration-300", fade)}>
+              <div className="flex items-center gap-2">
+                {home && <LogoMark tone={tone} />}
+                {profile && <IconButton label="Profile" tone={tone} pressed={panel === "profile"} onClick={() => togglePanel("profile")}>
+                  {profileImageUrl && !profileImageFailed ? <img src={profileImageUrl} alt="" className="size-8 rounded-full object-cover" onError={() => setProfileImageFailed(true)} /> : <User className="size-[17px]" />}
+                </IconButton>}
+              </div>
+              {panel === "profile" && profile && <Panel label="Profile" style={{ maxHeight: "calc(100dvh - 5rem)" }} className="mt-3 w-[min(24rem,calc(100vw-1.5rem))] overflow-y-auto overflow-x-hidden [overflow-wrap:anywhere] overscroll-contain">{profile}</Panel>}
             </div>
           )}
-          <div ref={clusterRef} className={cn("pointer-events-auto absolute right-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] flex-col items-end gap-2 transition-opacity duration-300", fade)}>
+          <div ref={clusterRef} style={home || profile ? { maxWidth: "calc(100% - 7rem)" } : undefined} className={cn("pointer-events-auto absolute right-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] flex-col items-end gap-2 transition-opacity duration-300", fade)}>
             <div ref={toolbarRef} role="toolbar" aria-label="Viewer controls" className={cn("flex flex-wrap items-center justify-end gap-0.5 rounded-full p-1 shadow-sm backdrop-blur-md", tone === "dark" ? "bg-slate-950/80 text-white" : "bg-white/90 text-slate-700")}>
-              {profile && (
-                <IconButton label="Profile" tone={tone} pressed={panel === "profile"} onClick={() => togglePanel("profile")}>
-                  <User className="size-[17px]" />
-                </IconButton>
-              )}
               {doc && availableModes.length > 1 && (
                 <div role="radiogroup" aria-label="Reading mode" className="flex items-center">
                   {MODES.filter(([m]) => availableModes.includes(m)).map(([m, label, Icon]) => (
@@ -516,11 +527,6 @@ export function PdfViewer({
                 </a>
               )}
             </div>
-            {panel === "profile" && profile && (
-              <Panel label="Profile" style={panelFit} className="w-[min(24rem,calc(100vw-1.5rem))] max-w-full overflow-y-auto overflow-x-hidden [overflow-wrap:anywhere] overscroll-contain">
-                {profile}
-              </Panel>
-            )}
             {panel === "projects" && doc && (
               <Panel label="Projects" style={panelFit} className="w-[min(24rem,calc(100vw-1.5rem))] max-w-full overflow-auto overscroll-contain">
                 <h2 className="mb-3 text-sm font-medium">Projects</h2>
