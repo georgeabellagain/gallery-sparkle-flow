@@ -47,7 +47,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const dpr = window.devicePixelRatio || 1;
   // Edges are smoothed by multisampling (always on), so the picture does not need to be drawn at more than
   // twice the screen's own detail. Drawing fewer pixels is what keeps Studio's paper shading quick.
-  let pixelRatio = Math.min(Math.max(dpr, 1), 1.5);
+  let pixelRatio = Math.min(Math.max(dpr, 1), 1.25);
   let appliedRatio = pixelRatio;
   const renderer = new THREE.WebGLRenderer({
     alpha: true,
@@ -308,7 +308,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   // The turning sheet shows its two faces through two views of one geometry.
   // The reverse view has mirrored texture coordinates, so the same texture
   // can be used on either side without a second mirrored GPU upload.
-  const geometry = new THREE.PlaneGeometry(1, ratio, 48, 24);
+  const geometry = new THREE.PlaneGeometry(1, ratio, 32, 16);
   const reverseGeometry = new THREE.BufferGeometry();
   reverseGeometry.setIndex(geometry.getIndex());
   reverseGeometry.setAttribute("position", geometry.getAttribute("position"));
@@ -697,7 +697,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     resize();
   };
   /** The most a turn advances in one frame, however slow that frame was. */
-  const MAX_FRAME_STEP = 40;
+  const MAX_FRAME_STEP = 50;
   const animate = (duration: number, update: (t: number) => void) =>
     new Promise<void>((resolve) => {
       if (disposed) {
@@ -906,12 +906,12 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     },
     pan,
     /** `speed` 1 is the normal pace; smaller is quicker (used when pages are turned in quick succession). */
-    async prepareTurn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number, speed = 1, plan: TabPlan[] | null = null) {
+    async prepareTurn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number, speed = 1, plan: TabPlan[] | null = null, dragging = false) {
       notes.clear();
       tabPlan = plan;
       const originalFocus = focus;
       // A cover first aligns with the open spread. The sheet then turns.
-      if (!narrow && focus !== 0) await pan(0, 420 * speed);
+      if (!narrow && focus !== 0) await pan(0, (dragging ? 140 : 420) * speed);
       if (disposed) return;
       const moving = dir === 1 ? 1 : 0;
       const landing = dir === 1 ? 0 : 1;

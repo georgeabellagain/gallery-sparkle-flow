@@ -873,7 +873,7 @@ export function BookView({
       await scene.current.resetZoom();
       if (!alive.current || !scene.current) return;
       onZoomChange(1);
-      await scene.current.prepareTurn(from, to, direction, target, 1, tabPlanFor(fromSpread, nextSpread, direction));
+      await scene.current.prepareTurn(from, to, direction, target, 1, tabPlanFor(fromSpread, nextSpread, direction), true);
       if (drag.current === gesture) scene.current.dragTurn(gesture.progress);
     })();
   };
