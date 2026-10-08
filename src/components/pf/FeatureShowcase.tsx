@@ -39,12 +39,7 @@ const FEATURES = [
     title: "Paper in a different light.",
     text: "Soft shadows and changing light bring pages 9–12 of the lookbook into focus.",
   },
-  {
-    id: "notes",
-    label: "Scrapbook",
-    title: "Details worth opening.",
-    text: "Lift a flap to reveal another layer. Add images, text and colour to tell more of the story.",
-  },
+  // Scrapbook ("notes") hidden for now — restore this entry to show it again.
   {
     id: "tabs",
     label: "Page tabs",
