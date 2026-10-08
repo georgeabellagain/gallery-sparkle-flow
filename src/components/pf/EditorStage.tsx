@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { BookOpen, GripHorizontal, FolderOpen, Image as ImageIcon, Palette, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
+import { ArrowLeft, ChartNoAxesColumn, BookOpen, GripHorizontal, FolderOpen, Image as ImageIcon, Palette, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/pf/Chrome";
 import { ScrapbookDialog, type ScrapbookPanel } from "@/components/pf/FoldoutSettings";
@@ -16,7 +16,7 @@ import { readablePageLinks, readablePageTags } from "@/lib/portfolia/page-extras
 import { readableFoldouts } from "@/lib/portfolia/foldouts";
 import { cn } from "@/lib/utils";
 
-type Tool = "reading" | "look" | "background" | "scrapbook" | "projects" | "style" | "publish" | "share";
+type Tool = "reading" | "look" | "background" | "scrapbook" | "projects" | "style" | "publish" | "share" | "statistics";
 const TOOLS: Array<[Tool, string, typeof Sun]> = [
   ["reading", "Reading", BookOpen],
   ["look", "Lighting & look", Sun],
@@ -25,6 +25,7 @@ const TOOLS: Array<[Tool, string, typeof Sun]> = [
   ["projects", "Projects", FolderOpen],
   ["style", "Page style", Palette],
   ["share", "Share", Share2],
+  ["statistics", "Statistics", ChartNoAxesColumn],
   ["publish", "File & publishing", Upload],
 ];
 
@@ -47,7 +48,8 @@ export function EditorBar({
   const hasBook = (viewer.modes?.length ? viewer.modes : ["scroll", "paged", "book"]).includes("book");
   const shown: PreviewLook = look ?? viewer.look;
   return (
-    <header className="relative z-20 flex h-14 items-center gap-3 border-b border-border bg-background px-3 sm:px-5">
+    <header className="relative z-20 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-3 sm:px-5">
+      <Link to="/dashboard" aria-label="Back to your portfolios" title="Your portfolios" className="rounded-lg p-2 hover:bg-muted"><ArrowLeft className="size-4" /></Link>
       <Wordmark className="shrink-0" />
       <span className="hidden h-6 w-px bg-border sm:block" aria-hidden />
       <span className="hidden min-w-0 truncate text-sm text-muted-foreground sm:block">{p.profile.name || p.pdf?.name}</span>
@@ -86,6 +88,7 @@ export function EditorBar({
 export function EditorStage({
   p,
   preview,
+  statistics,
   onSaveError,
   onDialog,
   onPublish,
@@ -93,6 +96,7 @@ export function EditorStage({
 }: {
   p: Portfolio;
   preview: ReactNode;
+  statistics?: ReactNode;
   onSaveError: (message: string | null) => void;
   onDialog: (dialog: "replace" | "unpublish" | "delete") => void;
   onPublish: () => void;
@@ -146,7 +150,7 @@ export function EditorStage({
         ref={dockRef}
         aria-label="Editing tools"
         style={position ? { left: position.left, top: position.top, bottom: "auto", right: "auto", transform: "none", translate: "none" } : undefined}
-        className="absolute bottom-3 left-3 z-20 flex max-h-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col rounded-2xl border border-border bg-background/95 p-1.5 shadow-soft backdrop-blur lg:bottom-auto lg:left-4 lg:top-1/2 lg:-translate-y-1/2"
+        className="absolute bottom-3 left-3 z-40 flex max-h-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col rounded-2xl border border-border bg-background/95 p-1.5 shadow-soft backdrop-blur lg:bottom-auto lg:left-4 lg:top-1/2 lg:-translate-y-1/2"
       >
         <button
           type="button"
@@ -216,6 +220,7 @@ export function EditorStage({
               <X className="size-4" />
             </button>
           </div>
+          {tool === "statistics" && (statistics ?? <p className="text-sm text-muted-foreground">Sign in to see portfolio statistics.</p>)}
           {tool === "reading" && <StyleForm sidebar part="reading" p={p} onSaveError={onSaveError} />}
           {tool === "look" && <StyleForm sidebar part="look" p={p} onSaveError={onSaveError} />}
           {tool === "background" && <StyleForm sidebar part="background" p={p} onSaveError={onSaveError} />}

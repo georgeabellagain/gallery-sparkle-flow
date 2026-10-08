@@ -1,7 +1,7 @@
 import { AnalyticsPanel } from "@/components/pf/AnalyticsPanel";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { SiteFooter, DemoNote, LOCAL_NOTE, Modal, useBlob } from "@/components/pf/Chrome";
+import { Modal, useBlob } from "@/components/pf/Chrome";
 import { EditorBar, EditorStage } from "@/components/pf/EditorStage";
 import { PortfolioPage, useStoredMedia } from "@/components/pf/PortfolioPage";
 import { DropZone } from "@/components/pf/DropZone";
@@ -44,7 +44,11 @@ function EditPortfolio() {
 
   if (!p || !p.pdf) return null;
 
-  const publish = () => setSaveErr(patchPortfolio({ status: "published", publishedAt: Date.now() }) ? null : "Publishing failed — nothing changed.");
+  const publish = () => {
+    if (!p.profile.name.trim()) return void navigate({ to: "/create" });
+    if (!doc.account.signedIn) return void navigate({ to: "/signin", search: { next: "create" } });
+    setSaveErr(patchPortfolio({ status: "published", publishedAt: Date.now() }) ? null : "Publishing failed — nothing changed.");
+  };
   const status = saveErr || sync.status === "error" ? <>Couldn’t save · <button className="underline" onClick={retrySync}>Retry</button></> : !doc.account.signedIn ? "Draft — sign in to save" : sync.status === "saving" ? "Saving…" : "Saved";
   return (
     <div className="flex min-h-screen flex-col">
@@ -52,21 +56,15 @@ function EditPortfolio() {
       <main className="flex-1">
         <EditorStage
           p={p}
+          statistics={doc.account.signedIn ? <AnalyticsPanel data={doc.analytics} title="This portfolio" description={p.pdf.name} /> : undefined}
           onSaveError={setSaveErr}
           onDialog={setDialog}
           onPublish={publish}
           onUnpublish={() => setDialog("unpublish")}
           preview={<PortfolioPage showCredit={p.plan === "free"} profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.plan === "personal" ? p.style : undefined} viewer={p.viewer} projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />}
         />
-        {saveErr && <p role="alert" className="shell py-3 text-sm text-destructive">{saveErr}</p>}
-        <section aria-label="Statistics" className="shell py-6 sm:py-8">
-          <div className="max-w-xl space-y-6">
-            {doc.account.signedIn && <section id="statistics"><AnalyticsPanel data={doc.analytics} title="This portfolio’s statistics" description={p.pdf.name} /></section>}
-            <DemoNote>{LOCAL_NOTE}</DemoNote>
-          </div>
-        </section>
+        {saveErr && <p role="alert" className="fixed bottom-4 left-1/2 z-50 w-[min(90vw,32rem)] -translate-x-1/2 rounded-xl border border-destructive/20 bg-background p-3 text-sm text-destructive shadow-soft">{saveErr}</p>}
       </main>
-      <SiteFooter />
       <EditReplaceModal open={dialog === "replace"} onClose={() => setDialog(null)} current={p.pdf} limitMb={uploadLimitMb(doc)} />
       <Modal open={dialog === "unpublish"} onClose={() => setDialog(null)} title="Unpublish portfolio?">
         <p className="text-muted-foreground">Its public link will stop working, but your PDF, details and address will be kept.</p>

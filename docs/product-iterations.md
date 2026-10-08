@@ -377,3 +377,17 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Reset the separate CSS translate property when switching the dock from centred placement to pointer positioning. Resetting transform alone left the negative half-height translation active, moving the handle out of reach.
 - Prevent focus-triggered scrolling when grabbing the handle. Preserve bounds, resize clamping and keyboard reset.
 - Follow-up fix to iteration 28; no live publication.
+
+## Iteration 30 — simplify the website and workspace (review branch)
+
+- Simplify homepage navigation, hero scale, onboarding explanation, plan summaries and footer groups.
+- Make dashboard actions always visible, add loading feedback, correct Free capacity and soften cover styling.
+- Reuse the editor sharing flow on the dashboard so draft links cannot be copied/QR-shared; keep advanced sharing options behind labelled sections.
+- Put profile essentials first, collapse optional fields, retain a clear visual-editor shortcut and show the form first on phones.
+- Move portfolio statistics into the editor dock and remove below-canvas footer/content; add dashboard navigation and publication prerequisites.
+- Simplify upload options, statistics explanations and pricing decoration. Improve branded recovery states and modal labelling.
+- Keep the previous photo/CV when saving a replacement fails.
+- Remove an unnecessary homepage metadata server request.
+- TypeScript, production build and 51 existing tests pass in the workspace. Browser review blocked by a public homepage error and preview timeout; no claim of visual sign-off.
+- See experience-review-2026-10-08.md for the full assessment, limitations and prioritised additions.
+- Review branch only; not merged or published.

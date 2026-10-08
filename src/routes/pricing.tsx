@@ -162,14 +162,14 @@ function Plan({
 }) {
   return (
     <div
-      className={`relative rounded-3xl border bg-card p-7 ${featured ? "border-leaf shadow-lift sm:-translate-y-2" : "border-border shadow-soft"}`}
+      className={`relative rounded-3xl border bg-card p-7 ${featured ? "border-leaf" : "border-border"}`}
     >
       {featured && (
         <span className="absolute right-5 top-5 rounded-full bg-leaf-soft px-3 py-1 text-xxs font-medium uppercase text-leaf">
           Recommended
         </span>
       )}
-      <h3 className="text-base font-medium">{name}</h3>
+      <h3 className="pr-28 text-base font-medium">{name}</h3>
       <p className="mt-2 text-2xl font-medium tracking-tight">{price}</p>
       <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">{description}</p>
       <ul className="mt-4 space-y-1.5 text-sm">
