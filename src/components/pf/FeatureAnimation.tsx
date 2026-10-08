@@ -39,8 +39,8 @@ const NOTES: Foldout[] = [
     title: "A closer look",
     colour: "#efe5d2",
     hinge: "top",
-    x: 0.18,
-    y: 0.5,
+    x: 0.5,
+    y: 0.65,
     width: 0.46,
     height: 0.32,
     outside: {
@@ -138,20 +138,24 @@ export function FeatureAnimation({
           if (n === START.notes) {
             // A close-up taken directly from the right-hand artwork of this PDF page.
             const detail = document.createElement("canvas");
-            detail.width = 1000;
-            detail.height = 700;
+            const cropWidth = canvas.width * 0.34;
+            const cropHeight = canvas.height * 0.58;
+            const scale = 1000 / Math.max(cropWidth, cropHeight);
+            // Preserve the source crop ratio; cover/contain can then fit any note size without warping.
+            detail.width = Math.round(cropWidth * scale);
+            detail.height = Math.round(cropHeight * scale);
             detail
               .getContext("2d")!
               .drawImage(
                 canvas,
                 canvas.width * 0.58,
                 canvas.height * 0.2,
-                canvas.width * 0.34,
-                canvas.height * 0.58,
+                cropWidth,
+                cropHeight,
                 0,
                 0,
-                1000,
-                700,
+                detail.width,
+                detail.height,
               );
             registerPublicUrls({
               [detailKey]: detail.toDataURL("image/webp", 0.94),
