@@ -261,13 +261,13 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
                           type="button"
                           role="radio"
                           aria-checked={studioLighting === light.id}
-                          aria-label={`Lighting ${index + 1}`}
-                          title={`Lighting ${index + 1}`}
+                          aria-label={light.label}
+                          title={light.label}
                           onClick={() => setViewer({ studioLighting: light.id })}
                           className={`relative h-12 overflow-hidden rounded-lg border text-sm font-medium text-white transition-opacity ${studioLighting === light.id ? "border-foreground opacity-100 ring-2 ring-foreground/30" : "border-border opacity-75 hover:opacity-100"}`}
                           style={{ background: light.preview }}
                         >
-                          <span className="absolute inset-0 flex items-center justify-center bg-black/25 [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">{index + 1}</span>
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/25 [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">{index < 4 ? index + 1 : light.label}</span>
                         </button>
                       ))}
                     </div>

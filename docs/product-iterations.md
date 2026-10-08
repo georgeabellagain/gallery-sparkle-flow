@@ -448,3 +448,14 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Move the enabled portfolio profile button beside the top-left logo, with its panel below. Use the uploaded photo as a circular button, falling back to the profile icon if absent or unavailable. Preserve outside-click/Escape dismissal and reserve room for mobile controls.
 - Validation: TypeScript, production build and regression suite. Browser performance/layout verification remains outstanding; no measured loading-time claim.
 - Review branch only; not merged or published.
+
+
+## Iteration 36 — page-turn work reduction and dappled sunlight
+
+- Cache the two page-relief profiles per turn and reuse a precomputed curl profile, instead of repeating expensive relief/trigonometry for every vertex on every animation frame. Mark changing geometry buffers for dynamic updates.
+- Remove the extra mid-turn warm-up render and explicitly upload turn textures before starting. Cast the double-sided turning sheet's shadow once instead of twice.
+- Limit speculative prefetch to immediate neighbours to avoid evicting the next turn's textures. Preserve existing full-resolution page texture budgets and Simple/Studio separation.
+- Add Pine sunlight and Leaf sunlight after the original four choices. Bundle reduced CC0 Forest Slope and Autumn Forest 04 HDRIs, with source/licence records and derived thumbnails.
+- Pair the HDR environments with an actual foliage-pattern spotlight so patches of direct light fall on moving pages and scrapbook notes. Only one key light casts shadows per preset.
+- Validation: TypeScript, production build, regression suite and decoding/finite-value checks for both bundled HDRIs. No browser frame-rate benchmark or visual lighting sign-off is claimed.
+- Review branch only; not merged or published.

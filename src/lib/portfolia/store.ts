@@ -37,7 +37,7 @@ export interface ViewerSettings {
   looks?: ("clean" | "studio")[];
   /** Creator-defined Studio lighting. */
   studioBrightness?: number;
-  studioLighting?: "1" | "2" | "3" | "4";
+  studioLighting?: "1" | "2" | "3" | "4" | "5" | "6";
   /** Simple look: the soft shadow under the book. On unless switched off. */
   simpleShadow?: boolean;
   /** How dark that shadow is, 0 to 1. Starts at 0.2. */

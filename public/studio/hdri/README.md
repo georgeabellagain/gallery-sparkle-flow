@@ -32,3 +32,26 @@ The originals are 4096 x 2048 EXR files of 80-100 MB each. For the web each was:
 
 A lighting file is only downloaded when it is first used. They are read by
 `src/lib/portfolia/rgbe.ts`.
+
+
+
+## Dappled sunlight additions
+
+| # | Label | File | CC0 source |
+|---|---|---|---|
+| 5 | Pine sunlight | lighting-5.hdr | https://polyhaven.com/a/forest_slope |
+| 6 | Leaf sunlight | lighting-6.hdr | https://polyhaven.com/a/autumn_forest_04 |
+
+Downloaded from the corresponding Poly Haven 1K Radiance assets on 2026-10-08:
+`https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/forest_slope_1k.hdr`
+and `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/autumn_forest_04_1k.hdr`.
+License: https://polyhaven.com/license (CC0; redistribution and commercial use allowed).
+
+These two files use 512 × 256 area-averaged RGBE pixels, with spherical mean
+luminance normalised to 0.285 and a channel ceiling of 40. Preview JPGs are derived
+from the same HDR pixels, not Poly Haven's example renders. Each HDR is about 517 KiB.
+
+An HDR environment alone does not cast local leaf shadows in this renderer.
+The two new presets pair it with a deterministic, code-generated foliage projection
+on a shadow-casting spotlight. This supplies patches of direct light on the page,
+turning sheet and scrapbook flap. The original four choices retain their appearance.
