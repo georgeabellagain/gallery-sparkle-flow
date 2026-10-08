@@ -67,59 +67,34 @@ const TAGS: PageTag[] = [11, 12, 13, 14].map((page) => ({
   colour: ["#dfaa70", "#9aaed0", "#b8bc9c", "#d1abb2"][page - 11]!,
 }));
 
-/** Presentation-only loops: PDF artwork plus the actual book renderer, with no reader/editor UI. */
-export function FeatureAnimation({
-  url,
-  feature,
-  playing,
-  settings,
-  onReady,
-  onError,
-}: {
-  url: string;
-  feature: FeatureId;
-  playing: boolean;
-  settings?: ViewerSettings;
-  onReady: (value: boolean) => void;
-  onError: () => void;
-}) {
-  const host = useRef<HTMLDivElement>(null);
-  const [detailKey] = useState(() => uid("showcase_detail"));
-  const notes = useMemo(
-    () =>
-      NOTES.map((note) => ({
-        ...note,
-        inside: { ...note.inside!, imageKey: detailKey },
-      })),
-    [detailKey],
-  );
-  const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
-  const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
-  const [images, setImages] = useState<Record<number, string>>({});
-  const [ready, setReady] = useState(false);
-  const [beat, setBeat] = useState(0);
-  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
-  const isBook = ["book", "background", "lighting", "notes", "tabs"].includes(
-    feature,
-  );
-  useEffect(() => {
-    let cancelled = false;
-    let task:
-      | ReturnType<Awaited<ReturnType<typeof loadPdfjs>>["getDocument"]>
-      | undefined;
-    setDoc(null);
-    setImages({});
-    void (async () => {
+type PreparedArtwork = {
+  doc: PDFDocumentProxy;
+  sizes: { w: number; h: number }[];
+  images: Record<number, string>;
+  detailKey: string;
+};
+// Adjacent slides share one parsed PDF and one set of rasterised pages.
+const preparedArtwork = new Map<
+  string,
+  {
+    promise: Promise<PreparedArtwork>;
+    users: number;
+    timer?: ReturnType<typeof setTimeout>;
+  }
+>();
+function acquireArtwork(url: string) {
+  let entry = preparedArtwork.get(url);
+  if (!entry) {
+    const promise = (async () => {
+      const detailKey = uid("showcase_detail");
       const pdfjs = await loadPdfjs();
-      if (cancelled) return;
-      task = pdfjs.getDocument({ url });
+      const task = pdfjs.getDocument({ url });
       const loaded = await task.promise;
       if (loaded.numPages < 14)
         throw new Error("The demonstration needs all 14 lookbook pages.");
       const dimensions: { w: number; h: number }[] = [];
       const artwork: Record<number, string> = {};
       for (let n = 1; n <= loaded.numPages; n++) {
-        if (cancelled) return;
         const page = await loaded.getPage(n);
         const base = page.getViewport({ scale: 1 });
         dimensions.push({ w: base.width, h: base.height });
@@ -165,19 +140,87 @@ export function FeatureAnimation({
           canvas.width = canvas.height = 0;
         }
       }
-      if (!cancelled) {
-        setSizes(dimensions);
-        setImages(artwork);
-        setDoc(loaded);
-      }
-    })().catch(() => {
-      if (!cancelled) onError();
+
+      return { doc: loaded, sizes: dimensions, images: artwork, detailKey };
+    })();
+    entry = { promise, users: 0 };
+    preparedArtwork.set(url, entry);
+    void promise.catch(() => {
+      if (preparedArtwork.get(url) === entry) preparedArtwork.delete(url);
     });
+  }
+  clearTimeout(entry.timer);
+  entry.users++;
+  const current = entry;
+  return {
+    promise: current.promise,
+    release() {
+      if (--current.users === 0)
+        current.timer = setTimeout(() => {
+          if (current.users) return;
+          if (preparedArtwork.get(url) === current) preparedArtwork.delete(url);
+          void current.promise
+            .then((value) => value.doc.destroy())
+            .catch(() => {});
+        }, 1000);
+    },
+  };
+}
+
+/** Presentation-only loops: PDF artwork plus the actual book renderer, with no reader/editor UI. */
+export function FeatureAnimation({
+  url,
+  feature,
+  playing,
+  settings,
+  onReady,
+  onError,
+}: {
+  url: string;
+  feature: FeatureId;
+  playing: boolean;
+  settings?: ViewerSettings;
+  onReady: (value: boolean) => void;
+  onError: () => void;
+}) {
+  const host = useRef<HTMLDivElement>(null);
+  const [detailKey, setDetailKey] = useState("");
+  const notes = useMemo(
+    () =>
+      NOTES.map((note) => ({
+        ...note,
+        inside: { ...note.inside!, imageKey: detailKey },
+      })),
+    [detailKey],
+  );
+  const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
+  const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
+  const [images, setImages] = useState<Record<number, string>>({});
+  const [ready, setReady] = useState(false);
+  const [beat, setBeat] = useState(0);
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
+  const isBook = ["book", "background", "lighting", "notes", "tabs"].includes(
+    feature,
+  );
+  useEffect(() => {
+    let cancelled = false;
+    const lease = acquireArtwork(url);
+    void lease.promise
+      .then((value) => {
+        if (cancelled) return;
+        setDetailKey(value.detailKey);
+        setSizes(value.sizes);
+        setImages(value.images);
+        setDoc(value.doc);
+      })
+      .catch(() => {
+        if (!cancelled) onError();
+      });
     return () => {
       cancelled = true;
-      void task?.destroy();
+      lease.release();
     };
-  }, [url, onError, detailKey]);
+  }, [url, onError]);
   useEffect(() => {
     setReady(false);
     setBeat(0);

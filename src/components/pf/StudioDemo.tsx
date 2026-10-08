@@ -2,11 +2,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PdfViewer } from "./PdfViewer";
 import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
 import type { PublicPortfolio } from "@/lib/portfolia/public.functions";
+import { loadPdfjs } from "@/lib/portfolia/pdf";
 import { DEFAULT_VIEWER } from "@/lib/portfolia/store";
 
 // Explicitly selected by the site owner. Never select an arbitrary account or draft.
 export const FEATURED_PORTFOLIO_CODE = "adu2v";
 export const FEATURED_CREDIT = "Property of Scarlett Bushell 2026";
+let featuredRequest: { at: number; promise: Promise<PublicPortfolio> } | undefined;
+export function loadFeaturedPortfolio(refresh = false) {
+  void loadPdfjs().catch(() => {});
+  if (refresh || !featuredRequest || Date.now() - featuredRequest.at > 60000) {
+    const promise = getPublicPortfolio({ data: { by: "code", value: FEATURED_PORTFOLIO_CODE } });
+    featuredRequest = { at: Date.now(), promise };
+    void promise.catch(() => { if (featuredRequest?.promise === promise) featuredRequest = undefined; });
+  }
+  return featuredRequest.promise;
+}
+
 
 /** Reuse the real reader and saved settings instead of drawing invented sample pages. */
 export function StudioDemo({ className }: { className?: string }) {
@@ -38,7 +50,7 @@ export function StudioDemo({ className }: { className?: string }) {
     setSlow(false);
     setData(null);
     const timeout = setTimeout(() => { cancelled = true; setState("error"); }, 30000);
-    void getPublicPortfolio({ data: { by: "code", value: FEATURED_PORTFOLIO_CODE } }).then((result) => {
+    void loadFeaturedPortfolio(attempt > 0).then((result) => {
       if (cancelled) return;
       clearTimeout(timeout);
       setData(result);
@@ -56,7 +68,7 @@ export function StudioDemo({ className }: { className?: string }) {
   const source = useMemo(() => url ? { url } : null, [url]);
   const stop = () => setInteracted(true);
   return <figure ref={figure} onPointerDownCapture={stop} onKeyDownCapture={stop} onWheelCapture={stop} className={className ?? "mx-auto w-full max-w-5xl"}>
-    <div className="relative overflow-hidden rounded-3xl border border-border shadow-lift [&_.pf-book-viewport]:h-[28rem] sm:[&_.pf-book-viewport]:h-[36rem] lg:[&_.pf-book-viewport]:h-[40rem]" style={{ background: p?.viewer?.backgroundColor ?? "#02011e" }}>
+    <div className="pf-home-demo relative overflow-hidden rounded-3xl border border-border shadow-lift [&_.pf-book-viewport]:h-[28rem] sm:[&_.pf-book-viewport]:h-[36rem] lg:[&_.pf-book-viewport]:h-[40rem]" style={{ background: p?.viewer?.backgroundColor ?? "#02011e" }}>
       {state === "ready" && p?.pdf && source && <div style={{ opacity: rendered ? 1 : 0, pointerEvents: rendered ? "auto" : "none" }} aria-hidden={!rendered} inert={!rendered}>
       <PdfViewer
         source={source}
@@ -71,7 +83,7 @@ export function StudioDemo({ className }: { className?: string }) {
         onBookReadyChange={readyChanged}
         onLoadError={loadError}
       /></div>}
-      {(!rendered || state === "error") && <div role="status" className={`${state === "ready" ? "absolute inset-0" : "h-[28rem]"} flex flex-col items-center justify-center gap-3 bg-slate-950/80 px-6 text-center text-sm text-white/90`}>
+      {(!rendered || state === "error") && <div role="status" className={`absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950/80 px-6 text-center text-sm text-white/90`}>
         <p>{state !== "error" ? (slow ? "Preparing the example is taking longer than usual. You can wait or try again." : "Loading Scarlett’s lookbook…") : "The example is temporarily unavailable."}</p>
         {(state === "error" || slow) && <button type="button" className="underline underline-offset-4" onClick={() => setAttempt((n) => n + 1)}>Try again</button>}
       </div>}

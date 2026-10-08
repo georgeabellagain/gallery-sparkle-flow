@@ -124,6 +124,7 @@ export function PortfolioPage({
           projectCode={projectCode}
           startFullscreen={startFullscreen}
           profile={details}
+          profileImageUrl={photoUrl}
           home={!embed && !compact}
           backgroundUrl={backgroundUrl}
           controls
