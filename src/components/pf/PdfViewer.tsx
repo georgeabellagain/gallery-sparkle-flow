@@ -60,6 +60,8 @@ export function PdfViewer({
   backgroundUrl,
   controls,
   autoTurn = false,
+  demoNotes = false,
+  onContentReadyChange,
   autoTurnDelay,
   fullSpread = false,
   onBookReadyChange,
@@ -95,6 +97,9 @@ export function PdfViewer({
   /** Whether to show the icons. Defaults to on, except for small thumbnails. */
   controls?: boolean;
   autoTurn?: boolean;
+  /** Only enabled by the homepage showcase; uses the actual flap animation. */
+  demoNotes?: boolean;
+  onContentReadyChange?: (ready: boolean) => void;
   autoTurnDelay?: number;
   fullSpread?: boolean;
   /** A lighter homepage demonstration; full visitor readers keep their resolution. */
@@ -123,6 +128,7 @@ export function PdfViewer({
   const [projectMessage, setProjectMessage] = useState("");
   const [manualProjectLink, setManualProjectLink] = useState("");
   const [contentReady, setContentReady] = useState(false);
+  useEffect(() => { onContentReadyChange?.(contentReady); }, [contentReady, onContentReadyChange]);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [toolbarHeight, setToolbarHeight] = useState(0);
   const shownReady = !SHOW_LOADER || contentReady;
@@ -381,11 +387,11 @@ export function PdfViewer({
     setContentReady(false);
   }, [mode, source]);
   useEffect(() => {
-    if (contentReady || !doc) return;
+    if (contentReady || !doc || onContentReadyChange) return;
     // Safety net: never leave a visitor staring at the loader if something cannot finish.
     const t = setTimeout(() => setContentReady(true), 20000);
     return () => clearTimeout(t);
-  }, [contentReady, doc, mode]);
+  }, [contentReady, doc, mode, onContentReadyChange]);
 
   // Scroll and page-by-page start below the icon bar (measured, as it can wrap on a narrow screen), so the icons
   // never sit over the top of the first page.
@@ -578,7 +584,7 @@ export function PdfViewer({
       ) : (
         <div className={cn("transition-opacity duration-300", shownReady ? "opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!shownReady}>
       {mode === "book" ? (
-        <BookView foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={onLoadError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} />
+        <BookView demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={onLoadError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} />
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div className="overflow-x-auto">

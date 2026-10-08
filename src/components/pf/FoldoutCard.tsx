@@ -69,6 +69,7 @@ export function NoteSurface({
 type CardProps = {
   item: Foldout;
   baked?: boolean;
+  demoAnimate?: boolean;
   sceneRendered?: boolean;
   onProgress?: (progress: number) => void;
   /** Lets the book close this note (and wait for it) before a page turns away from it. */
@@ -83,6 +84,7 @@ export function FoldoutCard({
   sceneRendered = false,
   onProgress,
   closers,
+  demoAnimate = false,
 }: CardProps) {
   const [progress, setProgress] = useState(0);
   const current = useRef(0);
@@ -133,6 +135,12 @@ export function FoldoutCard({
       };
       frame.current = requestAnimationFrame(step);
     });
+  useEffect(() => {
+    if (!demoAnimate || item.hinge === "none") return;
+    const open = window.setTimeout(() => void settle(1), 1000);
+    const close = window.setTimeout(() => void settle(0), 4500);
+    return () => { clearTimeout(open); clearTimeout(close); };
+  }, [demoAnimate, item.id]);
   useEffect(() => {
     if (!closers) return;
     const map = closers.current;

@@ -556,3 +556,7 @@
 .pf-editor-stage .pf-book-viewport {
   height: calc(100dvh - 3.5rem);
 }
+
+/* The feature showcase uses the real reader, fitted to its image area. */
+.pf-feature-live { height: clamp(340px, 62svh, 760px); overflow-y: auto; }
+.pf-feature-live .pf-book-viewport { height: clamp(340px, 62svh, 760px); }
