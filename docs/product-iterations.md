@@ -426,4 +426,14 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Use beige behind Studio, slow demonstration turns to 2.5 times their normal duration, and allow extra carousel dwell time to see the lighting on the moving paper.
 - Use a lighter beige scrapbook flap, handwriting text and a close-up cropped directly from page 10 inside it. Open over 1.8 seconds and close over 1 second. The crop stays in browser memory and the example data is not saved.
 - Validation: TypeScript, production build and existing regression tests. Browser visual review of the new crop/framing remains outstanding.
+- Merged in PR #17 at the user’s request; not published.
+
+
+## Iteration 34 — preserve scrapbook image proportions
+
+- Correct the showcase detail crop: derive its output dimensions from the source crop aspect ratio instead of stretching it to 1000 × 700.
+- Move the demonstration note to the bottom right of its page, retaining a small edge margin.
+- Verify the shared note image painter uses one uniform scale when fitting, zooming and repositioning images in wide, tall and square notes. Cover crops; contain fits; neither stretches the original image.
+- Add a regression test for resized note image proportions across both fitting modes and zoom/position changes.
+- Validation: TypeScript, production build and existing tests plus the new image-fit regression. Visual browser review remains outstanding.
 - Review branch only; not merged or published.
