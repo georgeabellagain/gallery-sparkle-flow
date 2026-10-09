@@ -10,7 +10,7 @@ const LEAVES = [0, 1, 2];
 export function BookLoader({ tone, label = "Preparing your portfolio…", detail }: { tone: Tone; label?: string; detail?: string }) {
   const ink = tone === "dark" ? "255,255,255" : "28,27,26";
   return (
-    <div role="status" aria-live="polite" className="flex flex-col items-center gap-4" style={{ "--pf-ink": ink } as CSSProperties}>
+    <div role="status" aria-live="polite" aria-label={label || "Loading portfolio"} className="flex flex-col items-center gap-4" style={{ "--pf-ink": ink } as CSSProperties}>
       <style>{`
         .pf-load-book { position: relative; width: 72px; height: 50px; perspective: 420px; }
         .pf-load-page, .pf-load-face { position: absolute; top: 0; width: 36px; height: 50px; box-sizing: border-box; border: 1.5px solid rgba(var(--pf-ink), 0.7); background: rgba(var(--pf-ink), 0.1); }

@@ -1,6 +1,7 @@
 import { loadNoteFonts, loadNoteImages, paintClosedNotes } from "@/lib/portfolia/foldout-paint";
 import { foldoutSurfaces } from "@/lib/portfolia/foldouts";
 import { StoredFoldout } from "./FoldoutCard";
+import { BookLoader } from "./book-loader";
 import { getBookInset, subscribeBookInset } from "@/lib/portfolia/book-framing";
 import { PageLinkAnchor } from "./PageLinks";
 import { loadLinkIcons, paintPageLinks, type LinkIcons } from "@/lib/portfolia/link-paint";
@@ -993,13 +994,14 @@ export function BookView({
         }}
         onTouchStart={(e) => {
           touch.current =
-            e.touches.length === 1 && zoom <= 1
+            e.touches.length === 1 && zoom <= 1 && !(e.target as Element).closest("button, a, input, select, textarea, [data-foldout], [role=dialog], [role=toolbar]")
               ? { x: e.touches[0]!.clientX, y: e.touches[0]!.clientY }
               : null;
         }}
         onTouchMove={(e) => {
           if (e.touches.length !== 1) touch.current = null;
         }}
+        onTouchCancel={() => { touch.current = null; }}
         onTouchEnd={(e) => {
           const start = touch.current;
           touch.current = null;
@@ -1083,9 +1085,9 @@ export function BookView({
             />
           ))}
         {wait && !error && (
-          <p className="pf-book-status" role="status">
-            Preparing pages…{warmProgress.total > 0 ? ` ${warmProgress.done} / ${warmProgress.total}` : ""}
-          </p>
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <BookLoader tone={tone} label="" />
+          </div>
         )}
         {error && (
           <p className="pf-book-status" role="alert">

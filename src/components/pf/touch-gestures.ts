@@ -88,6 +88,10 @@ export function useTouchGestures(ref: RefObject<HTMLElement | null>, options: Op
       const touched = tap;
       tap = null;
       if (!touched || event.touches.length > 0 || !latest.current.enabled) return;
+      // A phone may omit the final touchmove. Check release coordinates too,
+      // so a swipe cannot also be treated as a tap and turn another page.
+      const released = event.changedTouches[0];
+      if (!released || Math.hypot(released.clientX - touched.x, released.clientY - touched.y) > 10) return;
       if (performance.now() - touched.at > 450) return;
       if (latest.current.zoom() > 1.02) return;
       const target = touched.target as Element | null;
