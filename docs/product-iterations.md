@@ -587,3 +587,13 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - A reader shortlist: bookmark selected projects during a visit and copy a link to that selection.
 - Useful viewing insights: project/page engagement and return visits, presented as estimates rather than proof someone read the work; minimise tracking.
 - Branded enquiry action: a discreet availability/contact button, then custom domains if demand supports the hosting cost.
+
+## Iteration 50 — clipped, coordinated single-page transitions
+
+- Iteration 49 merged through PR #32. Publication was not requested.
+- Keep Page by page’s layout element stationary. Slide an inner artwork/text/link layer inside its existing overflow clip; suppress horizontal scrolling at fitted zoom while preserving genuine horizontal panning above 100%.
+- Studio uses a single renderer-driven 420ms eased slide. Calculate matching DOM pixel/GPU world offsets from one clock instead of sampling an independently composited page transform. Clip the GPU paper to the fixed page bounds, keeping the light fixed as the sheet moves through it.
+- Use a shorter 12% travel distance, support previous/next directions and respect reduced motion. Preserve the current page during loading and the existing Simple/graphics-failure fallback.
+- Delay cached-to-HD artwork replacements until an active slide ends so texture uploads/material replacement do not interrupt the movement. Reset inner transforms when restoring the ordinary canvas.
+- Validation: TypeScript, production build and two reader-slide tests covering bounded forward/backward motion, exact landing and matching DOM/GPU scaling. Existing frame-commit tests retain cancellation/staging coverage. Actual GPU smoothness and editor/phone visual checks remain outstanding because the available browser disables WebGL.
+- Review branch; not merged or published.

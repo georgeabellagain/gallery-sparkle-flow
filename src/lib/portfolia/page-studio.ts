@@ -1,3 +1,4 @@
+import { readerSlideOffset, READER_SLIDE_MS } from "./reader-slide";
 import { createFrameCommits } from "./frame-commits";
 import * as THREE from "three";
 import { HDRI_PRESETS, type HdriId } from "./lighting";
@@ -8,12 +9,14 @@ import { bookSurfaceRatio } from "./render-budget";
 import { pageWorldRect } from "./page-position";
 
 export type PageStudioSettings = { hdri: HdriId; brightness: number; finish: "satin" | "textured" };
-type Page = { element: HTMLElement; source: HTMLCanvasElement; near: boolean; mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshPhysicalMaterial> | null; revealAt: number | null };
+type Presentation = { layer: HTMLElement; direction: 1 | -1; animate: boolean };
+type Page = { layer?: HTMLElement; slide?: { started: number; direction: 1 | -1 }; element: HTMLElement; source: HTMLCanvasElement; near: boolean; mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshPhysicalMaterial> | null; revealAt: number | null };
 
 /** One visible GPU surface per reader. DOM pages move through fixed lighting;
  * only unlit PDF textures are cached. Idle readers do not run an animation loop. */
 export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElement) {
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
+  renderer.localClippingEnabled = true;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.domElement.setAttribute("aria-hidden", "true");
@@ -33,13 +36,14 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   const pages = new Map<HTMLElement, Page>();
   const animations = new Set<Animation>();
   // Artwork commits and GPU swaps happen in the same drawing frame.
-  const pending = createFrameCommits<HTMLElement, { source: HTMLCanvasElement; commit: () => void; current: () => boolean }>();
+  const pending = createFrameCommits<HTMLElement, { source: HTMLCanvasElement; commit: (live: boolean) => Presentation | void; current: () => boolean }>();
   let failed = false;
   let disposed = false, ready = false, moving = false;
   let frame = 0, idle: ReturnType<typeof setTimeout> | null = null, revision = 0;
   let settings: PageStudioSettings = { hdri: "4", brightness: .5, finish: "satin" };
   const restore = (page: Page) => {
     page.source.style.visibility = "";
+    if (page.layer) page.layer.style.transform = "";
     page.element.style.background = "";
     page.element.style.zIndex = "";
   };
@@ -74,7 +78,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   const fallback = () => {
     failed = true;
     ready = false;
-    pending.flush((element, job) => { if (element.isConnected) job.commit(); });
+    pending.flush((element, job) => { if (element.isConnected) job.commit(false); });
     pending.clear();
     renderer.domElement.style.visibility = "hidden";
     pages.forEach(restore);
@@ -86,18 +90,33 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       pending.flush((element, job) => {
         if (!element.isConnected) return;
         const old = pages.get(element);
+        // Avoid a cached-to-HD texture upload/material rebuild halfway through a slide.
+        if (old?.slide && performance.now() - old.slide.started < READER_SLIDE_MS) {
+          pending.stage(element, job);
+          return;
+        }
         // Do not reveal the raw canvas while the replacement texture uploads.
         job.source.style.visibility = "hidden";
         if (old) release(old);
-        job.commit();
-        const page: Page = { element, source: job.source, near: old?.near ?? true, mesh: null, revealAt: old || window.matchMedia("(prefers-reduced-motion: reduce)").matches ? null : performance.now() };
+        const presentation = job.commit(true);
+        const slide = presentation?.animate ? { started: performance.now(), direction: presentation.direction } : old?.slide;
+        const page: Page = { layer: presentation?.layer ?? old?.layer, slide, element, source: job.source, near: old?.near ?? true, mesh: null, revealAt: old || window.matchMedia("(prefers-reduced-motion: reduce)").matches ? null : performance.now() };
         pages.set(element, page); observer.observe(element); resize.observe(element);
         for (const animation of element.getAnimations()) animations.add(animation);
       });
       for (const animation of animations) if (animation.playState !== "running") animations.delete(animation);
       const box = host.getBoundingClientRect();
       if (!box.width || !box.height) return;
-      const ratio = bookSurfaceRatio(box.width, box.height, Math.min(devicePixelRatio || 1, 1.25), (moving || animations.size > 0) ? 1_300_000 : 2_600_000);
+      const now = performance.now();
+      let sliding = false;
+      for (const page of pages.values()) {
+        if (page.slide && now - page.slide.started >= READER_SLIDE_MS) {
+          page.slide = undefined;
+          if (page.layer) page.layer.style.transform = "";
+        }
+        if (page.slide) sliding = true;
+      }
+      const ratio = bookSurfaceRatio(box.width, box.height, Math.min(devicePixelRatio || 1, 1.25), (moving || sliding || animations.size > 0) ? 1_300_000 : 2_600_000);
       const w = Math.max(1, Math.floor(box.width * ratio)), h = Math.max(1, Math.floor(box.height * ratio));
       if (renderer.domElement.width !== w || renderer.domElement.height !== h) renderer.setSize(w, h, false);
       const worldHeight = 2.3 * box.height / box.width;
@@ -115,6 +134,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
           texture.colorSpace = THREE.SRGBColorSpace;
           texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
           const material = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: texture });
+          if (page.layer) material.clippingPlanes = [new THREE.Plane(new THREE.Vector3(1, 0, 0)), new THREE.Plane(new THREE.Vector3(-1, 0, 0)), new THREE.Plane(new THREE.Vector3(0, 1, 0)), new THREE.Plane(new THREE.Vector3(0, -1, 0))];
           applyMaterial(material);
           page.mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
           scene.add(page.mesh);
@@ -126,7 +146,19 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
         if (opacity < 1) revealing = true;
         else page.revealAt = null;
         const position = pageWorldRect(rect, box);
-        page.mesh.position.set(position.x, position.y, 0);
+        // Clip the lit sheet to the fixed page frame, matching the DOM wrapper.
+        const clips = page.mesh.material.clippingPlanes;
+        if (clips) {
+          clips[0]!.constant = -(position.x - position.width / 2);
+          clips[1]!.constant = position.x + position.width / 2;
+          clips[2]!.constant = -(position.y - position.height / 2);
+          clips[3]!.constant = position.y + position.height / 2;
+        }
+        const elapsed = page.slide ? now - page.slide.started : READER_SLIDE_MS;
+        const direction = page.slide?.direction ?? 1;
+        const pixels = readerSlideOffset(elapsed, rect.width, direction);
+        if (page.layer) page.layer.style.transform = pixels ? `translateX(${pixels}px)` : "";
+        page.mesh.position.set(position.x + readerSlideOffset(elapsed, position.width, direction), position.y, 0);
         page.mesh.scale.set(position.width, position.height, 1);
         page.mesh.visible = rect.bottom > box.top && rect.top < box.bottom && rect.right > box.left && rect.left < box.right;
         if (page.mesh.visible) lit.push(page);
@@ -137,7 +169,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       renderer.domElement.style.visibility = "";
       for (const page of lit) conceal(page);
       // Sliding/revealing pages are redrawn through the same fixed scene every frame.
-      if (animations.size || revealing) frame = requestAnimationFrame(paint);
+      if (animations.size || revealing || sliding) frame = requestAnimationFrame(paint);
     } catch { fallback(); }
   };
   const requestPaint = (motion = false) => {
@@ -211,8 +243,8 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   };
   return {
     configure,
-    present(element: HTMLElement, source: HTMLCanvasElement, commit: () => void, current = () => true) {
-      if (disposed || failed) { if (current()) commit(); return; }
+    present(element: HTMLElement, source: HTMLCanvasElement, commit: (live: boolean) => Presentation | void, current = () => true) {
+      if (disposed || failed) { if (current()) commit(false); return; }
       pending.stage(element, { source, commit, current });
       requestPaint();
     },
