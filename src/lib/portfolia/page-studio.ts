@@ -5,12 +5,12 @@ import { HDRI_PRESETS, type HdriId } from "./lighting";
 import { parseRgbe } from "./rgbe";
 import { dappleTexture } from "./dapple-light";
 import { surfaceCanvas } from "./surface";
-import { bookSurfaceRatio } from "./render-budget";
+import { bookSurfaceRatio, readerTextureEvictions } from "./render-budget";
 import { pageWorldRect } from "./page-position";
 
 export type PageStudioSettings = { hdri: HdriId; brightness: number; finish: "satin" | "textured" };
 type Presentation = { layer: HTMLElement; direction: 1 | -1; animate: boolean };
-type Page = { layer?: HTMLElement; slide?: { started: number; direction: 1 | -1 }; element: HTMLElement; source: HTMLCanvasElement; near: boolean; mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshPhysicalMaterial> | null; revealAt: number | null };
+type Page = { layer?: HTMLElement; slide?: { started: number; direction: 1 | -1 }; element: HTMLElement; source: HTMLCanvasElement; near: boolean; mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial> | null; revealAt: number | null; usedAt: number };
 
 /** One visible GPU surface per reader. DOM pages move through fixed lighting;
  * only unlit PDF textures are cached. Idle readers do not run an animation loop. */
@@ -23,6 +23,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   Object.assign(renderer.domElement.style, { width: "100%", height: "100%", display: "block" });
   host.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
+  const paperGeometry = new THREE.PlaneGeometry(1, 1);
   const camera = new THREE.PerspectiveCamera(36, 1, .1, 50);
   const ambient = new THREE.HemisphereLight(0xffffff, 0xb7bdca, .65);
   const key = new THREE.DirectionalLight(0xffffff, .55);
@@ -38,8 +39,8 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   // Artwork commits and GPU swaps happen in the same drawing frame.
   const pending = createFrameCommits<HTMLElement, { source: HTMLCanvasElement; commit: (live: boolean) => Presentation | void; current: () => boolean }>();
   let failed = false;
-  let disposed = false, ready = false, moving = false;
-  let frame = 0, idle: ReturnType<typeof setTimeout> | null = null, revision = 0;
+  let disposed = false, ready = false;
+  let frame = 0, revision = 0;
   let settings: PageStudioSettings = { hdri: "4", brightness: .5, finish: "satin" };
   const restore = (page: Page) => {
     page.source.style.visibility = "";
@@ -58,21 +59,19 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
     if (!page.mesh) return;
     scene.remove(page.mesh);
     page.mesh.material.map?.dispose();
-    page.mesh.material.dispose(); page.mesh.geometry.dispose(); page.mesh = null;
+    page.mesh.material.dispose(); page.mesh = null;
   };
-  const applyMaterial = (material: THREE.MeshPhysicalMaterial) => {
+  const applyMaterial = (material: THREE.MeshStandardMaterial) => {
     const textured = settings.finish === "textured";
-    if (!bumps.has(settings.finish)) {
+    if (textured && !bumps.has(settings.finish)) {
       const bump = new THREE.CanvasTexture(surfaceCanvas(settings.finish, "soft"));
       bump.wrapS = bump.wrapT = THREE.RepeatWrapping; bump.repeat.set(5, 5);
       bumps.set(settings.finish, bump);
     }
-    material.bumpMap = bumps.get(settings.finish)!;
-    material.bumpScale = textured ? .006 : .0003;
+    material.bumpMap = textured ? bumps.get(settings.finish)! : null;
+    material.bumpScale = textured ? .006 : 0;
     material.roughness = textured ? .97 : .42;
-    material.clearcoat = textured ? 0 : .4;
-    material.clearcoatRoughness = .28;
-    material.specularIntensity = textured ? .1 : .7;
+    // Flat readers keep HDRI/dapple lighting, without the costly clearcoat layer.
     material.needsUpdate = true;
   };
   const fallback = () => {
@@ -100,7 +99,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
         if (old) release(old);
         const presentation = job.commit(true);
         const slide = presentation?.animate ? { started: performance.now(), direction: presentation.direction } : old?.slide;
-        const page: Page = { layer: presentation?.layer ?? old?.layer, slide, element, source: job.source, near: old?.near ?? false, mesh: null, revealAt: old || window.matchMedia("(prefers-reduced-motion: reduce)").matches ? null : performance.now() };
+        const page: Page = { layer: presentation?.layer ?? old?.layer, slide, element, source: job.source, near: old?.near ?? false, mesh: null, usedAt: performance.now(), revealAt: old || window.matchMedia("(prefers-reduced-motion: reduce)").matches ? null : performance.now() };
         pages.set(element, page); observer.observe(element); resize.observe(element);
         for (const animation of element.getAnimations()) animations.add(animation);
       });
@@ -116,7 +115,9 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
         }
         if (page.slide) sliding = true;
       }
-      const ratio = bookSurfaceRatio(box.width, box.height, Math.min(devicePixelRatio || 1, 1.25), (moving || sliding || animations.size > 0) ? 1_300_000 : 2_600_000);
+      // Keep settled reading quality during movement too. Changing the drawing
+      // buffer on every scroll/idle boundary caused reallocations and soft frames.
+      const ratio = bookSurfaceRatio(box.width, box.height, Math.min(devicePixelRatio || 1, 1.25), 2_600_000);
       const w = Math.max(1, Math.floor(box.width * ratio)), h = Math.max(1, Math.floor(box.height * ratio));
       if (renderer.domElement.width !== w || renderer.domElement.height !== h) renderer.setSize(w, h, false);
       const worldHeight = 2.3 * box.height / box.width;
@@ -130,16 +131,20 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
         const rect = page.element.getBoundingClientRect();
         const visible = rect.bottom > box.top && rect.top < box.bottom && rect.right > box.left && rect.left < box.right;
         // Fast scrolling may reach a page before IntersectionObserver reports it.
-        if (!page.near && !visible) { release(page, false); continue; }
+        if (!page.near && !visible) {
+          if (page.mesh) page.mesh.visible = false;
+          conceal(page);
+          continue;
+        }
         if (!rect.width || !rect.height) { release(page, false); continue; }
         if (!page.mesh) {
           const texture = new THREE.CanvasTexture(page.source);
           texture.colorSpace = THREE.SRGBColorSpace;
           texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-          const material = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: texture });
+          const material = new THREE.MeshStandardMaterial({ color: 0xffffff, map: texture });
           if (page.layer) material.clippingPlanes = [new THREE.Plane(new THREE.Vector3(1, 0, 0)), new THREE.Plane(new THREE.Vector3(-1, 0, 0)), new THREE.Plane(new THREE.Vector3(0, 1, 0)), new THREE.Plane(new THREE.Vector3(0, -1, 0))];
           applyMaterial(material);
-          page.mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+          page.mesh = new THREE.Mesh(paperGeometry, material);
           scene.add(page.mesh);
           renderer.initTexture(texture);
         }
@@ -164,9 +169,14 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
         page.mesh.position.set(position.x + readerSlideOffset(elapsed, position.width, direction), position.y, 0);
         page.mesh.scale.set(position.width, position.height, 1);
         page.mesh.visible = visible;
+        page.usedAt = now;
         if (page.mesh.visible) lit.push(page);
         else conceal(page);
       }
+      // Retain a small warm GPU cache for back-and-forth scrolling. Never evict
+      // visible pages; keep the PDF canvases at their original reading resolution.
+      const cached = Array.from(pages.values()).filter(page => page.mesh).map(page => ({ page, visible: page.mesh!.visible, usedAt: page.usedAt }));
+      for (const { page } of readerTextureEvictions(cached)) release(page, false);
       renderer.render(scene, camera);
       if (renderer.getContext().isContextLost()) { fallback(); return; }
       renderer.domElement.style.visibility = "";
@@ -175,27 +185,22 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       if (animations.size || revealing || sliding) frame = requestAnimationFrame(paint);
     } catch { fallback(); }
   };
-  const requestPaint = (motion = false) => {
+  const requestPaint = () => {
     if (disposed) return;
-    if (motion) {
-      moving = true;
-      if (idle) clearTimeout(idle);
-      idle = setTimeout(() => { moving = false; idle = null; requestPaint(); }, 150);
-    }
     if (!frame) frame = requestAnimationFrame(paint);
   };
   const observer = new IntersectionObserver(entries => {
     for (const entry of entries) { const page = pages.get(entry.target as HTMLElement); if (page) page.near = entry.isIntersecting; }
     requestPaint();
-  }, { root: viewport, rootMargin: "200px" });
+  }, { root: viewport, rootMargin: "800px" });
   const resize = new ResizeObserver(() => requestPaint());
   resize.observe(host);
-  const scroll = () => requestPaint(true);
+  const scroll = () => requestPaint();
   viewport.addEventListener("scroll", scroll, { passive: true });
   const animate = (event: AnimationEvent) => {
     if (!(event.target instanceof Element)) return;
     for (const animation of event.target.getAnimations()) animations.add(animation);
-    requestPaint(true);
+    requestPaint();
   };
   viewport.addEventListener("animationstart", animate);
   const lost = (event: Event) => { event.preventDefault(); fallback(); };
@@ -259,13 +264,14 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
     },
     dispose() {
       disposed = true; revision++;
-      cancelAnimationFrame(frame); if (idle) clearTimeout(idle);
+      cancelAnimationFrame(frame);
       observer.disconnect(); resize.disconnect();
       viewport.removeEventListener("scroll", scroll); viewport.removeEventListener("animationstart", animate);
       renderer.domElement.removeEventListener("webglcontextlost", lost);
       pending.clear(); pages.forEach(page => release(page)); pages.clear();
       environments.forEach(p => { void p.then(t => t.dispose(), () => undefined); });
       masks.forEach(t => t.dispose()); bumps.forEach(t => t.dispose());
+      paperGeometry.dispose();
       renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove();
     },
   };

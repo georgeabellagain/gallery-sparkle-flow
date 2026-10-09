@@ -15,6 +15,7 @@ import { setBookInset } from "@/lib/portfolia/book-framing";
 import { readablePageLinks, readablePageTags } from "@/lib/portfolia/page-extras";
 import { readableFoldouts } from "@/lib/portfolia/foldouts";
 import { cn } from "@/lib/utils";
+import { EditorFullscreenContext, useEditorFullscreen } from "./editor-fullscreen";
 
 type Tool = "reading" | "look" | "background" | "scrapbook" | "projects" | "style" | "publish" | "share" | "statistics";
 const TOOLS: Array<[Tool, string, typeof Sun]> = [
@@ -102,6 +103,7 @@ export function EditorStage({
   onUnpublish: () => void;
 }) {
   const stageRef = useRef<HTMLDivElement>(null);
+  const fullscreen = useEditorFullscreen(stageRef);
   const dockRef = useRef<HTMLElement>(null);
   const dragRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
@@ -141,7 +143,8 @@ export function EditorStage({
   const title = TOOLS.find(([id]) => id === tool)?.[1];
   const row = "flex items-center justify-between gap-3";
   return (
-    <div ref={stageRef} className="pf-editor-stage relative h-[calc(100dvh-3.5rem)] overflow-hidden bg-muted/50">
+    <EditorFullscreenContext.Provider value={fullscreen}>
+    <div ref={stageRef} data-fullscreen={fullscreen.full || undefined} style={fullscreen.full ? { height: "100dvh" } : undefined} className={cn("pf-editor-stage overflow-hidden bg-muted/50", fullscreen.fallback ? "fixed inset-0 z-[200]" : "relative h-[calc(100dvh-3.5rem)]")}>
       <div className="absolute inset-0 overflow-auto" onPointerDown={() => undefined}>
         {preview}
       </div>
@@ -149,7 +152,7 @@ export function EditorStage({
         ref={dockRef}
         aria-label="Editing tools"
         style={position ? { left: position.left, top: position.top, bottom: "auto", right: "auto", transform: "none", translate: "none" } : undefined}
-        className="absolute bottom-3 left-3 z-40 flex max-h-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col rounded-2xl border border-border bg-background/95 p-1.5 shadow-soft backdrop-blur lg:bottom-auto lg:left-4 lg:top-1/2 lg:-translate-y-1/2"
+        className="absolute bottom-12 left-3 z-40 flex max-h-[calc(100%-4rem)] max-w-[calc(100%-1rem)] flex-col rounded-2xl border border-border bg-background/95 p-1.5 shadow-soft backdrop-blur lg:bottom-auto lg:left-4 lg:top-1/2 lg:max-h-[calc(100%-1rem)] lg:-translate-y-1/2"
       >
         <button
           type="button"
@@ -211,7 +214,7 @@ export function EditorStage({
       {tool && (
         <section
           aria-label={title}
-          className="absolute inset-x-2 bottom-[4.25rem] z-30 max-h-[62%] overflow-auto rounded-2xl border border-border bg-background p-4 shadow-soft lg:inset-x-auto lg:bottom-4 lg:right-4 lg:top-4 lg:max-h-none lg:w-[19rem]"
+          className="absolute inset-x-2 bottom-36 z-30 max-h-[62%] overflow-auto rounded-2xl border border-border bg-background p-4 shadow-soft lg:inset-x-auto lg:bottom-4 lg:right-4 lg:top-4 lg:max-h-none lg:w-[19rem]"
         >
           <div className="mb-3 flex items-center justify-between border-b border-border pb-2">
             <h2 className="text-sm font-medium">{title}</h2>
@@ -289,5 +292,6 @@ export function EditorStage({
       )}
       <ScrapbookDialog p={p} open={scrapbook !== null} onOpenChange={(open) => !open && setScrapbook(null)} panel={scrapbook ?? "notes"} />
     </div>
+    </EditorFullscreenContext.Provider>
   );
 }
