@@ -607,3 +607,12 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Wait for Studio presentation readiness as well as PDF preparation, with a readable fully prepared fallback if WebGL cannot start. Offscreen GPU textures remain bounded: a visible page is drawn directly from current bounds even if IntersectionObserver has not yet caught up with fast scrolling.
 - Validation: TypeScript, production build and focused readiness/queue/commit tests. GPU appearance and rapid-scroll device verification remain outstanding because the available browser disables WebGL.
 - Expected tradeoff: the initial Scroll wait now includes the whole PDF; larger documents take longer and retain all their page canvases. No new dependencies or account changes.
+
+
+## Iteration 52 — smaller, simpler portfolio loader
+
+- Iteration 51 merged through PR #34. This iteration is a review branch; not merged or published.
+- Use the selected Turning page design: one transparent outline book and a single softly turning sheet, replacing the three filled animated leaves.
+- Reduce the loader from 48 × 34px to 28 × 20px (about 42% smaller in each dimension). Keep the existing centred placement, light/dark contrast and text-free viewer usage.
+- Preserve the accessible loading status and reduced-motion still state. No new dependencies or loading/readiness changes.
+- Validation: TypeScript and production build.

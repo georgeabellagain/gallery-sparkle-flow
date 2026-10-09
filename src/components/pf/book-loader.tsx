@@ -1,43 +1,30 @@
 import type { CSSProperties } from "react";
 import type { Tone } from "@/components/pf/viewer-ui";
 
-const LEAVES = [0, 1, 2];
-
 /**
- * A small page-turning book, shown while a portfolio is being prepared. It is a quiet,
- * simplified version of the animation on the home page. Still, if motion is reduced.
+ * A compact outline book with one turning page. Remains still for reduced motion.
  */
 export function BookLoader({ tone, label = "Preparing your portfolio…", detail }: { tone: Tone; label?: string; detail?: string }) {
   const ink = tone === "dark" ? "255,255,255" : "28,27,26";
   return (
     <div role="status" aria-live="polite" aria-label={label || "Loading portfolio"} className="flex flex-col items-center gap-4" style={{ "--pf-ink": ink } as CSSProperties}>
       <style>{`
-        .pf-load-book { position: relative; width: 48px; height: 34px; perspective: 280px; }
-        .pf-load-page, .pf-load-face { position: absolute; top: 0; width: 24px; height: 34px; box-sizing: border-box; border: 1px solid rgba(var(--pf-ink), 0.7); background: rgba(var(--pf-ink), 0.1); }
-        .pf-load-page:first-child { left: 0; border-radius: 3px 0 0 3px; border-right-width: 0; }
-        .pf-load-page:nth-child(2) { left: 24px; border-radius: 0 3px 3px 0; }
-        .pf-load-leaf { position: absolute; top: 0; left: 24px; width: 24px; height: 34px; transform-origin: 0 50%; transform-style: preserve-3d; animation: pf-load-turn 2.4s ease-in-out infinite; }
-        .pf-load-face { left: 0; border-radius: 0 3px 3px 0; backface-visibility: hidden; background: rgba(var(--pf-ink), 0.22); }
-        .pf-load-back { transform: rotateY(180deg); border-radius: 3px 0 0 3px; }
+        .pf-load-book { position: relative; width: 28px; height: 20px; perspective: 140px; }
+        .pf-load-outline { position: absolute; inset: 0; border: 1px solid rgba(var(--pf-ink), 0.5); border-radius: 2px; }
+        .pf-load-outline::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 1px solid rgba(var(--pf-ink), 0.5); }
+        .pf-load-leaf { position: absolute; top: 0; left: 50%; width: 50%; height: 100%; box-sizing: border-box; border: 1px solid rgba(var(--pf-ink), 0.9); border-radius: 0 2px 2px 0; transform-origin: left center; animation: pf-load-turn 2s cubic-bezier(0.45, 0, 0.25, 1) infinite; }
         @keyframes pf-load-turn {
-          0% { transform: rotateY(0deg); opacity: 1; }
-          42% { transform: rotateY(-180deg); opacity: 1; }
-          78% { transform: rotateY(-180deg); opacity: 1; }
-          90% { transform: rotateY(-180deg); opacity: 0; }
-          91% { transform: rotateY(0deg); opacity: 0; }
+          0%, 12% { transform: rotateY(0deg); opacity: 1; }
+          68%, 84% { transform: rotateY(-180deg); opacity: 1; }
+          92% { transform: rotateY(-180deg); opacity: 0; }
+          93% { transform: rotateY(0deg); opacity: 0; }
           100% { transform: rotateY(0deg); opacity: 1; }
         }
         @media (prefers-reduced-motion: reduce) { .pf-load-leaf { animation: none; } }
       `}</style>
       <div className="pf-load-book" aria-hidden>
-        <span className="pf-load-page" />
-        <span className="pf-load-page" />
-        {LEAVES.map((i) => (
-          <span key={i} className="pf-load-leaf" style={{ animationDelay: `${i * 0.22}s` }}>
-            <span className="pf-load-face" />
-            <span className="pf-load-face pf-load-back" />
-          </span>
-        ))}
+        <span className="pf-load-outline" />
+        <span className="pf-load-leaf" />
       </div>
       {label ? (
         <p className="text-xs" style={{ color: `rgba(${ink}, 0.7)` }}>
