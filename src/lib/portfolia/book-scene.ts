@@ -43,7 +43,7 @@ const MAX_SURFACE_PIXELS_SMALL = 2_500_000;
 const SHEET_CLEARANCE = 0.01;
 
 /** One persistent, demand-rendered scene. Static and moving pages share lights/materials. */
-export function createBookScene(host: HTMLElement, ratio: number, onLost: () => void, onRestored?: () => void) {
+export function createBookScene(host: HTMLElement, ratio: number, onLost: () => void, onRestored?: () => void, initialSettings?: StudioSettings) {
   const compact = window.innerWidth < 720;
   const dpr = window.devicePixelRatio || 1;
   // Edges are smoothed by multisampling (always on), so the picture does not need to be drawn at more than
@@ -233,6 +233,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     hdri: "4",
     simpleShadow: true,
     simpleShadowOpacity: DEFAULT_SIMPLE_SHADOW_OPACITY,
+    ...initialSettings,
   };
   let focus = 0.5,
     narrow = false,

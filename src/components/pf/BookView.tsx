@@ -172,9 +172,11 @@ function pageLoader(
         tasks.delete(task);
       }
       if (closed) throw new Error("Viewer closed");
-      await loadLinkIcons(links.filter((l) => l.page === page), linkIcons);
-      await loadNoteFonts(notes.filter(f => f.page === page).map(f => foldoutSurfaces(f).outside));
-      const images = await loadNoteImages(notes.filter(f => f.page === page).flatMap(f => { const key = foldoutSurfaces(f).outside.imageKey; return key ? [key] : []; }));
+      const [, , images] = await Promise.all([
+        loadLinkIcons(links.filter((l) => l.page === page), linkIcons),
+        loadNoteFonts(notes.filter(f => f.page === page).map(f => foldoutSurfaces(f).outside)),
+        loadNoteImages(notes.filter(f => f.page === page).flatMap(f => { const key = foldoutSurfaces(f).outside.imageKey; return key ? [key] : []; })),
+      ]);
       try {
         if (closed) throw new Error("Viewer closed");
         for (const index of leavesOf.get(page) ?? []) faces.set(index, compose(raw, layout.leaves[index]!, index, images));
@@ -409,6 +411,8 @@ export function BookView({
     return previewLook && offered.includes(previewLook) ? { ...base, studio: previewLook === "studio" } : base;
   };
   const [settings, setSettings] = useState<Look>(lookFor);
+  const latestSettings = useRef(settings);
+  latestSettings.current = settings;
   // When the creator changes the settings in the editor, the book follows. A visitor's own
   // Simple/Studio choice is kept until then.
   useEffect(() => {
@@ -479,6 +483,8 @@ export function BookView({
     const density = lightweight ? Promise.resolve(0) : loadPdfjs().then((pdfjs) => detectDensity(doc, pdfjs.OPS as never)).catch(() => 0);
     const source = pageLoader(doc, ratio, layout, density, () => scene.current?.maxTextureSize ?? 4096, lightweight, additions, pageLinks);
     loader.current = source;
+    // The newly built scene starts its actual selected lighting in parallel.
+    let lightingPreparation: Promise<void> | undefined;
     setWarm(false);
     setWarmProgress({ done: 0, total: 0 });
     void source.preload((done, total) => {
@@ -487,7 +493,7 @@ export function BookView({
       // Pages are only part of it: both looks' shaders and the lighting are prepared too, so neither the first
       // turn nor the Simple/Studio switch has anything left to stall on. (A cap stops a slow download holding it up.)
       try {
-        await Promise.race([scene.current?.prepare(offersBoth.current, demoLightingCycle) ?? Promise.resolve(), new Promise<void>((done) => setTimeout(done, 8000))]);
+        await Promise.race([lightingPreparation ?? scene.current?.prepare(offersBoth.current, demoLightingCycle) ?? Promise.resolve(), new Promise<void>((done) => setTimeout(done, 8000))]);
       } catch {
         /* turning is allowed anyway */
       }
@@ -540,7 +546,7 @@ export function BookView({
       if (cancelled) return;
       let made: BookScene | null = null;
       try {
-        made = createBookScene(element, ratio, () => lost(made), () => restored(made));
+        made = createBookScene(element, ratio, () => lost(made), () => restored(made), latestSettings.current);
       } catch (error) {
         console.error(`[flipbook] 3D could not start (try ${attempt + 1}):`, error);
         failed();
@@ -548,7 +554,7 @@ export function BookView({
       }
       scene.current = made;
       // A rebuilt view is prepared again (shaders, lighting) without holding anything up.
-      void made.prepare(offersBoth.current, demoLightingCycle).catch(() => undefined);
+      lightingPreparation = made.prepare(offersBoth.current, demoLightingCycle).catch(() => undefined);
       setFallback(false);
       setReady((v) => v + 1);
       // Once it has held for a few seconds, earlier trouble is forgotten.

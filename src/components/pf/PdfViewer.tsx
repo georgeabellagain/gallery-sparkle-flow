@@ -1,5 +1,6 @@
 import { createPageReadiness } from "@/lib/portfolia/page-readiness";
 import { createRenderQueue } from "@/lib/portfolia/render-queue";
+import { cachedReaderArtwork, copyReaderArtwork, prepareReaderArtwork } from "@/lib/portfolia/reader-artwork";
 import { READER_SLIDE_MS, READER_SLIDE_DISTANCE } from "@/lib/portfolia/reader-slide";
 import type { Foldout } from "@/lib/portfolia/foldouts";
 import type { PageLink, PageTag } from "@/lib/portfolia/page-extras";
@@ -183,10 +184,8 @@ export function PdfViewer({
           const vp = (await document.getPage(i)).getViewport({ scale: 1 });
           return { w: vp.width, h: vp.height };
         };
-        const s: { w: number; h: number }[] = lightweight
-          ? await Promise.all(Array.from({ length: document.numPages }, (_, i) => dimensions(i + 1)))
-          : [];
-        if (!lightweight) for (let i = 1; i <= document.numPages; i++) s.push(await dimensions(i));
+        const metadata = createRenderQueue(4);
+        const s = await Promise.all(Array.from({ length: document.numPages }, (_, i) => metadata.enqueue(() => dimensions(i + 1))));
         if (cancelled) return;
         setSizes(s);
         setDoc(loaded);
@@ -473,7 +472,7 @@ export function PdfViewer({
   const shown = awake || !autoHide;
   const fade = shown ? "opacity-100" : "pointer-events-none opacity-0";
 
-  const scrollQueue = useMemo(() => createRenderQueue(), [doc, mode]);
+  const scrollQueue = useMemo(() => createRenderQueue(2), [doc, mode]);
   const scrollGate = useMemo(() => createPageReadiness(total), [doc, total, mode, studio, pageLighting, pageLightingReady, pageLightingFailed]);
   useLayoutEffect(() => { if (mode === "scroll") setContentReady(false); }, [scrollGate, mode]);
   const scrollPrepared = useCallback((page: number, success: boolean) => {
@@ -694,7 +693,7 @@ export function PdfViewer({
             >
               {sizes[current - 1] && (
                 <div className="shrink-0" style={{ width: `calc(min(100%, max(1px, calc((${pagedHeight} - ${topGap + 24}px) * ${sizes[current - 1]!.w / sizes[current - 1]!.h}))) * ${zoom})` }}>
-                <PdfPage slide doc={doc} n={current} size={sizes[current - 1]!} lighting={pageLighting} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
+                <PdfPage slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={pageLighting} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
                 </div>
               )}
             </div>
@@ -823,7 +822,9 @@ function PdfPage({
   renderQueue,
   retainArtwork,
   onPrepared,
+  pageSizes,
 }: {
+  pageSizes?: { w: number; h: number }[];
   renderQueue?: ReturnType<typeof createRenderQueue>;
   retainArtwork?: boolean;
   onPrepared?: (success: boolean) => void;
@@ -918,11 +919,41 @@ function PdfPage({
     shownPage.current = { doc, n };
     fullyPrepared.current = false;
     setFailed(false);
-    const copy = cachedCopy(doc, n);
+    const copy = !thumb && !retainArtwork && cachedReaderArtwork(doc, n, renderWidth) ? null : cachedCopy(doc, n);
     // Keep the current single page until its replacement is fully rendered/lit.
     if (copy) present(copy, [], () => ref.current === el && requestedPage.current.doc === doc && requestedPage.current.n === n, true);
     else if (!slide) { el.replaceChildren(); artwork.current = null; }
   }, [doc, n]);
+
+  // Prepare the next two pages and the previous one after the current slide,
+  // using exactly the fitted width they will have when selected.
+  useEffect(() => {
+    if (!slide || !pageSizes || !renderWidth || !ref.current) return;
+    const el = ref.current;
+    const fit = el.parentElement?.parentElement;
+    const viewport = fit?.parentElement;
+    if (!fit || !viewport) return;
+    const css = getComputedStyle(fit);
+    const width = fit.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight);
+    const height = viewport.clientHeight - parseFloat(css.paddingTop) - parseFloat(css.paddingBottom);
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const delay = presentedPage.current ? READER_SLIDE_MS + 16 : 0;
+    void prepareReaderArtwork(doc, n, size, renderWidth).then(() => {
+      if (cancelled) return;
+      timer = setTimeout(() => {
+        void (async () => {
+          for (const next of [n + 1, n - 1, n + 2]) {
+            const nextSize = pageSizes[next - 1];
+            if (cancelled || !nextSize) continue;
+            const fitted = Math.max(1, Math.round(Math.min(width, Math.max(1, height * nextSize.w / nextSize.h)) * zoom));
+            await prepareReaderArtwork(doc, next, nextSize, fitted).catch(() => undefined);
+          }
+        })();
+      }, delay);
+    }, () => undefined);
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
+  }, [doc, n, slide, pageSizes, renderWidth, zoom, size.w, size.h]);
 
   useEffect(() => {
     if (!near || !renderWidth) return;
@@ -932,6 +963,15 @@ function PdfPage({
     const draw = async () => {
       if (cancelled) return;
       try {
+        if (!thumb && !retainArtwork) {
+          const art = await prepareReaderArtwork(doc, n, size, renderWidth);
+          if (cancelled) return;
+          const ready = copyReaderArtwork(art);
+          present(ready.canvas, ready.layers, () => !cancelled && requestedPage.current.doc === doc && requestedPage.current.n === n, true, true);
+          el.style.setProperty("--scale-factor", String(ready.scale));
+          el.style.setProperty("--total-scale-factor", String(ready.scale));
+          return;
+        }
         const pdfjs = await loadPdfjs();
         const page = await doc.getPage(n);
         const cssW = renderWidth;
@@ -946,8 +986,11 @@ function PdfPage({
         canvas.setAttribute("aria-hidden", "true");
         const ctx = canvas.getContext("2d")!;
         const rt = page.render({ canvasContext: ctx, viewport: vp, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined } as Parameters<typeof page.render>[0]);
-        task = rt;
-        await rt.promise;
+        const text = document.createElement("div");
+        text.className = "textLayer";
+        const tl = thumb ? null : new pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: text, viewport: vp });
+        task = { cancel: () => { rt.cancel(); tl?.cancel(); } };
+        const [, , annotations] = await Promise.all([rt.promise, tl?.render(), thumb ? Promise.resolve([]) : page.getAnnotations()]);
         if (cancelled) return;
         if (!retainArtwork) { const keep = document.createElement("canvas"); keep.width = canvas.width; keep.height = canvas.height; keep.getContext("2d")!.drawImage(canvas, 0, 0); storePage(doc, n, keep); }
         if (thumb) {
@@ -955,14 +998,9 @@ function PdfPage({
           el.replaceChildren(copy ?? canvas);
           return;
         }
-        const text = document.createElement("div");
-        text.className = "textLayer";
-        const tl = new pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: text, viewport: vp });
-        await tl.render();
-
         const links = document.createElement("div");
         links.className = "absolute inset-0";
-        for (const a of await page.getAnnotations()) {
+        for (const a of annotations) {
           if (a.subtype !== "Link" || !a.url) continue;
           const [x1, y1, x2, y2] = vp.convertToViewportRectangle(a.rect);
           const link = document.createElement("a");
@@ -984,6 +1022,7 @@ function PdfPage({
         el.style.setProperty("--scale-factor", String(scale));
         el.style.setProperty("--total-scale-factor", String(scale));
       } catch (e) {
+        task?.cancel();
         if (!cancelled && (e as { name?: string })?.name !== "RenderingCancelledException") {
           setFailed(true);
           rendered.current?.();

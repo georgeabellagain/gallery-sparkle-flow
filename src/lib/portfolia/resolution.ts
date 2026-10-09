@@ -91,8 +91,8 @@ interface DocLike {
 export async function detectDensity(doc: DocLike, OPS: OperatorNames, maxPages = 6): Promise<number> {
   const count = Math.min(maxPages, doc.numPages);
   const picks = [...new Set(Array.from({ length: count }, (_, i) => Math.round(1 + (i * (doc.numPages - 1)) / Math.max(1, count - 1))))];
-  let best = 0;
-  for (const number of picks) {
+  const inspect = async (number: number) => {
+    let best = 0;
     try {
       const page = await doc.getPage(number);
       const view = page.getViewport({ scale: 1 });
@@ -128,6 +128,15 @@ export async function detectDensity(doc: DocLike, OPS: OperatorNames, maxPages =
     } catch {
       /* a page that can't be read is skipped */
     }
-  }
-  return best;
+    return best;
+  };
+  // Two workers inspect the same sample without six sequential worker trips.
+  let next = 0;
+  const results: number[] = [];
+  const worker = async () => {
+    while (next < picks.length) results.push(await inspect(picks[next++]!));
+  };
+  await Promise.all([worker(), worker()]);
+  return Math.max(0, ...results);
 }
+

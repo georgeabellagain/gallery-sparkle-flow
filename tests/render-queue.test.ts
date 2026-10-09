@@ -31,3 +31,25 @@ test("closing a reader prevents queued GPU work from starting", async () => {
   assert.equal(ran, false);
   await assert.rejects(queue.enqueue(async () => true), /Reader closed/);
 });
+
+test("parallel page preparation is bounded and preserves queued order", async () => {
+  const queue = createRenderQueue(2);
+  const started: number[] = [];
+  const release: (() => void)[] = [];
+  let active = 0, peak = 0;
+  const jobs = [0, 1, 2, 3].map(id => queue.enqueue(async () => {
+    started.push(id); peak = Math.max(peak, ++active);
+    await new Promise<void>(resolve => { release[id] = resolve; });
+    active--; return id;
+  }));
+  await Promise.resolve();
+  assert.deepEqual(started, [0, 1]);
+  release[0]!(); await jobs[0];
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(started, [0, 1, 2]);
+  release[1]!(); release[2]!();
+  await new Promise(resolve => setImmediate(resolve));
+  release[3]!();
+  assert.deepEqual(await Promise.all(jobs), [0, 1, 2, 3]);
+  assert.equal(peak, 2);
+});
