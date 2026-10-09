@@ -487,3 +487,11 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Improve the pre-upload upgrade action, pricing metadata/schema and accuracy of privacy storage wording. Add response headers while preserving embeds.
 - Validation: TypeScript, production build, 61 regression tests, built-worker status/header checks and production dependency advisory lookup. Real-account, payment and actual-phone checks remain outstanding.
 - Review branch only; not merged or published.
+
+## Iteration 40 — reduce fullscreen page-turn rendering cost
+
+- Cap the drawing surface at 1.3 million pixels during page turns, including dragging and camera recentering; restore the existing reading resolution once settled. Small previews remain at their original resolution and PDF textures remain HD.
+- Keep slow-device reductions specific to motion so they no longer permanently reduce settled reading quality.
+- Cancel queued pointer/contact-shadow draws when a direct animation draw already covers them, and avoid resizing unchanged canvas dimensions.
+- Validation: TypeScript, production build and three rendering-budget regression tests, including 1080p/4K motion cost and small-preview resolution. The attempted broad test bundling encountered TanStack virtual-module resolution; the focused test bundle passes. Actual GPU frame-rate comparison remains unverified because the available browser disables WebGL.
+- Review branch only; not merged or published.

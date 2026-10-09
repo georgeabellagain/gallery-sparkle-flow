@@ -1,5 +1,5 @@
 import { dappleTexture } from "./dapple-light";
-import { bookSurfaceRatio } from "./render-budget";
+import { bookSurfaceRatio, bookMotionBudget } from "./render-budget";
 import { createBookNotes } from "./book-notes";
 import { pageRelief } from "./page-relief";
 import { createBookTabs } from "./book-tabs";
@@ -50,6 +50,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   // twice the screen's own detail. Drawing fewer pixels is what keeps Studio's paper shading quick.
   let pixelRatio = Math.min(Math.max(dpr, 1), 1.25);
   let appliedRatio = pixelRatio;
+  const readingRatio = pixelRatio;
+  let turning = false;
   const renderer = new THREE.WebGLRenderer({
     alpha: true,
     antialias: true,
@@ -239,7 +241,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     panY = 0,
     disposed = false;
   let frame = 0;
-  let paintQueued = false;
+  let paintQueued = 0;
   let finishAnimation: (() => void) | null = null;
   const bumps = new Map<string, THREE.CanvasTexture>();
   const pageMaterials: THREE.MeshPhysicalMaterial[] = [];
@@ -388,6 +390,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let pendingDragShape: (() => void) | null = null;
   const paint = () => {
     if (disposed) return;
+    // A direct animation draw supersedes an input/contact-shadow draw queued
+    // for the same frame. Avoid shading the fullscreen surface twice.
+    if (paintQueued) { cancelAnimationFrame(paintQueued); paintQueued = 0; }
     const update = pendingDragShape;
     pendingDragShape = null;
     update?.();
@@ -396,9 +401,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   /** Coalesces rapid pointer input into at most one render per frame. */
   const requestPaint = () => {
     if (paintQueued || disposed) return;
-    paintQueued = true;
-    requestAnimationFrame(() => {
-      paintQueued = false;
+    paintQueued = requestAnimationFrame(() => {
+      paintQueued = 0;
       paint();
     });
   };
@@ -436,12 +440,14 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // A big window gets a slightly lower pixel density rather than a surface too large for the graphics card.
     // CSS pixels are not a minimum: a 4K fullscreen canvas must still obey
     // the GPU budget. Preserve HD page textures independently of this surface.
-    const next = bookSurfaceRatio(w, h, pixelRatio, compact ? MAX_SURFACE_PIXELS_SMALL : MAX_SURFACE_PIXELS);
+    const budget = bookMotionBudget(compact ? MAX_SURFACE_PIXELS_SMALL : MAX_SURFACE_PIXELS, turning);
+    const next = bookSurfaceRatio(w, h, turning ? pixelRatio : readingRatio, budget);
     if (Math.abs(next - appliedRatio) > 1e-6) {
       appliedRatio = next;
       renderer.setPixelRatio(next);
     }
-    renderer.setSize(w, h);
+    const currentSize = renderer.getSize(new THREE.Vector2());
+    if (currentSize.x !== w || currentSize.y !== h) renderer.setSize(w, h);
     frameCamera();
     paint();
   };
@@ -914,6 +920,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     pan,
     /** `speed` 1 is the normal pace; smaller is quicker (used when pages are turned in quick succession). */
     async prepareTurn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number, speed = 1, plan: TabPlan[] | null = null, dragging = false) {
+      if (disposed) return;
+      turning = true;
+      applyPendingQuality();
+      resize();
       notes.clear();
       tabPlan = plan;
       const originalFocus = focus;
@@ -930,7 +940,6 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       contactTurn = { from: kindOf(from), to: kindOf(to), landing: (to[0] ? 1 : 0) + (to[1] ? 1 : 0) > (from[0] ? 1 : 0) + (from[1] ? 1 : 0) };
       show(dir === 1 ? [from[0], to[1]] : [to[0], from[1]], false);
       sheet.visible = true;
-      applyPendingQuality();
       // Everything this turn needs reaches the graphics card now (the pictures, the sheet in mid-turn), and the card
       // is waited for, so the first frames of the animation have nothing left to stall on.
       for (const canvas of [...from, ...to]) if (canvas) renderer.initTexture(textureFor(canvas));
@@ -985,6 +994,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       draggedTurn = null;
       paint();
       await pan(complete ? destinationFocus : originalFocus, narrow ? 0 : 260 * speed);
+      if (!disposed) {
+        turning = false;
+        // Restore reading detail only after both the sheet and camera settle.
+        resize();
+      }
     },
     async turn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number, speed = 1, plan: TabPlan[] | null = null) {
       await this.prepareTurn(from, to, dir, destinationFocus, speed, plan);
@@ -997,6 +1011,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       tabs.clear();
       disposed = true;
       cancelAnimationFrame(frame);
+      cancelAnimationFrame(paintQueued);
       finishAnimation?.();
       observer.disconnect();
       renderer.domElement.removeEventListener("webglcontextlost", lost);
