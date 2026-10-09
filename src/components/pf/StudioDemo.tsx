@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PdfViewer } from "./PdfViewer";
+import { BookLoader } from "./book-loader";
 import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
 import type { PublicPortfolio } from "@/lib/portfolia/public.functions";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
@@ -84,7 +85,8 @@ export function StudioDemo({ className }: { className?: string }) {
         onLoadError={loadError}
       /></div>}
       {(!rendered || state === "error") && <div role="status" className={`absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950/80 px-6 text-center text-sm text-white/90`}>
-        <p>{state !== "error" ? (slow ? "Preparing the example is taking longer than usual. You can wait or try again." : "Loading Scarlett’s lookbook…") : "The example is temporarily unavailable."}</p>
+        {state !== "error" && <BookLoader tone="dark" label="" />}
+        {(state === "error" || slow) && <p>{state === "error" ? "The example is temporarily unavailable." : "This is taking longer than usual. You can wait or try again."}</p>}
         {(state === "error" || slow) && <button type="button" className="underline underline-offset-4" onClick={() => setAttempt((n) => n + 1)}>Try again</button>}
       </div>}
     </div>
