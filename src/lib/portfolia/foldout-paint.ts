@@ -21,16 +21,31 @@ export async function loadNoteFonts(sides: Array<{ font?: NoteFont } | undefined
   await Promise.all(
     wanted.map(async (font) => {
       const { css, google } = NOTE_FONT_FAMILIES[font];
+      const family = css.split(",")[0]!.trim();
       const id = `note-font-${font}`;
-      if (!document.getElementById(id)) {
-        const link = document.createElement("link");
+      let link = document.getElementById(id) as HTMLLinkElement | null;
+      if (!link) {
+        link = document.createElement("link");
         link.id = id;
         link.rel = "stylesheet";
         link.href = `https://fonts.googleapis.com/css2?family=${google}&display=swap`;
         document.head.appendChild(link);
       }
+      const timeout = new Promise((r) => setTimeout(r, 5000));
       try {
-        await Promise.race([document.fonts.load(`32px ${css}`, "Aa"), new Promise((r) => setTimeout(r, 4000))]);
+        // fonts.load resolves instantly (with nothing) until the stylesheet registers the font,
+        // which let closed notes bake with the system cursive fallback. Wait for the sheet first.
+        if (!link.sheet) {
+          const sheet = link;
+          await Promise.race([
+            new Promise((r) => {
+              sheet.addEventListener("load", r, { once: true });
+              sheet.addEventListener("error", r, { once: true });
+            }),
+            timeout,
+          ]);
+        }
+        await Promise.race([document.fonts.load(`32px ${family}`, "Aa"), timeout]);
       } catch {
         /* the fallback script font still reads fine */
       }
