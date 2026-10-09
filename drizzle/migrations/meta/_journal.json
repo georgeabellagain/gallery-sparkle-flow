@@ -22,6 +22,13 @@
       "when": 1790678835535,
       "tag": "0002_user_feedback",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791536850485,
+      "tag": "0003_restore_featured_portfolio",
+      "breakpoints": true
     }
   ]
 }
