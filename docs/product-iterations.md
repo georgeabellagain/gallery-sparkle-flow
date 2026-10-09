@@ -566,3 +566,24 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Guard commits against cancelled renders, newer page requests and unmounted pages; keep replacement work within the existing nearby-texture and demand-driven rendering budgets.
 - Validation: TypeScript, production build and frame-commit regression tests covering delayed presentation, latest-page selection, cancellation, unmount and next-frame scheduling. Actual GPU visual/device sign-off remains outstanding because the available browser disables WebGL.
 - Review branch; not merged or published.
+
+## Iteration 49 — ready feature tabs and window-light demonstration
+
+- Iteration 48 merged through PR #31. Publication was not requested.
+- Keep all six feature demonstrations mounted after the shared PDF loads, instead of retaining only the current/next pair. Switching a tab reuses its prepared DOM and book scene, with no scene remount or opacity transition. Hidden demonstrations stop their animation clocks and remain inaccessible/inert.
+- Decode and retain the actual PDF-derived slideshow images with the shared artwork lease before declaring them prepared. The initial PDF/assets still require loading; instant switching applies once preparation completes.
+- Studio demonstration cycles through Lighting 1, 2, 3, 7 and 8. Preload those environments and compile the window/blinds projector variants in the actual book renderer before showing the prepared demo. Preserve its beige backdrop, slow page turns and pages 9–12.
+- Use optional demonstration-only lighting preparation; regular portfolios retain their existing lighting choices and startup path. No new dependencies, imagery or external services.
+- Tradeoff: retain three small demand-rendered book scenes instead of one/two while the showcase is mounted, in exchange for avoiding rebuilding them on arbitrary tab clicks. Only the selected animation runs. Shared PDF/artwork is still released when the showcase unmounts.
+- Validation: TypeScript and production build. Real-device GPU/tab latency measurement remains outstanding because the available browser disables WebGL.
+- Review branch; not merged or published.
+
+## Proposed next features — creative workflow
+
+- Tailored portfolio editions: choose/reorder existing named projects for a client or application, with a separate link, while keeping the master portfolio intact. Strongest next product addition; requires careful access and PDF-export behaviour.
+- Private page-specific feedback: invite clients/tutors to leave notes attached to a page, with owner controls and an optional review deadline.
+- Revision history and rollback: recover a previous PDF and its matching project ranges, notes and settings after replacement.
+- Project context cards: optional role, collaborators, year and short process/case-study text alongside existing named projects, keeping the PDF central.
+- A reader shortlist: bookmark selected projects during a visit and copy a link to that selection.
+- Useful viewing insights: project/page engagement and return visits, presented as estimates rather than proof someone read the work; minimise tracking.
+- Branded enquiry action: a discreet availability/contact button, then custom domains if demand supports the hosting cost.

@@ -21,7 +21,7 @@ import {
   type Spread,
 } from "@/lib/portfolia/book-layout";
 import { createBookScene, type BookFaces, type BookScene, type StudioSettings } from "@/lib/portfolia/book-scene";
-import { DEFAULT_SIMPLE_SHADOW_OPACITY } from "@/lib/portfolia/lighting";
+import { DEFAULT_SIMPLE_SHADOW_OPACITY, type HdriId } from "@/lib/portfolia/lighting";
 import { getPreviewLook, subscribePreviewLook, type PreviewLook } from "@/lib/portfolia/preview-look";
 import { coverThenSpreads, coverWithSpreads } from "@/lib/portfolia/mixed-layout";
 import { useTouchGestures } from "@/components/pf/touch-gestures";
@@ -269,6 +269,7 @@ export function BookView({
   onLookChange,
   demoNotes = false,
   demoTurnDurationScale = 1,
+  demoLightingCycle,
   lightweight = false,
   foldouts,
   tags,
@@ -307,6 +308,8 @@ export function BookView({
   demoNotes?: boolean;
   /** Presentation-only timing; normal readers retain their existing pace. */
   demoTurnDurationScale?: number;
+  /** Presentation-only: prepare every environment used by a lighting loop. */
+  demoLightingCycle?: readonly HdriId[];
   lightweight?: boolean;
   foldouts?: Foldout[];
   /** Coloured tabs on the edges of the book; each jumps to its page. */
@@ -484,7 +487,7 @@ export function BookView({
       // Pages are only part of it: both looks' shaders and the lighting are prepared too, so neither the first
       // turn nor the Simple/Studio switch has anything left to stall on. (A cap stops a slow download holding it up.)
       try {
-        await Promise.race([scene.current?.prepare(offersBoth.current) ?? Promise.resolve(), new Promise<void>((done) => setTimeout(done, 8000))]);
+        await Promise.race([scene.current?.prepare(offersBoth.current, demoLightingCycle) ?? Promise.resolve(), new Promise<void>((done) => setTimeout(done, 8000))]);
       } catch {
         /* turning is allowed anyway */
       }
@@ -545,7 +548,7 @@ export function BookView({
       }
       scene.current = made;
       // A rebuilt view is prepared again (shaders, lighting) without holding anything up.
-      void made.prepare(offersBoth.current).catch(() => undefined);
+      void made.prepare(offersBoth.current, demoLightingCycle).catch(() => undefined);
       setFallback(false);
       setReady((v) => v + 1);
       // Once it has held for a few seconds, earlier trouble is forgotten.

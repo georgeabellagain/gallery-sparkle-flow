@@ -30,6 +30,7 @@ const START: Record<FeatureId, number> = {
   share: 12,
 };
 const LOOP = [0, 1, 2, 3, 2, 1];
+const DEMO_LIGHTINGS = ["1", "2", "3", "7", "8"] as const;
 // Local demonstration only. These are supported scrapbook settings, never saved to the portfolio.
 const NOTES: Foldout[] = [
   {
@@ -72,8 +73,9 @@ type PreparedArtwork = {
   sizes: { w: number; h: number }[];
   images: Record<number, string>;
   detailKey: string;
+  decoded: HTMLImageElement[];
 };
-// Adjacent slides share one parsed PDF and one set of rasterised pages.
+// All slides share one parsed PDF and one set of rasterised pages.
 const preparedArtwork = new Map<
   string,
   {
@@ -141,7 +143,13 @@ function acquireArtwork(url: string) {
         }
       }
 
-      return { doc: loaded, sizes: dimensions, images: artwork, detailKey };
+      // Decode once ahead of tab changes; keep these images alive with the PDF lease.
+      const decoded = await Promise.all(Object.values(artwork).map(async src => {
+        const image = new Image(); image.src = src;
+        await image.decode();
+        return image;
+      }));
+      return { doc: loaded, sizes: dimensions, images: artwork, detailKey, decoded };
     })();
     entry = { promise, users: 0 };
     preparedArtwork.set(url, entry);
@@ -291,7 +299,7 @@ export function FeatureAnimation({
             ? "#d9cdb6"
             : MIDNIGHT,
       ...(feature === "lighting"
-        ? { studioLighting: (["1", "2", "3"] as const)[beat % 3] }
+        ? { studioLighting: DEMO_LIGHTINGS[beat % DEMO_LIGHTINGS.length] }
         : {}),
     }),
     [settings, feature, beat],
@@ -343,6 +351,7 @@ export function FeatureAnimation({
             onReadyChange={bookReady}
             onRenderError={onError}
             demoTurnDurationScale={feature === "lighting" ? 2.5 : 1}
+            demoLightingCycle={feature === "lighting" ? DEMO_LIGHTINGS : undefined}
             foldouts={feature === "notes" ? notes : undefined}
             tags={feature === "tabs" ? TAGS : undefined}
             demoNotes={feature === "notes" && playing && beat % 3 !== 2}
@@ -399,7 +408,7 @@ export function FeatureAnimation({
       {ready && (
         <span className="pf-animation-caption">
           {feature === "lighting"
-            ? `Studio · Lighting ${(beat % 3) + 1} · Pages 9–12`
+            ? `Studio · Lighting ${DEMO_LIGHTINGS[beat % DEMO_LIGHTINGS.length]} · Pages 9–12`
             : feature === "notes"
               ? "Scrapbook · Demonstration note"
               : ""}
