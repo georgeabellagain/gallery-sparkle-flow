@@ -604,7 +604,7 @@
 
 /* Keep the interactive homepage preview at one size through every loading phase. */
 .pf-home-demo { height: 28rem; }
-.pf-home-demo > div:not([role="status"]), .pf-home-demo > div > div { height: 100%; }
+.pf-home-demo > div:not([role="status"]), .pf-home-demo > div:not([role="status"]) > div { height: 100%; }
 .pf-home-demo .pf-book-viewport { height: 100%; }
 .pf-home-demo section[aria-label="Interactive PDF book"] { height: 100%; }
 @media (min-width: 640px) { .pf-home-demo { height: 36rem; } }

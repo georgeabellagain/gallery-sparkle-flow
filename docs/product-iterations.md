@@ -471,3 +471,10 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Retain memory-bounded preloading: prepare the pages that fit and upload each turn's textures before animation. Unbounded full-document HD rasterisation risks exhausting phone memory and cannot solve lighting fill-rate costs.
 - Validation: TypeScript, production build and 54 regression tests, including large fullscreen budgets and adaptive reduction below 1x. Actual phone gesture and frame-rate verification remain outstanding; no guarantee of universally smooth animation.
 - Draft review PR only; not merged or published.
+
+
+## Iteration 38 — smaller, centred loading indicator
+
+- Reduce the monochrome book loader from 72 × 50px to 48 × 34px, including matching page, border and perspective dimensions.
+- Limit the homepage example's full-height rule to its viewer wrapper. Loading status children retain their natural height, so the loader centres in the fixed preview frame.
+- Validation: TypeScript and production build. Merge and publish requested by the user.
