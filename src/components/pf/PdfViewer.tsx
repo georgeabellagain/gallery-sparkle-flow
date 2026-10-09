@@ -419,6 +419,7 @@ export function PdfViewer({
     return () => observer.disconnect();
   }, [showControls, !!doc, mode]);
   const topGap = showControls ? Math.max(24, toolbarHeight + 24) : 24;
+  const pagedHeight = compact && !full && !immersive ? "clamp(280px, 70svh, 600px)" : "100svh";
   // A panel opens just under the icon bar (which can be two rows on a narrow screen) and may use the rest of the
   // window, with a little room left below, so its bottom never leaves the screen.
   const panelFit = { maxHeight: `calc(100svh - ${(toolbarHeight || 36) + 6 + 8 + 12}px)` };
@@ -593,14 +594,16 @@ export function PdfViewer({
       {mode === "book" ? (
         <BookView demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} />
       ) : mode === "paged" ? (
-        <div ref={pagedRef} className="relative" style={{ touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
-          <div className="overflow-x-auto">
+        <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
+          <div className="h-full overflow-auto">
             <div
-              className={cn("mx-auto pb-6", compact ? "px-3" : "px-3 sm:px-8")}
-              style={{ paddingTop: topGap, width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? (compact ? 900 : 1100) : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
+              className="flex min-h-full items-center justify-center px-3 sm:px-8"
+              style={{ paddingTop: topGap, paddingBottom: 24 }}
             >
               {sizes[current - 1] && (
+                <div className="shrink-0" style={{ width: `calc(min(100%, max(1px, calc((${pagedHeight} - ${topGap + 24}px) * ${sizes[current - 1]!.w / sizes[current - 1]!.h}))) * ${zoom})` }}>
                 <PdfPage key={current} doc={doc} n={current} size={sizes[current - 1]!} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
+                </div>
               )}
             </div>
           </div>
@@ -733,6 +736,17 @@ function PdfPage({
   rendered.current = onRendered;
   const [near, setNear] = useState(eager || n <= 2);
   const [failed, setFailed] = useState(false);
+  const [renderWidth, setRenderWidth] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setRenderWidth(Math.round(el.clientWidth));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const el = ref.current!;
@@ -755,7 +769,7 @@ function PdfPage({
   }, [doc, n]);
 
   useEffect(() => {
-    if (!near) return;
+    if (!near || !renderWidth) return;
     const el = ref.current!;
     let cancelled = false;
     let task: { cancel: () => void } | null = null;
@@ -763,7 +777,7 @@ function PdfPage({
       try {
         const pdfjs = await loadPdfjs();
         const page = await doc.getPage(n);
-        const cssW = el.clientWidth;
+        const cssW = renderWidth;
         const scale = cssW / size.w;
         const vp = page.getViewport({ scale });
         const dpr = thumb ? 1 : Math.min(window.devicePixelRatio || 1, 2);
@@ -824,7 +838,7 @@ function PdfPage({
       cancelled = true;
       task?.cancel();
     };
-  }, [near, doc, n, size.w, zoom]);
+  }, [near, doc, n, size.w, zoom, renderWidth]);
 
   return (
     <div

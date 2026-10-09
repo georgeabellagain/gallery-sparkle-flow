@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
 /** A projected light mask, rather than a flat overlay: moving sheets and notes receive the same light. */
-export function dappleTexture(kind: "pine" | "leaves") {
+export function dappleTexture(kind: "pine" | "leaves" | "blinds" | "window") {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 256;
   const ctx = canvas.getContext("2d")!;
@@ -9,7 +9,15 @@ export function dappleTexture(kind: "pine" | "leaves") {
   let seed = kind === "pine" ? 429 : 871;
   const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   ctx.filter = kind === "pine" ? "blur(1.5px)" : "blur(3px)";
-  for (let i = 0; i < (kind === "pine" ? 85 : 42); i++) {
+  if (kind === "blinds" || kind === "window") {
+    ctx.filter = "blur(1px)";
+    ctx.fillStyle = "#fff4db";
+    if (kind === "blinds") {
+      for (let y = 34; y < 226; y += 27) ctx.fillRect(28, y, 200, 16);
+    } else {
+      for (const x of [38, 136]) for (const y of [32, 132]) ctx.fillRect(x, y, 82, 88);
+    }
+  } else for (let i = 0; i < (kind === "pine" ? 85 : 42); i++) {
     ctx.save(); ctx.translate(random() * 256, random() * 256); ctx.rotate(random() * Math.PI);
     ctx.fillStyle = `rgba(255,244,219,${.35 + random() * .65})`;
     ctx.beginPath(); ctx.ellipse(0, 0, 3 + random() * 8, kind === "pine" ? 2 + random() * 3 : 6 + random() * 12, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();

@@ -625,7 +625,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const pattern = next.studio ? HDRI_PRESETS.find(p => p.id === next.hdri)?.dapple : undefined;
     if (pattern && !dapples.has(pattern)) dapples.set(pattern, dappleTexture(pattern));
     sunPatch.map = pattern ? dapples.get(pattern)! : null;
-    sunPatch.intensity = pattern ? 1.8 : 0;
+    sunPatch.intensity = pattern === "window" || pattern === "blinds" ? 1.4 : pattern ? 1.8 : 0;
+    sunPatch.penumbra = pattern === "window" || pattern === "blinds" ? .12 : .35;
     sunPatch.castShadow = Boolean(pattern);
     sunPatch.visible = Boolean(pattern);
     scene.environmentIntensity = next.studio ? (pattern ? .7 : 1) : 0;

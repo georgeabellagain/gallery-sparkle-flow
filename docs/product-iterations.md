@@ -495,3 +495,11 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Cancel queued pointer/contact-shadow draws when a direct animation draw already covers them, and avoid resizing unchanged canvas dimensions.
 - Validation: TypeScript, production build and three rendering-budget regression tests, including 1080p/4K motion cost and small-preview resolution. The attempted broad test bundling encountered TanStack virtual-module resolution; the focused test bundle passes. Actual GPU frame-rate comparison remains unverified because the available browser disables WebGL.
 - Review branch only; not merged or published.
+
+## Iteration 41 — centred single pages and numbered window lighting
+
+- Give Page by page a dedicated viewport-height frame and centre each page within the space below controls, fitting both width and height instead of reusing Scroll's 1100px cap/top alignment. Preserve zoom and overflow navigation.
+- Observe rendered page width and redraw PDF/text/link layers when fullscreen or layout dimensions change, preserving sharpness and link alignment.
+- Add reduced CC0 Blinds and Reading Room HDRIs as Lighting 7 and 8, paired with real projected direct light through slats/window panes on pages and notes. Rename Lighting 5 and 6 to match the numerical naming while retaining all saved IDs.
+- Validation: TypeScript, production build and decoding/finite-value checks for both HDR assets. GPU lighting appearance and browser layout visual sign-off remain outstanding.
+- Review branch only; not merged or published.
