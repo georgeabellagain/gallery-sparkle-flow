@@ -1,3 +1,4 @@
+import { READER_SLIDE_MS, READER_SLIDE_DISTANCE } from "@/lib/portfolia/reader-slide";
 import type { Foldout } from "@/lib/portfolia/foldouts";
 import type { PageLink, PageTag } from "@/lib/portfolia/page-extras";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -683,7 +684,7 @@ export function PdfViewer({
         <BookView demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...view, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} />
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
-          <div ref={panRef} className="h-full overflow-auto" style={{ cursor: zoom > 1 ? "grab" : undefined }}>
+          <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>
             <div
               className="flex min-h-full items-center justify-center px-3 sm:px-8"
               style={{ paddingTop: topGap, paddingBottom: 24, alignItems: "safe center", justifyContent: "safe center" }}
@@ -845,23 +846,28 @@ function PdfPage({
   useLayoutEffect(() => {
     const el = ref.current;
     if (!lighting || !el || thumb) return;
-    if (artwork.current) lighting.present(el, artwork.current, () => {});
+    if (artwork.current) lighting.present(el, artwork.current, () => slide && artwork.current?.parentElement ? { layer: artwork.current.parentElement, direction: 1, animate: false } : undefined);
     else el.style.background = "transparent";
     return () => lighting.remove(el);
   }, [lighting, thumb]);
   const present = (canvas: HTMLCanvasElement, layers: HTMLElement[], current: () => boolean, animate = false) => {
     const el = ref.current;
     if (!el) return;
-    const commit = () => {
-      el.replaceChildren(canvas, ...layers);
+    const commit = (live = false) => {
+      const layer = document.createElement("div");
+      layer.className = "absolute inset-0";
+      layer.append(canvas, ...layers);
+      el.replaceChildren(layer);
       artwork.current = canvas;
       const changed = presentedPage.current !== null && (presentedPage.current.doc !== doc || presentedPage.current.n !== n);
+      const direction = presentedPage.current && n < presentedPage.current.n ? -1 : 1;
       presentedPage.current = { doc, n };
-      if (animate && changed && slide && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        el.getAnimations().forEach(a => a.cancel());
-        el.animate([{ transform: "translateX(24%)" }, { transform: "translateX(0)" }], { duration: 480, easing: "cubic-bezier(.22,.7,.25,1)" });
+      const moving = Boolean(animate && changed && slide && !window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      if (moving && !live) {
+        layer.animate([{ transform: `translateX(${direction * READER_SLIDE_DISTANCE * 100}%)` }, { transform: "translateX(0)" }], { duration: READER_SLIDE_MS, easing: "cubic-bezier(.215,.61,.355,1)" });
       }
       rendered.current?.();
+      return slide ? { layer, direction: direction as 1 | -1, animate: moving } : undefined;
     };
     if (!thumb && activeLighting.current) activeLighting.current.present(el, canvas, commit, current);
     else if (current()) commit();
