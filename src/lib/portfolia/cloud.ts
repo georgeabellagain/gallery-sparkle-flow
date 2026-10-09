@@ -34,6 +34,11 @@ let started = false;
 /** JSON of each portfolio as last stored in the cloud, by code. */
 let pushed = new Map<string, string>();
 let timer: ReturnType<typeof setTimeout> | null = null;
+const pendingDeletes = new Set<string>();
+/** Mark a portfolio for removal from the account on the next sync. */
+export function markPortfolioDeleted(code: string) {
+  pendingDeletes.add(code);
+}
 
 function fileKeys(p: Portfolio): string[] {
   return [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey, p.style?.bannerKey, p.viewer?.backgroundKey, ...foldoutKeys(p.pdf)].filter(Boolean) as string[];
@@ -80,10 +85,11 @@ async function push() {
       }
       pushed.set(p.code, json);
     }
-    for (const code of [...pushed.keys()]) {
-      if (codes.has(code)) continue;
+    // Only portfolios the owner explicitly deleted are removed online; a missing local copy never deletes.
+    for (const code of [...pendingDeletes]) {
+      if (codes.has(code)) { pendingDeletes.delete(code); continue; }
       const { error } = await supabase.from("portfolios").delete().eq("code", code);
-      if (!error) pushed.delete(code);
+      if (!error) { pushed.delete(code); pendingDeletes.delete(code); }
     }
     setStatus("saved");
   } catch (e) {
