@@ -503,3 +503,12 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Add reduced CC0 Blinds and Reading Room HDRIs as Lighting 7 and 8, paired with real projected direct light through slats/window panes on pages and notes. Rename Lighting 5 and 6 to match the numerical naming while retaining all saved IDs.
 - Validation: TypeScript, production build and decoding/finite-value checks for both HDR assets. GPU lighting appearance and browser layout visual sign-off remain outstanding.
 - Review branch only; not merged or published.
+
+## Iteration 42 — full-height editor pages and finer zoom controls
+
+- Override compact Page by page sizing with the editor stage's full available height, keeping standalone compact previews and fullscreen sizing independent. Remove redundant bottom credit padding from the fixed-height single-page frame.
+- Add non-passive mouse-wheel zoom in Page by page, normalise wheel delta modes and coalesce updates per animation frame. Keep the existing 100–300% bounds and reset/pinch controls.
+- Reduce Scroll toolbar zoom steps from 25% to 10%.
+- Lighting 5–8 now use the same soft directional shadow as Lighting 1–4. Keep the sunlight projector for page highlights but disable its hard backdrop shadow; retain one shadow-casting light.
+- Validation: TypeScript and production build. Final editor layout and wheel behaviour need browser visual/input verification.
+- Review branch only; not merged or published.
