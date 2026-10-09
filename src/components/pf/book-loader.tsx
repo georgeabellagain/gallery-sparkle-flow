@@ -12,11 +12,11 @@ export function BookLoader({ tone, label = "Preparing your portfolio…", detail
   return (
     <div role="status" aria-live="polite" aria-label={label || "Loading portfolio"} className="flex flex-col items-center gap-4" style={{ "--pf-ink": ink } as CSSProperties}>
       <style>{`
-        .pf-load-book { position: relative; width: 72px; height: 50px; perspective: 420px; }
-        .pf-load-page, .pf-load-face { position: absolute; top: 0; width: 36px; height: 50px; box-sizing: border-box; border: 1.5px solid rgba(var(--pf-ink), 0.7); background: rgba(var(--pf-ink), 0.1); }
+        .pf-load-book { position: relative; width: 48px; height: 34px; perspective: 280px; }
+        .pf-load-page, .pf-load-face { position: absolute; top: 0; width: 24px; height: 34px; box-sizing: border-box; border: 1px solid rgba(var(--pf-ink), 0.7); background: rgba(var(--pf-ink), 0.1); }
         .pf-load-page:first-child { left: 0; border-radius: 3px 0 0 3px; border-right-width: 0; }
-        .pf-load-page:nth-child(2) { left: 36px; border-radius: 0 3px 3px 0; }
-        .pf-load-leaf { position: absolute; top: 0; left: 36px; width: 36px; height: 50px; transform-origin: 0 50%; transform-style: preserve-3d; animation: pf-load-turn 2.4s ease-in-out infinite; }
+        .pf-load-page:nth-child(2) { left: 24px; border-radius: 0 3px 3px 0; }
+        .pf-load-leaf { position: absolute; top: 0; left: 24px; width: 24px; height: 34px; transform-origin: 0 50%; transform-style: preserve-3d; animation: pf-load-turn 2.4s ease-in-out infinite; }
         .pf-load-face { left: 0; border-radius: 0 3px 3px 0; backface-visibility: hidden; background: rgba(var(--pf-ink), 0.22); }
         .pf-load-back { transform: rotateY(180deg); border-radius: 3px 0 0 3px; }
         @keyframes pf-load-turn {
