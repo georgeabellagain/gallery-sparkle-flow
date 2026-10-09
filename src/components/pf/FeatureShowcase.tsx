@@ -271,13 +271,14 @@ export function FeatureShowcase() {
                   className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center text-sm text-white/80"
                   role="status"
                 >
-                  <p>
-                    {slideFailed
-                      ? "The example is temporarily unavailable."
-                      : slow
-                        ? "Preparing the real pages is taking longer than usual."
-                        : "Preparing Scarlett’s lookbook…"}
-                  </p>
+                  {!slideFailed && <BookLoader tone="dark" label="" />}
+                  {(slideFailed || slow) && (
+                    <p>
+                      {slideFailed
+                        ? "The example is temporarily unavailable."
+                        : "This is taking longer than usual."}
+                    </p>
+                  )}
                   {(slideFailed || slow) && (
                     <button
                       type="button"
