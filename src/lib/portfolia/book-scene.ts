@@ -627,7 +627,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     sunPatch.map = pattern ? dapples.get(pattern)! : null;
     sunPatch.intensity = pattern === "window" || pattern === "blinds" ? 1.4 : pattern ? 1.8 : 0;
     sunPatch.penumbra = pattern === "window" || pattern === "blinds" ? .12 : .35;
-    sunPatch.castShadow = Boolean(pattern);
+    // Project the sunlight pattern onto paper, but keep the book's shadow
+    // on the original soft directional light. The narrow projector produced
+    // a hard, distorted silhouette on the backdrop for Lighting 5–8.
+    sunPatch.castShadow = false;
     sunPatch.visible = Boolean(pattern);
     scene.environmentIntensity = next.studio ? (pattern ? .7 : 1) : 0;
     // The studio's own light is the same whatever the lighting, so the shadow always falls the same way.
@@ -644,7 +647,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     applyContact();
     shadowCatcher.material.opacity = 0.45;
     shadowCatcher.visible = next.studio;
-    light.castShadow = next.studio && !pattern;
+    light.castShadow = next.studio;
     let bump: THREE.CanvasTexture | null = null;
     if (variantChanged && next.studio) {
       const key = next.material;

@@ -53,7 +53,7 @@ from the same HDR pixels, not Poly Haven's example renders. Each HDR is about 51
 
 An HDR environment alone does not cast local leaf shadows in this renderer.
 The two new presets pair it with a deterministic, code-generated foliage projection
-on a shadow-casting spotlight. This supplies patches of direct light on the page,
+on a spotlight. This supplies patches of direct light on the page,
 turning sheet and scrapbook flap. The original four choices retain their appearance.
 
 ## Window-light additions
@@ -67,4 +67,4 @@ All eight choices are displayed as Lighting 1–8; saved IDs retain their meanin
 
 Downloaded on 2026-10-09 from `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/blinds_1k.hdr` and `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/reading_room_1k.hdr`. Both are Greg Zaal / Poly Haven CC0 assets. Derived locally using 512 × 256 area averaging, spherical mean luminance 0.285 and channel ceiling 40. JPG thumbnails derive from the same HDR pixels using Reinhard compression and gamma 2.2. HDRs are approximately 363/403 KiB and downloaded on selection.
 
-The environment supplies ambient lighting/reflections. A matching slatted or four-pane spotlight projection supplies direct window highlights and local shadows on stationary pages, turning sheets and notes. These are code-generated window masks, not baked overlays or claimed geometry from the original environments. Only the existing single shadow-casting key is used.
+The environment supplies ambient lighting/reflections. A matching slatted or four-pane spotlight projection supplies direct window highlights on stationary pages, turning sheets and notes. These are code-generated window masks, not baked overlays or claimed geometry from the original environments. All eight presets use the original soft directional key for book/page shadows. The pattern projector does not cast shadows, avoiding hard or distorted silhouettes behind the book and retaining one shadow pass.
