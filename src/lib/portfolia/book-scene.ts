@@ -854,14 +854,25 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
      * both looks are compiled (by briefly applying the other look), and the lighting is downloaded and prepared.
      * Resolves when that is done, so turning can be held back until nothing is left to stall.
      */
-    prepare(bothLooks: boolean): Promise<void> {
+    prepare(bothLooks: boolean, lightingCycle: readonly HdriId[] = []): Promise<void> {
       if (disposed) return Promise.resolve();
       if (bothLooks) {
         const current = settings;
         configure({ ...current, studio: !current.studio });
         configure(current);
       }
-      return bothLooks || settings.studio ? loadEnvironment(settings.hdri).then(() => undefined) : Promise.resolve();
+      const ids = [...new Set([...(bothLooks || settings.studio ? [settings.hdri] : []), ...lightingCycle])];
+      return Promise.all(ids.map(loadEnvironment)).then(() => {
+        if (disposed || !lightingCycle.length) return;
+        // Compile projected window/slat lighting before the demonstration is visible.
+        const current = settings;
+        try {
+          for (const hdri of lightingCycle) {
+            configure({ ...current, studio: true, hdri });
+            warm();
+          }
+        } finally { configure(current); }
+      });
     },
     /** The largest picture the graphics card can take on a side. */
     maxTextureSize: renderer.capabilities.maxTextureSize as number,

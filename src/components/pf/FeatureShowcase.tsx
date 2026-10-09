@@ -244,7 +244,7 @@ export function FeatureShowcase() {
                 url &&
                 p?.pdf &&
                 !failed &&
-                [feature, upcoming].map((f) => (
+                FEATURES.map((f) => (
                   <div
                     key={`${f.id}:${attempt}`}
                     className="absolute inset-0"
