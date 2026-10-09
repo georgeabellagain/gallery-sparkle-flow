@@ -531,6 +531,11 @@
 .pf-foldout-front, .pf-foldout-back { backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; }
 .pf-foldout-front { display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; padding: 9%; text-align: left; background-image: linear-gradient(90deg,#00000010,transparent 14%,#ffffff22); }
 .pf-foldout-back { transform: rotateY(180deg); }
+/* Overlap the hinge by a pixel so the opened flap and the base meet without a seam. */
+.pf-foldout[data-hinge="left"] .pf-foldout-back { left: -1px; }
+.pf-foldout[data-hinge="right"] .pf-foldout-back { right: -1px; }
+.pf-foldout[data-hinge="top"] .pf-foldout-back { top: -1px; }
+.pf-foldout[data-hinge="bottom"] .pf-foldout-back { bottom: -1px; }
 .pf-foldout-number { font-size: clamp(5px,.55vw,9px); letter-spacing: .15em; opacity: .6; }
 .pf-foldout-title { font-family: Georgia, serif; font-size: clamp(11px,1.35vw,21px); line-height: 1.1; overflow-wrap: anywhere; }
 .pf-foldout-hint { font-size: clamp(8px,.75vw,11px); }
