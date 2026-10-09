@@ -555,3 +555,14 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Validation: TypeScript and production build. Live visual review covered the existing desktop site; the new layout and GPU effects still need preview/device visual sign-off.
 - Next: verify live lighting and responsive plan layout on a WebGL-capable desktop and phone before release.
 - Review branch; not merged or published.
+
+## Iteration 48 — smooth loading into live Studio light
+
+- Iterations 46–47 merged through PR #30. Publication was not requested here.
+- Stage new PDF artwork until the live lighting frame can commit DOM layers, replace the GPU texture and draw together. Eliminate the intermediate unlit canvas that caused a brightness flash.
+- Keep the current Page by page component and its lit artwork in place until the requested page is ready. Start its slide on presentation rather than on mounting; avoid repeating the slide when cached artwork is upgraded to the final render.
+- Give first-time Scroll artwork a short lit reveal, honour reduced motion and keep cold loading-page backgrounds transparent. Existing readable graphics-failure fallback remains available.
+- Keep original canvases concealed while Studio is active, including when offscreen textures are released. This prevents an unlit flash as a previously loaded page re-enters the viewport. Restore originals only on Simple/renderer removal or graphics failure.
+- Guard commits against cancelled renders, newer page requests and unmounted pages; keep replacement work within the existing nearby-texture and demand-driven rendering budgets.
+- Validation: TypeScript, production build and frame-commit regression tests covering delayed presentation, latest-page selection, cancellation, unmount and next-frame scheduling. Actual GPU visual/device sign-off remains outstanding because the available browser disables WebGL.
+- Review branch; not merged or published.
