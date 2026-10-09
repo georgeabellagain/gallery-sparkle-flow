@@ -1,10 +1,9 @@
 import { AccessGate } from "@/components/pf/AccessGate";
 import { createFileRoute, useHydrated } from "@tanstack/react-router";
 import { CloudVisitor, LOCAL_MISSING, Missing, OwnVisitor, SampleVisitor, useOwn } from "@/components/pf/Visitor";
-import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
+import { loadPortfolioRoute } from "@/lib/portfolia/public-route";
 import { portfolioHead } from "@/lib/portfolia/head";
 import { SAMPLE } from "@/lib/portfolia/sample";
-import { getRequestOrigin } from "@/lib/origin.functions";
 
 export const Route = createFileRoute("/p/$slug")({
   staticData: { sitemap: false },
@@ -12,14 +11,17 @@ export const Route = createFileRoute("/p/$slug")({
     ...(typeof s["preview"] === "string" && s["preview"] ? { preview: s["preview"] } : {}),
     ...(s["demo"] === "book" ? { demo: s["demo"] } : {}),
   }),
-  loader: async ({ params }) => ({
-    origin: await getRequestOrigin(),
-    data: params.slug === "sample" ? null : await getPublicPortfolio({ data: { by: "code", value: params.slug } }),
+  loaderDeps: ({ search }) => ({ preview: Boolean(search.preview) }),
+  loader: async ({ params, deps }) => ({
+    origin: "https://portfolia.site",
+    preview: deps.preview,
+    ...(params.slug === "sample" || deps.preview ? { data: null, access: null } : await loadPortfolioRoute("code", params.slug)),
   }),
+  notFoundComponent: () => <Missing title="No portfolio here" body={LOCAL_MISSING} />,
   errorComponent: () => <Missing title="Couldn’t load this portfolio" body="Please refresh the page to try again." />,
   head: ({ params, loaderData }) => {
     const sample = params.slug === "sample";
-    if (!sample) return portfolioHead(loaderData?.data ?? null, "Portfolio");
+    if (!sample) return portfolioHead(loaderData?.data ?? null, "Portfolio", loaderData?.preview);
     const t = sample ? `${SAMPLE.profile.name} — Fashion Lookbook Example | Portfolia` : "PDF Portfolio — Portfolia";
     const d = sample ? `Example fashion lookbook by ${SAMPLE.profile.name}, ${SAMPLE.profile.title}, hosted on Portfolia.` : "A PDF portfolio hosted on Portfolia.";
     const o = loaderData?.origin ?? "";
@@ -51,7 +53,7 @@ export const Route = createFileRoute("/p/$slug")({
 function Page() {
   const { slug } = Route.useParams();
   const { preview, demo } = Route.useSearch();
-  const { data } = Route.useLoaderData();
+  const { data, access } = Route.useLoaderData();
   const p = useOwn((x) => x.code === slug);
   const hydrated = useHydrated();
   if (slug === SAMPLE.code) return <SampleVisitor demo={demo} />;
@@ -60,6 +62,6 @@ function Page() {
     if (!p || p.code !== slug) return <Missing title="No portfolio here" body="Sign in on this device to preview your draft." />;
     return <OwnVisitor p={p} preview />;
   }
-  if (!data) return <AccessGate by="code" value={slug} />;
+  if (!data) return <AccessGate by="code" value={slug} initial={access} />;
   return <CloudVisitor data={data} />;
 }

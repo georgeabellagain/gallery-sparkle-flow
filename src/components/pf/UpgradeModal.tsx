@@ -58,7 +58,7 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
       {!p ? (
         <div className="mt-4">
           <p>Upload a PDF first — you can choose a personalised address from your dashboard.</p>
-          <Button className="mt-4" onClick={onClose}>OK</Button>
+          <Button asChild className="mt-4"><Link to="/" hash="upload" onClick={onClose}>Upload your PDF</Link></Button>
         </div>
       ) : (
         <>

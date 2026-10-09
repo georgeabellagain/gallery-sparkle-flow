@@ -406,13 +406,11 @@ export function graceEnds(p: Portfolio): Date | null {
 
 /* ---------- Analytics (sessions, not page renders) ---------- */
 
+const visitorSession = createVisitorSession(() => uid("v"));
 function visitorId() {
-  let v = localStorage.getItem("portfolia.vid");
-  if (!v) {
-    v = uid("v");
-    localStorage.setItem("portfolia.vid", v);
-  }
-  return v;
+  let storage: Storage | undefined;
+  try { storage = window.localStorage; } catch { /* blocked browser storage */ }
+  return visitorSession.visitor(storage);
 }
 
 function isBot() {
@@ -422,9 +420,9 @@ function isBot() {
 /** Records at most one visit per browser tab session per portfolio. */
 export function recordVisit(code: string) {
   if (typeof window === "undefined" || isBot()) return;
-  const k = `portfolia.session.${code}`;
-  if (sessionStorage.getItem(k)) return;
-  sessionStorage.setItem(k, "1");
+  let storage: Storage | undefined;
+  try { storage = window.sessionStorage; } catch { /* blocked browser storage */ }
+  if (!visitorSession.firstVisit(code, storage)) return;
   const v = visitorId();
   update((d) => {
     const a = d.portfolio?.code === code ? d.analytics : d.others.find((o) => o.portfolio.code === code)?.analytics;
@@ -449,3 +447,4 @@ export function recordDownload(code?: string) {
   const c = code ?? getDoc().portfolio?.code;
   if (c) void logEvent(c, "download");
 }
+import { createVisitorSession } from "./visitor-storage";

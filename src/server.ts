@@ -51,8 +51,13 @@ export default {
       const response = await handler.fetch(request, env, ctx);
       const normalized = await normalizeCatastrophicSsrResponse(response);
       const headers = new Headers(normalized.headers);
+      headers.set("X-Content-Type-Options", "nosniff");
+      headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
       if (headers.get("Content-Type")?.includes("text/html")) headers.set("Cache-Control", "private, no-store");
-      if (!new URL(request.url).pathname.startsWith("/embed/")) return new Response(normalized.body, { status: normalized.status, statusText: normalized.statusText, headers });
+      if (!new URL(request.url).pathname.startsWith("/embed/")) {
+        if (headers.get("Content-Type")?.includes("text/html")) headers.set("Content-Security-Policy", "frame-ancestors 'self'");
+        return new Response(normalized.body, { status: normalized.status, statusText: normalized.statusText, headers });
+      }
       headers.set("Content-Security-Policy", "frame-ancestors *");
       headers.set("X-Robots-Tag", "noindex, nofollow");
       return new Response(normalized.body, { status: normalized.status, statusText: normalized.statusText, headers });

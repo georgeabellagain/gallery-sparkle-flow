@@ -13,6 +13,7 @@ export const softwareSchema = {
     { "@type": "Offer", name: "Free", price: "0", priceCurrency: "GBP", url: "https://portfolia.site/pricing" },
     ...([['Personal monthly', PRICE.month, 'P1M'], ['Personal annual', PRICE.year, 'P1Y']] as const).map(([name, price, billingDuration]) => ({
       "@type": "Offer", name, url: "https://portfolia.site/pricing",
+      price: price.replace("£", ""), priceCurrency: "GBP",
       priceSpecification: { "@type": "UnitPriceSpecification", price: price.replace("£", ""), priceCurrency: "GBP", billingDuration },
     })),
   ],

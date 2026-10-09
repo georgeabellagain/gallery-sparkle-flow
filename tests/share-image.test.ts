@@ -22,7 +22,8 @@ test("unpublished, missing and legacy portfolios cannot expose a cover", () => {
   const p = portfolio();
   delete p.pdf.coverKey;
   assert.equal(shareImageUrl(p), undefined);
-  assert.ok(!portfolioHead({ portfolio: p, urls: {} }, "Portfolio").meta.some((m) => "property" in m && m.property === "og:image"));
+  assert.ok(portfolioHead({ portfolio: p, urls: {} }, "Portfolio").meta.some((m) => "property" in m && m.property === "og:image" && m.content === "https://portfolia.site/og-image.jpg"));
+  assert.ok(!portfolioHead({ portfolio: portfolio({ status: "draft" }), urls: {} }, "Portfolio").meta.some((m) => "property" in m && m.property === "og:image"));
 });
 
 test("replacing the PDF invalidates its previous cover and changes the share URL", () => {

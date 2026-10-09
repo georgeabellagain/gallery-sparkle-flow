@@ -1,7 +1,7 @@
 import { AccessGate } from "@/components/pf/AccessGate";
 import { createFileRoute } from "@tanstack/react-router";
 import { EmbeddedVisitor, LOCAL_MISSING, Missing } from "@/components/pf/Visitor";
-import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
+import { loadPortfolioRoute } from "@/lib/portfolia/public-route";
 
 export const Route = createFileRoute("/embed/$code")({
   staticData: { sitemap: false },
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/embed/$code")({
       background: background === "black" || background === "paper" || background === "soft" ? background : undefined,
     };
   },
-  loader: ({ params }) => getPublicPortfolio({ data: { by: "code", value: params.code } }),
+  loader: ({ params }) => loadPortfolioRoute("code", params.code),
   head: () => ({
     meta: [
       { title: "Embedded PDF Portfolio — Portfolia" },
@@ -28,13 +28,14 @@ export const Route = createFileRoute("/embed/$code")({
     ],
   }),
   errorComponent: () => <Missing title="Couldn’t load this portfolio" body="Please refresh the page to try again." />,
+  notFoundComponent: () => <Missing title="No portfolio here" body={LOCAL_MISSING} />,
   component: EmbedPage,
 });
 
 function EmbedPage() {
-  const data = Route.useLoaderData();
+  const { data, access } = Route.useLoaderData();
   const options = Route.useSearch();
   const { code } = Route.useParams();
-  if (!data) return <AccessGate by="code" value={code} />;
+  if (!data) return <AccessGate by="code" value={code} initial={access} />;
   return <EmbeddedVisitor data={data} startPage={options.page} mode={options.mode} background={options.background} />;
 }

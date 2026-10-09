@@ -1,9 +1,10 @@
 import { foldoutKeys } from "./foldouts";
 import { allAnalyticsEvents } from "./analytics";
+import { migrateDraftFiles } from "./sync-files";
 import { useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
-import { getLocalBlob, setCloudUser, uploadToCloud } from "./assets";
+import { getBlob, setCloudUser, uploadToCloud } from "./assets";
 import { allPortfolios, getDoc, replaceDoc, resetAll, setCommitHook, type Analytics, type Doc, type Portfolio } from "./store";
 
 /**
@@ -35,6 +36,8 @@ let started = false;
 let pushed = new Map<string, string>();
 let timer: ReturnType<typeof setTimeout> | null = null;
 const pendingDeletes = new Set<string>();
+let pushing: Promise<void> | null = null;
+let pushAgain = false;
 /** Mark a portfolio for removal from the account on the next sync. */
 export function markPortfolioDeleted(code: string) {
   pendingDeletes.add(code);
@@ -56,13 +59,27 @@ export function retrySync() {
 }
 
 async function push() {
+  if (pushing) { pushAgain = true; return pushing; }
+  pushing = pushOnce();
+  try { await pushing; }
+  finally {
+    pushing = null;
+    if (pushAgain) { pushAgain = false; schedulePush(); }
+  }
+}
+
+async function pushOnce() {
   const uid = userId;
   if (!uid) return;
   const list = allPortfolios(getDoc());
   const codes = new Set(list.map((p) => p.code));
   try {
     for (const p of list) {
-      const json = JSON.stringify(p);
+      if (userId !== uid) return;
+      if (!p.synced) await migrateDraftFiles(fileKeys(p), getBlob, (key, blob) => uploadToCloud(key, blob, uid));
+      if (userId !== uid) return;
+      const savedPortfolio = { ...p, synced: true };
+      const json = JSON.stringify(savedPortfolio);
       if (pushed.get(p.code) === json) continue;
       const { error } = await supabase.from("portfolios").upsert({
         code: p.code,
@@ -70,30 +87,40 @@ async function push() {
         username: p.username ?? null,
         status: p.status,
         search_indexing: Boolean(p.searchIndexing),
-        data: p as unknown as Json,
+        data: savedPortfolio as unknown as Json,
         updated_at: new Date().toISOString(),
       });
       if (error) {
         const taken = error.code === "23505";
         throw new Error(taken ? "That personalised address is already used by someone else. Choose another name." : "Couldn’t save to your account.");
       }
-      await supabase.from("portfolio_domains").delete().eq("portfolio_code", p.code);
+      const { error: domainDeleteError } = await supabase.from("portfolio_domains").delete().eq("portfolio_code", p.code);
+      if (domainDeleteError) throw new Error("Couldn’t save your domains. Please try again.");
       const domains = p.domains ?? [];
       if (domains.length) {
         const { error: dErr } = await supabase.from("portfolio_domains").insert(domains.map((d) => ({ name: d.name, owner_id: uid, portfolio_code: p.code, kind: d.kind })));
         if (dErr) throw new Error(dErr.code === "23505" ? "One of your domains is already connected to another account." : "Couldn’t save your domains.");
       }
+      if (userId !== uid) return;
       pushed.set(p.code, json);
+      if (!p.synced) {
+        // Only update this flag after the files and metadata have reached the
+        // account. Preserve edits made while the request was in flight.
+        const current = structuredClone(getDoc());
+        const saved = allPortfolios(current).find(item => item.code === p.code);
+        if (saved) { saved.synced = true; replaceDoc(current); }
+      }
     }
     // Only portfolios the owner explicitly deleted are removed online; a missing local copy never deletes.
     for (const code of [...pendingDeletes]) {
       if (codes.has(code)) { pendingDeletes.delete(code); continue; }
       const { error } = await supabase.from("portfolios").delete().eq("code", code);
-      if (!error) { pushed.delete(code); pendingDeletes.delete(code); }
+      if (error) throw new Error("Couldn’t remove that portfolio from your account. Please try again.");
+      pushed.delete(code); pendingDeletes.delete(code);
     }
-    setStatus("saved");
+    if (userId === uid) setStatus("saved");
   } catch (e) {
-    setStatus("error", e instanceof Error ? e.message : "Couldn’t save to your account.");
+    if (userId === uid) setStatus("error", e instanceof Error ? e.message : "Couldn’t save to your account.");
   }
 }
 
@@ -117,22 +144,18 @@ async function pull(uid: string) {
   setStatus("saving");
   const { data, error } = await supabase.from("portfolios").select("code, data").eq("owner_id", uid);
   if (error) return setStatus("error", "Couldn’t load your portfolios. Please refresh to try again.");
+  if (userId !== uid) return;
   const cloud = new Map((data ?? []).map((r) => [r.code, r.data as unknown as Portfolio]));
   pushed = new Map([...cloud].map(([c, p]) => [c, JSON.stringify(p)]));
 
   const local = getDoc();
   // Browser-only portfolios (never synced) are moved into the account.
   const toMove = allPortfolios(local).filter((p) => !cloud.has(p.code) && !p.synced);
-  for (const p of toMove) {
-    for (const key of fileKeys(p)) {
-      const blob = await getLocalBlob(key);
-      if (blob) await uploadToCloud(key, blob).catch(() => {});
-    }
-  }
-  const list: Portfolio[] = [...toMove.map((p) => ({ ...p, synced: true })), ...cloud.values()];
+  const list: Portfolio[] = [...toMove, ...cloud.values()];
   let analytics: Map<string, Analytics>;
   try { analytics = await loadAnalytics(list.map((p) => p.code)); }
   catch (error) { setStatus("error", error instanceof Error ? error.message : "Couldn’t load visit statistics. Please refresh."); return; }
+  if (userId !== uid) return;
   const activeCode = local.portfolio && list.some((p) => p.code === local.portfolio!.code) ? local.portfolio.code : list[0]?.code;
   const active = list.find((p) => p.code === activeCode) ?? null;
   const next: Doc = {
@@ -150,12 +173,8 @@ async function pull(uid: string) {
 export function startCloudSync() {
   if (started || typeof window === "undefined") return;
   started = true;
-  setCommitHook((d) => {
+  setCommitHook(() => {
     if (!userId) return;
-    // Mark new portfolios as belonging to the account.
-    if (allPortfolios(d).some((p) => !p.synced)) {
-      for (const p of allPortfolios(d)) p.synced = true;
-    }
     schedulePush();
   });
   supabase.auth.onAuthStateChange((event, session) => {
@@ -164,6 +183,7 @@ export function startCloudSync() {
       userId = null;
       setCloudUser(null);
       pushed = new Map();
+      pendingDeletes.clear();
       resetAll(); // the browser copy belongs to the account; nothing is lost online
       setStatus("idle");
       return;

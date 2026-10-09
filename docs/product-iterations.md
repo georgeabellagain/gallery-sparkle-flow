@@ -478,3 +478,12 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Reduce the monochrome book loader from 72 × 50px to 48 × 34px, including matching page, border and perspective dimensions.
 - Limit the homepage example's full-height rule to its viewer wrapper. Loading status children retain their natural height, so the loader centres in the fixed preview frame.
 - Validation: TypeScript and production build. Merge and publish requested by the user.
+
+## Iteration 39 — public launch audit and reliability corrections
+
+- Audit 37 live URLs, homepage/pricing UI, SEO metadata, public route responses, account sync and production dependencies. Record evidence and remaining launch checks in `launch-audit-2026-10-09.md`.
+- Add portfolio canonicals, preview noindex, branded social-image fallbacks and real missing-page 404s. Exclude password/expiring portfolios from the sitemap and preserve personal-address grace periods.
+- Prevent failed draft uploads being marked synced, serialize account writes and make visitor tracking tolerate blocked browser storage. Permit PDF module retries after load failures.
+- Improve the pre-upload upgrade action, pricing metadata/schema and accuracy of privacy storage wording. Add response headers while preserving embeds.
+- Validation: TypeScript, production build, 61 regression tests, built-worker status/header checks and production dependency advisory lookup. Real-account, payment and actual-phone checks remain outstanding.
+- Review branch only; not merged or published.

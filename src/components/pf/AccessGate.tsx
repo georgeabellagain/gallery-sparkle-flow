@@ -3,12 +3,13 @@ import { portfolioAccessStatus, unlockPortfolio } from "@/lib/portfolia/access.f
 import { Missing, LOCAL_MISSING } from "./Visitor";
 import { Button } from "@/components/ui/button";
 
-export function AccessGate({ by, value }: { by: "code" | "username"; value: string }) {
-  const [result, setResult] = useState<{ state: string; code: string | null } | null>(null);
+type AccessResult = { state: string; code: string | null };
+export function AccessGate({ by, value, initial }: { by: "code" | "username"; value: string; initial?: AccessResult | null }) {
+  const [result, setResult] = useState<AccessResult | null>(initial ?? null);
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  useEffect(() => { let live = true; void portfolioAccessStatus({ data: { by, value } }).then(r => { if (live) setResult(r); }).catch(() => { if (live) setMessage("Couldn’t check access. Please refresh and try again."); }); return () => { live = false; }; }, [by, value]);
+  useEffect(() => { if (initial) { setResult(initial); return; } let live = true; setResult(null); void portfolioAccessStatus({ data: { by, value } }).then(r => { if (live) setResult(r); }).catch(() => { if (live) setMessage("Couldn’t check access. Please refresh and try again."); }); return () => { live = false; }; }, [by, value, initial]);
   if (!result) return <Missing title="Checking portfolio access" body={message || "Please wait…"} />;
   if (result.state === "expired") return <Missing title="This portfolio link has expired" body="Ask the portfolio owner for renewed access." />;
   if (result.state !== "locked" || !result.code) return <Missing title="No portfolio here" body={LOCAL_MISSING} />;

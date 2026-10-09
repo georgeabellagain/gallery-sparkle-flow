@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import type { Portfolio } from "./store";
+import { personalActive } from "./store";
 
 function publicClient() {
   const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
@@ -31,7 +32,8 @@ export const getPublicPortfolio = createServerFn({ method: "GET" })
     const { setResponseHeader } = await import("@tanstack/react-start/server");
     setResponseHeader("Cache-Control", "private, no-store");
     const q = supabaseAdmin.from("portfolios").select("code, owner_id, data").eq("status", "published");
-    const { data: row } = await (data.by === "code" ? q.eq("code", data.value) : q.eq("username", data.value.toLowerCase())).maybeSingle();
+    const { data: row, error } = await (data.by === "code" ? q.eq("code", data.value) : q.eq("username", data.value.toLowerCase())).maybeSingle();
+    if (error) throw new Error("Couldn’t load this portfolio. Please try again.");
     if (!row) return null;
     const access = await requestAccess(row.code);
     if (access.state !== "open") return null;
@@ -43,17 +45,25 @@ export const getPublicPortfolio = createServerFn({ method: "GET" })
       if (access.policy?.password_hash || access.policy?.expires_at) {
         for (const key of keys) urls[key] = `/api/public/portfolio-file/${encodeURIComponent(row.code)}?asset=${encodeURIComponent(key)}`;
       } else {
-      const { data: signed } = await supabaseAdmin.storage.from("portfolio-files").createSignedUrls(keys.map((k) => `${row.owner_id}/${k}`), 3600);
+      const { data: signed, error: signingError } = await supabaseAdmin.storage.from("portfolio-files").createSignedUrls(keys.map((k) => `${row.owner_id}/${k}`), 3600);
+      if (signingError) throw new Error("Couldn’t load the portfolio files. Please try again.");
       for (const s of signed ?? []) if (s.signedUrl && s.path) urls[s.path.split("/").slice(1).join("/")] = s.signedUrl;
       }
     }
+    if (p.pdf && !urls[p.pdf.blobKey]) throw new Error("The portfolio PDF is unavailable. Please try again later.");
     return { portfolio: { ...p, code: row.code, ...(access.policy?.password_hash || access.policy?.expires_at ? { searchIndexing: false, pdf: p.pdf ? { ...p.pdf, coverKey: undefined } : p.pdf } : {}) }, urls };
   });
 
 export const listIndexablePortfolios = createServerFn({ method: "GET" }).handler(async () => {
-  const { data } = await publicClient().from("portfolios").select("code, username, updated_at, data").eq("status", "published").eq("search_indexing", true).limit(5000);
-  return (data ?? []).map((r) => ({
-    path: r.username && (r.data as unknown as Portfolio).plan === "personal" ? `/${r.username}` : `/p/${r.code}`,
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await publicClient().from("portfolios").select("code, username, updated_at, data").eq("status", "published").eq("search_indexing", true).limit(5000);
+  if (error) throw new Error("Couldn’t load indexable portfolios.");
+  if (!data?.length) return [];
+  const { data: policies, error: policyError } = await supabaseAdmin.from("portfolio_access").select("code,password_hash,expires_at").in("code", data.map(r => r.code));
+  if (policyError) throw new Error("Couldn’t check portfolio indexing permissions.");
+  const protectedCodes = new Set((policies ?? []).filter(p => p.password_hash || p.expires_at).map(p => p.code));
+  return data.filter(r => !protectedCodes.has(r.code)).map((r) => ({
+    path: r.username && personalActive(r.data as unknown as Portfolio) ? `/${encodeURIComponent(r.username.toLowerCase())}` : `/p/${encodeURIComponent(r.code)}`,
     lastmod: r.updated_at,
   }));
 });

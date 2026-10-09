@@ -10,7 +10,10 @@ export function loadPdfjs() {
       const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
       pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
       return pdfjs;
-    })();
+    })().catch((error) => {
+      pdfjsPromise = null;
+      throw error;
+    });
   }
   return pdfjsPromise;
 }
