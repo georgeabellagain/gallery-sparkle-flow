@@ -3,23 +3,23 @@ import { HDRI_PRESETS, type HdriId } from "./lighting";
 import { parseRgbe } from "./rgbe";
 import { dappleTexture } from "./dapple-light";
 import { surfaceCanvas } from "./surface";
-import { createRenderQueue } from "./render-queue";
 import { bookSurfaceRatio } from "./render-budget";
+import { pageWorldRect } from "./page-position";
 
 export type PageStudioSettings = { hdri: HdriId; brightness: number; finish: "satin" | "textured" };
+type Page = { element: HTMLElement; source: HTMLCanvasElement; near: boolean; mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshPhysicalMaterial> | null };
 
-/** One offscreen GPU context per reader, reused sequentially for stationary pages.
- * Only the resulting 2D image stays on each page; scrolling needs no GPU loop. */
-export function createPageStudioRenderer() {
+/** One visible GPU surface per reader. DOM pages move through fixed lighting;
+ * only unlit PDF textures are cached. Idle readers do not run an animation loop. */
+export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElement) {
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.domElement.setAttribute("aria-hidden", "true");
+  Object.assign(renderer.domElement.style, { width: "100%", height: "100%", display: "block" });
+  host.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
-  const camera = new THREE.OrthographicCamera(-.5, .5, .5, -.5, .1, 20);
-  camera.position.z = 5;
-  const material = new THREE.MeshPhysicalMaterial({ color: 0xffffff, side: THREE.FrontSide });
-  const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
-  scene.add(plane);
+  const camera = new THREE.PerspectiveCamera(36, 1, .1, 50);
   const ambient = new THREE.HemisphereLight(0xffffff, 0xb7bdca, .65);
   const key = new THREE.DirectionalLight(0xffffff, .55);
   key.position.set(-3, 5, 5);
@@ -29,10 +29,116 @@ export function createPageStudioRenderer() {
   const masks = new Map<string, THREE.CanvasTexture>();
   const bumps = new Map<string, THREE.CanvasTexture>();
   const environments = new Map<HdriId, Promise<THREE.WebGLRenderTarget>>();
-  let disposed = false;
-  const queue = createRenderQueue();
-  let activeTexture: THREE.CanvasTexture | null = null;
-  let frameRatio = 1;
+  const pages = new Map<HTMLElement, Page>();
+  const animations = new Set<Animation>();
+  let disposed = false, ready = false, moving = false;
+  let frame = 0, idle: ReturnType<typeof setTimeout> | null = null, revision = 0;
+  let settings: PageStudioSettings = { hdri: "4", brightness: .5, finish: "satin" };
+  const restore = (page: Page) => {
+    page.source.style.visibility = "";
+    page.element.style.background = "";
+    page.element.style.zIndex = "";
+  };
+  const release = (page: Page) => {
+    restore(page);
+    if (!page.mesh) return;
+    scene.remove(page.mesh);
+    page.mesh.material.map?.dispose();
+    page.mesh.material.dispose(); page.mesh.geometry.dispose(); page.mesh = null;
+  };
+  const applyMaterial = (material: THREE.MeshPhysicalMaterial) => {
+    const textured = settings.finish === "textured";
+    if (!bumps.has(settings.finish)) {
+      const bump = new THREE.CanvasTexture(surfaceCanvas(settings.finish, "soft"));
+      bump.wrapS = bump.wrapT = THREE.RepeatWrapping; bump.repeat.set(5, 5);
+      bumps.set(settings.finish, bump);
+    }
+    material.bumpMap = bumps.get(settings.finish)!;
+    material.bumpScale = textured ? .006 : .0003;
+    material.roughness = textured ? .97 : .42;
+    material.clearcoat = textured ? 0 : .4;
+    material.clearcoatRoughness = .28;
+    material.specularIntensity = textured ? .1 : .7;
+    material.needsUpdate = true;
+  };
+  const fallback = () => {
+    ready = false;
+    renderer.domElement.style.visibility = "hidden";
+    pages.forEach(restore);
+  };
+  const paint = () => {
+    frame = 0;
+    if (disposed || !ready) return;
+    try {
+      for (const animation of animations) if (animation.playState !== "running") animations.delete(animation);
+      const box = host.getBoundingClientRect();
+      if (!box.width || !box.height) return;
+      const ratio = bookSurfaceRatio(box.width, box.height, Math.min(devicePixelRatio || 1, 1.25), (moving || animations.size > 0) ? 1_300_000 : 2_600_000);
+      const w = Math.max(1, Math.floor(box.width * ratio)), h = Math.max(1, Math.floor(box.height * ratio));
+      if (renderer.domElement.width !== w || renderer.domElement.height !== h) renderer.setSize(w, h, false);
+      const worldHeight = 2.3 * box.height / box.width;
+      camera.aspect = box.width / box.height;
+      camera.position.set(0, 0, worldHeight / (2 * Math.tan(THREE.MathUtils.degToRad(18))));
+      camera.updateProjectionMatrix();
+      const lit: Page[] = [];
+      for (const page of pages.values()) {
+        if (!page.near || !page.element.isConnected) { release(page); continue; }
+        const rect = page.element.getBoundingClientRect();
+        if (!rect.width || !rect.height) { release(page); continue; }
+        if (!page.mesh) {
+          const texture = new THREE.CanvasTexture(page.source);
+          texture.colorSpace = THREE.SRGBColorSpace;
+          texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+          const material = new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: texture });
+          applyMaterial(material);
+          page.mesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
+          scene.add(page.mesh);
+          renderer.initTexture(texture);
+        }
+        const position = pageWorldRect(rect, box);
+        page.mesh.position.set(position.x, position.y, 0);
+        page.mesh.scale.set(position.width, position.height, 1);
+        page.mesh.visible = rect.bottom > box.top && rect.top < box.bottom && rect.right > box.left && rect.left < box.right;
+        if (page.mesh.visible) lit.push(page);
+        else restore(page);
+      }
+      renderer.render(scene, camera);
+      if (renderer.getContext().isContextLost()) { fallback(); return; }
+      renderer.domElement.style.visibility = "";
+      for (const page of lit) {
+        page.source.style.visibility = "hidden";
+        page.element.style.background = "transparent";
+        page.element.style.zIndex = "2";
+      }
+      // CSS sliding pages are redrawn through the same fixed scene every frame.
+      if (animations.size) frame = requestAnimationFrame(paint);
+    } catch { fallback(); }
+  };
+  const requestPaint = (motion = false) => {
+    if (disposed) return;
+    if (motion) {
+      moving = true;
+      if (idle) clearTimeout(idle);
+      idle = setTimeout(() => { moving = false; idle = null; requestPaint(); }, 150);
+    }
+    if (!frame) frame = requestAnimationFrame(paint);
+  };
+  const observer = new IntersectionObserver(entries => {
+    for (const entry of entries) { const page = pages.get(entry.target as HTMLElement); if (page) page.near = entry.isIntersecting; }
+    requestPaint();
+  }, { root: viewport, rootMargin: "200px" });
+  const resize = new ResizeObserver(() => requestPaint());
+  resize.observe(host);
+  const scroll = () => requestPaint(true);
+  viewport.addEventListener("scroll", scroll, { passive: true });
+  const animate = (event: AnimationEvent) => {
+    if (!(event.target instanceof Element)) return;
+    for (const animation of event.target.getAnimations()) animations.add(animation);
+    requestPaint(true);
+  };
+  viewport.addEventListener("animationstart", animate);
+  const lost = (event: Event) => { event.preventDefault(); fallback(); };
+  renderer.domElement.addEventListener("webglcontextlost", lost);
   const environment = (id: HdriId) => {
     let pending = environments.get(id);
     if (!pending) {
@@ -49,8 +155,7 @@ export function createPageStudioRenderer() {
         }
         const hdr = new THREE.DataTexture(pixels, width, height, THREE.RGBAFormat, THREE.HalfFloatType);
         hdr.mapping = THREE.EquirectangularReflectionMapping;
-        hdr.minFilter = hdr.magFilter = THREE.LinearFilter;
-        hdr.needsUpdate = true;
+        hdr.minFilter = hdr.magFilter = THREE.LinearFilter; hdr.needsUpdate = true;
         const pmrem = new THREE.PMREMGenerator(renderer);
         try { return pmrem.fromEquirectangular(hdr); }
         finally { hdr.dispose(); pmrem.dispose(); }
@@ -60,70 +165,48 @@ export function createPageStudioRenderer() {
     }
     return pending;
   };
+  const configure = async (next: PageStudioSettings) => {
+    const version = ++revision;
+    try {
+      const target = await environment(next.hdri);
+      if (disposed || version !== revision) return;
+      settings = next;
+      const pattern = HDRI_PRESETS.find(p => p.id === next.hdri)?.dapple;
+      if (pattern && !masks.has(pattern)) masks.set(pattern, dappleTexture(pattern));
+      sun.map = pattern ? masks.get(pattern)! : null; sun.visible = Boolean(pattern);
+      sun.intensity = pattern === "window" || pattern === "blinds" ? 1.4 : pattern ? 1.8 : 0;
+      sun.penumbra = pattern === "window" || pattern === "blinds" ? .12 : .35;
+      scene.environment = target.texture; scene.environmentIntensity = pattern ? .7 : 1;
+      ambient.intensity = pattern ? .4 : .65;
+      renderer.toneMappingExposure = .55 + Math.max(0, Math.min(1, next.brightness)) * 1.6;
+      pages.forEach(page => { if (page.mesh) applyMaterial(page.mesh.material); });
+      ready = true; requestPaint();
+    } catch { if (!disposed && version === revision) fallback(); }
+  };
   return {
-    draw(source: HTMLCanvasElement, settings: PageStudioSettings, current = () => true): Promise<HTMLCanvasElement> {
-      const run = async () => {
-        if (disposed || !current()) throw new Error("Page changed");
-        const target = await environment(settings.hdri);
-        if (disposed || !current()) throw new Error("Page changed");
-        const ratio = source.height / source.width;
-        if (ratio !== frameRatio) {
-          plane.geometry.dispose(); plane.geometry = new THREE.PlaneGeometry(1, ratio); frameRatio = ratio;
-        }
-        camera.top = ratio / 2; camera.bottom = -ratio / 2; camera.updateProjectionMatrix();
-        activeTexture?.dispose();
-        activeTexture = new THREE.CanvasTexture(source);
-        activeTexture.colorSpace = THREE.SRGBColorSpace;
-        activeTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-        material.map = activeTexture;
-        const textured = settings.finish === "textured";
-        if (!bumps.has(settings.finish)) {
-          const bump = new THREE.CanvasTexture(surfaceCanvas(settings.finish, "soft"));
-          bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
-          bumps.set(settings.finish, bump);
-        }
-        const bump = bumps.get(settings.finish)!;
-        bump.repeat.set(5, ratio * 5);
-        material.bumpMap = bump;
-        material.bumpScale = textured ? .006 : .0003;
-        material.roughness = textured ? .97 : .42;
-        material.clearcoat = textured ? 0 : .4;
-        material.clearcoatRoughness = .28;
-        material.specularIntensity = textured ? .1 : .7;
-        material.needsUpdate = true;
-        const pattern = HDRI_PRESETS.find(p => p.id === settings.hdri)?.dapple;
-        if (pattern && !masks.has(pattern)) masks.set(pattern, dappleTexture(pattern));
-        sun.map = pattern ? masks.get(pattern)! : null;
-        sun.visible = Boolean(pattern);
-        sun.intensity = pattern === "window" || pattern === "blinds" ? 1.4 : pattern ? 1.8 : 0;
-        sun.penumbra = pattern === "window" || pattern === "blinds" ? .12 : .35;
-        scene.environment = target.texture;
-        scene.environmentIntensity = pattern ? .7 : 1;
-        ambient.intensity = pattern ? .4 : .65;
-        renderer.toneMappingExposure = .55 + Math.max(0, Math.min(1, settings.brightness)) * 1.6;
-        const scale = bookSurfaceRatio(source.width, source.height, 1, 2_600_000);
-        const width = Math.max(1, Math.floor(source.width * scale)), height = Math.max(1, Math.floor(source.height * scale));
-        renderer.setSize(width, height, false);
-        renderer.render(scene, camera);
-        if (renderer.getContext().isContextLost()) throw new Error("Graphics unavailable");
-        const output = document.createElement("canvas");
-        output.width = width; output.height = height;
-        output.getContext("2d")!.drawImage(renderer.domElement, 0, 0);
-        output.style.width = output.style.height = "100%";
-        output.setAttribute("aria-hidden", "true");
-        return output;
+    configure,
+    register(element: HTMLElement, source: HTMLCanvasElement) {
+      const old = pages.get(element); if (old) release(old);
+      const page: Page = { element, source, near: false, mesh: null };
+      pages.set(element, page); observer.observe(element); resize.observe(element);
+      for (const animation of element.getAnimations()) animations.add(animation);
+      requestPaint();
+      return () => {
+        if (pages.get(element) !== page) return;
+        observer.unobserve(element); resize.unobserve(element); release(page); pages.delete(element); requestPaint();
       };
-      return queue.enqueue(run);
     },
     dispose() {
-      disposed = true;
-      queue.close();
+      disposed = true; revision++;
+      cancelAnimationFrame(frame); if (idle) clearTimeout(idle);
+      observer.disconnect(); resize.disconnect();
+      viewport.removeEventListener("scroll", scroll); viewport.removeEventListener("animationstart", animate);
+      renderer.domElement.removeEventListener("webglcontextlost", lost);
+      pages.forEach(release); pages.clear();
       environments.forEach(p => { void p.then(t => t.dispose(), () => undefined); });
       masks.forEach(t => t.dispose()); bumps.forEach(t => t.dispose());
-      activeTexture?.dispose(); plane.geometry.dispose(); material.dispose();
-      renderer.dispose(); renderer.forceContextLoss();
+      renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove();
     },
   };
 }
-
 export type PageStudioRenderer = ReturnType<typeof createPageStudioRenderer>;

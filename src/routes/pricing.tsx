@@ -1,7 +1,8 @@
+import { PlanCard as Plan } from "@/components/pf/PlanCard";
 import { softwareSchema } from "@/lib/portfolia/software-schema";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
 import { Button } from "@/components/ui/button";
@@ -72,7 +73,7 @@ function PricingPage() {
                 "Small Portfolia credit",
               ]}
               action={
-                <Button asChild variant="line" size="sm" className="mt-5">
+                <Button asChild variant="line" size="lg" className="w-full">
                   <Link to="/" hash="upload">
                     Start for free <ArrowRight className="size-4" aria-hidden />
                   </Link>
@@ -81,7 +82,7 @@ function PricingPage() {
             />
             <Plan
               name="Personal"
-              price={`${PRICE.month}/month or ${PRICE.year}/year`}
+              price={PRICE.month} period="/month" alternative={`${PRICE.year} billed yearly`}
               description="For professionals managing a broader body of work and a more personal presence."
               featured
               items={[
@@ -92,7 +93,7 @@ function PricingPage() {
                 "Password protection and link expiry", "Portfolia credit removed",
               ]}
               action={
-                <Button size="lg" className="mt-5" onClick={() => setUpgrade(true)}>
+                <Button size="lg" className="w-full" onClick={() => setUpgrade(true)}>
                   Choose Personal
                 </Button>
               }
@@ -145,42 +146,3 @@ function PricingPage() {
   );
 }
 
-function Plan({
-  name,
-  price,
-  description,
-  items,
-  action,
-  featured,
-}: {
-  name: string;
-  price: string;
-  description: string;
-  items: string[];
-  action?: React.ReactNode;
-  featured?: boolean;
-}) {
-  return (
-    <div
-      className={`relative rounded-3xl border bg-card p-7 ${featured ? "border-leaf" : "border-border"}`}
-    >
-      {featured && (
-        <span className="absolute right-5 top-5 rounded-full bg-leaf-soft px-3 py-1 text-xxs font-medium uppercase text-leaf">
-          Recommended
-        </span>
-      )}
-      <h3 className="pr-28 text-base font-medium">{name}</h3>
-      <p className="mt-2 text-2xl font-medium tracking-tight">{price}</p>
-      <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">{description}</p>
-      <ul className="mt-4 space-y-1.5 text-sm">
-        {items.map((i) => (
-          <li key={i} className="flex gap-2">
-            <Check className="mt-0.5 size-3.5 shrink-0 text-leaf" aria-hidden />
-            {i}
-          </li>
-        ))}
-      </ul>
-      {action}
-    </div>
-  );
-}

@@ -12,7 +12,7 @@ function Checker() {
   const [busy, setBusy] = useState(false);
   const running = useRef(false);
   return <div className="flex min-h-screen flex-col"><SiteHeader /><main className="shell w-full max-w-4xl flex-1 py-14"><p className="label-xs">Free tool</p><h1 className="display-title mt-3 text-4xl">Check your portfolio PDF.</h1><p className="mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground">Check file size, pages and external links before sharing. Processing stays on this device: your PDF is not uploaded or saved to a Portfolia account.</p>
-    <label className="mt-8 block rounded-xl border border-border p-5 text-sm">Choose a PDF (up to 75 MB)<input type="file" accept="application/pdf,.pdf" disabled={busy} className="mt-3 block w-full text-sm" onChange={async e=>{
+    <label className="mt-8 block rounded-2xl border border-border bg-card p-6 text-sm shadow-soft">Choose a PDF (up to 75 MB)<input type="file" accept="application/pdf,.pdf" disabled={busy} className="mt-4 block w-full cursor-pointer text-sm text-muted-foreground file:mr-4 file:cursor-pointer file:rounded-full file:border-0 file:bg-primary file:px-5 file:py-3 file:text-sm file:font-medium file:text-primary-foreground hover:file:opacity-90 disabled:cursor-wait disabled:opacity-50" onChange={async e=>{
       const file = e.target.files?.[0]; if (!file || running.current) return;
       e.target.value = ""; running.current = true; setBusy(true); setError(""); setResult(null); setCover("");
       let doc: import("pdfjs-dist").PDFDocumentProxy | undefined;

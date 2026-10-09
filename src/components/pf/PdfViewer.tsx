@@ -379,23 +379,26 @@ export function PdfViewer({
   const activeLook = compact || enabledLooks.includes(requestedLook) ? requestedLook : enabledLooks[0]!;
   const changeLook = (look: "clean" | "studio") => { setSelectedLook(look); if (compact) pinPreviewLook(look); };
   const studio = activeLook === "studio";
+  const lightingHost = useRef<HTMLDivElement>(null);
   const [pageLighting, setPageLighting] = useState<PageStudioRenderer | null>(null);
   useEffect(() => {
     setPageLighting(null);
-    if (!studio || mode === "book") return;
+    if (!studio || mode === "book" || !doc) return;
     let cancelled = false;
     let renderer: PageStudioRenderer | null = null;
     void import("@/lib/portfolia/page-studio").then(module => {
       if (cancelled) return;
-      renderer = module.createPageStudioRenderer();
+      if (!lightingHost.current || !panRef.current) return;
+      renderer = module.createPageStudioRenderer(lightingHost.current, panRef.current);
       setPageLighting(renderer);
     }).catch(() => { /* WebGL unavailable: retain readable source pages. */ });
     return () => { cancelled = true; renderer?.dispose(); };
-  }, [studio, mode === "book"]);
+  }, [studio, mode, !!doc]);
   const pageStudio = useMemo<PageStudioSettings | null>(() => studio ? {
     hdri: view.studioLighting ?? "4", brightness: view.studioBrightness ?? .5,
     finish: view.finish === "textured" ? "textured" : "satin",
   } : null, [studio, view.studioLighting, view.studioBrightness, view.finish]);
+  useEffect(() => { if (pageLighting && pageStudio) void pageLighting.configure(pageStudio); }, [pageLighting, pageStudio]);
   useEffect(() => {
     setZoom(mode === "scroll" ? 1.3 : 1);
   }, [mode]);
@@ -675,7 +678,7 @@ export function PdfViewer({
           </div>
         )
       ) : (
-        <div className={cn("transition-opacity duration-300", shownReady ? "opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!shownReady}>
+        <div className={cn("relative transition-opacity duration-300", shownReady ? "opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!shownReady}>
       {mode === "book" ? (
         <BookView demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...view, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} />
       ) : mode === "paged" ? (
@@ -687,7 +690,7 @@ export function PdfViewer({
             >
               {sizes[current - 1] && (
                 <div className="shrink-0" style={{ width: `calc(min(100%, max(1px, calc((${pagedHeight} - ${topGap + 24}px) * ${sizes[current - 1]!.w / sizes[current - 1]!.h}))) * ${zoom})` }}>
-                <PdfPage key={current} doc={doc} n={current} size={sizes[current - 1]!} lighting={pageLighting} studio={pageStudio} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
+                <PdfPage key={current} slide doc={doc} n={current} size={sizes[current - 1]!} lighting={pageLighting} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
                 </div>
               )}
             </div>
@@ -706,11 +709,12 @@ export function PdfViewer({
             style={{ paddingTop: topGap, width: `calc(min(100%, ${compact ? 900 : 1100}px) * ${zoom})` }}
           >
             {sizes.map((s, i) => (
-              <PdfPage key={i} doc={doc} n={i + 1} size={s} lighting={pageLighting} studio={pageStudio} zoom={zoom} onVisible={setCurrent} onRendered={i === 0 ? markReady : undefined} />
+              <PdfPage key={i} doc={doc} n={i + 1} size={s} lighting={pageLighting} zoom={zoom} onVisible={setCurrent} onRendered={i === 0 ? markReady : undefined} />
             ))}
           </div>
         </div>
       )}
+      {mode !== "book" && studio && <div ref={lightingHost} className="pointer-events-none absolute inset-0 z-[1] overflow-hidden" />}
         </div>
       )}
 
@@ -811,10 +815,10 @@ function PdfPage({
   thumb,
   onRendered,
   lighting,
-  studio,
+  slide,
 }: {
+  slide?: boolean;
   lighting?: PageStudioRenderer | null;
-  studio?: PageStudioSettings | null;
   thumb?: boolean;
   /** Called once the page has been drawn, so the viewer knows when it can show it. */
   onRendered?: () => void;
@@ -832,6 +836,11 @@ function PdfPage({
   const [near, setNear] = useState(eager || n <= 2);
   const [failed, setFailed] = useState(false);
   const [renderWidth, setRenderWidth] = useState(0);
+  const [artwork, setArtwork] = useState<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    if (!lighting || !artwork || !ref.current || thumb) return;
+    return lighting.register(ref.current, artwork);
+  }, [lighting, artwork, thumb]);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -861,6 +870,7 @@ function PdfPage({
     shownPage.current = n;
     const copy = cachedCopy(doc, n);
     el.replaceChildren(...(copy ? [copy] : []));
+    if (copy) setArtwork(copy);
   }, [doc, n]);
 
   useEffect(() => {
@@ -918,13 +928,8 @@ function PdfPage({
           links.append(link);
         }
         if (cancelled) return;
-        let artwork = canvas;
-        if (studio && lighting) {
-          try { artwork = await lighting.draw(canvas, studio, () => !cancelled); }
-          catch { /* Keep original colours/readability if lighting fails. */ }
-        }
-        if (cancelled) return;
-        el.replaceChildren(artwork, text, links);
+        el.replaceChildren(canvas, text, links);
+        setArtwork(canvas);
         el.style.setProperty("--scale-factor", String(scale));
         el.style.setProperty("--total-scale-factor", String(scale));
         rendered.current?.();
@@ -939,7 +944,7 @@ function PdfPage({
       cancelled = true;
       task?.cancel();
     };
-  }, [near, doc, n, size.w, zoom, renderWidth, lighting, studio]);
+  }, [near, doc, n, size.w, zoom, renderWidth]);
 
   return (
     <div
@@ -947,7 +952,7 @@ function PdfPage({
       role={thumb ? undefined : "group"}
       aria-label={thumb ? undefined : `Page ${n}`}
       data-page={thumb ? undefined : n}
-      className="relative w-full overflow-hidden bg-background"
+      className={cn("relative w-full overflow-hidden bg-background", slide && "pf-paged-slide")}
       style={{ aspectRatio: `${size.w} / ${size.h}` }}
     >
       {failed && (

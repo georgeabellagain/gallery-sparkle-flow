@@ -536,3 +536,22 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Simple uses original PDF colours. Existing zoom, pan, Scroll 130% default and book-turn path remain in place. This iteration lights stationary pages; it does not add 3D foldout animation to Scroll/Page by page.
 - Validation: TypeScript, production build and three render-queue tests (ordering, failure recovery and closure). Actual HDRI visual matching and browser switching/link verification remain outstanding because the available browser disables WebGL.
 - Review branch only; not merged or published.
+
+## Iteration 46 — move pages through live Studio light
+
+- Replace Iteration 45’s prelit page snapshots with one visible Three.js surface for Scroll and Page by page. Cache original PDF artwork; keep HDRI/projected light fixed in the reader while meshes follow page scrolling, sliding and drag panning.
+- Add a short Page by page slide with reduced-motion support. Keep text selection and PDF links above the live artwork; preserve Simple colours and readable source pages if graphics fail.
+- Allocate textures only for nearby pages, coalesce movement updates, stop rendering while idle, use a smaller drawing budget during motion and restore detail once movement ends. Dispose observers, textures and the graphics context on reader changes/unmount.
+- Validation: TypeScript, production build and three page-position tests covering centring, movement through fixed light coordinates and whole-reader positioning. Actual GPU appearance/performance needs device verification: the available public-site browser reports WebGL unavailable.
+- Review branch; not merged or published.
+
+## Iteration 47 — restrained presentation polish
+
+- Review the public homepage, feature showcase, pricing, PDF checker and footer, and shared presentation code. Preserve the established white gallery canvas, typography and PDF-based demonstrations.
+- Share one plan-card component between the homepage and Pricing: larger standalone prices, quieter monthly/yearly details, aligned full-width actions, more legible feature spacing and a recommendation badge that wraps safely on narrow cards.
+- Give the homepage pricing section a clearer heading and short introduction. Replace the native disclosure triangle with a consistent rotating chevron in the profession navigation; retain Escape closing and keyboard focus.
+- Style the PDF checker’s file-selection control with the existing button colours, a rounded card and visible selected-file text; keep its native input and local-only processing.
+- Existing global keyboard focus styling was already present and remains in use. No new images, paid services or dependencies.
+- Validation: TypeScript and production build. Live visual review covered the existing desktop site; the new layout and GPU effects still need preview/device visual sign-off.
+- Next: verify live lighting and responsive plan layout on a WebGL-capable desktop and phone before release.
+- Review branch; not merged or published.
