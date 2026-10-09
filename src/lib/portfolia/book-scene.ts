@@ -1,4 +1,5 @@
 import { dappleTexture } from "./dapple-light";
+import { bookSurfaceRatio } from "./render-budget";
 import { createBookNotes } from "./book-notes";
 import { pageRelief } from "./page-relief";
 import { createBookTabs } from "./book-tabs";
@@ -384,8 +385,13 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     mat.map = canvas ? textureFor(canvas) : placeholder;
     mat.emissiveMap = settings.studio ? null : mat.map;
   };
+  let pendingDragShape: (() => void) | null = null;
   const paint = () => {
-    if (!disposed) renderer.render(scene, camera);
+    if (disposed) return;
+    const update = pendingDragShape;
+    pendingDragShape = null;
+    update?.();
+    renderer.render(scene, camera);
   };
   /** Coalesces rapid pointer input into at most one render per frame. */
   const requestPaint = () => {
@@ -428,8 +434,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const w = Math.max(1, host.clientWidth);
     const h = Math.max(1, host.clientHeight);
     // A big window gets a slightly lower pixel density rather than a surface too large for the graphics card.
-    const fit = Math.sqrt((compact ? MAX_SURFACE_PIXELS_SMALL : MAX_SURFACE_PIXELS) / (w * h));
-    const next = Math.max(1, Math.min(pixelRatio, fit));
+    // CSS pixels are not a minimum: a 4K fullscreen canvas must still obey
+    // the GPU budget. Preserve HD page textures independently of this surface.
+    const next = bookSurfaceRatio(w, h, pixelRatio, compact ? MAX_SURFACE_PIXELS_SMALL : MAX_SURFACE_PIXELS);
     if (Math.abs(next - appliedRatio) > 1e-6) {
       appliedRatio = next;
       renderer.setPixelRatio(next);
@@ -683,17 +690,17 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let slowFrames = 0;
   const watchSpeed = (frameMs: number) => {
     slowFrames = frameMs > 30 ? slowFrames + 1 : Math.max(0, slowFrames - 1);
-    if (slowFrames < 6 || qualityDrops >= 3 || appliedRatio <= 1) return;
+    if (slowFrames < 6 || qualityDrops >= 3 || pixelRatio <= 0.65) return;
     slowFrames = 0;
     // Resizing the drawing surface is itself a hitch, so it waits until the turn is over (see applyPendingQuality).
     qualityPending = true;
   };
   let qualityPending = false;
   const applyPendingQuality = () => {
-    if (!qualityPending || qualityDrops >= 3 || appliedRatio <= 1) return;
+    if (!qualityPending || qualityDrops >= 3 || pixelRatio <= 0.65) return;
     qualityPending = false;
     qualityDrops += 1;
-    pixelRatio = Math.max(1, appliedRatio * 0.8);
+    pixelRatio = Math.max(0.65, pixelRatio * 0.8);
     resize();
   };
   /** The most a turn advances in one frame, however slow that frame was. */
@@ -944,10 +951,12 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const turn = draggedTurn;
       if (!turn || disposed) return;
       turn.progress = THREE.MathUtils.clamp(progress, 0, 1);
-      shape(turn.progress, turn.dir);
+      // Coalesce geometry and normal updates as well as the actual draw.
+      pendingDragShape = () => shape(turn.progress, turn.dir);
       requestPaint();
     },
     async settleTurn(complete: boolean) {
+      pendingDragShape = null;
       const turn = draggedTurn;
       if (!turn || disposed) return;
       const { from, to, dir, destinationFocus, originalFocus, speed } = turn;

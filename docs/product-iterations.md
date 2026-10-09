@@ -459,3 +459,15 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Pair the HDR environments with an actual foliage-pattern spotlight so patches of direct light fall on moving pages and scrapbook notes. Only one key light casts shadows per preset.
 - Validation: TypeScript, production build, regression suite and decoding/finite-value checks for both bundled HDRIs. No browser frame-rate benchmark or visual lighting sign-off is claimed.
 - Review branch only; not merged or published.
+
+
+## Iteration 37 — quiet loading, single mobile turns and fullscreen budgets
+
+- Enable the existing monochrome book loader throughout the portfolio viewer, with an accessible loading label and reduced-motion support. Keep the current homepage text removal; fix its missing carousel loader import.
+- Keep the book hidden until readiness rather than exposing it after a 20-second timeout. Forward render failures into the visible viewer error state.
+- Exclude buttons, links and scrapbook notes from the viewport swipe handler, reset cancelled touches, and verify release distance before recognising a tap. This prevents pointer drags also becoming swipes/taps on release.
+- Enforce the drawing-surface pixel budget on 4K/fullscreen screens, including ratios below one CSS pixel. Permit measured slow-device adjustment below 1x while preserving HD PDF source textures and lighting.
+- Coalesce drag mesh deformation and normal recalculation into the next screen frame, using the latest pointer position.
+- Retain memory-bounded preloading: prepare the pages that fit and upload each turn's textures before animation. Unbounded full-document HD rasterisation risks exhausting phone memory and cannot solve lighting fill-rate costs.
+- Validation: TypeScript, production build and 54 regression tests, including large fullscreen budgets and adaptive reduction below 1x. Actual phone gesture and frame-rate verification remain outstanding; no guarantee of universally smooth animation.
+- Draft review PR only; not merged or published.

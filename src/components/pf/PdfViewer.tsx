@@ -25,7 +25,7 @@ const noop = () => {};
  * The page-turning loading icon, and holding the portfolio back until it has rendered. Switched off for now:
  * the viewer shows its pages as they are ready, with a simple "Loading" note. Switch this on to bring it back.
  */
-const SHOW_LOADER = false;
+const SHOW_LOADER = true;
 
 const MODES = [
   ["scroll", "Scroll", ScrollText],
@@ -138,6 +138,7 @@ export function PdfViewer({
     setContentReady(ready);
     onBookReadyChange?.(ready);
   }, [onBookReadyChange]);
+  const bookRenderError = useCallback((message: string) => setError(message), []);
   useEffect(() => { if (error) onLoadError?.(error); }, [error, onLoadError]);
   const rootRef = useRef<HTMLDivElement>(null);
   const clusterRef = useRef<HTMLDivElement>(null);
@@ -397,7 +398,7 @@ export function PdfViewer({
     setContentReady(false);
   }, [mode, source]);
   useEffect(() => {
-    if (contentReady || !doc || onContentReadyChange) return;
+    if (contentReady || !doc || mode === "book" || onContentReadyChange) return;
     // Safety net: never leave a visitor staring at the loader if something cannot finish.
     const t = setTimeout(() => setContentReady(true), 20000);
     return () => clearTimeout(t);
@@ -590,7 +591,7 @@ export function PdfViewer({
       ) : (
         <div className={cn("transition-opacity duration-300", shownReady ? "opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!shownReady}>
       {mode === "book" ? (
-        <BookView demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={onLoadError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} />
+        <BookView demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} />
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div className="overflow-x-auto">
@@ -640,7 +641,7 @@ export function PdfViewer({
           {/* Pinned in view, so it is centred on screen even when the (hidden) pages below are very tall. */}
           <div className="sticky top-0 flex h-[100svh] max-h-full items-center justify-center">
             {/* Small covers (the library) show just the little book, without words. */}
-            <BookLoader tone={tone} label={compact && !controls ? "" : undefined} detail={!doc && progress > 0 && progress < 100 ? `${progress}%` : undefined} />
+            <BookLoader tone={tone} label="" />
           </div>
         </div>
       )}
