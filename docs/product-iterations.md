@@ -520,3 +520,9 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Give Scroll a bounded reader viewport so both axes can be panned; use safe centring in Page by page so enlarged page edges remain reachable.
 - Validation: TypeScript and production build. Browser input and layout verification remains outstanding.
 - Review branch only; not merged or published.
+
+## Iteration 44 — larger default Scroll pages
+
+- Start Scroll at the existing 130% size on initial load and when switching into that reading mode. Reset zoom returns to this new default; zoom out to 100% and 5% toolbar steps remain available.
+- Other reading modes start at 100%, so Scroll's larger default does not carry into the flipbook or Page by page.
+- Validation: TypeScript and production build. Merge requested by the user; publication not requested.
