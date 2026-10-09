@@ -42,9 +42,11 @@ export function registerPublicUrls(urls: Record<string, string>) {
   for (const [k, v] of Object.entries(urls)) publicUrls.set(k, v);
 }
 
-export async function uploadToCloud(key: string, blob: Blob): Promise<void> {
-  if (!cloudUser) return;
-  const { error } = await supabase.storage.from(BUCKET).upload(`${cloudUser}/${key}`, blob, { upsert: true, contentType: blob.type || undefined });
+export async function uploadToCloud(key: string, blob: Blob, expectedUser = cloudUser): Promise<void> {
+  if (expectedUser !== cloudUser) throw new Error("Your account changed. Please reload before saving.");
+  if (!expectedUser) return;
+  const { error } = await supabase.storage.from(BUCKET).upload(`${expectedUser}/${key}`, blob, { upsert: true, contentType: blob.type || undefined });
+  if (expectedUser !== cloudUser) throw new Error("Your account changed. Please reload before saving.");
   if (error) throw new Error("Couldn’t upload the file. Please check your connection and try again.");
 }
 

@@ -27,7 +27,7 @@ function PrivacyPage() {
   return (
     <LegalPage>
       <h1 className="display-title text-3xl">Privacy Notice</h1>
-      <p className="text-xs text-muted-foreground">Last updated 6 October 2026</p>
+      <p className="text-xs text-muted-foreground">Last updated 9 October 2026</p>
 
       <p>
         This notice explains how personal data is handled when you use Portfolia at
@@ -49,7 +49,7 @@ function PrivacyPage() {
         </li>
         <li>
           <strong>Usage data:</strong> visit counts, estimated unique visitors, download
-          clicks, IP address, and device and browser information.
+          clicks, a random visitor identifier stored in your browser, IP address, and device and browser information.
         </li>
         <li>
           <strong>Support messages:</strong> anything you send us when asking for help.
@@ -130,9 +130,8 @@ function PrivacyPage() {
 
       <h2>Cookies</h2>
       <p>
-        Portfolia uses only the essential cookies and browser storage needed to keep
-        you signed in, remember your work and retain access to a portfolio you have unlocked. There are no analytics or advertising
-        cookies. You can clear cookies and site data in your browser settings at any
+        Portfolia uses cookies and browser storage to keep
+        you signed in, remember your work and retain access to a portfolio you have unlocked. A random identifier in browser storage helps estimate unique portfolio visitors; it does not identify you by name. There are no advertising cookies. You can clear cookies and site data in your browser settings at any
         time.
       </p>
 

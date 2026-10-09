@@ -15,7 +15,7 @@ export const Route = createFileRoute("/pricing")({
       {
         name: "description",
         content:
-          "Portfolia pricing: host one PDF portfolio free with a sharing link and QR code, or choose Personal for more portfolios, a CV and a personalised address.",
+          `Free PDF portfolio hosting with Simple and Studio flipbooks, QR codes and embedding. Personal is ${PRICE.month}/month or ${PRICE.year}/year for more portfolios and privacy controls.`,
       },
       { property: "og:title", content: "Pricing — Portfolia PDF Portfolio Hosting" },
       {
