@@ -120,7 +120,7 @@ export function PdfViewer({
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(startMode === "scroll" ? 1.3 : 1);
   const [current, setCurrent] = useState(1);
   const [nativeFull, setNativeFull] = useState(false);
   // Where the browser cannot take a page full screen (iPhone Safari cannot), the viewer fills the window itself.
@@ -383,7 +383,7 @@ export function PdfViewer({
     });
   }, [compact, offersBook]);
   useEffect(() => {
-    setZoom((value) => Math.max(1, value));
+    setZoom(mode === "scroll" ? 1.3 : 1);
   }, [mode]);
   useEffect(() => {
     if (!total) return;
@@ -582,7 +582,7 @@ export function PdfViewer({
                 </IconButton>
               )}
               {doc && (
-                <button type="button" onClick={() => setZoom(1)} aria-label="Reset zoom" className={cn("hidden w-10 rounded-full py-1 text-center text-[11px] tabular-nums transition-colors sm:inline", quiet, tone === "dark" ? "hover:text-white" : "hover:text-black")}>
+                <button type="button" onClick={() => setZoom(mode === "scroll" ? 1.3 : 1)} aria-label="Reset zoom" className={cn("hidden w-10 rounded-full py-1 text-center text-[11px] tabular-nums transition-colors sm:inline", quiet, tone === "dark" ? "hover:text-white" : "hover:text-black")}>
                   {Math.round(zoom * 100)}%
                 </button>
               )}
