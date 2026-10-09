@@ -84,11 +84,6 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
     if (!looks.length) return;
     setViewer({ looks, look: looks.includes(viewer.look) ? viewer.look : looks[0]! });
   };
-  // If Flipbook is switched off while one of its looks was being previewed, the preview lets go.
-  const flipbookOn = enabledModes.includes("book");
-  useEffect(() => {
-    if (!flipbookOn) setPreviewLook(null);
-  }, [flipbookOn]);
   const shadowOn = viewer.simpleShadow ?? true;
   const shadowOpacity = viewer.simpleShadowOpacity ?? DEFAULT_SIMPLE_SHADOW_OPACITY;
   const studioBrightness = viewer.studioBrightness ?? 0.5;
@@ -199,8 +194,8 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
           <label className="flex items-center justify-between gap-3"><span>Show profile icon</span><input type="checkbox" checked={viewer.showHeader} onChange={(e) => setViewer({ showHeader: e.target.checked })} /></label>
           </div>}
           {(showLook || showBackground) && <div className="space-y-3">
-          {showLook && !enabledModes.includes("book") && part === "look" && <p className="text-muted-foreground">Turn on Flipbook under Reading to choose how the book looks.</p>}
-          {showLook && enabledModes.includes("book") && (
+          
+          {showLook && (
             <div
               ref={flipbookBox}
               className="space-y-3 rounded-xl border border-border p-3"
@@ -208,7 +203,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
                 if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setPreviewLook(null);
               }}
             >
-              <p className="font-medium">Flipbook appearance</p>
+              <p className="font-medium">Page appearance</p>
               <div className="flex flex-wrap gap-x-5 gap-y-2" onPointerDownCapture={() => setPreviewLook(null)}>
                 {([["clean", "Simple"], ["studio", "Studio"]] as const).map(([look, label]) => (
                   <label key={look} className="flex items-center gap-2">

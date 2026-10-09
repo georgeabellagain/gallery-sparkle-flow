@@ -266,6 +266,7 @@ export function BookView({
   autoTurnDelay = 3200,
   fullSpread = false,
   previewable,
+  onLookChange,
   demoNotes = false,
   demoTurnDurationScale = 1,
   lightweight = false,
@@ -302,6 +303,7 @@ export function BookView({
   fullSpread?: boolean;
   /** The editor's preview: it shows the look whose settings are being edited. */
   previewable?: boolean;
+  onLookChange?: (look: "clean" | "studio") => void;
   demoNotes?: boolean;
   /** Presentation-only timing; normal readers retain their existing pace. */
   demoTurnDurationScale?: number;
@@ -929,7 +931,7 @@ export function BookView({
   }, [move, immersive, fullscreen]);
   const enabledLooks = viewer.looks?.length ? viewer.looks : [viewer.look];
   offersBoth.current = enabledLooks.length > 1;
-  const updateLook = (look: "clean" | "studio") => setSettings((current) => ({ ...current, studio: look === "studio" }));
+  const updateLook = (look: "clean" | "studio") => { setSettings((current) => ({ ...current, studio: look === "studio" })); onLookChange?.(look); };
 
   // Tell the viewer when the book is rendered and ready, so it can show nothing but a loader until then.
   useEffect(() => { if (error) onRenderError?.(error); }, [error, onRenderError]);

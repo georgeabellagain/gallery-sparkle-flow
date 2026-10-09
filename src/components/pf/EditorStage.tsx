@@ -45,7 +45,6 @@ export function EditorBar({
   const [look, setLook] = useState<PreviewLook | null>(getPreviewLook());
   useEffect(() => subscribePreviewLook(setLook), []);
   useEffect(() => () => pinPreviewLook(null), []);
-  const hasBook = (viewer.modes?.length ? viewer.modes : ["scroll", "paged", "book"]).includes("book");
   const shown: PreviewLook = look ?? viewer.look;
   return (
     <header className="relative z-20 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-3 sm:px-5">
@@ -58,10 +57,10 @@ export function EditorBar({
           <span className="size-1.5 rounded-full bg-current opacity-60" aria-hidden />
           {status}
         </span>
-        {hasBook && (
+        {(
           <div className="hidden w-44 rounded-full bg-muted p-0.5 sm:block">
             <Segmented
-              label="Preview the book in"
+              label="Preview appearance"
               value={shown}
               options={[["clean", "Simple"], ["studio", "Studio"]] as const}
               onChange={(value) => pinPreviewLook(value)}

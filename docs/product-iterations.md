@@ -526,3 +526,13 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Start Scroll at the existing 130% size on initial load and when switching into that reading mode. Reset zoom returns to this new default; zoom out to 100% and 5% toolbar steps remain available.
 - Other reading modes start at 100%, so Scroll's larger default does not carry into the flipbook or Page by page.
 - Validation: TypeScript and production build. Merge requested by the user; publication not requested.
+
+## Iteration 45 — Studio appearance across reading modes
+
+- Stop changing reading mode when the editor's Simple/Studio preview changes. Share the selected appearance between Flipbook, Scroll and Page by page while respecting visitor appearance permissions; the editor can preview both.
+- Offer appearance controls without requiring Flipbook to be enabled. Keep editor toolbar and reader appearance switches in step.
+- Add a lazy, shared offscreen Three.js renderer for stationary PDF pages, using the same HDRI sources, brightness exposure, paper properties and projected leaf/window lighting as the book. Render each page once into a normal 2D canvas; preserve existing selectable text and clickable links above it.
+- Serialize page lighting, reuse environments/materials, skip obsolete page requests, limit snapshot pixels and release the GPU context on mode/appearance changes or unmount. Fall back to readable original artwork when graphics or lighting fail.
+- Simple uses original PDF colours. Existing zoom, pan, Scroll 130% default and book-turn path remain in place. This iteration lights stationary pages; it does not add 3D foldout animation to Scroll/Page by page.
+- Validation: TypeScript, production build and three render-queue tests (ordering, failure recovery and closure). Actual HDRI visual matching and browser switching/link verification remain outstanding because the available browser disables WebGL.
+- Review branch only; not merged or published.

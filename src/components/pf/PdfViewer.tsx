@@ -9,13 +9,15 @@ import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { cn } from "@/lib/utils";
 import { BookView } from "@/components/pf/BookView";
 import { Progress } from "@/components/ui/progress";
-import { subscribePreviewLook } from "@/lib/portfolia/preview-look";
+import { getPreviewLook, pinPreviewLook, subscribePreviewLook } from "@/lib/portfolia/preview-look";
 import { isTouchDevice } from "@/lib/portfolia/scan";
 import { useTouchGestures } from "@/components/pf/touch-gestures";
 import { BookLoader } from "@/components/pf/book-loader";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 import { backgroundColour, fitTransform } from "@/lib/portfolia/background";
-import { IconButton, LogoMark, Panel, iconClass, useDismiss, useTone } from "@/components/pf/viewer-ui";
+import { IconButton, LogoMark, Panel, Segmented, iconClass, useDismiss, useTone } from "@/components/pf/viewer-ui";
+
+import type { PageStudioRenderer, PageStudioSettings } from "@/lib/portfolia/page-studio";
 
 type Source = { blob: Blob } | { url: string };
 
@@ -364,24 +366,36 @@ export function PdfViewer({
   };
 
   useEffect(() => setMode(startMode), [startMode]);
-  // In the editor, working on the flipbook's options brings the flipbook up in the preview, and going away returns to the mode before.
-  const modeBefore = useRef<"scroll" | "paged" | "book" | null>(null);
-  const offersBook = availableModes.includes("book");
+  const enabledLooks = view.looks?.length ? view.looks : [view.look];
+  const [selectedLook, setSelectedLook] = useState(view.look);
+  const [previewLook, setPreviewLook] = useState(() => compact ? getPreviewLook() : null);
+  useEffect(() => { setSelectedLook(view.look); }, [view.look]);
   useEffect(() => {
-    if (!compact || !offersBook) return;
-    return subscribePreviewLook((look) => {
-      if (look) {
-        setMode((current) => {
-          if (current !== "book") modeBefore.current = current;
-          return "book";
-        });
-      } else if (modeBefore.current) {
-        const back = modeBefore.current;
-        modeBefore.current = null;
-        setMode(back);
-      }
-    });
-  }, [compact, offersBook]);
+    if (!compact) return;
+    setPreviewLook(getPreviewLook());
+    return subscribePreviewLook(setPreviewLook);
+  }, [compact]);
+  const requestedLook = previewLook ?? selectedLook;
+  const activeLook = compact || enabledLooks.includes(requestedLook) ? requestedLook : enabledLooks[0]!;
+  const changeLook = (look: "clean" | "studio") => { setSelectedLook(look); if (compact) pinPreviewLook(look); };
+  const studio = activeLook === "studio";
+  const [pageLighting, setPageLighting] = useState<PageStudioRenderer | null>(null);
+  useEffect(() => {
+    setPageLighting(null);
+    if (!studio || mode === "book") return;
+    let cancelled = false;
+    let renderer: PageStudioRenderer | null = null;
+    void import("@/lib/portfolia/page-studio").then(module => {
+      if (cancelled) return;
+      renderer = module.createPageStudioRenderer();
+      setPageLighting(renderer);
+    }).catch(() => { /* WebGL unavailable: retain readable source pages. */ });
+    return () => { cancelled = true; renderer?.dispose(); };
+  }, [studio, mode === "book"]);
+  const pageStudio = useMemo<PageStudioSettings | null>(() => studio ? {
+    hdri: view.studioLighting ?? "4", brightness: view.studioBrightness ?? .5,
+    finish: view.finish === "textured" ? "textured" : "satin",
+  } : null, [studio, view.studioLighting, view.studioBrightness, view.finish]);
   useEffect(() => {
     setZoom(mode === "scroll" ? 1.3 : 1);
   }, [mode]);
@@ -663,7 +677,7 @@ export function PdfViewer({
       ) : (
         <div className={cn("transition-opacity duration-300", shownReady ? "opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!shownReady}>
       {mode === "book" ? (
-        <BookView demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} />
+        <BookView demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...view, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} />
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ cursor: zoom > 1 ? "grab" : undefined }}>
@@ -673,7 +687,7 @@ export function PdfViewer({
             >
               {sizes[current - 1] && (
                 <div className="shrink-0" style={{ width: `calc(min(100%, max(1px, calc((${pagedHeight} - ${topGap + 24}px) * ${sizes[current - 1]!.w / sizes[current - 1]!.h}))) * ${zoom})` }}>
-                <PdfPage key={current} doc={doc} n={current} size={sizes[current - 1]!} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
+                <PdfPage key={current} doc={doc} n={current} size={sizes[current - 1]!} lighting={pageLighting} studio={pageStudio} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
                 </div>
               )}
             </div>
@@ -692,11 +706,17 @@ export function PdfViewer({
             style={{ paddingTop: topGap, width: `calc(min(100%, ${compact ? 900 : 1100}px) * ${zoom})` }}
           >
             {sizes.map((s, i) => (
-              <PdfPage key={i} doc={doc} n={i + 1} size={s} zoom={zoom} onVisible={setCurrent} onRendered={i === 0 ? markReady : undefined} />
+              <PdfPage key={i} doc={doc} n={i + 1} size={s} lighting={pageLighting} studio={pageStudio} zoom={zoom} onVisible={setCurrent} onRendered={i === 0 ? markReady : undefined} />
             ))}
           </div>
         </div>
       )}
+        </div>
+      )}
+
+      {mode !== "book" && enabledLooks.length > 1 && showControls && (
+        <div className="absolute bottom-1.5 right-1.5 z-30 w-36 rounded-full bg-background/90 shadow-soft backdrop-blur">
+          <Segmented label="Page appearance" value={activeLook} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={changeLook} />
         </div>
       )}
 
@@ -790,7 +810,11 @@ function PdfPage({
   eager,
   thumb,
   onRendered,
+  lighting,
+  studio,
 }: {
+  lighting?: PageStudioRenderer | null;
+  studio?: PageStudioSettings | null;
   thumb?: boolean;
   /** Called once the page has been drawn, so the viewer knows when it can show it. */
   onRendered?: () => void;
@@ -894,7 +918,13 @@ function PdfPage({
           links.append(link);
         }
         if (cancelled) return;
-        el.replaceChildren(canvas, text, links);
+        let artwork = canvas;
+        if (studio && lighting) {
+          try { artwork = await lighting.draw(canvas, studio, () => !cancelled); }
+          catch { /* Keep original colours/readability if lighting fails. */ }
+        }
+        if (cancelled) return;
+        el.replaceChildren(artwork, text, links);
         el.style.setProperty("--scale-factor", String(scale));
         el.style.setProperty("--total-scale-factor", String(scale));
         rendered.current?.();
@@ -909,7 +939,7 @@ function PdfPage({
       cancelled = true;
       task?.cancel();
     };
-  }, [near, doc, n, size.w, zoom, renderWidth]);
+  }, [near, doc, n, size.w, zoom, renderWidth, lighting, studio]);
 
   return (
     <div
