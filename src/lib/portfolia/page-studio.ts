@@ -100,7 +100,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
         if (old) release(old);
         const presentation = job.commit(true);
         const slide = presentation?.animate ? { started: performance.now(), direction: presentation.direction } : old?.slide;
-        const page: Page = { layer: presentation?.layer ?? old?.layer, slide, element, source: job.source, near: old?.near ?? true, mesh: null, revealAt: old || window.matchMedia("(prefers-reduced-motion: reduce)").matches ? null : performance.now() };
+        const page: Page = { layer: presentation?.layer ?? old?.layer, slide, element, source: job.source, near: old?.near ?? false, mesh: null, revealAt: old || window.matchMedia("(prefers-reduced-motion: reduce)").matches ? null : performance.now() };
         pages.set(element, page); observer.observe(element); resize.observe(element);
         for (const animation of element.getAnimations()) animations.add(animation);
       });
@@ -126,8 +126,11 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       const lit: Page[] = [];
       let revealing = false;
       for (const page of pages.values()) {
-        if (!page.near || !page.element.isConnected) { release(page, false); continue; }
+        if (!page.element.isConnected) { release(page, false); continue; }
         const rect = page.element.getBoundingClientRect();
+        const visible = rect.bottom > box.top && rect.top < box.bottom && rect.right > box.left && rect.left < box.right;
+        // Fast scrolling may reach a page before IntersectionObserver reports it.
+        if (!page.near && !visible) { release(page, false); continue; }
         if (!rect.width || !rect.height) { release(page, false); continue; }
         if (!page.mesh) {
           const texture = new THREE.CanvasTexture(page.source);
@@ -160,7 +163,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
         if (page.layer) page.layer.style.transform = pixels ? `translateX(${pixels}px)` : "";
         page.mesh.position.set(position.x + readerSlideOffset(elapsed, position.width, direction), position.y, 0);
         page.mesh.scale.set(position.width, position.height, 1);
-        page.mesh.visible = rect.bottom > box.top && rect.top < box.bottom && rect.right > box.left && rect.left < box.right;
+        page.mesh.visible = visible;
         if (page.mesh.visible) lit.push(page);
         else conceal(page);
       }
