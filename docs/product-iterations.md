@@ -620,6 +620,8 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 
 ## Iteration 53 — smoother flat readers and fullscreen editing
 
+- Merged through PR #36 and published on 9 October 2026.
+
 - Restore Scroll's opening, mode-switch and reset zoom to 100%; retain the 5% toolbar increments and zoomed drag-to-pan.
 - Move Simple / Studio to the bottom left in all reading modes. Size its frame to the buttons, remove empty trailing space and keep the mobile editing dock/panel above it. Remove the extra Scroll credit padding that pushed bottom controls outside the preview.
 - Simplify Scroll/Page by page paper to standard HDRI-lit material without the clearcoat shader or satin bump texture. Keep textured-paper bumps, direct window/dapple light and moving sheets through fixed lighting. PDF artwork dimensions and texture anisotropy remain unchanged.
@@ -627,3 +629,14 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Fullscreen from the editor now expands the entire editing stage, including the draggable dock and settings panels. Support native/Safari and in-page fallback; resize/reclamp the dock and preserve changes when exiting. Scrapbook dialogs stay inside the fullscreen stage.
 - Validation: TypeScript, production build and 16 focused fullscreen/cache/readiness/transition/render-budget tests. The available browser disables WebGL, so actual GPU smoothness still needs device verification.
 - Merge and publication requested after checks.
+
+## Iteration 54 — prepare once, navigate from ready artwork
+
+- Page by page now prepares complete HD artwork, selectable text and clickable links together. Prefetch the next two pages and previous page after the current slide; visits at the same size/device pixel ratio reuse completed results rather than rendering the PDF again.
+- Deduplicate concurrent requests from navigation and prefetch. Bound the completed artwork cache to 48 MB on lower-memory devices and 96 MB otherwise; evict least recently used entries, retry failed preparation, and keep oversized pages readable without retaining them in the cache. Live artwork remains independent of cached masters.
+- Run up to two PDF page preparations concurrently in Scroll, retaining its whole-document preparation gate. Artwork, text and annotations are prepared together; original canvas resolution, selectable text, links and real-time Studio lighting remain intact.
+- Read PDF page dimensions with four bounded workers and sample native image density with two. Preserve every existing sample and the same highest native-detail result. Import the PDF library and worker URL together.
+- Start Flipbook's selected HDRI/shader preparation while the PDF pages are being prepared, rather than starting the selected lighting after them. Prepare link icons, note fonts and note images together. A graphics recovery uses the latest appearance settings.
+- No additional services or dependencies, no compression/resolution reductions. Large PDFs still incur an initial download and complete Scroll preparation; this change cannot guarantee a device-independent frame rate.
+- Validation: TypeScript, production build and 18 focused regression tests, including preparation deduplication, cache eviction, retry, bounded parallelism, unchanged density sampling, readiness, cancelled/stale frame commits and slide offsets. Real-device GPU/frame-time and network measurements remain outstanding because the available browser disables WebGL.
+- Review branch; not merged or published. Next: real-device profiling of fullscreen turns and long Scroll documents, then tune only bottlenecks demonstrated by those measurements.
