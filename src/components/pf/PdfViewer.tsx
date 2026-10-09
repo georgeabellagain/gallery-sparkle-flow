@@ -260,7 +260,7 @@ export function PdfViewer({
   modeLive.current = mode;
   const [jump, setJump] = useState<{ page: number; t: number } | null>(null);
   const z = (d: number) => setZoom((v) => Math.min(3, Math.max(1, Math.round((v + d) * 100) / 100)));
-  const zoomStep = mode === "scroll" ? 0.1 : 0.25;
+  const zoomStep = mode === "scroll" ? 0.05 : 0.25;
   const total = doc?.numPages ?? 0;
   const sections = useMemo(() => readableProjects(projects, total), [projects, total]);
   const go = (d: number) => setCurrent((c) => Math.min(total, Math.max(1, c + d)));
@@ -275,8 +275,57 @@ export function PdfViewer({
   // Page by page on a touch screen: tap the left or right to turn that way, and pinch to zoom the page.
   // (The page scrolls up and down only at normal size, so a pinch is never mistaken for a sideways scroll; once zoomed in it moves every way.)
   const pagedRef = useRef<HTMLDivElement>(null);
+  const panRef = useRef<HTMLDivElement>(null);
   const zoomLive = useRef(zoom);
   zoomLive.current = zoom;
+  useEffect(() => {
+    const el = panRef.current;
+    if (!el || !doc || mode === "book" || zoom <= 1) return;
+    let drag: { id: number; x: number; y: number; left: number; top: number } | null = null;
+    let moved = false;
+    const down = (event: PointerEvent) => {
+      if (event.pointerType !== "mouse" || event.button !== 0) return;
+      moved = false;
+      if ((event.target as Element).closest("a,button,input,select,textarea")) return;
+      drag = { id: event.pointerId, x: event.clientX, y: event.clientY, left: el.scrollLeft, top: el.scrollTop };
+      el.setPointerCapture(event.pointerId);
+      el.style.cursor = "grabbing";
+      event.preventDefault();
+    };
+    const move = (event: PointerEvent) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
+      if (Math.hypot(dx, dy) > 4) moved = true;
+      if (!moved) return;
+      event.preventDefault();
+      el.scrollLeft = drag.left - dx;
+      el.scrollTop = drag.top - dy;
+    };
+    const end = (event: PointerEvent) => {
+      if (!drag || event.pointerId !== drag.id) return;
+      if (el.hasPointerCapture(drag.id)) el.releasePointerCapture(drag.id);
+      drag = null;
+      el.style.cursor = "grab";
+    };
+    const click = (event: MouseEvent) => {
+      if (!moved) return;
+      moved = false;
+      event.preventDefault(); event.stopPropagation();
+    };
+    el.addEventListener("pointerdown", down);
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", end);
+    el.addEventListener("pointercancel", end);
+    el.addEventListener("lostpointercapture", end);
+    el.addEventListener("click", click, true);
+    return () => {
+      if (drag && el.hasPointerCapture(drag.id)) el.releasePointerCapture(drag.id);
+      el.removeEventListener("pointerdown", down); el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", end); el.removeEventListener("pointercancel", end);
+      el.removeEventListener("lostpointercapture", end); el.removeEventListener("click", click, true);
+      el.style.cursor = "";
+    };
+  }, [mode, doc, zoom > 1]);
   useEffect(() => {
     const el = pagedRef.current;
     if (mode !== "paged" || !doc || !el) return;
@@ -617,10 +666,10 @@ export function PdfViewer({
         <BookView demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={view} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} />
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
-          <div className="h-full overflow-auto">
+          <div ref={panRef} className="h-full overflow-auto" style={{ cursor: zoom > 1 ? "grab" : undefined }}>
             <div
               className="flex min-h-full items-center justify-center px-3 sm:px-8"
-              style={{ paddingTop: topGap, paddingBottom: 24 }}
+              style={{ paddingTop: topGap, paddingBottom: 24, alignItems: "safe center", justifyContent: "safe center" }}
             >
               {sizes[current - 1] && (
                 <div className="shrink-0" style={{ width: `calc(min(100%, max(1px, calc((${pagedHeight} - ${topGap + 24}px) * ${sizes[current - 1]!.w / sizes[current - 1]!.h}))) * ${zoom})` }}>
@@ -637,10 +686,10 @@ export function PdfViewer({
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto" style={{ touchAction: "pan-x pan-y pinch-zoom" }}>
+        <div ref={panRef} className="overflow-auto" style={{ height: pagedHeight, cursor: zoom > 1 ? "grab" : undefined, touchAction: "pan-x pan-y pinch-zoom" }}>
           <div
             className={cn("mx-auto flex flex-col gap-4 pb-6", compact ? "px-3" : "px-3 sm:px-8")}
-            style={{ paddingTop: topGap, width: `${zoom * 100}%`, maxWidth: zoom <= 1 ? (compact ? 900 : 1100) : undefined, minWidth: zoom > 1 ? `${zoom * 100}%` : undefined }}
+            style={{ paddingTop: topGap, width: `calc(min(100%, ${compact ? 900 : 1100}px) * ${zoom})` }}
           >
             {sizes.map((s, i) => (
               <PdfPage key={i} doc={doc} n={i + 1} size={s} zoom={zoom} onVisible={setCurrent} onRendered={i === 0 ? markReady : undefined} />

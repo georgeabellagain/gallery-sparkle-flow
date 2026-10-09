@@ -512,3 +512,11 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Lighting 5–8 now use the same soft directional shadow as Lighting 1–4. Keep the sunlight projector for page highlights but disable its hard backdrop shadow; retain one shadow-casting light.
 - Validation: TypeScript and production build. Final editor layout and wheel behaviour need browser visual/input verification.
 - Review branch only; not merged or published.
+
+## Iteration 43 — gradual Scroll zoom and drag panning
+
+- Keep Scroll's fitted 900/1100px baseline when zooming rather than removing its width cap at the first zoom step. Reduce toolbar increments to 5%.
+- Add mouse click-and-drag panning above 100% in Scroll and Page by page, with pointer capture/cancellation, drag-release click suppression and interactive element exclusions.
+- Give Scroll a bounded reader viewport so both axes can be panned; use safe centring in Page by page so enlarged page edges remain reachable.
+- Validation: TypeScript and production build. Browser input and layout verification remains outstanding.
+- Review branch only; not merged or published.
