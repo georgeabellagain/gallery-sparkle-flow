@@ -9,7 +9,7 @@ import { PdfViewer } from "@/components/pf/PdfViewer";
 import { Button } from "@/components/ui/button";
 import { deleteBlob, formatBytes } from "@/lib/portfolia/assets";
 import { deletePortfolio, patchPortfolio, replacePdf, uploadLimitMb, useDoc, type PdfFile } from "@/lib/portfolia/store";
-import { retrySync, useSyncStatus } from "@/lib/portfolia/cloud";
+import { markPortfolioDeleted, retrySync, useSyncStatus } from "@/lib/portfolia/cloud";
 
 export const Route = createFileRoute("/edit")({
   staticData: { sitemap: false },
@@ -72,7 +72,7 @@ function EditPortfolio() {
       </Modal>
       <Modal open={dialog === "delete"} onClose={() => setDialog(null)} title="Delete portfolio?">
         <p className="text-muted-foreground">This permanently removes the PDF, details and statistics. It cannot be undone.</p>
-        <div className="mt-6 flex justify-end gap-2"><Button variant="line" onClick={() => setDialog(null)}>Cancel</Button><Button variant="destructive" onClick={() => { void deletePortfolio().then(() => navigate({ to: "/dashboard" })); }}>Delete permanently</Button></div>
+        <div className="mt-6 flex justify-end gap-2"><Button variant="line" onClick={() => setDialog(null)}>Cancel</Button><Button variant="destructive" onClick={() => { if (p) markPortfolioDeleted(p.code); void deletePortfolio().then(() => navigate({ to: "/dashboard" })); }}>Delete permanently</Button></div>
       </Modal>
     </div>
   );
