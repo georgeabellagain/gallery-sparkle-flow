@@ -1,3 +1,4 @@
+import { createFrameCommits } from "./frame-commits";
 import * as THREE from "three";
 import { HDRI_PRESETS, type HdriId } from "./lighting";
 import { parseRgbe } from "./rgbe";
@@ -7,7 +8,7 @@ import { bookSurfaceRatio } from "./render-budget";
 import { pageWorldRect } from "./page-position";
 
 export type PageStudioSettings = { hdri: HdriId; brightness: number; finish: "satin" | "textured" };
-type Page = { element: HTMLElement; source: HTMLCanvasElement; near: boolean; mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshPhysicalMaterial> | null };
+type Page = { element: HTMLElement; source: HTMLCanvasElement; near: boolean; mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshPhysicalMaterial> | null; revealAt: number | null };
 
 /** One visible GPU surface per reader. DOM pages move through fixed lighting;
  * only unlit PDF textures are cached. Idle readers do not run an animation loop. */
@@ -31,6 +32,9 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   const environments = new Map<HdriId, Promise<THREE.WebGLRenderTarget>>();
   const pages = new Map<HTMLElement, Page>();
   const animations = new Set<Animation>();
+  // Artwork commits and GPU swaps happen in the same drawing frame.
+  const pending = createFrameCommits<HTMLElement, { source: HTMLCanvasElement; commit: () => void; current: () => boolean }>();
+  let failed = false;
   let disposed = false, ready = false, moving = false;
   let frame = 0, idle: ReturnType<typeof setTimeout> | null = null, revision = 0;
   let settings: PageStudioSettings = { hdri: "4", brightness: .5, finish: "satin" };
@@ -39,8 +43,14 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
     page.element.style.background = "";
     page.element.style.zIndex = "";
   };
-  const release = (page: Page) => {
-    restore(page);
+  const conceal = (page: Page) => {
+    page.source.style.visibility = "hidden";
+    page.element.style.background = "transparent";
+    page.element.style.zIndex = "2";
+  };
+  const release = (page: Page, showSource = true) => {
+    if (showSource) restore(page);
+    else conceal(page);
     if (!page.mesh) return;
     scene.remove(page.mesh);
     page.mesh.material.map?.dispose();
@@ -62,7 +72,10 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
     material.needsUpdate = true;
   };
   const fallback = () => {
+    failed = true;
     ready = false;
+    pending.flush((element, job) => { if (element.isConnected) job.commit(); });
+    pending.clear();
     renderer.domElement.style.visibility = "hidden";
     pages.forEach(restore);
   };
@@ -70,6 +83,17 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
     frame = 0;
     if (disposed || !ready) return;
     try {
+      pending.flush((element, job) => {
+        if (!element.isConnected) return;
+        const old = pages.get(element);
+        // Do not reveal the raw canvas while the replacement texture uploads.
+        job.source.style.visibility = "hidden";
+        if (old) release(old);
+        job.commit();
+        const page: Page = { element, source: job.source, near: old?.near ?? true, mesh: null, revealAt: old || window.matchMedia("(prefers-reduced-motion: reduce)").matches ? null : performance.now() };
+        pages.set(element, page); observer.observe(element); resize.observe(element);
+        for (const animation of element.getAnimations()) animations.add(animation);
+      });
       for (const animation of animations) if (animation.playState !== "running") animations.delete(animation);
       const box = host.getBoundingClientRect();
       if (!box.width || !box.height) return;
@@ -81,10 +105,11 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       camera.position.set(0, 0, worldHeight / (2 * Math.tan(THREE.MathUtils.degToRad(18))));
       camera.updateProjectionMatrix();
       const lit: Page[] = [];
+      let revealing = false;
       for (const page of pages.values()) {
-        if (!page.near || !page.element.isConnected) { release(page); continue; }
+        if (!page.near || !page.element.isConnected) { release(page, false); continue; }
         const rect = page.element.getBoundingClientRect();
-        if (!rect.width || !rect.height) { release(page); continue; }
+        if (!rect.width || !rect.height) { release(page, false); continue; }
         if (!page.mesh) {
           const texture = new THREE.CanvasTexture(page.source);
           texture.colorSpace = THREE.SRGBColorSpace;
@@ -95,23 +120,24 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
           scene.add(page.mesh);
           renderer.initTexture(texture);
         }
+        const opacity = page.revealAt === null ? 1 : Math.min(1, (performance.now() - page.revealAt) / 180);
+        page.mesh.material.transparent = opacity < 1;
+        page.mesh.material.opacity = opacity;
+        if (opacity < 1) revealing = true;
+        else page.revealAt = null;
         const position = pageWorldRect(rect, box);
         page.mesh.position.set(position.x, position.y, 0);
         page.mesh.scale.set(position.width, position.height, 1);
         page.mesh.visible = rect.bottom > box.top && rect.top < box.bottom && rect.right > box.left && rect.left < box.right;
         if (page.mesh.visible) lit.push(page);
-        else restore(page);
+        else conceal(page);
       }
       renderer.render(scene, camera);
       if (renderer.getContext().isContextLost()) { fallback(); return; }
       renderer.domElement.style.visibility = "";
-      for (const page of lit) {
-        page.source.style.visibility = "hidden";
-        page.element.style.background = "transparent";
-        page.element.style.zIndex = "2";
-      }
-      // CSS sliding pages are redrawn through the same fixed scene every frame.
-      if (animations.size) frame = requestAnimationFrame(paint);
+      for (const page of lit) conceal(page);
+      // Sliding/revealing pages are redrawn through the same fixed scene every frame.
+      if (animations.size || revealing) frame = requestAnimationFrame(paint);
     } catch { fallback(); }
   };
   const requestPaint = (motion = false) => {
@@ -180,21 +206,21 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       ambient.intensity = pattern ? .4 : .65;
       renderer.toneMappingExposure = .55 + Math.max(0, Math.min(1, next.brightness)) * 1.6;
       pages.forEach(page => { if (page.mesh) applyMaterial(page.mesh.material); });
-      ready = true; requestPaint();
+      failed = false; ready = true; requestPaint();
     } catch { if (!disposed && version === revision) fallback(); }
   };
   return {
     configure,
-    register(element: HTMLElement, source: HTMLCanvasElement) {
-      const old = pages.get(element); if (old) release(old);
-      const page: Page = { element, source, near: false, mesh: null };
-      pages.set(element, page); observer.observe(element); resize.observe(element);
-      for (const animation of element.getAnimations()) animations.add(animation);
+    present(element: HTMLElement, source: HTMLCanvasElement, commit: () => void, current = () => true) {
+      if (disposed || failed) { if (current()) commit(); return; }
+      pending.stage(element, { source, commit, current });
       requestPaint();
-      return () => {
-        if (pages.get(element) !== page) return;
-        observer.unobserve(element); resize.unobserve(element); release(page); pages.delete(element); requestPaint();
-      };
+    },
+    remove(element: HTMLElement) {
+      pending.remove(element);
+      const page = pages.get(element);
+      if (!page) return;
+      observer.unobserve(element); resize.unobserve(element); release(page); pages.delete(element); requestPaint();
     },
     dispose() {
       disposed = true; revision++;
@@ -202,7 +228,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       observer.disconnect(); resize.disconnect();
       viewport.removeEventListener("scroll", scroll); viewport.removeEventListener("animationstart", animate);
       renderer.domElement.removeEventListener("webglcontextlost", lost);
-      pages.forEach(release); pages.clear();
+      pending.clear(); pages.forEach(page => release(page)); pages.clear();
       environments.forEach(p => { void p.then(t => t.dispose(), () => undefined); });
       masks.forEach(t => t.dispose()); bumps.forEach(t => t.dispose());
       renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove();

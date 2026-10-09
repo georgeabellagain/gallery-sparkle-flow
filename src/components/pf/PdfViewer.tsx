@@ -690,7 +690,7 @@ export function PdfViewer({
             >
               {sizes[current - 1] && (
                 <div className="shrink-0" style={{ width: `calc(min(100%, max(1px, calc((${pagedHeight} - ${topGap + 24}px) * ${sizes[current - 1]!.w / sizes[current - 1]!.h}))) * ${zoom})` }}>
-                <PdfPage key={current} slide doc={doc} n={current} size={sizes[current - 1]!} lighting={pageLighting} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
+                <PdfPage slide doc={doc} n={current} size={sizes[current - 1]!} lighting={pageLighting} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
                 </div>
               )}
             </div>
@@ -830,17 +830,42 @@ function PdfPage({
   eager?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const shownPage = useRef<number | null>(null);
+  const shownPage = useRef<{ doc: PDFDocumentProxy; n: number } | null>(null);
   const rendered = useRef(onRendered);
   rendered.current = onRendered;
   const [near, setNear] = useState(eager || n <= 2);
   const [failed, setFailed] = useState(false);
   const [renderWidth, setRenderWidth] = useState(0);
-  const [artwork, setArtwork] = useState<HTMLCanvasElement | null>(null);
-  useEffect(() => {
-    if (!lighting || !artwork || !ref.current || thumb) return;
-    return lighting.register(ref.current, artwork);
-  }, [lighting, artwork, thumb]);
+  const artwork = useRef<HTMLCanvasElement | null>(null);
+  const requestedPage = useRef({ doc, n });
+  requestedPage.current = { doc, n };
+  const presentedPage = useRef<{ doc: PDFDocumentProxy; n: number } | null>(null);
+  const activeLighting = useRef(lighting);
+  activeLighting.current = lighting;
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!lighting || !el || thumb) return;
+    if (artwork.current) lighting.present(el, artwork.current, () => {});
+    else el.style.background = "transparent";
+    return () => lighting.remove(el);
+  }, [lighting, thumb]);
+  const present = (canvas: HTMLCanvasElement, layers: HTMLElement[], current: () => boolean, animate = false) => {
+    const el = ref.current;
+    if (!el) return;
+    const commit = () => {
+      el.replaceChildren(canvas, ...layers);
+      artwork.current = canvas;
+      const changed = presentedPage.current !== null && (presentedPage.current.doc !== doc || presentedPage.current.n !== n);
+      presentedPage.current = { doc, n };
+      if (animate && changed && slide && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        el.getAnimations().forEach(a => a.cancel());
+        el.animate([{ transform: "translateX(24%)" }, { transform: "translateX(0)" }], { duration: 480, easing: "cubic-bezier(.22,.7,.25,1)" });
+      }
+      rendered.current?.();
+    };
+    if (!thumb && activeLighting.current) activeLighting.current.present(el, canvas, commit, current);
+    else if (current()) commit();
+  };
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -866,11 +891,13 @@ function PdfPage({
 
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el || shownPage.current === n) return;
-    shownPage.current = n;
+    if (!el || (shownPage.current?.doc === doc && shownPage.current.n === n)) return;
+    shownPage.current = { doc, n };
+    setFailed(false);
     const copy = cachedCopy(doc, n);
-    el.replaceChildren(...(copy ? [copy] : []));
-    if (copy) setArtwork(copy);
+    // Keep the current single page until its replacement is fully rendered/lit.
+    if (copy) present(copy, [], () => ref.current === el && requestedPage.current.doc === doc && requestedPage.current.n === n, true);
+    else if (!slide) { el.replaceChildren(); artwork.current = null; }
   }, [doc, n]);
 
   useEffect(() => {
@@ -928,11 +955,9 @@ function PdfPage({
           links.append(link);
         }
         if (cancelled) return;
-        el.replaceChildren(canvas, text, links);
-        setArtwork(canvas);
+        present(canvas, [text, links], () => !cancelled && ref.current === el && requestedPage.current.doc === doc && requestedPage.current.n === n, true);
         el.style.setProperty("--scale-factor", String(scale));
         el.style.setProperty("--total-scale-factor", String(scale));
-        rendered.current?.();
       } catch (e) {
         if (!cancelled && (e as { name?: string })?.name !== "RenderingCancelledException") {
           setFailed(true);
@@ -952,7 +977,7 @@ function PdfPage({
       role={thumb ? undefined : "group"}
       aria-label={thumb ? undefined : `Page ${n}`}
       data-page={thumb ? undefined : n}
-      className={cn("relative w-full overflow-hidden bg-background", slide && "pf-paged-slide")}
+      className="relative w-full overflow-hidden bg-background"
       style={{ aspectRatio: `${size.w} / ${size.h}` }}
     >
       {failed && (
