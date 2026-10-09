@@ -558,6 +558,9 @@
 .pf-note-handle { position: absolute; width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; background: #355c48; box-shadow: 0 0 0 1px #355c48; touch-action: none; z-index: 5; }
 
 /* Match the unlayered reader rules so editor height wins the cascade. */
+.pf-editor-stage {
+  --pf-paged-height: calc(100dvh - 3.5rem);
+}
 .pf-editor-stage .pf-book-viewport {
   height: calc(100dvh - 3.5rem);
 }

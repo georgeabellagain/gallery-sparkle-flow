@@ -260,6 +260,7 @@ export function PdfViewer({
   modeLive.current = mode;
   const [jump, setJump] = useState<{ page: number; t: number } | null>(null);
   const z = (d: number) => setZoom((v) => Math.min(3, Math.max(1, Math.round((v + d) * 100) / 100)));
+  const zoomStep = mode === "scroll" ? 0.1 : 0.25;
   const total = doc?.numPages ?? 0;
   const sections = useMemo(() => readableProjects(projects, total), [projects, total]);
   const go = (d: number) => setCurrent((c) => Math.min(total, Math.max(1, c + d)));
@@ -276,6 +277,27 @@ export function PdfViewer({
   const pagedRef = useRef<HTMLDivElement>(null);
   const zoomLive = useRef(zoom);
   zoomLive.current = zoom;
+  useEffect(() => {
+    const el = pagedRef.current;
+    if (mode !== "paged" || !doc || !el) return;
+    let frame = 0;
+    let delta = 0;
+    const wheel = (event: WheelEvent) => {
+      if (!event.deltaY) return;
+      event.preventDefault();
+      const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? el.clientHeight : 1);
+      delta += Math.max(-120, Math.min(120, pixels));
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const factor = Math.exp(-Math.max(-240, Math.min(240, delta)) * 0.001);
+        delta = 0;
+        setZoom(value => Math.min(3, Math.max(1, value * factor)));
+      });
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => { el.removeEventListener("wheel", wheel); cancelAnimationFrame(frame); };
+  }, [mode, doc]);
   useTouchGestures(pagedRef, {
     enabled: mode === "paged" && !!doc,
     zoom: () => zoomLive.current,
@@ -419,7 +441,7 @@ export function PdfViewer({
     return () => observer.disconnect();
   }, [showControls, !!doc, mode]);
   const topGap = showControls ? Math.max(24, toolbarHeight + 24) : 24;
-  const pagedHeight = compact && !full && !immersive ? "clamp(280px, 70svh, 600px)" : "100svh";
+  const pagedHeight = full ? "100svh" : `var(--pf-paged-height, ${compact && !immersive ? "clamp(280px, 70svh, 600px)" : "100svh"})`;
   // A panel opens just under the icon bar (which can be two rows on a narrow screen) and may use the rest of the
   // window, with a little room left below, so its bottom never leaves the screen.
   const panelFit = { maxHeight: `calc(100svh - ${(toolbarHeight || 36) + 6 + 8 + 12}px)` };
@@ -452,7 +474,7 @@ export function PdfViewer({
     <div
       ref={rootRef}
       style={pseudoFull ? { background: colour, height: "100dvh" } : { background: colour }}
-      className={cn("isolate overflow-clip", pseudoFull ? "fixed inset-0 z-[200] overscroll-contain" : "relative", immersive && "min-h-[100svh]", SHOW_LOADER && !contentReady && !error && "min-h-[22rem]", credit && mode !== "book" && "pb-8", full && "overflow-auto")}
+      className={cn("isolate overflow-clip", pseudoFull ? "fixed inset-0 z-[200] overscroll-contain" : "relative", immersive && "min-h-[100svh]", SHOW_LOADER && !contentReady && !error && "min-h-[22rem]", credit && mode === "scroll" && "pb-8", full && "overflow-auto")}
       onPointerMove={autoHide ? wake : undefined}
       onPointerDown={autoHide ? wake : undefined}
       onKeyDown={autoHide ? wake : undefined}
@@ -506,7 +528,7 @@ export function PdfViewer({
                 </span>
               )}
               {doc && (
-                <IconButton label="Zoom out" tone={tone} onClick={() => z(-0.25)} disabled={zoom <= 1}>
+                <IconButton label="Zoom out" tone={tone} onClick={() => z(-zoomStep)} disabled={zoom <= 1}>
                   <ZoomOut className="size-[17px]" />
                 </IconButton>
               )}
@@ -516,7 +538,7 @@ export function PdfViewer({
                 </button>
               )}
               {doc && (
-                <IconButton label="Zoom in" tone={tone} onClick={() => z(0.25)} disabled={zoom >= 3}>
+                <IconButton label="Zoom in" tone={tone} onClick={() => z(zoomStep)} disabled={zoom >= 3}>
                   <ZoomIn className="size-[17px]" />
                 </IconButton>
               )}
