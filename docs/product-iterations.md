@@ -597,3 +597,13 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Delay cached-to-HD artwork replacements until an active slide ends so texture uploads/material replacement do not interrupt the movement. Reset inner transforms when restoring the ordinary canvas.
 - Validation: TypeScript, production build and two reader-slide tests covering bounded forward/backward motion, exact landing and matching DOM/GPU scaling. Existing frame-commit tests retain cancellation/staging coverage. Actual GPU smoothness and editor/phone visual checks remain outstanding because the available browser disables WebGL.
 - Review branch; not merged or published.
+
+## Iteration 51 — prepare the entire Scroll portfolio before opening
+
+- Iteration 50 merged through PR #33. Merge requested for this iteration after checks; publication not requested.
+- Eagerly render every Scroll page through a serial preparation queue, including its PDF artwork, selectable text and links. Keep the small monochrome loader and an inert/hidden reading area until every page reports final preparation.
+- Use a per-document/mode/appearance readiness gate; duplicate completions and cached previews cannot bypass it. Disable the 20-second readiness override for Scroll. A failed page produces an explicit reload error instead of revealing a partly prepared portfolio.
+- Retain every prepared canvas in its Scroll page and skip redundant shared-cache copies. Keep existing render quality, zoom and panning. Redraws retain the previous artwork while the replacement is prepared.
+- Wait for Studio presentation readiness as well as PDF preparation, with a readable fully prepared fallback if WebGL cannot start. Offscreen GPU textures remain bounded: a visible page is drawn directly from current bounds even if IntersectionObserver has not yet caught up with fast scrolling.
+- Validation: TypeScript, production build and focused readiness/queue/commit tests. GPU appearance and rapid-scroll device verification remain outstanding because the available browser disables WebGL.
+- Expected tradeoff: the initial Scroll wait now includes the whole PDF; larger documents take longer and retain all their page canvases. No new dependencies or account changes.

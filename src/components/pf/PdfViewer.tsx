@@ -1,3 +1,5 @@
+import { createPageReadiness } from "@/lib/portfolia/page-readiness";
+import { createRenderQueue } from "@/lib/portfolia/render-queue";
 import { READER_SLIDE_MS, READER_SLIDE_DISTANCE } from "@/lib/portfolia/reader-slide";
 import type { Foldout } from "@/lib/portfolia/foldouts";
 import type { PageLink, PageTag } from "@/lib/portfolia/page-extras";
@@ -24,10 +26,7 @@ type Source = { blob: Blob } | { url: string };
 
 const noop = () => {};
 
-/**
- * The page-turning loading icon, and holding the portfolio back until it has rendered. Switched off for now:
- * the viewer shows its pages as they are ready, with a simple "Loading" note. Switch this on to bring it back.
- */
+/** Hold the portfolio behind the small loader until its reading mode is prepared. */
 const SHOW_LOADER = true;
 
 const MODES = [
@@ -382,8 +381,12 @@ export function PdfViewer({
   const studio = activeLook === "studio";
   const lightingHost = useRef<HTMLDivElement>(null);
   const [pageLighting, setPageLighting] = useState<PageStudioRenderer | null>(null);
+  const [pageLightingFailed, setPageLightingFailed] = useState(false);
+  const [pageLightingReady, setPageLightingReady] = useState(false);
   useEffect(() => {
     setPageLighting(null);
+    setPageLightingFailed(false);
+    setPageLightingReady(false);
     if (!studio || mode === "book" || !doc) return;
     let cancelled = false;
     let renderer: PageStudioRenderer | null = null;
@@ -392,14 +395,23 @@ export function PdfViewer({
       if (!lightingHost.current || !panRef.current) return;
       renderer = module.createPageStudioRenderer(lightingHost.current, panRef.current);
       setPageLighting(renderer);
-    }).catch(() => { /* WebGL unavailable: retain readable source pages. */ });
+    }).catch(() => { if (!cancelled) setPageLightingFailed(true); /* Retain readable source pages. */ });
     return () => { cancelled = true; renderer?.dispose(); };
   }, [studio, mode, !!doc]);
   const pageStudio = useMemo<PageStudioSettings | null>(() => studio ? {
     hdri: view.studioLighting ?? "4", brightness: view.studioBrightness ?? .5,
     finish: view.finish === "textured" ? "textured" : "satin",
   } : null, [studio, view.studioLighting, view.studioBrightness, view.finish]);
-  useEffect(() => { if (pageLighting && pageStudio) void pageLighting.configure(pageStudio); }, [pageLighting, pageStudio]);
+  useEffect(() => {
+    if (!pageLighting || !pageStudio) return;
+    let cancelled = false;
+    let frame = 0;
+    void pageLighting.configure(pageStudio).then(() => {
+      // The renderer's queued drawing frame runs before this readiness notification.
+      frame = requestAnimationFrame(() => { if (!cancelled) setPageLightingReady(true); });
+    });
+    return () => { cancelled = true; cancelAnimationFrame(frame); };
+  }, [pageLighting, pageStudio]);
   useEffect(() => {
     setZoom(mode === "scroll" ? 1.3 : 1);
   }, [mode]);
@@ -481,13 +493,24 @@ export function PdfViewer({
   const shown = awake || !autoHide;
   const fade = shown ? "opacity-100" : "pointer-events-none opacity-0";
 
+  const scrollQueue = useMemo(() => createRenderQueue(), [doc, mode]);
+  const scrollGate = useMemo(() => createPageReadiness(total), [doc, total, mode, studio, pageLighting, pageLightingReady, pageLightingFailed]);
+  useLayoutEffect(() => { if (mode === "scroll") setContentReady(false); }, [scrollGate, mode]);
+  const scrollPrepared = useCallback((page: number, success: boolean) => {
+    if (mode !== "scroll" || (success && studio && !pageLightingReady && !pageLightingFailed)) return;
+    const status = scrollGate.mark(page, success);
+    if (status.failed !== null) setError(`Page ${status.failed} could not be prepared. Please reload this portfolio to try again.`);
+    else if (status.ready) setContentReady(true);
+  }, [mode, studio, pageLightingReady, pageLightingFailed, scrollGate]);
+  const scrollCallbacks = useMemo(() => sizes.map((_, i) => (success: boolean) => scrollPrepared(i + 1, success)), [sizes, scrollPrepared]);
+
   // Nothing is shown until it has rendered. Another PDF or another reading mode is prepared out of sight first.
   const markReady = useCallback(() => setContentReady(true), []);
   useEffect(() => {
     setContentReady(false);
   }, [mode, source]);
   useEffect(() => {
-    if (contentReady || !doc || mode === "book" || onContentReadyChange) return;
+    if (contentReady || !doc || mode !== "paged" || onContentReadyChange) return;
     // Safety net: never leave a visitor staring at the loader if something cannot finish.
     const t = setTimeout(() => setContentReady(true), 20000);
     return () => clearTimeout(t);
@@ -679,7 +702,7 @@ export function PdfViewer({
           </div>
         )
       ) : (
-        <div className={cn("relative transition-opacity duration-300", shownReady ? "opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!shownReady}>
+        <div className={cn("relative transition-opacity duration-300", shownReady ? "opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!shownReady} inert={!shownReady}>
       {mode === "book" ? (
         <BookView demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...view, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} />
       ) : mode === "paged" ? (
@@ -710,7 +733,7 @@ export function PdfViewer({
             style={{ paddingTop: topGap, width: `calc(min(100%, ${compact ? 900 : 1100}px) * ${zoom})` }}
           >
             {sizes.map((s, i) => (
-              <PdfPage key={i} doc={doc} n={i + 1} size={s} lighting={pageLighting} zoom={zoom} onVisible={setCurrent} onRendered={i === 0 ? markReady : undefined} />
+              <PdfPage key={i} doc={doc} n={i + 1} size={s} lighting={pageLighting} zoom={zoom} onVisible={setCurrent} eager renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
             ))}
           </div>
         </div>
@@ -817,7 +840,13 @@ function PdfPage({
   onRendered,
   lighting,
   slide,
+  renderQueue,
+  retainArtwork,
+  onPrepared,
 }: {
+  renderQueue?: ReturnType<typeof createRenderQueue>;
+  retainArtwork?: boolean;
+  onPrepared?: (success: boolean) => void;
   slide?: boolean;
   lighting?: PageStudioRenderer | null;
   thumb?: boolean;
@@ -834,6 +863,10 @@ function PdfPage({
   const shownPage = useRef<{ doc: PDFDocumentProxy; n: number } | null>(null);
   const rendered = useRef(onRendered);
   rendered.current = onRendered;
+  const prepared = useRef(onPrepared);
+  prepared.current = onPrepared;
+  const fullyPrepared = useRef(false);
+  useEffect(() => { if (fullyPrepared.current) prepared.current?.(true); }, [onPrepared]);
   const [near, setNear] = useState(eager || n <= 2);
   const [failed, setFailed] = useState(false);
   const [renderWidth, setRenderWidth] = useState(0);
@@ -846,11 +879,14 @@ function PdfPage({
   useLayoutEffect(() => {
     const el = ref.current;
     if (!lighting || !el || thumb) return;
-    if (artwork.current) lighting.present(el, artwork.current, () => slide && artwork.current?.parentElement ? { layer: artwork.current.parentElement, direction: 1, animate: false } : undefined);
+    if (artwork.current) lighting.present(el, artwork.current, () => {
+      if (fullyPrepared.current) prepared.current?.(true);
+      return slide && artwork.current?.parentElement ? { layer: artwork.current.parentElement, direction: 1, animate: false } : undefined;
+    });
     else el.style.background = "transparent";
     return () => lighting.remove(el);
   }, [lighting, thumb]);
-  const present = (canvas: HTMLCanvasElement, layers: HTMLElement[], current: () => boolean, animate = false) => {
+  const present = (canvas: HTMLCanvasElement, layers: HTMLElement[], current: () => boolean, animate = false, complete = false) => {
     const el = ref.current;
     if (!el) return;
     const commit = (live = false) => {
@@ -867,6 +903,7 @@ function PdfPage({
         layer.animate([{ transform: `translateX(${direction * READER_SLIDE_DISTANCE * 100}%)` }, { transform: "translateX(0)" }], { duration: READER_SLIDE_MS, easing: "cubic-bezier(.215,.61,.355,1)" });
       }
       rendered.current?.();
+      if (complete) { fullyPrepared.current = true; prepared.current?.(true); }
       return slide ? { layer, direction: direction as 1 | -1, animate: moving } : undefined;
     };
     if (!thumb && activeLighting.current) activeLighting.current.present(el, canvas, commit, current);
@@ -899,6 +936,7 @@ function PdfPage({
     const el = ref.current;
     if (!el || (shownPage.current?.doc === doc && shownPage.current.n === n)) return;
     shownPage.current = { doc, n };
+    fullyPrepared.current = false;
     setFailed(false);
     const copy = cachedCopy(doc, n);
     // Keep the current single page until its replacement is fully rendered/lit.
@@ -911,7 +949,8 @@ function PdfPage({
     const el = ref.current!;
     let cancelled = false;
     let task: { cancel: () => void } | null = null;
-    (async () => {
+    const draw = async () => {
+      if (cancelled) return;
       try {
         const pdfjs = await loadPdfjs();
         const page = await doc.getPage(n);
@@ -930,7 +969,7 @@ function PdfPage({
         task = rt;
         await rt.promise;
         if (cancelled) return;
-        { const keep = document.createElement("canvas"); keep.width = canvas.width; keep.height = canvas.height; keep.getContext("2d")!.drawImage(canvas, 0, 0); storePage(doc, n, keep); }
+        if (!retainArtwork) { const keep = document.createElement("canvas"); keep.width = canvas.width; keep.height = canvas.height; keep.getContext("2d")!.drawImage(canvas, 0, 0); storePage(doc, n, keep); }
         if (thumb) {
           const copy = cachedCopy(doc, n);
           el.replaceChildren(copy ?? canvas);
@@ -961,21 +1000,24 @@ function PdfPage({
           links.append(link);
         }
         if (cancelled) return;
-        present(canvas, [text, links], () => !cancelled && ref.current === el && requestedPage.current.doc === doc && requestedPage.current.n === n, true);
+        present(canvas, [text, links], () => !cancelled && ref.current === el && requestedPage.current.doc === doc && requestedPage.current.n === n, true, true);
         el.style.setProperty("--scale-factor", String(scale));
         el.style.setProperty("--total-scale-factor", String(scale));
       } catch (e) {
         if (!cancelled && (e as { name?: string })?.name !== "RenderingCancelledException") {
           setFailed(true);
           rendered.current?.();
+          prepared.current?.(false);
         }
       }
-    })();
+    };
+    if (renderQueue) void renderQueue.enqueue(draw);
+    else void draw();
     return () => {
       cancelled = true;
       task?.cancel();
     };
-  }, [near, doc, n, size.w, zoom, renderWidth]);
+  }, [near, doc, n, size.w, zoom, renderWidth, renderQueue, retainArtwork]);
 
   return (
     <div
