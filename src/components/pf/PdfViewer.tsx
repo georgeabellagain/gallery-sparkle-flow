@@ -3,7 +3,9 @@ import { createRenderQueue } from "@/lib/portfolia/render-queue";
 import { READER_SLIDE_MS, READER_SLIDE_DISTANCE } from "@/lib/portfolia/reader-slide";
 import type { Foldout } from "@/lib/portfolia/foldouts";
 import type { PageLink, PageTag } from "@/lib/portfolia/page-extras";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { EditorFullscreenContext } from "./editor-fullscreen";
+import { toggleFullscreen, type FullscreenDocument } from "@/lib/portfolia/fullscreen";
 import { List, Copy } from "lucide-react";
 import { projectFromHash, projectPath, readableProjects, type PortfolioProject } from "@/lib/portfolia/projects";
 import { BookOpen, ChevronLeft, ChevronRight, Download, FileText, LayoutGrid, Maximize2, Minimize2, ScrollText, User, ZoomIn, ZoomOut } from "lucide-react";
@@ -122,12 +124,13 @@ export function PdfViewer({
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(startMode === "scroll" ? 1.3 : 1);
+  const [zoom, setZoom] = useState(1);
   const [current, setCurrent] = useState(1);
   const [nativeFull, setNativeFull] = useState(false);
   // Where the browser cannot take a page full screen (iPhone Safari cannot), the viewer fills the window itself.
   const [pseudoFull, setPseudoFull] = useState(false);
-  const full = nativeFull || pseudoFull;
+  const editorFullscreen = useContext(EditorFullscreenContext);
+  const full = nativeFull || pseudoFull || Boolean(editorFullscreen?.full);
   const [panel, setPanel] = useState<"profile" | "pages" | "projects" | null>(null);
   const [projectMessage, setProjectMessage] = useState("");
   const [manualProjectLink, setManualProjectLink] = useState("");
@@ -199,11 +202,9 @@ export function PdfViewer({
     };
   }, [source, lightweight]);
 
-  type FullscreenDoc = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void; webkitFullscreenEnabled?: boolean };
-  type FullscreenEl = HTMLDivElement & { webkitRequestFullscreen?: () => void };
   useEffect(() => {
     const on = () => {
-      const d = document as FullscreenDoc;
+      const d = document as FullscreenDocument;
       setNativeFull((d.fullscreenElement ?? d.webkitFullscreenElement) === rootRef.current);
     };
     document.addEventListener("fullscreenchange", on);
@@ -231,30 +232,9 @@ export function PdfViewer({
   }, [pseudoFull]);
 
   const toggleFull = async () => {
-    const d = document as FullscreenDoc;
-    if (d.fullscreenElement || d.webkitFullscreenElement) {
-      try {
-        await (d.exitFullscreen?.() ?? d.webkitExitFullscreen?.());
-      } catch {
-        /* already out */
-      }
-      return;
-    }
-    if (pseudoFull) {
-      setPseudoFull(false);
-      return;
-    }
-    const el = rootRef.current as FullscreenEl | null;
-    const request: ((this: HTMLElement) => Promise<void> | void) | undefined = el?.requestFullscreen ?? el?.webkitRequestFullscreen;
-    if (el && request && (d.fullscreenEnabled ?? d.webkitFullscreenEnabled ?? true)) {
-      try {
-        await request.call(el);
-        return;
-      } catch {
-        /* refused: use the in-page full screen instead */
-      }
-    }
-    setPseudoFull(true);
+    if (editorFullscreen) return editorFullscreen.toggle();
+    const result = await toggleFullscreen(rootRef.current, document as FullscreenDocument, pseudoFull);
+    setPseudoFull(result === "fallback");
   };
 
   const [mode, setMode] = useState<"scroll" | "paged" | "book">(startMode);
@@ -413,7 +393,7 @@ export function PdfViewer({
     return () => { cancelled = true; cancelAnimationFrame(frame); };
   }, [pageLighting, pageStudio]);
   useEffect(() => {
-    setZoom(mode === "scroll" ? 1.3 : 1);
+    setZoom(1);
   }, [mode]);
   useEffect(() => {
     if (!total) return;
@@ -563,8 +543,8 @@ export function PdfViewer({
   return (
     <div
       ref={rootRef}
-      style={pseudoFull ? { background: colour, height: "100dvh" } : { background: colour }}
-      className={cn("isolate overflow-clip", pseudoFull ? "fixed inset-0 z-[200] overscroll-contain" : "relative", immersive && "min-h-[100svh]", SHOW_LOADER && !contentReady && !error && "min-h-[22rem]", credit && mode === "scroll" && "pb-8", full && "overflow-auto")}
+      style={full ? { background: colour, height: "100dvh" } : { background: colour }}
+      className={cn("isolate overflow-clip", pseudoFull ? "fixed inset-0 z-[200] overscroll-contain" : "relative", immersive && "min-h-[100svh]", SHOW_LOADER && !contentReady && !error && "min-h-[22rem]", full && "overflow-auto")}
       onPointerMove={autoHide ? wake : undefined}
       onPointerDown={autoHide ? wake : undefined}
       onKeyDown={autoHide ? wake : undefined}
@@ -623,7 +603,7 @@ export function PdfViewer({
                 </IconButton>
               )}
               {doc && (
-                <button type="button" onClick={() => setZoom(mode === "scroll" ? 1.3 : 1)} aria-label="Reset zoom" className={cn("hidden w-10 rounded-full py-1 text-center text-[11px] tabular-nums transition-colors sm:inline", quiet, tone === "dark" ? "hover:text-white" : "hover:text-black")}>
+                <button type="button" onClick={() => setZoom(1)} aria-label="Reset zoom" className={cn("hidden w-10 rounded-full py-1 text-center text-[11px] tabular-nums transition-colors sm:inline", quiet, tone === "dark" ? "hover:text-white" : "hover:text-black")}>
                   {Math.round(zoom * 100)}%
                 </button>
               )}
@@ -743,7 +723,7 @@ export function PdfViewer({
       )}
 
       {mode !== "book" && enabledLooks.length > 1 && showControls && (
-        <div className="absolute bottom-1.5 right-1.5 z-30 w-36 rounded-full bg-background/90 shadow-soft backdrop-blur">
+        <div className="absolute bottom-1.5 left-1.5 z-30 flex w-fit rounded-full bg-background/90 shadow-soft backdrop-blur">
           <Segmented label="Page appearance" value={activeLook} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={changeLook} />
         </div>
       )}

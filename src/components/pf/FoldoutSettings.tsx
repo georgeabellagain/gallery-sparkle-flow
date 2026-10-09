@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
+import { useContext, useEffect, useRef, useState, type PointerEvent, type RefObject } from "react";
+import { EditorFullscreenContext } from "./editor-fullscreen";
 import { AlignCenter, AlignJustify, AlignLeft, AlignRight } from "lucide-react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import { Button } from "@/components/ui/button";
@@ -91,9 +92,11 @@ export function ScrapbookDialog({
   onOpenChange: (open: boolean) => void;
   panel?: ScrapbookPanel;
 }) {
+  const fullscreen = useContext(EditorFullscreenContext);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        container={fullscreen?.full ? fullscreen.container.current : undefined}
         className="flex h-[94dvh] w-[96vw] max-w-[1400px] flex-col gap-0 overflow-hidden p-0 sm:max-w-[1400px]"
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => {

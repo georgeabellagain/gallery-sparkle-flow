@@ -564,6 +564,8 @@
 .pf-editor-stage .pf-book-viewport {
   height: calc(100dvh - 3.5rem);
 }
+.pf-editor-stage[data-fullscreen="true"] { --pf-paged-height: 100dvh; }
+.pf-editor-stage[data-fullscreen="true"] .pf-book-viewport { height: 100dvh; }
 
 /* The paper moves through viewport-fixed Studio light, with no baked illumination. */
 .pf-paged-slide { animation: pf-reader-slide 480ms cubic-bezier(.22,.7,.25,1); }

@@ -1114,7 +1114,7 @@ export function BookView({
         </p>
         {/* Simple / Studio: only offered when the creator has enabled both. Everything else is set in the editor. */}
         {enabledLooks.length > 1 && (
-          <div className={cn("absolute bottom-1.5 right-1.5 z-20 w-36 rounded-full bg-background/90 shadow-soft backdrop-blur transition-opacity duration-300", awake ? "opacity-100" : "pointer-events-none opacity-0")}>
+          <div className={cn("absolute bottom-1.5 left-1.5 z-20 flex w-fit rounded-full bg-background/90 shadow-soft backdrop-blur transition-opacity duration-300", awake ? "opacity-100" : "pointer-events-none opacity-0")}>
             <Segmented label="Book appearance" value={settings.studio ? "studio" : "clean"} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={updateLook} />
           </div>
         )}

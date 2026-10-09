@@ -611,8 +611,19 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 
 ## Iteration 52 — smaller, simpler portfolio loader
 
-- Iteration 51 merged through PR #34. This iteration is a review branch; not merged or published.
+- Iteration 51 merged through PR #34. This iteration merged through PR #35 and was published on 9 October 2026.
 - Use the selected Turning page design: one transparent outline book and a single softly turning sheet, replacing the three filled animated leaves.
 - Reduce the loader from 48 × 34px to 28 × 20px (about 42% smaller in each dimension). Keep the existing centred placement, light/dark contrast and text-free viewer usage.
 - Preserve the accessible loading status and reduced-motion still state. No new dependencies or loading/readiness changes.
 - Validation: TypeScript and production build.
+
+
+## Iteration 53 — smoother flat readers and fullscreen editing
+
+- Restore Scroll's opening, mode-switch and reset zoom to 100%; retain the 5% toolbar increments and zoomed drag-to-pan.
+- Move Simple / Studio to the bottom left in all reading modes. Size its frame to the buttons, remove empty trailing space and keep the mobile editing dock/panel above it. Remove the extra Scroll credit padding that pushed bottom controls outside the preview.
+- Simplify Scroll/Page by page paper to standard HDRI-lit material without the clearcoat shader or satin bump texture. Keep textured-paper bumps, direct window/dapple light and moving sheets through fixed lighting. PDF artwork dimensions and texture anisotropy remain unchanged.
+- Keep the Studio drawing surface at settled reading resolution throughout movement, eliminating motion/idle buffer resizing. Share one flat-page geometry and warm nearby GPU textures earlier, retaining an eight-texture cache that never evicts visible pages. This improves repeat scrolling without pre-rendering light into the artwork.
+- Fullscreen from the editor now expands the entire editing stage, including the draggable dock and settings panels. Support native/Safari and in-page fallback; resize/reclamp the dock and preserve changes when exiting. Scrapbook dialogs stay inside the fullscreen stage.
+- Validation: TypeScript, production build and 16 focused fullscreen/cache/readiness/transition/render-budget tests. The available browser disables WebGL, so actual GPU smoothness still needs device verification.
+- Merge and publication requested after checks.
