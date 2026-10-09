@@ -565,6 +565,11 @@
   height: calc(100dvh - 3.5rem);
 }
 
+/* The paper moves through viewport-fixed Studio light, with no baked illumination. */
+.pf-paged-slide { animation: pf-reader-slide 480ms cubic-bezier(.22,.7,.25,1); }
+@keyframes pf-reader-slide { from { transform: translateX(24%); } to { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .pf-paged-slide { animation: none; } }
+
 /* The feature showcase uses the real reader, fitted to its image area. */
 .pf-feature-live { height: clamp(340px, 62svh, 760px); overflow-y: auto; }
 .pf-feature-live .pf-book-viewport { height: clamp(340px, 62svh, 760px); }

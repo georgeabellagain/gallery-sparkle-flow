@@ -1,9 +1,10 @@
+import { PlanCard as Plan } from "@/components/pf/PlanCard";
 import { HomeNavigation } from "@/components/pf/HomeNavigation";
 import { FeatureShowcase } from "@/components/pf/FeatureShowcase";
 import { softwareSchema } from "@/lib/portfolia/software-schema";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { SiteHeader, SiteFooter } from "@/components/pf/Chrome";
 import { DropZone } from "@/components/pf/DropZone";
 import { StudioDemo } from "@/components/pf/StudioDemo";
@@ -120,16 +121,17 @@ function Landing() {
 
         <section className="rule-t">
           <div className="shell py-14">
-            <h2 className="text-sm font-medium">Plans</h2>
+            <h2 className="display-title text-3xl">A plan for your next chapter.</h2>
+            <p className="mt-3 text-sm text-muted-foreground">Start free. Add more space and privacy when you need them.</p>
             <div className="mx-auto mt-7 grid grid-cols-1 max-w-5xl gap-5 sm:grid-cols-2">
-               <Plan name="Free" price="£0" description="A complete, permanent starting point for one portfolio." items={["One portfolio · up to 10 MB", "Simple and Studio flipbooks", "Sharing link, QR code and embedding", "Visit statistics"]} action={<Button asChild variant="line" className="mt-5"><a href="#upload">Start free</a></Button>} />
+               <Plan name="Free" price="£0" description="A complete, permanent starting point for one portfolio." items={["One portfolio · up to 10 MB", "Simple and Studio flipbooks", "Sharing link, QR code and embedding", "Visit statistics"]} action={<Button asChild variant="line" size="lg" className="w-full"><a href="#upload">Start free</a></Button>} />
               <Plan
                 name="Personal"
-                price={`${PRICE.month}/month or ${PRICE.year}/year`}
+                price={PRICE.month} period="/month" alternative={`${PRICE.year} billed yearly`}
                 description="For professionals managing a broader body of work and a more personal presence."
                 featured
                 items={["Everything in Free · 10 portfolios, 50 MB each", "Personal address and downloadable CV", "Passwords and expiring links", "No Portfolia credit"]}
-                action={<Button size="lg" className="mt-5" onClick={() => setUpgrade(true)}>Choose Personal</Button>}
+                action={<Button size="lg" className="w-full" onClick={() => setUpgrade(true)}>Choose Personal</Button>}
               />
             </div>
             <p className="mx-auto mt-4 max-w-5xl text-xs text-muted-foreground">Prices are shown before checkout. You may cancel at any time; cancellation does not immediately delete your work.</p>
@@ -156,19 +158,3 @@ function Landing() {
   );
 }
 
-function Plan({ name, price, description, items, action, featured }: { name: string; price: string; description: string; items: string[]; action?: React.ReactNode; featured?: boolean }) {
-  return (
-    <div className={`relative rounded-3xl border bg-card p-7 ${featured ? "border-leaf" : "border-border"}`}>
-      {featured && <span className="absolute right-5 top-5 rounded-full bg-leaf-soft px-3 py-1 text-xxs font-medium uppercase text-leaf">Recommended</span>}
-      <h3 className="pr-28 text-base font-medium">{name}</h3>
-      <p className="mt-2 text-2xl font-medium tracking-tight">{price}</p>
-      <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground">{description}</p>
-      <ul className="mt-4 space-y-1.5 text-sm">
-        {items.map((i) => (
-          <li key={i} className="flex gap-2"><Check className="mt-0.5 size-3.5 shrink-0 text-leaf" aria-hidden />{i}</li>
-        ))}
-      </ul>
-      {action}
-    </div>
-  );
-}
