@@ -19,7 +19,7 @@ import { getPaddleEnvironment } from "@/lib/paddle";
 import { submitFeedback } from "@/lib/feedback.functions";
 import {
   allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, switchPortfolio,
-  getDoc, startPortfolio, personalActive, update, uploadLimitMb, useDoc,
+  getDoc, startPortfolio, personalActive, update, uploadLimitMb, useDoc, DEFAULT_VIEWER, type Portfolio,
 } from "@/lib/portfolia/store";
 
 export const Route = createFileRoute("/dashboard")({
@@ -141,7 +141,7 @@ function Dashboard() {
                   <span className="truncate text-xxs text-muted-foreground">{portfolio.pdf?.pages ?? 0} pages</span>
                 </div>
                 <div role="button" aria-label={`Edit ${portfolio.pdf?.name || "portfolio"}`} tabIndex={0} onClick={() => editPortfolio(portfolio.code)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); editPortfolio(portfolio.code); } }} className="block w-full cursor-pointer text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <CatalogueCover blobKey={portfolio.pdf?.blobKey} />
+                  <CatalogueCover portfolio={portfolio} />
                 </div>
                 <div className="pt-4">
                   <h3 className="truncate text-sm font-medium">{portfolio.pdf?.name?.replace(/\.pdf$/i, "") || portfolio.profile.name || "Untitled portfolio"}</h3>
@@ -202,12 +202,14 @@ function Dashboard() {
   );
 }
 
-function CatalogueCover({ blobKey }: { blobKey?: string }) {
-  const blob = useBlob(blobKey);
+function CatalogueCover({ portfolio }: { portfolio: Portfolio }) {
+  const blob = useBlob(portfolio.pdf?.blobKey);
+  const backgroundBlob = useBlob(portfolio.viewer?.backgroundKey);
+  const backgroundUrl = useObjectUrl(backgroundBlob);
   const src = useMemo(() => (blob ? { blob } : null), [blob]);
   // A quiet cover preview keeps the work more prominent than the card styling.
   return <div className="relative aspect-[4/5] overflow-hidden rounded-[3px] bg-background border border-border shadow-sm transition-transform duration-300 group-hover:-translate-y-1">
-    <div className="pointer-events-none h-full overflow-hidden bg-background" aria-hidden><PdfViewer source={src} fileName="" compact viewer={{ mode: "paged", look: "clean", background: "paper", finish: "matte", paper: "smooth", light: "soft", shadow: "none", thickness: "thin", spreads: "single", showHeader: false }} /></div>
+    <div className="pointer-events-none h-full overflow-hidden bg-background" aria-hidden><PdfViewer source={src} fileName="" compact backgroundUrl={backgroundUrl} backdrop={portfolio.plan === "personal" ? portfolio.style?.backdrop : undefined} viewer={{ ...DEFAULT_VIEWER, ...portfolio.viewer, mode: "paged", modes: ["paged"], look: "clean", looks: ["clean"], showHeader: false }} /></div>
   </div>;
 }
 

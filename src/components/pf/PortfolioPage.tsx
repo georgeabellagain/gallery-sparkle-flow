@@ -67,42 +67,7 @@ export function PortfolioPage({
   const profileLinks = profile.links.filter((l) => l.url.trim());
   const hasProfile = view.showHeader && !embed && Boolean(profile.name?.trim() || profile.title || profile.intro || profile.email || profileLinks.length > 0 || cv || photoUrl || bannerUrl);
 
-  const details = hasProfile ? (
-    <div className="-m-3 rounded-2xl p-3" style={pageStyle ? { background: pageStyle.background, color: pageStyle.text } : undefined}>
-      {bannerUrl && (
-        <img src={bannerUrl} alt={profile.name ? `${profile.name} portfolio banner` : "Portfolio banner"} className="-mx-3 -mt-3 mb-3 h-24 w-[calc(100%+1.5rem)] max-w-none rounded-t-2xl object-cover" />
-      )}
-      <div className="flex items-start gap-3">
-        {photoUrl && <img src={photoUrl} alt={profile.name || "Profile photo"} className="size-12 shrink-0 rounded-full object-cover" />}
-        <div className="min-w-0">
-          <p style={pageStyle ? { fontFamily: pageStyle.font } : undefined} className="display-title text-xl leading-tight">
-            {profile.name || "Your name"}
-          </p>
-          {profile.title && <p className="text-sm text-muted-foreground">{profile.title}</p>}
-        </div>
-      </div>
-      {profile.intro && <p className="mt-3 text-sm leading-relaxed">{profile.intro}</p>}
-      {(profile.email || profileLinks.length > 0 || cv) && (
-        <div className="mt-3 flex flex-col gap-1.5 text-sm">
-          {profile.email && (
-            <a href={`mailto:${profile.email}`} className="inline-flex items-center gap-1.5 underline-offset-4 hover:underline">
-              <Mail className="size-3.5" /> {profile.email}
-            </a>
-          )}
-          {cv && cvUrl && (
-            <a href={cvUrl} download={cv.name} className="inline-flex items-center gap-1.5 underline-offset-4 hover:underline">
-              <CvIcon className="size-3.5" /> CV
-            </a>
-          )}
-          {profileLinks.map((l, i) => (
-            <a key={i} href={withProtocol(l.url)} target="_blank" rel="noopener noreferrer" className="underline-offset-4 hover:underline">
-              {l.label || prettyUrl(l.url)}
-            </a>
-          ))}
-        </div>
-      )}
-    </div>
-  ) : undefined;
+  const details = hasProfile ? <ProfileCard profile={profile} photoUrl={photoUrl} bannerUrl={bannerUrl} cvUrl={cvUrl} cv={cv} pageStyle={pageStyle} /> : undefined;
 
   return (
     <div className="flex min-h-full flex-col bg-background" style={pageStyle ? { background: pageStyle.background, color: pageStyle.text } : undefined}>
@@ -150,3 +115,56 @@ export function useStoredMedia(pdfKey?: string, photoKey?: string) {
   return { pdf, photoUrl };
 }
 
+
+
+/** The same profile card used in the visitor's profile panel, without loading a PDF. */
+function ProfileCard({ profile, photoUrl, bannerUrl, cvUrl, cv, pageStyle }: {
+  profile: Profile; photoUrl?: string; bannerUrl?: string; cvUrl?: string;
+  cv?: Profile["cv"]; pageStyle?: PageStyle;
+}) {
+  const profileLinks = profile.links.filter(l => l.url.trim());
+  return (
+    <div className="-m-3 rounded-2xl p-3" style={pageStyle ? { background: pageStyle.background, color: pageStyle.text } : undefined}>
+      {bannerUrl && (
+        <img src={bannerUrl} alt={profile.name ? `${profile.name} portfolio banner` : "Portfolio banner"} className="-mx-3 -mt-3 mb-3 h-24 w-[calc(100%+1.5rem)] max-w-none rounded-t-2xl object-cover" />
+      )}
+      <div className="flex items-start gap-3">
+        {photoUrl && <img src={photoUrl} alt={profile.name || "Profile photo"} className="size-12 shrink-0 rounded-full object-cover" />}
+        <div className="min-w-0">
+          <p style={pageStyle ? { fontFamily: pageStyle.font } : undefined} className="display-title text-xl leading-tight">
+            {profile.name || "Your name"}
+          </p>
+          {profile.title && <p className="text-sm text-muted-foreground">{profile.title}</p>}
+        </div>
+      </div>
+      {profile.intro && <p className="mt-3 text-sm leading-relaxed">{profile.intro}</p>}
+      {(profile.email || profileLinks.length > 0 || cv) && (
+        <div className="mt-3 flex flex-col gap-1.5 text-sm">
+          {profile.email && (
+            <a href={`mailto:${profile.email}`} className="inline-flex items-center gap-1.5 underline-offset-4 hover:underline">
+              <Mail className="size-3.5" /> {profile.email}
+            </a>
+          )}
+          {cv && cvUrl && (
+            <a href={cvUrl} download={cv.name} className="inline-flex items-center gap-1.5 underline-offset-4 hover:underline">
+              <CvIcon className="size-3.5" /> CV
+            </a>
+          )}
+          {profileLinks.map((l, i) => (
+            <a key={i} href={withProtocol(l.url)} target="_blank" rel="noopener noreferrer" className="underline-offset-4 hover:underline">
+              {l.label || prettyUrl(l.url)}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function ProfilePreview({ profile, pageStyle }: { profile: Profile; pageStyle?: PageStyle }) {
+  usePortfolioFont(pageStyle?.font);
+  const photoUrl = useObjectUrl(useBlob(profile.photoKey));
+  const bannerUrl = useObjectUrl(useBlob(pageStyle?.bannerKey));
+  const cvUrl = useObjectUrl(useBlob(profile.cv?.blobKey));
+  return <div className="p-3"><ProfileCard profile={profile} photoUrl={photoUrl} bannerUrl={bannerUrl} cvUrl={cvUrl} cv={profile.cv} pageStyle={pageStyle} /></div>;
+}

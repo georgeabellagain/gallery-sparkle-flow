@@ -3,7 +3,7 @@ import { useState } from "react";
 import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
 import { ProfileForm } from "@/components/pf/ProfileForm";
 import { StyleForm } from "@/components/pf/StyleForm";
-import { PortfolioPage, useStoredMedia } from "@/components/pf/PortfolioPage";
+import { ProfilePreview } from "@/components/pf/PortfolioPage";
 import { Button } from "@/components/ui/button";
 import { patchPortfolio, useDoc } from "@/lib/portfolia/store";
 import { retrySync, useSyncStatus } from "@/lib/portfolia/cloud";
@@ -29,7 +29,6 @@ function Create() {
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const [pubErr, setPubErr] = useState<string | null>(null);
   const sync = useSyncStatus();
-  const { pdf, photoUrl } = useStoredMedia(p?.pdf?.blobKey, p?.profile.photoKey);
 
   if (!p || !p.pdf) {
     return (
@@ -64,8 +63,8 @@ function Create() {
            <h1 className="display-title text-2xl">Profile details</h1>
           <p className="mt-2 text-sm text-muted-foreground">Start with your name. Everything else is optional.</p>
           <p className="mt-1 text-xs text-muted-foreground">{p.pdf.name} · {p.pdf.pages} pages</p>
-          <div className="mt-6"><ProfileForm p={p} onSaveError={setSaveErr} /></div>
-          <details className="mt-6 rule-t pt-4"><summary className="cursor-pointer text-sm">Profile appearance</summary><div className="mt-4"><StyleForm sidebar part="appearance" p={p} onSaveError={setSaveErr} /></div></details>
+          <div className="mt-6"><ProfileForm key={p.code} p={p} onSaveError={setSaveErr} /></div>
+          <details className="mt-6 rule-t pt-4"><summary className="cursor-pointer text-sm">Page style</summary><div className="mt-4"><StyleForm key={p.code} sidebar part="appearance" p={p} onSaveError={setSaveErr} /></div></details>
           {saveErr && <p role="alert" className="mt-4 text-sm text-destructive">{saveErr}</p>}
           <div className="mt-8 rule-t pt-5">
             <p className="text-xs text-muted-foreground">Will be published at <span className="font-mono text-foreground">/p/{p.code}</span>. Unlisted: anyone with your link can view. Your portfolio will not appear in a public directory.</p>
@@ -81,13 +80,13 @@ function Create() {
             <DemoNote className="mt-6">{LOCAL_NOTE}</DemoNote>
           </div>
         </aside>
-        <section aria-label="Preview" className="order-2 self-start bg-muted/50 p-3 sm:p-6 lg:sticky lg:top-0 lg:order-2">
+        <section aria-label="Profile preview" className="order-2 self-start bg-muted/50 p-3 sm:p-6 lg:sticky lg:top-0 lg:order-2">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="label-xs">Your portfolio preview</p>
+            <p className="label-xs">Your profile preview</p>
             <Link to="/edit" className="text-xs underline underline-offset-4">Edit book and scrapbook</Link>
           </div>
           <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
-            <PortfolioPage profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} showCredit={p.plan === "free"} pageStyle={p.plan === "personal" ? p.style : undefined} viewer={p.viewer} projects={p.pdf?.projects} foldouts={p.pdf?.foldouts} tags={p.pdf?.tags} links={p.pdf?.links} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />
+            <ProfilePreview profile={{ ...p.profile, cv: p.plan === "personal" ? p.profile.cv : undefined }} pageStyle={p.plan === "personal" ? p.style : undefined} />
           </div>
         </section>
       </div>

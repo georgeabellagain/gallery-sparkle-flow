@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, ChartNoAxesColumn, BookOpen, GripHorizontal, FolderOpen, Image as ImageIcon, Palette, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
+import { ArrowLeft, ChartNoAxesColumn, BookOpen, GripHorizontal, FolderOpen, Image as ImageIcon, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/pf/Chrome";
 import { ScrapbookDialog, type ScrapbookPanel } from "@/components/pf/FoldoutSettings";
@@ -17,14 +17,13 @@ import { readableFoldouts } from "@/lib/portfolia/foldouts";
 import { cn } from "@/lib/utils";
 import { EditorFullscreenContext, useEditorFullscreen } from "./editor-fullscreen";
 
-type Tool = "reading" | "look" | "background" | "scrapbook" | "projects" | "style" | "publish" | "share" | "statistics";
+type Tool = "reading" | "look" | "background" | "scrapbook" | "projects" | "publish" | "share" | "statistics";
 const TOOLS: Array<[Tool, string, typeof Sun]> = [
   ["reading", "Reading", BookOpen],
   ["look", "Lighting & look", Sun],
   ["background", "Background", ImageIcon],
   ["scrapbook", "Scrapbook", StickyNote],
   ["projects", "Projects", FolderOpen],
-  ["style", "Page style", Palette],
   ["share", "Share", Share2],
   ["statistics", "Statistics", ChartNoAxesColumn],
   ["publish", "File & publishing", Upload],
@@ -226,7 +225,6 @@ export function EditorStage({
           {tool === "reading" && <StyleForm sidebar part="reading" p={p} onSaveError={onSaveError} />}
           {tool === "look" && <StyleForm sidebar part="look" p={p} onSaveError={onSaveError} />}
           {tool === "background" && <StyleForm sidebar part="background" p={p} onSaveError={onSaveError} />}
-          {tool === "style" && <StyleForm sidebar part="appearance" p={p} onSaveError={onSaveError} />}
           {tool === "projects" && <ProjectSettings key={`${p.code}:${pdf.blobKey}`} p={p} />}
           {tool === "scrapbook" && (
             <div className="space-y-3 text-sm">

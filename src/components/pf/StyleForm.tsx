@@ -2,8 +2,8 @@ import { usePortfolioFont } from "@/lib/portfolia/fonts";
 import { useEffect, useRef, useState } from "react";
 import { Minus, Palette, Plus, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { deleteBlob, putBlob, uid } from "@/lib/portfolia/assets";
-import { DEFAULT_STYLE, DEFAULT_VIEWER, FONT_OPTIONS, patchPortfolio, type PageStyle, type Portfolio, type ViewerSettings } from "@/lib/portfolia/store";
+import { putBlob, uid } from "@/lib/portfolia/assets";
+import { DEFAULT_STYLE, DEFAULT_VIEWER, FONT_OPTIONS, patchPortfolioAppearance, deleteUnusedPortfolioAsset, type PageStyle, type Portfolio, type ViewerSettings } from "@/lib/portfolia/store";
 import { backgroundColour, DEFAULT_FIT } from "@/lib/portfolia/background";
 import { useBlob, useObjectUrl } from "@/components/pf/Chrome";
 import { Segmented } from "@/components/pf/viewer-ui";
@@ -44,11 +44,17 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
   const input = useRef<HTMLInputElement>(null);
   const [err, setErr] = useState<string | null>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
-  const set = (patch: Partial<PageStyle>) =>
-    onSaveError(patchPortfolio({ style: { ...style, ...patch } }) ? null : "Couldn’t save that style change.");
+  const set = (patch: Partial<PageStyle>) => {
+    const saved = patchPortfolioAppearance(p.code, { style: patch });
+    onSaveError(saved ? null : "Couldn’t save that style change.");
+    return saved;
+  };
   const viewer = { ...DEFAULT_VIEWER, ...p.viewer };
-  const setViewer = (patch: Partial<ViewerSettings>) =>
-    onSaveError(patchPortfolio({ viewer: { ...viewer, ...patch } }) ? null : "Couldn’t save that viewer change.");
+  const setViewer = (patch: Partial<ViewerSettings>) => {
+    const saved = patchPortfolioAppearance(p.code, { viewer: patch });
+    onSaveError(saved ? null : "Couldn’t save that viewer change.");
+    return saved;
+  };
   const backgroundInput = useRef<HTMLInputElement>(null);
   // While one look's options are being edited, the preview shows that look. Clicking anywhere else (or leaving) puts
   // the preview back to how the portfolio opens. Nothing here is saved.
@@ -99,16 +105,15 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
       const key = uid("bg");
       await putBlob(key, blob);
       const old = viewer.backgroundKey;
-      setViewer({ backgroundKey: key, backgroundFit: DEFAULT_FIT });
-      if (old) void deleteBlob(old);
+      if (!setViewer({ backgroundKey: key, backgroundFit: DEFAULT_FIT })) { void deleteUnusedPortfolioAsset(key); return; }
+      void deleteUnusedPortfolioAsset(old);
     } catch {
       setBackgroundErr("That picture couldn’t be saved. Try a JPG or PNG, or check your connection.");
     }
   };
   const removeBackgroundImage = () => {
     const old = viewer.backgroundKey;
-    setViewer({ backgroundKey: undefined, backgroundFit: undefined });
-    if (old) void deleteBlob(old);
+    if (setViewer({ backgroundKey: undefined, backgroundFit: undefined })) void deleteUnusedPortfolioAsset(old);
   };
 
   const onBanner = (f?: File) => {
@@ -123,16 +128,16 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
     const key = uid("banner");
     try { await putBlob(key, blob); } catch { return setErr("Browser storage is full, so the banner wasn’t saved."); }
     const old = style.bannerKey;
-    set({ bannerKey: key });
+    if (!set({ bannerKey: key })) { void deleteUnusedPortfolioAsset(key); return; }
     setCropFile(null);
-    if (old) void deleteBlob(old);
+    void deleteUnusedPortfolioAsset(old);
   };
 
   return (
     <div className={`grid min-w-0 items-start gap-x-10 gap-y-6 ${sidebar || part !== "all" ? "" : "lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]"}`}>
       {showAppearance && <div>
       <p className="flex items-center gap-2 text-xs font-medium">
-        <Palette className="size-4 text-leaf" aria-hidden /> Portfolio appearance
+        <Palette className="size-4 text-leaf" aria-hidden /> Page style
         {!paid && <span className="rounded-full bg-leaf-soft px-2 py-0.5 text-xxs text-leaf">Personal plan</span>}
       </p>
       {!paid ? (
@@ -156,7 +161,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
             <span className="flex gap-2">
                <input ref={input} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => { onBanner(e.target.files?.[0]); e.currentTarget.value = ""; }} />
                <Button size="xs" variant="line" onClick={() => input.current?.click()}>{style.bannerKey ? "Replace" : "Upload image"}</Button>
-              {style.bannerKey && <Button size="xs" variant="quiet" onClick={() => { const k = style.bannerKey; set({ bannerKey: undefined }); if (k) void deleteBlob(k); }}>Remove</Button>}
+              {style.bannerKey && <Button size="xs" variant="quiet" onClick={() => { const k = style.bannerKey; if (set({ bannerKey: undefined })) void deleteUnusedPortfolioAsset(k); }}>Remove</Button>}
             </span>
           </div>
           {err && <p role="alert" className="text-destructive">{err}</p>}
