@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { Code, Link, MousePointer2, Check } from "lucide-react";
+import { Code, Link, MousePointer2, Check, Store, Instagram, ArrowUpRight } from "lucide-react";
+import { PageLinkAnchor } from "./PageLinks";
 import { BookView } from "./BookView";
 import { registerPublicUrls, uid } from "@/lib/portfolia/assets";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 import type { Foldout } from "@/lib/portfolia/foldouts";
-import type { PageTag } from "@/lib/portfolia/page-extras";
+import type { PageTag, PageLink } from "@/lib/portfolia/page-extras";
 
 export type FeatureId =
   | "book"
@@ -16,6 +17,7 @@ export type FeatureId =
   | "lighting"
   | "notes"
   | "tabs"
+  | "links"
   | "share";
 const MIDNIGHT = "#10162e";
 const noop = () => {};
@@ -27,10 +29,16 @@ const START: Record<FeatureId, number> = {
   lighting: 9,
   notes: 10,
   tabs: 11,
+  links: 8,
   share: 12,
 };
 const LOOP = [0, 1, 2, 3, 2, 1];
 const DEMO_LIGHTINGS = ["1", "2", "3", "7", "8"] as const;
+// Illustrative destinations only; this demonstration never edits the sample PDF.
+const WEB_LINKS: PageLink[] = [
+  { id: "demo_store", page: 8, half: "right", url: "https://www.etsy.com/", label: "Store", x: .67, y: .76, size: .1 },
+  { id: "demo_social", page: 8, half: "right", url: "https://www.instagram.com/", label: "Social", x: .83, y: .76, size: .1 },
+];
 // Local demonstration only. These are supported scrapbook settings, never saved to the portfolio.
 const NOTES: Foldout[] = [
   {
@@ -391,6 +399,22 @@ export function FeatureAnimation({
                   </div>
                   {art(13)}
                   <span>Your website</span>
+                </div>
+              </div>
+            )}
+            {feature === "links" && (
+              <div className="pf-motion-web-links">
+                <div className="pf-web-sheet">
+                  {art(8)}
+                  <div className="absolute inset-0">
+                    {WEB_LINKS.map(link => <PageLinkAnchor key={link.id} link={link} visible />)}
+                  </div>
+                  <MousePointer2 className="pf-web-pointer" fill="white" stroke="#10162e" />
+                </div>
+                <div className="pf-web-destinations">
+                  <div className="pf-web-store"><Store /><span>Your store</span><ArrowUpRight /></div>
+                  <div className="pf-web-social"><Instagram /><span>Your socials</span><ArrowUpRight /></div>
+                  <p>Example destinations · Opens in a new tab</p>
                 </div>
               </div>
             )}

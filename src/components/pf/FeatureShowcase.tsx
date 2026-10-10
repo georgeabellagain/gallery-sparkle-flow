@@ -11,6 +11,12 @@ import { registerPublicUrls } from "@/lib/portfolia/assets";
 
 const FEATURES = [
   {
+    id: "lighting",
+    label: "Studio light",
+    title: "Paper in a different light.",
+    text: "Soft shadows and changing light bring pages 9–12 of the lookbook into focus.",
+  },
+  {
     id: "paged",
     label: "Page by page",
     title: "One page at a time.",
@@ -28,18 +34,18 @@ const FEATURES = [
     title: "Set the scene.",
     text: "Frame your portfolio with a background that suits your work.",
   },
-  {
-    id: "lighting",
-    label: "Studio light",
-    title: "Paper in a different light.",
-    text: "Soft shadows and changing light bring pages 9–12 of the lookbook into focus.",
-  },
   // Scrapbook ("notes") hidden for now — restore this entry to show it again.
   {
     id: "tabs",
     label: "Page tabs",
     title: "Find your way through.",
     text: "A small touch of colour. One click takes your reader straight to the right page.",
+  },
+  {
+    id: "links",
+    label: "Website links",
+    title: "Take your work further.",
+    text: "Place clickable icons on your pages to link to stores, social profiles and websites. They stay available in every reading style.",
   },
   {
     id: "share",

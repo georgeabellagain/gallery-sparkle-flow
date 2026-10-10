@@ -645,6 +645,8 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 
 ## Iteration 55 — independent portfolio appearance and dashboard backgrounds
 
+- Merged through PR #38 and published on 10 October 2026.
+
 - Bind appearance saves to the portfolio code that owns the editor. Merge only changed fields into its latest settings; delayed background/banner uploads can finish after switching portfolios without changing the newly active portfolio. Missing portfolios and failed storage writes leave existing settings untouched.
 - Keep shared legacy asset files while another portfolio references them. Failed image saves retain the old picture; replacing/removing a background or banner releases only unreferenced files. New PDF portfolios continue to receive fresh viewer defaults.
 - Remove Page style from the portfolio editing dock. Keep font, profile colours and banner under Page style in the profile editor. Reset portfolio editor state when switching between portfolio codes.
@@ -652,3 +654,12 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Profile editing previews only the profile card, reusing the visitor-facing card layout for photo, name, banner, colours, introduction, links and CV. It no longer fetches or renders the PDF preview there.
 - Validation: TypeScript, production build and seven store regression tests covering new uploads, independent backgrounds, delayed saves after switching, partial-setting merges, missing owners, failed writes and shared asset references. Signed-in dashboard/editor visual checks require an authenticated session.
 - Merge and publication requested after checks. Next remains real-device performance profiling; no new services or dependencies.
+
+## Iteration 56 — shared page extras and website-link showcase
+
+- Preserve and validate the latest Lovable changes on main: Scroll and Page by page now display the shared website-link collection in the committed page layer, mapping split-leaf positions onto full PDF pages. Existing links remain associated with their PDF page across all viewing styles.
+- Page tabs now expose Position along edge plus Automatic position in their editor. Optional saved positions move the tab centre along the edge; geometry clamps the whole tab within the page. Omitted positions retain existing automatic spacing.
+- Open the feature slideshow on Studio light by placing it first. Retain its Lighting 1, 2, 3, 7 and 8 cycle and slower turns.
+- Add Website links as a seventh feature. Use page 8 of the actual lookbook, the same visible PageLinkAnchor component used in the reader, and a looping cursor/destination animation demonstrating stores and socials. Destinations are labelled as illustrative and are never saved into the sample portfolio. Reuse existing shared PDF imagery, pause hidden animations and honour reduced motion.
+- Validation: TypeScript, production build and 14 page-extra/tab tests, including full-page/split-page placement, optional tab positions and clamping. Signed-in/GPU visual checks remain limited by the available browser.
+- Merge requested; publication not requested for this iteration.

@@ -598,6 +598,20 @@
 .pf-share-site > div { display: flex; gap: 4px; padding-bottom: 12px; align-items: center; }
 .pf-share-site i { width: 4px; height: 4px; border-radius: 50%; background: #ffffff80; }
 .pf-share-site svg { margin-left: auto; }
+.pf-motion-web-links { position: absolute; inset: 14% 7%; display: flex; align-items: center; gap: 5%; color: #eee; }
+.pf-web-sheet { position: relative; width: 64%; flex-shrink: 0; }
+.pf-web-sheet > img { display: block; width: 100%; }
+.pf-web-pointer { position: absolute; width: 7%; height: auto; z-index: 20; left: 72%; top: 80%; animation: pf-web-pointer 8s infinite; }
+.pf-web-destinations { flex: 1; min-width: 0; }
+.pf-web-destinations > div { display: flex; align-items: center; gap: 8px; margin: 12px 0; padding: 14px 10px; border: 1px solid #ffffff25; border-radius: 10px; background: #202a45; font-size: clamp(9px,1vw,13px); }
+.pf-web-destinations svg { width: 17px; flex-shrink: 0; }
+.pf-web-destinations svg:last-child { width: 12px; margin-left: auto; }
+.pf-web-destinations p { font-size: clamp(8px,.8vw,10px); opacity: .6; line-height: 1.5; }
+.pf-web-store { animation: pf-web-store 8s infinite; }
+.pf-web-social { animation: pf-web-social 8s infinite; }
+@keyframes pf-web-pointer { 0%,100% { opacity: 0; transform: translate(30%,40%); } 12%,35% { opacity: 1; transform: translate(0,0); } 24% { transform: scale(.8); } 52%,82% { opacity: 1; transform: translate(225%,0); } 66% { transform: translate(225%,0) scale(.8); } 92% { opacity: 0; transform: translate(225%,40%); } }
+@keyframes pf-web-store { 0%,12%,48%,100% { opacity: .4; transform: translateX(8px); } 25%,40% { opacity: 1; transform: translateX(0); } }
+@keyframes pf-web-social { 0%,52%,95%,100% { opacity: .4; transform: translateX(8px); } 66%,82% { opacity: 1; transform: translateX(0); } }
 .pf-demo-cursor { position: absolute; z-index: 50; width: 25px; height: 25px; animation: pf-demo-click .9s both; filter: drop-shadow(0 2px 4px #0008); }
 .pf-feature-animation[data-playing="false"] *, .pf-feature-animation[data-playing="false"] *::before { animation-play-state: paused !important; }
 @keyframes pf-page-slide { 0%,15% { transform: translateX(0); } 23%,38% { transform: translateX(-20%); } 46%,61% { transform: translateX(-40%); } 69%,84% { transform: translateX(-60%); } 92%,100% { transform: translateX(-80%); } }
