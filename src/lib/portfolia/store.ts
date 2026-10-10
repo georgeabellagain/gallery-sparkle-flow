@@ -256,6 +256,26 @@ export function patchPortfolio(patch: Partial<Portfolio>): boolean {
   });
 }
 
+/** Appearance saves belong to their editor, even if an upload finishes after switching portfolios. */
+export function patchPortfolioAppearance(code: string, patch: { viewer?: Partial<ViewerSettings>; style?: Partial<PageStyle> }): boolean {
+  if (!allPortfolios(getDoc()).some(p => p.code === code)) return false;
+  return update(d => {
+    const p = allPortfolios(d).find(item => item.code === code)!;
+    if (patch.viewer) p.viewer = { ...DEFAULT_VIEWER, ...p.viewer, ...patch.viewer };
+    if (patch.style) p.style = { ...DEFAULT_STYLE, ...p.style, ...patch.style };
+    return d;
+  });
+}
+
+/** Older portfolios can share an asset key; changing one must not erase another's picture. */
+export function portfolioUsesAsset(key: string): boolean {
+  return allPortfolios(getDoc()).some(p => [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey,
+    p.style?.bannerKey, p.viewer?.backgroundKey, ...foldoutKeys(p.pdf)].includes(key));
+}
+export async function deleteUnusedPortfolioAsset(key?: string) {
+  if (key && !portfolioUsesAsset(key)) await deleteBlob(key);
+}
+
 export function patchProfile(patch: Partial<Profile>): boolean {
   return update((d) => {
     if (d.portfolio) d.portfolio.profile = { ...d.portfolio.profile, ...patch };

@@ -55,6 +55,7 @@ function EditPortfolio() {
       <EditorBar p={p} status={status} onPublish={publish} onUnpublish={() => setDialog("unpublish")} />
       <main className="flex-1">
         <EditorStage
+          key={p.code}
           p={p}
           statistics={doc.account.signedIn ? <AnalyticsPanel data={doc.analytics} title="This portfolio" description={p.pdf.name} /> : undefined}
           onSaveError={setSaveErr}

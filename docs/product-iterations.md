@@ -632,6 +632,8 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 
 ## Iteration 54 — prepare once, navigate from ready artwork
 
+- Merged through PR #37 and published on 9 October 2026.
+
 - Page by page now prepares complete HD artwork, selectable text and clickable links together. Prefetch the next two pages and previous page after the current slide; visits at the same size/device pixel ratio reuse completed results rather than rendering the PDF again.
 - Deduplicate concurrent requests from navigation and prefetch. Bound the completed artwork cache to 48 MB on lower-memory devices and 96 MB otherwise; evict least recently used entries, retry failed preparation, and keep oversized pages readable without retaining them in the cache. Live artwork remains independent of cached masters.
 - Run up to two PDF page preparations concurrently in Scroll, retaining its whole-document preparation gate. Artwork, text and annotations are prepared together; original canvas resolution, selectable text, links and real-time Studio lighting remain intact.
@@ -640,3 +642,13 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - No additional services or dependencies, no compression/resolution reductions. Large PDFs still incur an initial download and complete Scroll preparation; this change cannot guarantee a device-independent frame rate.
 - Validation: TypeScript, production build and 18 focused regression tests, including preparation deduplication, cache eviction, retry, bounded parallelism, unchanged density sampling, readiness, cancelled/stale frame commits and slide offsets. Real-device GPU/frame-time and network measurements remain outstanding because the available browser disables WebGL.
 - Review branch; not merged or published. Next: real-device profiling of fullscreen turns and long Scroll documents, then tune only bottlenecks demonstrated by those measurements.
+
+## Iteration 55 — independent portfolio appearance and dashboard backgrounds
+
+- Bind appearance saves to the portfolio code that owns the editor. Merge only changed fields into its latest settings; delayed background/banner uploads can finish after switching portfolios without changing the newly active portfolio. Missing portfolios and failed storage writes leave existing settings untouched.
+- Keep shared legacy asset files while another portfolio references them. Failed image saves retain the old picture; replacing/removing a background or banner releases only unreferenced files. New PDF portfolios continue to receive fresh viewer defaults.
+- Remove Page style from the portfolio editing dock. Keep font, profile colours and banner under Page style in the profile editor. Reset portfolio editor state when switching between portfolio codes.
+- Dashboard thumbnails use each portfolio's saved background image, colour and positioning, while retaining a lightweight Simple single-page preview without Studio rendering.
+- Profile editing previews only the profile card, reusing the visitor-facing card layout for photo, name, banner, colours, introduction, links and CV. It no longer fetches or renders the PDF preview there.
+- Validation: TypeScript, production build and seven store regression tests covering new uploads, independent backgrounds, delayed saves after switching, partial-setting merges, missing owners, failed writes and shared asset references. Signed-in dashboard/editor visual checks require an authenticated session.
+- Merge and publication requested after checks. Next remains real-device performance profiling; no new services or dependencies.
