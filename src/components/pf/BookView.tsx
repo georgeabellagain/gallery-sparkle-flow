@@ -51,10 +51,9 @@ const MAX_QUEUE = 12;
 
 
 /**
- * Renders every page once into a ready-to-use face and keeps them in a bounded
- * cache. A turn then only hands existing canvases to the scene, with no
- * rendering or copying at the moment the page moves. Pages are rendered up
- * front, within a memory budget, so turning never waits.
+ * Prepares nearby pages into a bounded face cache. Later pages continue in the
+ * background. A turn waits for its target artwork before starting, so PDF
+ * rendering never happens during the page movement itself.
  */
 function pageLoader(
   doc: PDFDocumentProxy,
@@ -67,6 +66,7 @@ function pageLoader(
   lightweight = false,
   notes: Foldout[] = [],
   links: PageLink[] = [],
+  previewTextureCap = 1600,
 ) {
   const linkIcons: LinkIcons = new Map();
   const faces = new Map<number, HTMLCanvasElement>();
@@ -96,7 +96,7 @@ function pageLoader(
   const perPage = split === 0.5 ? 2 : 1;
   const count = layout.leaves.length;
   const tier = deviceTier();
-  const screenLong = lightweight ? 1600 : Math.min(4096, Math.max(2560, window.innerWidth * Math.min(devicePixelRatio || 1, 3)));
+  const screenLong = lightweight ? previewTextureCap : Math.min(4096, Math.max(2560, window.innerWidth * Math.min(devicePixelRatio || 1, 3)));
   const leafRatio = Math.max(ratio, 1 / ratio);
   const isSplit = (page: number) => (leavesOf.get(page) ?? []).some((index) => !!layout.leaves[index]!.half);
   /** The long side, in PDF points, of what is shown for this page (a whole page, or half of a spread). */
@@ -108,7 +108,7 @@ function pageLoader(
       screenLong,
       density: nativeDensity,
       leafLongPt: leafLongPt(page, width, height),
-      cap: lightweight ? 1600 : longSideCap({ leafRatio, tier, maxTexture: maxTexture() }),
+      cap: lightweight ? previewTextureCap : longSideCap({ leafRatio, tier, maxTexture: maxTexture() }),
     });
 
   const plan = (async () => {
@@ -197,8 +197,8 @@ function pageLoader(
     async preload(onProgress: (done: number, total: number) => void): Promise<void> {
       await plan;
       const total = Math.min(doc.numPages, Math.floor(keep / perPage));
-      // Turning waits until every page is ready, so no page ever has to be prepared during a turn.
-      const gate = lightweight ? Math.min(2, total) : total;
+      // Open on a prepared cover/nearby spread; remaining work continues and pauses during turns.
+      const gate = Math.min(lightweight ? 2 : 3, total);
       return new Promise<void>((resolve) => {
         let next = 1;
         let done = 0;
@@ -273,6 +273,7 @@ export function BookView({
   demoTurnDurationScale = 1,
   demoLightingCycle,
   lightweight = false,
+  previewTextureCap = 1600,
   foldouts,
   tags,
   links,
@@ -313,6 +314,8 @@ export function BookView({
   /** Presentation-only: prepare every environment used by a lighting loop. */
   demoLightingCycle?: readonly HdriId[];
   lightweight?: boolean;
+  /** Small showcase-only textures; normal portfolio artwork is unchanged. */
+  previewTextureCap?: number;
   foldouts?: Foldout[];
   /** Coloured tabs on the edges of the book; each jumps to its page. */
   tags?: PageTag[];
@@ -464,7 +467,7 @@ export function BookView({
     scene.current.setTabRest(Object.fromEntries(tabEntries.map((t) => [t.id, tabEdge(t.leaf, spread, narrow)])));
     syncBounds();
   }, [leaf, busy]);
-  /** Turning waits until every page has been prepared. */
+  /** Opening waits for the initial prepared batch and the current spread. */
   const wait = loading || !warm;
   const label =
     narrow || new Set(pages).size === 1
@@ -481,7 +484,7 @@ export function BookView({
     setNarrow(!fullSpread && element.clientWidth < 720);
     // The detail of the images inside the PDF is read once, in the background; pages wait for it before drawing.
     const density = lightweight ? Promise.resolve(0) : loadPdfjs().then((pdfjs) => detectDensity(doc, pdfjs.OPS as never)).catch(() => 0);
-    const source = pageLoader(doc, ratio, layout, density, () => scene.current?.maxTextureSize ?? 4096, lightweight, additions, pageLinks);
+    const source = pageLoader(doc, ratio, layout, density, () => scene.current?.maxTextureSize ?? 4096, lightweight, additions, pageLinks, previewTextureCap);
     loader.current = source;
     // The newly built scene starts its actual selected lighting in parallel.
     let lightingPreparation: Promise<void> | undefined;
@@ -490,10 +493,17 @@ export function BookView({
     void source.preload((done, total) => {
       if (!cancelled) setWarmProgress({ done, total });
     }).then(async () => {
-      // Pages are only part of it: both looks' shaders and the lighting are prepared too, so neither the first
-      // turn nor the Simple/Studio switch has anything left to stall on. (A cap stops a slow download holding it up.)
+      // Simple can open independently; only an initial Studio appearance waits
+      // for lighting, with a cap for slow downloads.
       try {
-        await Promise.race([lightingPreparation ?? scene.current?.prepare(offersBoth.current, demoLightingCycle) ?? Promise.resolve(), new Promise<void>((done) => setTimeout(done, 8000))]);
+        if (latestSettings.current.studio) {
+          // The active light is enough to reveal the page. Other demo lights and
+          // the alternate appearance continue preparing independently.
+          const preparation = lightweight
+            ? scene.current?.prepare(false) ?? Promise.resolve()
+            : lightingPreparation ?? Promise.resolve();
+          await Promise.race([preparation, new Promise<void>((done) => setTimeout(done, 8000))]);
+        }
       } catch {
         /* turning is allowed anyway */
       }
@@ -577,7 +587,7 @@ export function BookView({
       scene.current?.dispose();
       scene.current = null;
     };
-  }, [doc, ratio, layout, lightweight, fullSpread, additions, pageLinks]);
+  }, [doc, ratio, layout, lightweight, previewTextureCap, fullSpread, additions, pageLinks]);
 
   const faces = useCallback(
     async (value: Spread): Promise<BookFaces> => {

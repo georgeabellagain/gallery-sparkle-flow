@@ -35,6 +35,8 @@ export interface ViewerSettings {
   look: "clean" | "studio";
   /** Flipbook appearances offered to visitors. Older portfolios use their saved look only. */
   looks?: ("clean" | "studio")[];
+  /** Reading modes allowed to offer Studio. Omitted retains all modes for older portfolios. */
+  studioModes?: ("scroll" | "paged" | "book")[];
   /** Creator-defined Studio lighting. */
   studioBrightness?: number;
   studioLighting?: "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8";
