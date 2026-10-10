@@ -11,7 +11,7 @@ export function LinkLogo({ link, className = "" }: { link: Pick<PageLink, "url" 
   const letter = (linkName(link as PageLink) || "?").charAt(0).toUpperCase();
   return (
     <span
-      className={`flex aspect-square w-full items-center justify-center overflow-hidden rounded-[22%] bg-white ring-1 ring-black/15 ${className}`}
+      className={`flex aspect-square w-full items-center justify-center overflow-hidden rounded-[22%] bg-background ring-1 ring-border ${className}`}
     >
       {src && !failed ? (
         <img
@@ -23,7 +23,7 @@ export function LinkLogo({ link, className = "" }: { link: Pick<PageLink, "url" 
           onError={() => setFailed(true)}
         />
       ) : (
-        <span className="font-semibold text-neutral-700" style={{ fontSize: "1.4em" }}>
+        <span className="font-semibold text-foreground" style={{ fontSize: "1.4em" }}>
           {letter}
         </span>
       )}
@@ -32,7 +32,7 @@ export function LinkLogo({ link, className = "" }: { link: Pick<PageLink, "url" 
 }
 
 /** A real link on a page of the book. It opens the website in a new tab and never hands the site this page. */
-export function PageLinkAnchor({ link }: { link: PageLink }) {
+export function PageLinkAnchor({ link, visible = false }: { link: PageLink; visible?: boolean }) {
   const name = linkName(link);
   return (
     <a
@@ -50,7 +50,10 @@ export function PageLinkAnchor({ link }: { link: PageLink }) {
       onTouchEnd={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
-      <span className="block aspect-square w-full rounded-[22%] transition-colors group-hover:bg-black/5 group-focus-visible:ring-2 group-focus-visible:ring-black/60" />
+      <span className="block aspect-square w-full rounded-[22%] transition-colors group-hover:bg-foreground/5 group-focus-visible:ring-2 group-focus-visible:ring-foreground/60 [container-type:inline-size]">
+        {visible && <span className="block text-[36cqw]"><LinkLogo link={link} /></span>}
+        {visible && link.label?.trim() && <span className="relative -left-[45%] mt-[10%] block w-[190%] text-center font-medium leading-tight text-foreground text-[24cqw]">{link.label}</span>}
+      </span>
     </a>
   );
 }

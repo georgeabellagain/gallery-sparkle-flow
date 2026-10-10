@@ -1513,6 +1513,23 @@ function TagsPanel({
                 ))}
               </select>
             </label>
+            <label className="block text-xs">
+              Position along edge
+              <input
+                type="range"
+                aria-label={`Tab position: ${t.label || `Page ${t.page}`}`}
+                min={0}
+                max={100}
+                step={1}
+                value={Math.round((t.position ?? 0.5) * 100)}
+                onChange={(e) => onEdit(t.id, { position: Number(e.target.value) / 100 })}
+                className="mt-2 w-full accent-primary"
+              />
+              <span className="flex justify-between text-muted-foreground"><span>Top</span><span>Bottom</span></span>
+            </label>
+            <Button size="sm" variant="ghost" disabled={t.position === undefined} onClick={() => onEdit(t.id, { position: undefined })}>
+              Automatic position
+            </Button>
           </li>
         ))}
       </ul>

@@ -20,12 +20,14 @@ const smooth = (t: number) => {
   return x * x * (3 - 2 * x);
 };
 /** Evenly spaced slots down the edge, in page order, centred on the page. Slot 0 is at the top. */
-export function tabSlot(ratio: number, index: number, count: number) {
+export function tabSlot(ratio: number, index: number, count: number, position?: number) {
   const usable = ratio * 0.9;
   const gap = 0.012;
   const height = Math.min(ratio * 0.16, (usable - gap * (count - 1)) / Math.max(1, count));
   const total = count * height + (count - 1) * gap;
-  return { y: total / 2 - height / 2 - index * (height + gap), height };
+  const automatic = total / 2 - height / 2 - index * (height + gap);
+  const limit = ratio / 2 - height / 2;
+  return { y: position === undefined ? automatic : Math.max(-limit, Math.min(limit, (0.5 - position) * ratio)), height };
 }
 /**
  * The outer edge of the turning sheet at progress 0..1 (0 flat on the right, 1 flat on the left when `dir` is 1),

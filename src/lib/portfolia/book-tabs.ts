@@ -8,6 +8,7 @@ export interface TabSpec {
   /** What the tab says. */
   text: string;
   colour: string;
+  position?: number;
 }
 const COLS = 4;
 const LIFT = 0.012;
@@ -63,7 +64,7 @@ export function createBookTabs(
     const s = size();
     const length = s.out + s.in;
     specs.forEach((spec, i) => {
-      const { y, height } = tabSlot(ratio, i, specs.length);
+      const { y, height } = tabSlot(ratio, i, specs.length, spec.position);
       const geometry = new THREE.BufferGeometry();
       const back = new THREE.BufferGeometry();
       const uv: number[] = [],

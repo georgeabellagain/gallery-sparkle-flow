@@ -5,6 +5,8 @@ export interface PageTag {
   page: number;
   label: string;
   colour: string;
+  /** Centre along the page edge: 0 is top, 1 is bottom. Omitted keeps automatic spacing. */
+  position?: number;
 }
 export interface PageLink {
   id: string;
@@ -65,6 +67,7 @@ export function validatePageTag(t: PageTag, pages: number): string | null {
   if (!Number.isInteger(t.page) || t.page < 1 || t.page > pages) return "Choose a page in this PDF.";
   if (typeof t.label !== "string" || t.label.length > TAG_LABEL_LIMIT) return `Keep tag text to ${TAG_LABEL_LIMIT} characters.`;
   if (!hex.test(t.colour)) return "Choose a tag colour.";
+  if (t.position !== undefined && (!Number.isFinite(t.position) || t.position < 0 || t.position > 1)) return "Keep the tab on the page edge.";
   return null;
 }
 export function validatePageLink(l: PageLink, pages: number): string | null {
@@ -100,6 +103,12 @@ export function tabSlots(tags: PageTag[]): Array<PageTag & { slot: number; of: n
 /** Which page a link sits on, for a leaf of the book. */
 export const linksForLeaf = (links: PageLink[], leaf: { page: number; half?: "left" | "right" }) =>
   links.filter((l) => l.page === leaf.page && (!leaf.half || l.half === leaf.half));
+/** The same leaf-relative links, aligned on the full PDF page in Scroll and Page-by-page. */
+export function linksForPage(links: PageLink[], page: number, split: boolean): PageLink[] {
+  return links.filter((l) => l.page === page).map((l) => split
+    ? { ...l, x: (l.half === "right" ? 0.5 : 0) + l.x / 2, size: l.size / 2 }
+    : l);
+}
 export const tagsForLeaf = (tags: PageTag[], leaf: { page: number; half?: "left" | "right" }) =>
   tags.filter((t) => t.page === leaf.page);
 /** Pointer position as a fraction of the page, clamped so a link stays fully on it (`ratio` is page height over width). */
