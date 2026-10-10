@@ -1,4 +1,6 @@
 import { createPageReadiness } from "@/lib/portfolia/page-readiness";
+import { looksForMode, openingLook } from "@/lib/portfolia/appearance";
+import { loadLinkIcons, paintPageLinks } from "@/lib/portfolia/link-paint";
 import { createRenderQueue } from "@/lib/portfolia/render-queue";
 import { cachedReaderArtwork, copyReaderArtwork, prepareReaderArtwork } from "@/lib/portfolia/reader-artwork";
 import { READER_SLIDE_MS, READER_SLIDE_DISTANCE } from "@/lib/portfolia/reader-slide";
@@ -350,19 +352,21 @@ export function PdfViewer({
   };
 
   useEffect(() => setMode(startMode), [startMode]);
-  const enabledLooks = view.looks?.length ? view.looks : [view.look];
-  const [selectedLook, setSelectedLook] = useState(view.look);
+  const enabledLooks = looksForMode(view, mode);
+  const studioAvailable = enabledLooks.includes("studio");
+  const [selectedLook, setSelectedLook] = useState(() => compact && autoTurn ? view.look : openingLook(view, startMode));
   const [previewLook, setPreviewLook] = useState(() => compact ? getPreviewLook() : null);
-  useEffect(() => { setSelectedLook(view.look); }, [view.look]);
+  useEffect(() => { setSelectedLook(compact && autoTurn ? view.look : openingLook(view, mode)); }, [view.look, JSON.stringify(view.looks), JSON.stringify(view.studioModes), source]);
   useEffect(() => {
     if (!compact) return;
     setPreviewLook(getPreviewLook());
     return subscribePreviewLook(setPreviewLook);
   }, [compact]);
   const requestedLook = previewLook ?? selectedLook;
-  const activeLook = compact || enabledLooks.includes(requestedLook) ? requestedLook : enabledLooks[0]!;
+  const activeLook = enabledLooks.includes(requestedLook) ? requestedLook : openingLook(view, mode);
   const changeLook = (look: "clean" | "studio") => { setSelectedLook(look); if (compact) pinPreviewLook(look); };
   const studio = activeLook === "studio";
+  const warmFlatStudio = studio || contentReady;
   const lightingHost = useRef<HTMLDivElement>(null);
   const [pageLighting, setPageLighting] = useState<PageStudioRenderer | null>(null);
   const [pageLightingFailed, setPageLightingFailed] = useState(false);
@@ -371,7 +375,7 @@ export function PdfViewer({
     setPageLighting(null);
     setPageLightingFailed(false);
     setPageLightingReady(false);
-    if (!studio || mode === "book" || !doc) return;
+    if (!studioAvailable || mode === "book" || !doc || !warmFlatStudio) return;
     let cancelled = false;
     let renderer: PageStudioRenderer | null = null;
     void import("@/lib/portfolia/page-studio").then(module => {
@@ -381,11 +385,11 @@ export function PdfViewer({
       setPageLighting(renderer);
     }).catch(() => { if (!cancelled) setPageLightingFailed(true); /* Retain readable source pages. */ });
     return () => { cancelled = true; renderer?.dispose(); };
-  }, [studio, mode, !!doc]);
-  const pageStudio = useMemo<PageStudioSettings | null>(() => studio ? {
+  }, [studioAvailable, mode, !!doc, warmFlatStudio]);
+  const pageStudio = useMemo<PageStudioSettings | null>(() => studioAvailable ? {
     hdri: view.studioLighting ?? "4", brightness: view.studioBrightness ?? .5,
     finish: view.finish === "textured" ? "textured" : "satin",
-  } : null, [studio, view.studioLighting, view.studioBrightness, view.finish]);
+  } : null, [studioAvailable, view.studioLighting, view.studioBrightness, view.finish]);
   useEffect(() => {
     if (!pageLighting || !pageStudio) return;
     let cancelled = false;
@@ -478,7 +482,7 @@ export function PdfViewer({
   const fade = shown ? "opacity-100" : "pointer-events-none opacity-0";
 
   const scrollQueue = useMemo(() => createRenderQueue(2), [doc, mode]);
-  const scrollGate = useMemo(() => createPageReadiness(total), [doc, total, mode, studio, pageLighting, pageLightingReady, pageLightingFailed]);
+  const scrollGate = useMemo(() => createPageReadiness(total), [doc, total, mode, studio, studio ? pageLighting : null, studio && pageLightingReady, studio && pageLightingFailed]);
   useLayoutEffect(() => { if (mode === "scroll") setContentReady(false); }, [scrollGate, mode]);
   const scrollPrepared = useCallback((page: number, success: boolean) => {
     if (mode !== "scroll" || (success && studio && !pageLightingReady && !pageLightingFailed)) return;
@@ -698,7 +702,7 @@ export function PdfViewer({
             >
               {sizes[current - 1] && (
                 <div className="shrink-0" style={{ width: `calc(min(100%, max(1px, calc((${pagedHeight} - ${topGap + 24}px) * ${sizes[current - 1]!.w / sizes[current - 1]!.h}))) * ${zoom})` }}>
-                <PdfPage links={pageLinks(current)} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={pageLighting} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
+                <PdfPage links={pageLinks(current)} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={studio ? pageLighting : null} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
                 </div>
               )}
             </div>
@@ -717,12 +721,12 @@ export function PdfViewer({
             style={{ paddingTop: topGap, width: `calc(min(100%, ${compact ? 900 : 1100}px) * ${zoom})` }}
           >
             {sizes.map((s, i) => (
-              <PdfPage links={pageLinks(i + 1)} key={i} doc={doc} n={i + 1} size={s} lighting={pageLighting} zoom={zoom} onVisible={setCurrent} eager renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
+              <PdfPage links={pageLinks(i + 1)} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} onVisible={setCurrent} eager renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
             ))}
           </div>
         </div>
       )}
-      {mode !== "book" && studio && <div ref={lightingHost} className="pointer-events-none absolute inset-0 z-[1] overflow-hidden" />}
+      {mode !== "book" && studioAvailable && <div ref={lightingHost} style={{ visibility: studio ? "visible" : "hidden" }} className="pointer-events-none absolute inset-0 z-[1] overflow-hidden" />}
         </div>
       )}
 
@@ -850,10 +854,9 @@ function PdfPage({
   const ref = useRef<HTMLDivElement>(null);
   const [linkLayer, setLinkLayer] = useState<{ element: HTMLElement; page: number; links: PageLink[] } | null>(null);
   const currentLinks = useRef(links);
+  const linksSignature = JSON.stringify(links ?? []);
   currentLinks.current = links;
-  useEffect(() => {
-    setLinkLayer((layer) => layer?.page === n ? { ...layer, links: links ?? [] } : layer);
-  }, [links, n]);
+  const iconCache = useMemo(() => new Map(), [doc]);
   const shownPage = useRef<{ doc: PDFDocumentProxy; n: number } | null>(null);
   const rendered = useRef(onRendered);
   rendered.current = onRendered;
@@ -977,10 +980,13 @@ function PdfPage({
     const draw = async () => {
       if (cancelled) return;
       try {
+        const pageLinks = currentLinks.current ?? [];
+        const icons = loadLinkIcons(pageLinks, iconCache);
         if (!thumb && !retainArtwork) {
-          const art = await prepareReaderArtwork(doc, n, size, renderWidth);
+          const [art, logos] = await Promise.all([prepareReaderArtwork(doc, n, size, renderWidth), icons]);
           if (cancelled) return;
           const ready = copyReaderArtwork(art);
+          paintPageLinks(ready.canvas.getContext("2d")!, ready.canvas.width, ready.canvas.height, pageLinks, logos);
           present(ready.canvas, ready.layers, () => !cancelled && requestedPage.current.doc === doc && requestedPage.current.n === n, true, true);
           el.style.setProperty("--scale-factor", String(ready.scale));
           el.style.setProperty("--total-scale-factor", String(ready.scale));
@@ -1032,6 +1038,9 @@ function PdfPage({
           links.append(link);
         }
         if (cancelled) return;
+        const logos = await icons;
+        if (cancelled) return;
+        paintPageLinks(ctx, canvas.width, canvas.height, pageLinks, logos);
         present(canvas, [text, links], () => !cancelled && ref.current === el && requestedPage.current.doc === doc && requestedPage.current.n === n, true, true);
         el.style.setProperty("--scale-factor", String(scale));
         el.style.setProperty("--total-scale-factor", String(scale));
@@ -1050,7 +1059,7 @@ function PdfPage({
       cancelled = true;
       task?.cancel();
     };
-  }, [near, doc, n, size.w, zoom, renderWidth, renderQueue, retainArtwork]);
+  }, [near, doc, n, size.w, zoom, renderWidth, renderQueue, retainArtwork, linksSignature]);
 
   return (
     <div
@@ -1063,7 +1072,7 @@ function PdfPage({
     >
       {!thumb && linkLayer && createPortal(
         <div className="pointer-events-none absolute inset-0 z-10">
-          {linkLayer.links.map((link) => <PageLinkAnchor key={link.id} link={link} visible />)}
+          {linkLayer.links.map((link) => <PageLinkAnchor key={link.id} link={link} />)}
         </div>, linkLayer.element,
       )}
       {failed && (

@@ -5,6 +5,7 @@ import { PageLinkAnchor } from "./PageLinks";
 import { BookView } from "./BookView";
 import { registerPublicUrls, uid } from "@/lib/portfolia/assets";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
+import { createRenderQueue } from "@/lib/portfolia/render-queue";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 import type { Foldout } from "@/lib/portfolia/foldouts";
 import type { PageTag, PageLink } from "@/lib/portfolia/page-extras";
@@ -104,13 +105,15 @@ function acquireArtwork(url: string) {
         throw new Error("The demonstration needs all 14 lookbook pages.");
       const dimensions: { w: number; h: number }[] = [];
       const artwork: Record<number, string> = {};
-      for (let n = 1; n <= loaded.numPages; n++) {
+      const queue = createRenderQueue(2);
+      await Promise.all(Array.from({ length: loaded.numPages }, (_, i) => queue.enqueue(async () => {
+        const n = i + 1;
         const page = await loaded.getPage(n);
         const base = page.getViewport({ scale: 1 });
-        dimensions.push({ w: base.width, h: base.height });
+        dimensions[n - 1] = { w: base.width, h: base.height };
         if ([4, 5, 6, 7, 8, 10, 12, 13].includes(n)) {
           const viewport = page.getViewport({
-            scale: Math.min(1100 / base.width, 1100 / base.height),
+            scale: Math.min(640 / base.width, 640 / base.height),
           });
           const canvas = document.createElement("canvas");
           canvas.width = Math.ceil(viewport.width);
@@ -119,13 +122,13 @@ function acquireArtwork(url: string) {
             canvasContext: canvas.getContext("2d")!,
             viewport,
           }).promise;
-          artwork[n] = canvas.toDataURL("image/webp", 0.82);
+          artwork[n] = canvas.toDataURL("image/webp", 0.68);
           if (n === START.notes) {
             // A close-up taken directly from the right-hand artwork of this PDF page.
             const detail = document.createElement("canvas");
             const cropWidth = canvas.width * 0.34;
             const cropHeight = canvas.height * 0.58;
-            const scale = 1000 / Math.max(cropWidth, cropHeight);
+            const scale = 640 / Math.max(cropWidth, cropHeight);
             // Preserve the source crop ratio; cover/contain can then fit any note size without warping.
             detail.width = Math.round(cropWidth * scale);
             detail.height = Math.round(cropHeight * scale);
@@ -149,7 +152,7 @@ function acquireArtwork(url: string) {
           }
           canvas.width = canvas.height = 0;
         }
-      }
+      })));
 
       // Decode once ahead of tab changes; keep these images alive with the PDF lease.
       const decoded = await Promise.all(Object.values(artwork).map(async src => {
@@ -356,6 +359,7 @@ export function FeatureAnimation({
             awake={false}
             fullSpread
             lightweight
+            previewTextureCap={800}
             onReadyChange={bookReady}
             onRenderError={onError}
             demoTurnDurationScale={feature === "lighting" ? 2.5 : 1}

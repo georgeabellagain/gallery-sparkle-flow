@@ -217,13 +217,19 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
                   </label>
                 ))}
               </div>
-              {enabledLooks.length > 1 && (
-                <div className="space-y-1.5" onPointerDownCapture={() => setPreviewLook(null)}>
-                  <p>Opens with</p>
-                  <Segmented label="Flipbook opens with" value={viewer.look} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={(look) => setViewer({ look })} />
-                  <p className="text-xxs text-muted-foreground">Visitors get a Simple / Studio switch in the corner of the flipbook.</p>
-                </div>
-              )}
+              <p className="text-xxs text-muted-foreground">Opens in Simple when enabled. Studio prepares in the background.</p>
+              {enabledLooks.includes("studio") && <div className="space-y-2">
+                <p className="text-xs">Offer Studio in</p>
+                <p className="text-xxs text-muted-foreground">Unchecked reading styles use Simple.</p>
+                {([["scroll", "Scroll"], ["paged", "Page by page"]] as const).map(([mode, label]) => (
+                  <label key={mode} className="flex items-center gap-2 text-xs">
+                    <input type="checkbox" checked={!viewer.studioModes || viewer.studioModes.includes(mode)} onChange={e => {
+                      const modes = viewer.studioModes ?? ["book", "scroll", "paged"];
+                      setViewer({ studioModes: e.target.checked ? [...new Set([...modes, mode])] : modes.filter(item => item !== mode) });
+                    }} />{label}
+                  </label>
+                ))}
+              </div>}
               {enabledLooks.includes("clean") && (
                 <div className="space-y-2 border-t border-border pt-3" onPointerDownCapture={() => setPreviewLook("clean")} onFocusCapture={() => setPreviewLook("clean")}>
                   <p className="font-medium">Simple</p>

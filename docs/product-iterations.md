@@ -657,9 +657,22 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 
 ## Iteration 56 — shared page extras and website-link showcase
 
+- Merged through PR #39. Publication was not requested.
+
 - Preserve and validate the latest Lovable changes on main: Scroll and Page by page now display the shared website-link collection in the committed page layer, mapping split-leaf positions onto full PDF pages. Existing links remain associated with their PDF page across all viewing styles.
 - Page tabs now expose Position along edge plus Automatic position in their editor. Optional saved positions move the tab centre along the edge; geometry clamps the whole tab within the page. Omitted positions retain existing automatic spacing.
 - Open the feature slideshow on Studio light by placing it first. Retain its Lighting 1, 2, 3, 7 and 8 cycle and slower turns.
 - Add Website links as a seventh feature. Use page 8 of the actual lookbook, the same visible PageLinkAnchor component used in the reader, and a looping cursor/destination animation demonstrating stores and socials. Destinations are labelled as illustrative and are never saved into the sample portfolio. Reuse existing shared PDF imagery, pause hidden animations and honour reduced motion.
 - Validation: TypeScript, production build and 14 page-extra/tab tests, including full-page/split-page placement, optional tab positions and clamping. Signed-in/GPU visual checks remain limited by the available browser.
 - Merge requested; publication not requested for this iteration.
+
+## Iteration 57 — quicker Simple opening, background Studio and lighter demonstrations
+
+- Open ordinary visitors and editor previews in Simple whenever offered. Preserve Studio-only settings and the homepage auto-turn example's explicit Studio look. Remove the obsolete opening-choice control; retain appearance availability and editing preview selection.
+- Add independent Offer Studio in Scroll / Page by page checkboxes. Save per-mode availability in viewer settings; existing portfolios keep their prior availability. Unchecked modes use Simple.
+- Flat readers begin background HDRI/renderer preparation after Simple artwork is visible. Simple does not wait for it; selecting Studio presents the same page textures through live lighting. Background warm-up cannot reset Simple's whole-document Scroll readiness gate.
+- Flipbook opens after its first three prepared PDF pages (two for lightweight demos) and the current spread, without waiting for optional Studio downloads in Simple. Later pages continue in the bounded cache; preparation pauses during turns. A target page is awaited before a turn starts if navigation outruns preparation. Preserve normal PDF texture quality and Scroll's all-pages preparation requirement.
+- Paint website logos/captions onto the Scroll/Page by page canvas using the same link painter as Flipbook. Invisible accessible anchors retain interaction. HDRI shading now applies to the icons as part of the sheet; keep cached master artwork unmodified and redraw from the master when links change.
+- Showcase image previews render with two bounded workers at 640px/WebP quality 0.68 instead of sequential 1100px/0.82. Showcase 3D page textures cap at 800px instead of 1600px; ordinary portfolio and homepage-example limits remain unchanged. Only the currently selected Studio environment gates initial demonstration readiness; other lighting-cycle preparation continues in the background.
+- Validation: TypeScript, production build and 30 focused appearance/readiness/cache/queue/frame-commit/link/tab tests. Tests cover Simple-first and Studio-only policy, mode-specific availability and legacy defaults. Device GPU appearance/frame-time and end-to-end load time remain unmeasured because the available browser disables WebGL.
+- Merge requested; publication not requested. Large PDF download time and complete Scroll preparation still impose an initial wait.

@@ -16,6 +16,7 @@ import { readablePageLinks, readablePageTags } from "@/lib/portfolia/page-extras
 import { readableFoldouts } from "@/lib/portfolia/foldouts";
 import { cn } from "@/lib/utils";
 import { EditorFullscreenContext, useEditorFullscreen } from "./editor-fullscreen";
+import { openingLook } from "@/lib/portfolia/appearance";
 
 type Tool = "reading" | "look" | "background" | "scrapbook" | "projects" | "publish" | "share" | "statistics";
 const TOOLS: Array<[Tool, string, typeof Sun]> = [
@@ -45,7 +46,7 @@ export function EditorBar({
   const [look, setLook] = useState<PreviewLook | null>(getPreviewLook());
   useEffect(() => subscribePreviewLook(setLook), []);
   useEffect(() => () => pinPreviewLook(null), []);
-  const shown: PreviewLook = look ?? viewer.look;
+  const shown: PreviewLook = look ?? openingLook(viewer, viewer.mode);
   return (
     <header className="relative z-20 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-3 sm:px-5">
       <Link to="/dashboard" aria-label="Back to your portfolios" title="Your portfolios" className="rounded-lg p-2 hover:bg-muted"><ArrowLeft className="size-4" /></Link>
