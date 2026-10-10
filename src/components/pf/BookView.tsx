@@ -455,7 +455,7 @@ export function BookView({
   }, [ready]);
   useEffect(() => {
     if (!ready || fallback || !scene.current) return;
-    scene.current.setTabs(tabEntries.map((t) => ({ id: t.id, text: t.label || String(t.page), colour: t.colour })), narrow);
+    scene.current.setTabs(tabEntries.map((t) => ({ id: t.id, text: t.label || String(t.page), colour: t.colour, position: t.position })), narrow);
     scene.current.setTabRest(Object.fromEntries(tabEntries.map((t) => [t.id, tabEdge(t.leaf, spread, narrow)])));
     syncBounds();
   }, [ready, fallback, tabEntries, narrow]);

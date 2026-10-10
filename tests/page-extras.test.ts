@@ -1,8 +1,36 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { hostOf, linkName, normaliseUrl, readablePageLinks, readablePageTags, siteIconUrl, tabSlots, validatePageLink, type PageLink } from "../src/lib/portfolia/page-extras";
+import { hostOf, linkName, linksForPage, normaliseUrl, readablePageLinks, readablePageTags, siteIconUrl, tabSlots, validatePageLink, validatePageTag, type PageLink } from "../src/lib/portfolia/page-extras";
 
 const link: PageLink = { id: "l1", page: 2, half: "left", url: "https://behance.net/me", x: 0.1, y: 0.1, size: 0.12 };
+
+test("shared links retain position on full pages and map spread halves", () => {
+  assert.deepEqual(linksForPage([link], 2, false), [link]);
+  assert.deepEqual(linksForPage([link], 1, true), []);
+  assert.equal(linksForPage([link], 2, true)[0]?.x, 0.05);
+  const right = linksForPage([{ ...link, half: "right" }], 2, true)[0];
+  assert.equal(right?.x, 0.55);
+  assert.equal(right?.size, 0.06);
+  assert.equal(right?.y, link.y);
+  assert.equal(link.size, 0.12);
+});
+
+test("tab edge positions are optional, persisted and bounded", () => {
+  const tag = { id: "a", page: 1, label: "Work", colour: "#4fa3d1", position: 0.2 };
+  assert.equal(validatePageTag(tag, 3), null);
+  assert.equal(readablePageTags([tag], 3)[0]?.position, 0.2);
+  for (const position of [-0.1, 1.1, NaN, Infinity]) assert.ok(validatePageTag({ ...tag, position }, 3));
+});
+
+import { tabSlot } from "../src/lib/portfolia/tab-geometry";
+test("custom tab positioning keeps the whole tab on the edge", () => {
+  const top = tabSlot(1.4, 0, 3, 0);
+  const bottom = tabSlot(1.4, 0, 3, 1);
+  assert.equal(top.y + top.height / 2, 0.7);
+  assert.equal(bottom.y - bottom.height / 2, -0.7);
+  assert.equal(tabSlot(1.4, 0, 3, 0.5).y, 0);
+  assert.notEqual(tabSlot(1.4, 0, 3).y, tabSlot(1.4, 2, 3).y);
+});
 
 test("web addresses are made safe", () => {
   assert.equal(normaliseUrl("behance.net/me"), "https://behance.net/me");

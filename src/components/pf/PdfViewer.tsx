@@ -3,7 +3,10 @@ import { createRenderQueue } from "@/lib/portfolia/render-queue";
 import { cachedReaderArtwork, copyReaderArtwork, prepareReaderArtwork } from "@/lib/portfolia/reader-artwork";
 import { READER_SLIDE_MS, READER_SLIDE_DISTANCE } from "@/lib/portfolia/reader-slide";
 import type { Foldout } from "@/lib/portfolia/foldouts";
-import type { PageLink, PageTag } from "@/lib/portfolia/page-extras";
+import { linksForPage, type PageLink, type PageTag } from "@/lib/portfolia/page-extras";
+import { coverWithSpreads } from "@/lib/portfolia/mixed-layout";
+import { createPortal } from "react-dom";
+import { PageLinkAnchor } from "./PageLinks";
 import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { EditorFullscreenContext } from "./editor-fullscreen";
 import { toggleFullscreen, type FullscreenDocument } from "@/lib/portfolia/fullscreen";
@@ -123,6 +126,8 @@ export function PdfViewer({
   const showControls = controls ?? !compact;
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
+  const mixedSpreads = useMemo(() => coverWithSpreads(sizes), [sizes]);
+  const pageLinks = (page: number) => linksForPage(links ?? [], page, mixedSpreads ? page > 1 : view.spreads === "ready");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -693,7 +698,7 @@ export function PdfViewer({
             >
               {sizes[current - 1] && (
                 <div className="shrink-0" style={{ width: `calc(min(100%, max(1px, calc((${pagedHeight} - ${topGap + 24}px) * ${sizes[current - 1]!.w / sizes[current - 1]!.h}))) * ${zoom})` }}>
-                <PdfPage slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={pageLighting} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
+                <PdfPage links={pageLinks(current)} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={pageLighting} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
                 </div>
               )}
             </div>
@@ -712,7 +717,7 @@ export function PdfViewer({
             style={{ paddingTop: topGap, width: `calc(min(100%, ${compact ? 900 : 1100}px) * ${zoom})` }}
           >
             {sizes.map((s, i) => (
-              <PdfPage key={i} doc={doc} n={i + 1} size={s} lighting={pageLighting} zoom={zoom} onVisible={setCurrent} eager renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
+              <PdfPage links={pageLinks(i + 1)} key={i} doc={doc} n={i + 1} size={s} lighting={pageLighting} zoom={zoom} onVisible={setCurrent} eager renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
             ))}
           </div>
         </div>
@@ -823,7 +828,9 @@ function PdfPage({
   retainArtwork,
   onPrepared,
   pageSizes,
+  links,
 }: {
+  links?: PageLink[];
   pageSizes?: { w: number; h: number }[];
   renderQueue?: ReturnType<typeof createRenderQueue>;
   retainArtwork?: boolean;
@@ -841,6 +848,12 @@ function PdfPage({
   eager?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [linkLayer, setLinkLayer] = useState<{ element: HTMLElement; page: number; links: PageLink[] } | null>(null);
+  const currentLinks = useRef(links);
+  currentLinks.current = links;
+  useEffect(() => {
+    setLinkLayer((layer) => layer?.page === n ? { ...layer, links: links ?? [] } : layer);
+  }, [links, n]);
   const shownPage = useRef<{ doc: PDFDocumentProxy; n: number } | null>(null);
   const rendered = useRef(onRendered);
   rendered.current = onRendered;
@@ -875,6 +888,7 @@ function PdfPage({
       layer.className = "absolute inset-0";
       layer.append(canvas, ...layers);
       el.replaceChildren(layer);
+      if (!thumb) setLinkLayer({ element: layer, page: n, links: currentLinks.current ?? [] });
       artwork.current = canvas;
       const changed = presentedPage.current !== null && (presentedPage.current.doc !== doc || presentedPage.current.n !== n);
       const direction = presentedPage.current && n < presentedPage.current.n ? -1 : 1;
@@ -1047,6 +1061,11 @@ function PdfPage({
       className="relative w-full overflow-hidden bg-background"
       style={{ aspectRatio: `${size.w} / ${size.h}` }}
     >
+      {!thumb && linkLayer && createPortal(
+        <div className="pointer-events-none absolute inset-0 z-10">
+          {linkLayer.links.map((link) => <PageLinkAnchor key={link.id} link={link} visible />)}
+        </div>, linkLayer.element,
+      )}
       {failed && (
         <p className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
           Page {n} couldn’t be rendered.
