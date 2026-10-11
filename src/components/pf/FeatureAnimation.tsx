@@ -199,6 +199,7 @@ export function FeatureAnimation({
   settings,
   onReady,
   onError,
+  live = false,
 }: {
   url: string;
   feature: FeatureId;
@@ -206,6 +207,8 @@ export function FeatureAnimation({
   settings?: ViewerSettings;
   onReady: (value: boolean) => void;
   onError: () => void;
+  /** Renders the full live 3D version (used only to record the showcase videos). */
+  live?: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [detailKey, setDetailKey] = useState("");
@@ -223,9 +226,11 @@ export function FeatureAnimation({
   const [ready, setReady] = useState(false);
   const [beat, setBeat] = useState(0);
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
-  // Only the scrapbook demo still needs a live 3D book; the rest use flat artwork so phones never run a second WebGL scene.
-  const isBook = ["book", "notes"].includes(feature);
-  const spread = FLAT_SPREAD[feature];
+  // On the homepage, rich 3D demos play as pre-recorded videos; only `live` (recording) mounts extra 3D books.
+  const isBook = live
+    ? ["book", "background", "lighting", "notes", "tabs"].includes(feature)
+    : ["book", "notes"].includes(feature);
+  const spread = live ? undefined : FLAT_SPREAD[feature];
   const lead = spread ? spread[0] : START[feature];
   useEffect(() => {
     let cancelled = false;
@@ -364,8 +369,8 @@ export function FeatureAnimation({
             tone="dark"
             awake={false}
             fullSpread
-            lightweight
-            previewTextureCap={800}
+            lightweight={!live}
+            previewTextureCap={live ? 2048 : 800}
             onReadyChange={bookReady}
             onRenderError={onError}
             demoTurnDurationScale={feature === "lighting" ? 2.5 : 1}
