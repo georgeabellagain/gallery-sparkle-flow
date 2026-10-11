@@ -676,3 +676,10 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Showcase image previews render with two bounded workers at 640px/WebP quality 0.68 instead of sequential 1100px/0.82. Showcase 3D page textures cap at 800px instead of 1600px; ordinary portfolio and homepage-example limits remain unchanged. Only the currently selected Studio environment gates initial demonstration readiness; other lighting-cycle preparation continues in the background.
 - Validation: TypeScript, production build and 30 focused appearance/readiness/cache/queue/frame-commit/link/tab tests. Tests cover Simple-first and Studio-only policy, mode-specific availability and legacy defaults. Device GPU appearance/frame-time and end-to-end load time remain unmeasured because the available browser disables WebGL.
 - Merge requested; publication not requested. Large PDF download time and complete Scroll preparation still impose an initial wait.
+
+## Iteration 58 — website-link readiness; video replacement staged
+
+- Website links now checks its actual displayed page 8, never unprepared page 9. Multi-page raster demonstrations wait for every displayed page; flat spread fallbacks also check every page they use. Two regression tests cover the website-link failure and incomplete sequences.
+- Prepared and tested the three richer Studio, backdrop and page-tab recordings requested in Lovable's unfinished plan. Actual lookbook artwork and book renderer; 640×400, 24 fps H.264, fast-start metadata and WebP posters; about 1.1 MB total. Desktop/390px checks passed for inline playback, pause, decoded readiness and absence of PDF/WebGL rendering for video slides.
+- Video replacement remains staged locally: automatic approval review rejected public GitHub uploads of the PDF-derived videos/posters, requiring explicit user approval for that public export. Do not merge the video component until all six assets can be committed. Keep the existing working demonstrations in the published site meanwhile.
+- Website-readiness fix: TypeScript, production build and two regression tests pass. User requested merge and publication on 11 October 2026.
