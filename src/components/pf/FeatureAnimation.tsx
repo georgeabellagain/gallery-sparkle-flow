@@ -384,7 +384,6 @@ export function FeatureAnimation({
               >
                 <div className="pf-flat-book">
                   {art(spread[0])}
-                  {art(spread[1])}
                   <span className="pf-flat-light" />
                 </div>
                 {feature === "tabs" && (
