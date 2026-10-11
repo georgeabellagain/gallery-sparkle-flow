@@ -254,7 +254,7 @@ export function FeatureAnimation({
     [onReady],
   );
   useEffect(() => {
-    if (!isBook && images[START[feature]] && images[START[feature] + 1]) {
+    if (!isBook && images[START[feature]]) {
       setReady(true);
       onReady(true);
     }
