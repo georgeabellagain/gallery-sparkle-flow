@@ -22,6 +22,11 @@ export type FeatureId =
   | "share";
 const MIDNIGHT = "#10162e";
 const noop = () => {};
+const FLAT_SPREAD: Partial<Record<FeatureId, [number, number]>> = {
+  lighting: [10, 12],
+  background: [6, 7],
+  tabs: [12, 13],
+};
 const START: Record<FeatureId, number> = {
   book: 3,
   paged: 4,
@@ -218,9 +223,10 @@ export function FeatureAnimation({
   const [ready, setReady] = useState(false);
   const [beat, setBeat] = useState(0);
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
-  const isBook = ["book", "background", "lighting", "notes", "tabs"].includes(
-    feature,
-  );
+  // Only the scrapbook demo still needs a live 3D book; the rest use flat artwork so phones never run a second WebGL scene.
+  const isBook = ["book", "notes"].includes(feature);
+  const spread = FLAT_SPREAD[feature];
+  const lead = spread ? spread[0] : START[feature];
   useEffect(() => {
     let cancelled = false;
     const lease = acquireArtwork(url);
@@ -254,7 +260,7 @@ export function FeatureAnimation({
     [onReady],
   );
   useEffect(() => {
-    if (!isBook && images[START[feature]]) {
+    if (!isBook && images[lead]) {
       setReady(true);
       onReady(true);
     }
@@ -369,8 +375,27 @@ export function FeatureAnimation({
             demoNotes={feature === "notes" && playing && beat % 3 !== 2}
           />
         )}
-        {!isBook && images[START[feature]] && (
+        {!isBook && images[lead] && (
           <>
+            {spread && (
+              <div
+                className={`pf-flat-spread pf-flat-${feature}`}
+                style={{ backgroundColor: viewer.backgroundColor ?? MIDNIGHT, ['--pf-light-angle' as string]: `${(beat % 4) * 90 + 45}deg` }}
+              >
+                <div className="pf-flat-book">
+                  {art(spread[0])}
+                  {art(spread[1])}
+                  <span className="pf-flat-light" />
+                </div>
+                {feature === "tabs" && (
+                  <div className="pf-flat-tabs">
+                    {["Looks", "Process", "Contact"].map((t, i) => (
+                      <span key={t} data-active={beat % 3 === i}>{t}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {feature === "paged" && (
               <div className="pf-motion-window">
                 <div className="pf-motion-pages">
