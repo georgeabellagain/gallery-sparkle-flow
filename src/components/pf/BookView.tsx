@@ -96,7 +96,11 @@ function pageLoader(
   const perPage = split === 0.5 ? 2 : 1;
   const count = layout.leaves.length;
   const tier = deviceTier();
-  const screenLong = lightweight ? previewTextureCap : Math.min(4096, Math.max(2560, window.innerWidth * Math.min(devicePixelRatio || 1, 3)));
+  const screenLong = lightweight
+    ? previewTextureCap
+    : tier === "phone"
+      ? Math.min(1600, Math.max(1200, window.innerWidth * Math.min(devicePixelRatio || 1, 3)))
+      : Math.min(4096, Math.max(2560, window.innerWidth * Math.min(devicePixelRatio || 1, 3)));
   const leafRatio = Math.max(ratio, 1 / ratio);
   const isSplit = (page: number) => (leavesOf.get(page) ?? []).some((index) => !!layout.leaves[index]!.half);
   /** The long side, in PDF points, of what is shown for this page (a whole page, or half of a spread). */

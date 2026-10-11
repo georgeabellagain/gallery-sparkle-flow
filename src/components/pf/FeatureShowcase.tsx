@@ -123,7 +123,7 @@ export function FeatureShowcase() {
           preload.disconnect();
         }
       },
-      { rootMargin: "1600px" },
+      { rootMargin: window.innerWidth < 720 ? "300px" : "1600px" },
     );
     if (ref.current) {
       observer.observe(ref.current);
@@ -250,7 +250,8 @@ export function FeatureShowcase() {
                 url &&
                 p?.pdf &&
                 !failed &&
-                FEATURES.map((f) => (
+                // Only the shown slide is mounted, so at most one 3D scene exists at a time (phones crash with several).
+                FEATURES.filter((f) => f.id === feature.id).map((f) => (
                   <div
                     key={`${f.id}:${attempt}`}
                     className="absolute inset-0"
