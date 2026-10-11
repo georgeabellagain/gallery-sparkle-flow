@@ -36,7 +36,7 @@ export function SiteFooter({ className }: { className?: string }) {
             <Link to="/free-pdf-flipbook" className="hover:underline">PDF flipbooks</Link>
             <a href="/portfolio-checker" className="hover:underline">PDF checker</a>
             <a href="/embed-flipbook-in-squarespace" className="hover:underline">Embedding guides</a>
-            <Link to="/issuu-alternative" className="hover:underline">Compare with Issuu</Link>
+            <Link to="/flipbook-alternatives" className="hover:underline">Compare flipbook tools</Link>
           </div>
         </nav>
         <nav aria-label="Help and legal" className="text-xs text-muted-foreground">
