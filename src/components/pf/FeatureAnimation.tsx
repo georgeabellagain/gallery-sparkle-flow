@@ -369,8 +369,8 @@ export function FeatureAnimation({
             tone="dark"
             awake={false}
             fullSpread
-            lightweight
-            previewTextureCap={800}
+            lightweight={!live}
+            previewTextureCap={live ? 2048 : 800}
             onReadyChange={bookReady}
             onRenderError={onError}
             demoTurnDurationScale={feature === "lighting" ? 2.5 : 1}
