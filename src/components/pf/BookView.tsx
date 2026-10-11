@@ -112,7 +112,7 @@ function pageLoader(
       screenLong,
       density: nativeDensity,
       leafLongPt: leafLongPt(page, width, height),
-      cap: lightweight ? previewTextureCap : longSideCap({ leafRatio, tier, maxTexture: maxTexture() }),
+      cap: lightweight ? previewTextureCap : Math.min(tier === "phone" ? 1600 : Infinity, longSideCap({ leafRatio, tier, maxTexture: maxTexture() })),
     });
 
   const plan = (async () => {
