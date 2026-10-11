@@ -682,4 +682,14 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Website links now checks its actual displayed page 8, never unprepared page 9. Multi-page raster demonstrations wait for every displayed page; flat spread fallbacks also check every page they use. Two regression tests cover the website-link failure and incomplete sequences.
 - Prepared and tested the three richer Studio, backdrop and page-tab recordings requested in Lovable's unfinished plan. Actual lookbook artwork and book renderer; 640×400, 24 fps H.264, fast-start metadata and WebP posters; about 1.1 MB total. Desktop/390px checks passed for inline playback, pause, decoded readiness and absence of PDF/WebGL rendering for video slides.
 - Video replacement remains staged locally: automatic approval review rejected public GitHub uploads of the PDF-derived videos/posters, requiring explicit user approval for that public export. Do not merge the video component until all six assets can be committed. Keep the existing working demonstrations in the published site meanwhile.
-- Website-readiness fix: TypeScript, production build and two regression tests pass. User requested merge and publication on 11 October 2026.
+- Website-readiness fix: TypeScript, production build and two regression tests pass. Merged in PR #41 and published on 11 October 2026; live bundle changed after deployment.
+
+
+## Iteration 59 — competitor comparison pages
+
+- Rebuild Issuu and add Heyzine, Flipsnack, FlipHTML5, Paperturn, Publuu, FlipBooklets and PDFDeck / Linkjar comparisons. Add a hub linked from the footer and related guides.
+- Reuse one layout with distinct workflow guidance, feature tables, verified billing details, uploads, migration advice and FAQs. Distinguish PDF hyperlinks from added link icons, personalised addresses from custom domains, and visits from detailed reading analytics.
+- Research provider and official integration pages on 11 October 2026. Link sources beside claims and show the review date. Describe competitor strengths and Portfolia's limits. Omit unverified Issuu pricing; distinguish trials from permanent free plans.
+- Include canonicals, social metadata, WebPage/FAQ structured data, sitemap eligibility and cross-links. Reuse existing UI/imagery with no new dependencies or paid build-agent usage.
+- Validation: production build, TypeScript and 16 browser checks across eight comparisons at desktop/390px (single H1, canonical, FAQ metadata, upload control and no document overflow). Reviewed mobile presentation.
+- Next iteration prepared, not published. Iteration 58 video assets still await explicit approval for public export.

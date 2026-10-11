@@ -20,21 +20,29 @@ import { Route as EmbedFlipbookInNotionRouteImport } from './routes/embed-flipbo
 import { Route as EmbedFlipbookInSquarespaceRouteImport } from './routes/embed-flipbook-in-squarespace'
 import { Route as EmbedFlipbookInWixRouteImport } from './routes/embed-flipbook-in-wix'
 import { Route as FashionPortfolioRouteImport } from './routes/fashion-portfolio'
+import { Route as FlipbookAlternativesRouteImport } from './routes/flipbook-alternatives'
+import { Route as FlipbookletsAlternativeRouteImport } from './routes/flipbooklets-alternative'
+import { Route as Fliphtml5AlternativeRouteImport } from './routes/fliphtml5-alternative'
+import { Route as FlipsnackAlternativeRouteImport } from './routes/flipsnack-alternative'
 import { Route as FreePdfFlipbookRouteImport } from './routes/free-pdf-flipbook'
 import { Route as FreePdfPortfolioRouteImport } from './routes/free-pdf-portfolio'
 import { Route as FreePortfolioWebsiteRouteImport } from './routes/free-portfolio-website'
 import { Route as GraphicDesignPortfolioRouteImport } from './routes/graphic-design-portfolio'
+import { Route as HeyzineAlternativeRouteImport } from './routes/heyzine-alternative'
 import { Route as IllustrationPortfolioRouteImport } from './routes/illustration-portfolio'
 import { Route as InteriorDesignPortfolioRouteImport } from './routes/interior-design-portfolio'
 import { Route as IssuuAlternativeRouteImport } from './routes/issuu-alternative'
 import { Route as LandscapeArchitecturePortfolioRouteImport } from './routes/landscape-architecture-portfolio'
 import { Route as MagazineFlipbookRouteImport } from './routes/magazine-flipbook'
+import { Route as PaperturnAlternativeRouteImport } from './routes/paperturn-alternative'
+import { Route as PdfdeckAlternativeRouteImport } from './routes/pdfdeck-alternative'
 import { Route as PhotographyPortfolioRouteImport } from './routes/photography-portfolio'
 import { Route as PortfolioCheckerRouteImport } from './routes/portfolio-checker'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProductDesignPortfolioRouteImport } from './routes/product-design-portfolio'
 import { Route as ProfessionalPortfolioRouteImport } from './routes/professional-portfolio'
+import { Route as PubluuAlternativeRouteImport } from './routes/publuu-alternative'
 import { Route as RefundRouteImport } from './routes/refund'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ScrapbookPreviewRouteImport } from './routes/scrapbook-preview'
@@ -108,6 +116,26 @@ const FashionPortfolioRoute = FashionPortfolioRouteImport.update({
   path: '/fashion-portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FlipbookAlternativesRoute = FlipbookAlternativesRouteImport.update({
+  id: '/flipbook-alternatives',
+  path: '/flipbook-alternatives',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FlipbookletsAlternativeRoute = FlipbookletsAlternativeRouteImport.update({
+  id: '/flipbooklets-alternative',
+  path: '/flipbooklets-alternative',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Fliphtml5AlternativeRoute = Fliphtml5AlternativeRouteImport.update({
+  id: '/fliphtml5-alternative',
+  path: '/fliphtml5-alternative',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FlipsnackAlternativeRoute = FlipsnackAlternativeRouteImport.update({
+  id: '/flipsnack-alternative',
+  path: '/flipsnack-alternative',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FreePdfFlipbookRoute = FreePdfFlipbookRouteImport.update({
   id: '/free-pdf-flipbook',
   path: '/free-pdf-flipbook',
@@ -126,6 +154,11 @@ const FreePortfolioWebsiteRoute = FreePortfolioWebsiteRouteImport.update({
 const GraphicDesignPortfolioRoute = GraphicDesignPortfolioRouteImport.update({
   id: '/graphic-design-portfolio',
   path: '/graphic-design-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HeyzineAlternativeRoute = HeyzineAlternativeRouteImport.update({
+  id: '/heyzine-alternative',
+  path: '/heyzine-alternative',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IllustrationPortfolioRoute = IllustrationPortfolioRouteImport.update({
@@ -152,6 +185,16 @@ const LandscapeArchitecturePortfolioRoute =
 const MagazineFlipbookRoute = MagazineFlipbookRouteImport.update({
   id: '/magazine-flipbook',
   path: '/magazine-flipbook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaperturnAlternativeRoute = PaperturnAlternativeRouteImport.update({
+  id: '/paperturn-alternative',
+  path: '/paperturn-alternative',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PdfdeckAlternativeRoute = PdfdeckAlternativeRouteImport.update({
+  id: '/pdfdeck-alternative',
+  path: '/pdfdeck-alternative',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PhotographyPortfolioRoute = PhotographyPortfolioRouteImport.update({
@@ -182,6 +225,11 @@ const ProductDesignPortfolioRoute = ProductDesignPortfolioRouteImport.update({
 const ProfessionalPortfolioRoute = ProfessionalPortfolioRouteImport.update({
   id: '/professional-portfolio',
   path: '/professional-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PubluuAlternativeRoute = PubluuAlternativeRouteImport.update({
+  id: '/publuu-alternative',
+  path: '/publuu-alternative',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RefundRoute = RefundRouteImport.update({
@@ -280,21 +328,29 @@ export interface FileRoutesByFullPath {
   '/embed-flipbook-in-squarespace': typeof EmbedFlipbookInSquarespaceRoute
   '/embed-flipbook-in-wix': typeof EmbedFlipbookInWixRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
+  '/flipbook-alternatives': typeof FlipbookAlternativesRoute
+  '/flipbooklets-alternative': typeof FlipbookletsAlternativeRoute
+  '/fliphtml5-alternative': typeof Fliphtml5AlternativeRoute
+  '/flipsnack-alternative': typeof FlipsnackAlternativeRoute
   '/free-pdf-flipbook': typeof FreePdfFlipbookRoute
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
   '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
+  '/heyzine-alternative': typeof HeyzineAlternativeRoute
   '/illustration-portfolio': typeof IllustrationPortfolioRoute
   '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
   '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
   '/magazine-flipbook': typeof MagazineFlipbookRoute
+  '/paperturn-alternative': typeof PaperturnAlternativeRoute
+  '/pdfdeck-alternative': typeof PdfdeckAlternativeRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
   '/portfolio-checker': typeof PortfolioCheckerRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/product-design-portfolio': typeof ProductDesignPortfolioRoute
   '/professional-portfolio': typeof ProfessionalPortfolioRoute
+  '/publuu-alternative': typeof PubluuAlternativeRoute
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/scrapbook-preview': typeof ScrapbookPreviewRoute
@@ -324,21 +380,29 @@ export interface FileRoutesByTo {
   '/embed-flipbook-in-squarespace': typeof EmbedFlipbookInSquarespaceRoute
   '/embed-flipbook-in-wix': typeof EmbedFlipbookInWixRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
+  '/flipbook-alternatives': typeof FlipbookAlternativesRoute
+  '/flipbooklets-alternative': typeof FlipbookletsAlternativeRoute
+  '/fliphtml5-alternative': typeof Fliphtml5AlternativeRoute
+  '/flipsnack-alternative': typeof FlipsnackAlternativeRoute
   '/free-pdf-flipbook': typeof FreePdfFlipbookRoute
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
   '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
+  '/heyzine-alternative': typeof HeyzineAlternativeRoute
   '/illustration-portfolio': typeof IllustrationPortfolioRoute
   '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
   '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
   '/magazine-flipbook': typeof MagazineFlipbookRoute
+  '/paperturn-alternative': typeof PaperturnAlternativeRoute
+  '/pdfdeck-alternative': typeof PdfdeckAlternativeRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
   '/portfolio-checker': typeof PortfolioCheckerRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/product-design-portfolio': typeof ProductDesignPortfolioRoute
   '/professional-portfolio': typeof ProfessionalPortfolioRoute
+  '/publuu-alternative': typeof PubluuAlternativeRoute
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/scrapbook-preview': typeof ScrapbookPreviewRoute
@@ -369,21 +433,29 @@ export interface FileRoutesById {
   '/embed-flipbook-in-squarespace': typeof EmbedFlipbookInSquarespaceRoute
   '/embed-flipbook-in-wix': typeof EmbedFlipbookInWixRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
+  '/flipbook-alternatives': typeof FlipbookAlternativesRoute
+  '/flipbooklets-alternative': typeof FlipbookletsAlternativeRoute
+  '/fliphtml5-alternative': typeof Fliphtml5AlternativeRoute
+  '/flipsnack-alternative': typeof FlipsnackAlternativeRoute
   '/free-pdf-flipbook': typeof FreePdfFlipbookRoute
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
   '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
+  '/heyzine-alternative': typeof HeyzineAlternativeRoute
   '/illustration-portfolio': typeof IllustrationPortfolioRoute
   '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
   '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
   '/magazine-flipbook': typeof MagazineFlipbookRoute
+  '/paperturn-alternative': typeof PaperturnAlternativeRoute
+  '/pdfdeck-alternative': typeof PdfdeckAlternativeRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
   '/portfolio-checker': typeof PortfolioCheckerRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/product-design-portfolio': typeof ProductDesignPortfolioRoute
   '/professional-portfolio': typeof ProfessionalPortfolioRoute
+  '/publuu-alternative': typeof PubluuAlternativeRoute
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/scrapbook-preview': typeof ScrapbookPreviewRoute
@@ -415,21 +487,29 @@ export interface FileRouteTypes {
     | '/embed-flipbook-in-squarespace'
     | '/embed-flipbook-in-wix'
     | '/fashion-portfolio'
+    | '/flipbook-alternatives'
+    | '/flipbooklets-alternative'
+    | '/fliphtml5-alternative'
+    | '/flipsnack-alternative'
     | '/free-pdf-flipbook'
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
     | '/graphic-design-portfolio'
+    | '/heyzine-alternative'
     | '/illustration-portfolio'
     | '/interior-design-portfolio'
     | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
     | '/magazine-flipbook'
+    | '/paperturn-alternative'
+    | '/pdfdeck-alternative'
     | '/photography-portfolio'
     | '/portfolio-checker'
     | '/pricing'
     | '/privacy'
     | '/product-design-portfolio'
     | '/professional-portfolio'
+    | '/publuu-alternative'
     | '/refund'
     | '/reset-password'
     | '/scrapbook-preview'
@@ -459,21 +539,29 @@ export interface FileRouteTypes {
     | '/embed-flipbook-in-squarespace'
     | '/embed-flipbook-in-wix'
     | '/fashion-portfolio'
+    | '/flipbook-alternatives'
+    | '/flipbooklets-alternative'
+    | '/fliphtml5-alternative'
+    | '/flipsnack-alternative'
     | '/free-pdf-flipbook'
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
     | '/graphic-design-portfolio'
+    | '/heyzine-alternative'
     | '/illustration-portfolio'
     | '/interior-design-portfolio'
     | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
     | '/magazine-flipbook'
+    | '/paperturn-alternative'
+    | '/pdfdeck-alternative'
     | '/photography-portfolio'
     | '/portfolio-checker'
     | '/pricing'
     | '/privacy'
     | '/product-design-portfolio'
     | '/professional-portfolio'
+    | '/publuu-alternative'
     | '/refund'
     | '/reset-password'
     | '/scrapbook-preview'
@@ -503,21 +591,29 @@ export interface FileRouteTypes {
     | '/embed-flipbook-in-squarespace'
     | '/embed-flipbook-in-wix'
     | '/fashion-portfolio'
+    | '/flipbook-alternatives'
+    | '/flipbooklets-alternative'
+    | '/fliphtml5-alternative'
+    | '/flipsnack-alternative'
     | '/free-pdf-flipbook'
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
     | '/graphic-design-portfolio'
+    | '/heyzine-alternative'
     | '/illustration-portfolio'
     | '/interior-design-portfolio'
     | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
     | '/magazine-flipbook'
+    | '/paperturn-alternative'
+    | '/pdfdeck-alternative'
     | '/photography-portfolio'
     | '/portfolio-checker'
     | '/pricing'
     | '/privacy'
     | '/product-design-portfolio'
     | '/professional-portfolio'
+    | '/publuu-alternative'
     | '/refund'
     | '/reset-password'
     | '/scrapbook-preview'
@@ -548,21 +644,29 @@ export interface RootRouteChildren {
   EmbedFlipbookInSquarespaceRoute: typeof EmbedFlipbookInSquarespaceRoute
   EmbedFlipbookInWixRoute: typeof EmbedFlipbookInWixRoute
   FashionPortfolioRoute: typeof FashionPortfolioRoute
+  FlipbookAlternativesRoute: typeof FlipbookAlternativesRoute
+  FlipbookletsAlternativeRoute: typeof FlipbookletsAlternativeRoute
+  Fliphtml5AlternativeRoute: typeof Fliphtml5AlternativeRoute
+  FlipsnackAlternativeRoute: typeof FlipsnackAlternativeRoute
   FreePdfFlipbookRoute: typeof FreePdfFlipbookRoute
   FreePdfPortfolioRoute: typeof FreePdfPortfolioRoute
   FreePortfolioWebsiteRoute: typeof FreePortfolioWebsiteRoute
   GraphicDesignPortfolioRoute: typeof GraphicDesignPortfolioRoute
+  HeyzineAlternativeRoute: typeof HeyzineAlternativeRoute
   IllustrationPortfolioRoute: typeof IllustrationPortfolioRoute
   InteriorDesignPortfolioRoute: typeof InteriorDesignPortfolioRoute
   IssuuAlternativeRoute: typeof IssuuAlternativeRoute
   LandscapeArchitecturePortfolioRoute: typeof LandscapeArchitecturePortfolioRoute
   MagazineFlipbookRoute: typeof MagazineFlipbookRoute
+  PaperturnAlternativeRoute: typeof PaperturnAlternativeRoute
+  PdfdeckAlternativeRoute: typeof PdfdeckAlternativeRoute
   PhotographyPortfolioRoute: typeof PhotographyPortfolioRoute
   PortfolioCheckerRoute: typeof PortfolioCheckerRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   ProductDesignPortfolioRoute: typeof ProductDesignPortfolioRoute
   ProfessionalPortfolioRoute: typeof ProfessionalPortfolioRoute
+  PubluuAlternativeRoute: typeof PubluuAlternativeRoute
   RefundRoute: typeof RefundRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ScrapbookPreviewRoute: typeof ScrapbookPreviewRoute
@@ -660,6 +764,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FashionPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/flipbook-alternatives': {
+      id: '/flipbook-alternatives'
+      path: '/flipbook-alternatives'
+      fullPath: '/flipbook-alternatives'
+      preLoaderRoute: typeof FlipbookAlternativesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/flipbooklets-alternative': {
+      id: '/flipbooklets-alternative'
+      path: '/flipbooklets-alternative'
+      fullPath: '/flipbooklets-alternative'
+      preLoaderRoute: typeof FlipbookletsAlternativeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fliphtml5-alternative': {
+      id: '/fliphtml5-alternative'
+      path: '/fliphtml5-alternative'
+      fullPath: '/fliphtml5-alternative'
+      preLoaderRoute: typeof Fliphtml5AlternativeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/flipsnack-alternative': {
+      id: '/flipsnack-alternative'
+      path: '/flipsnack-alternative'
+      fullPath: '/flipsnack-alternative'
+      preLoaderRoute: typeof FlipsnackAlternativeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/free-pdf-flipbook': {
       id: '/free-pdf-flipbook'
       path: '/free-pdf-flipbook'
@@ -686,6 +818,13 @@ declare module '@tanstack/react-router' {
       path: '/graphic-design-portfolio'
       fullPath: '/graphic-design-portfolio'
       preLoaderRoute: typeof GraphicDesignPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/heyzine-alternative': {
+      id: '/heyzine-alternative'
+      path: '/heyzine-alternative'
+      fullPath: '/heyzine-alternative'
+      preLoaderRoute: typeof HeyzineAlternativeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/illustration-portfolio': {
@@ -721,6 +860,20 @@ declare module '@tanstack/react-router' {
       path: '/magazine-flipbook'
       fullPath: '/magazine-flipbook'
       preLoaderRoute: typeof MagazineFlipbookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/paperturn-alternative': {
+      id: '/paperturn-alternative'
+      path: '/paperturn-alternative'
+      fullPath: '/paperturn-alternative'
+      preLoaderRoute: typeof PaperturnAlternativeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pdfdeck-alternative': {
+      id: '/pdfdeck-alternative'
+      path: '/pdfdeck-alternative'
+      fullPath: '/pdfdeck-alternative'
+      preLoaderRoute: typeof PdfdeckAlternativeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/photography-portfolio': {
@@ -763,6 +916,13 @@ declare module '@tanstack/react-router' {
       path: '/professional-portfolio'
       fullPath: '/professional-portfolio'
       preLoaderRoute: typeof ProfessionalPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/publuu-alternative': {
+      id: '/publuu-alternative'
+      path: '/publuu-alternative'
+      fullPath: '/publuu-alternative'
+      preLoaderRoute: typeof PubluuAlternativeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/refund': {
@@ -892,21 +1052,29 @@ const rootRouteChildren: RootRouteChildren = {
   EmbedFlipbookInSquarespaceRoute: EmbedFlipbookInSquarespaceRoute,
   EmbedFlipbookInWixRoute: EmbedFlipbookInWixRoute,
   FashionPortfolioRoute: FashionPortfolioRoute,
+  FlipbookAlternativesRoute: FlipbookAlternativesRoute,
+  FlipbookletsAlternativeRoute: FlipbookletsAlternativeRoute,
+  Fliphtml5AlternativeRoute: Fliphtml5AlternativeRoute,
+  FlipsnackAlternativeRoute: FlipsnackAlternativeRoute,
   FreePdfFlipbookRoute: FreePdfFlipbookRoute,
   FreePdfPortfolioRoute: FreePdfPortfolioRoute,
   FreePortfolioWebsiteRoute: FreePortfolioWebsiteRoute,
   GraphicDesignPortfolioRoute: GraphicDesignPortfolioRoute,
+  HeyzineAlternativeRoute: HeyzineAlternativeRoute,
   IllustrationPortfolioRoute: IllustrationPortfolioRoute,
   InteriorDesignPortfolioRoute: InteriorDesignPortfolioRoute,
   IssuuAlternativeRoute: IssuuAlternativeRoute,
   LandscapeArchitecturePortfolioRoute: LandscapeArchitecturePortfolioRoute,
   MagazineFlipbookRoute: MagazineFlipbookRoute,
+  PaperturnAlternativeRoute: PaperturnAlternativeRoute,
+  PdfdeckAlternativeRoute: PdfdeckAlternativeRoute,
   PhotographyPortfolioRoute: PhotographyPortfolioRoute,
   PortfolioCheckerRoute: PortfolioCheckerRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   ProductDesignPortfolioRoute: ProductDesignPortfolioRoute,
   ProfessionalPortfolioRoute: ProfessionalPortfolioRoute,
+  PubluuAlternativeRoute: PubluuAlternativeRoute,
   RefundRoute: RefundRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ScrapbookPreviewRoute: ScrapbookPreviewRoute,
