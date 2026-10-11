@@ -5,6 +5,7 @@ import { PageLinkAnchor } from "./PageLinks";
 import { BookView } from "./BookView";
 import { registerPublicUrls, uid } from "@/lib/portfolia/assets";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
+import { featureArtworkReady } from "@/lib/portfolia/feature-artwork";
 import { createRenderQueue } from "@/lib/portfolia/render-queue";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 import type { Foldout } from "@/lib/portfolia/foldouts";
@@ -265,7 +266,7 @@ export function FeatureAnimation({
     [onReady],
   );
   useEffect(() => {
-    if (!isBook && images[lead]) {
+    if (!isBook && (spread ? spread.every(page => Boolean(images[page])) : featureArtworkReady(feature, images))) {
       setReady(true);
       onReady(true);
     }
