@@ -9,7 +9,7 @@ import { linksForPage, type PageLink, type PageTag } from "@/lib/portfolia/page-
 import { coverWithSpreads } from "@/lib/portfolia/mixed-layout";
 import { createPortal } from "react-dom";
 import { PageLinkAnchor } from "./PageLinks";
-import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { EditorFullscreenContext } from "./editor-fullscreen";
 import { toggleFullscreen, type FullscreenDocument } from "@/lib/portfolia/fullscreen";
 import { List, Copy } from "lucide-react";
@@ -18,7 +18,6 @@ import { BookOpen, ChevronLeft, ChevronRight, Download, FileText, LayoutGrid, Ma
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { cn } from "@/lib/utils";
-import { BookView } from "@/components/pf/BookView";
 import { Progress } from "@/components/ui/progress";
 import { getPreviewLook, pinPreviewLook, subscribePreviewLook } from "@/lib/portfolia/preview-look";
 import { isTouchDevice } from "@/lib/portfolia/scan";
@@ -35,6 +34,8 @@ type Source = { blob: Blob } | { url: string };
 const noop = () => {};
 
 /** Hold the portfolio behind the small loader until its reading mode is prepared. */
+// Three.js and the book scene only load when a book is actually shown, so scroll/paged readers and the landing page stay light.
+const BookView = lazy(() => import("@/components/pf/BookView").then((m) => ({ default: m.BookView })));
 const SHOW_LOADER = true;
 
 const MODES = [
@@ -698,7 +699,7 @@ export function PdfViewer({
       ) : (
         <div className={cn("relative transition-opacity duration-300", shownReady ? "opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!shownReady} inert={!shownReady}>
       {mode === "book" ? (
-        <BookView demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...view, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} />
+        <Suspense fallback={null}><BookView demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...view, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>

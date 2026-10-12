@@ -693,3 +693,9 @@ Measure whether the optional lossless optimiser meaningfully reduces upload fail
 - Include canonicals, social metadata, WebPage/FAQ structured data, sitemap eligibility and cross-links. Reuse existing UI/imagery with no new dependencies or paid build-agent usage.
 - Validation: production build, TypeScript and 16 browser checks across eight comparisons at desktop/390px (single H1, canonical, FAQ metadata, upload control and no document overflow). Reviewed mobile presentation.
 - Next iteration prepared, not published. Iteration 58 video assets still await explicit approval for public export.
+
+## Iteration 60 — load-time audit
+
+- The landing page no longer ships Three.js up front: `StudioDemo` and `FeatureShowcase` are lazy chunks (showcase mounts only near the viewport), and `PdfViewer` / `FeatureAnimation` load `BookView` on demand, so scroll and paged readers never download the 3D scene.
+- The Google Fonts stylesheet is non-blocking (swap to `media=all` once loaded); text paints immediately in the fallback font.
+- Removed ~60 stale duplicate files from the repository root (old copies of `src` files, feature stills, HDRI copies). Real assets live in `src` and `public/studio/hdri`.

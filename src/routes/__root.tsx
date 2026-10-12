@@ -94,8 +94,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
+        // Loaded as "print" then switched to "all" so the font stylesheet never blocks first paint (text shows in the fallback font, then swaps).
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Instrument+Serif:ital@0;1&display=swap",
+        media: "print",
+        "data-pf-font": "",
+      },
+    ],
+    scripts: [
+      {
+        children: "(function(){var l=document.querySelector('link[data-pf-font]');if(!l)return;var go=function(){l.media='all'};l.addEventListener('load',go);if(l.sheet)go()})()",
       },
     ],
   }),

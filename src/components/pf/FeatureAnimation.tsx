@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { Code, Link, MousePointer2, Check, Store, Instagram, ArrowUpRight } from "lucide-react";
 import { PageLinkAnchor } from "./PageLinks";
-import { BookView } from "./BookView";
 import { registerPublicUrls, uid } from "@/lib/portfolia/assets";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
 import { featureArtworkReady } from "@/lib/portfolia/feature-artwork";
@@ -10,6 +9,8 @@ import { createRenderQueue } from "@/lib/portfolia/render-queue";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 import type { Foldout } from "@/lib/portfolia/foldouts";
 import type { PageTag, PageLink } from "@/lib/portfolia/page-extras";
+
+const BookView = lazy(() => import("./BookView").then((m) => ({ default: m.BookView })));
 
 export type FeatureId =
   | "book"
@@ -358,6 +359,7 @@ function LiveFeatureAnimation({
         inert
       >
         {isBook && doc && (
+          <Suspense fallback={null}>
           <BookView
             key={feature}
             doc={doc}
@@ -382,6 +384,7 @@ function LiveFeatureAnimation({
             tags={feature === "tabs" ? TAGS : undefined}
             demoNotes={feature === "notes" && playing && beat % 3 !== 2}
           />
+          </Suspense>
         )}
         {!isBook && images[lead] && (
           <>

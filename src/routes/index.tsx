@@ -1,17 +1,33 @@
 import { PlanCard as Plan } from "@/components/pf/PlanCard";
 import { HomeNavigation } from "@/components/pf/HomeNavigation";
-import { FeatureShowcase } from "@/components/pf/FeatureShowcase";
 import { softwareSchema } from "@/lib/portfolia/software-schema";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
 import { SiteHeader, SiteFooter } from "@/components/pf/Chrome";
 import { DropZone } from "@/components/pf/DropZone";
-import { StudioDemo } from "@/components/pf/StudioDemo";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
 import { Button } from "@/components/ui/button";
 import { PRICE, startPortfolio, uploadLimitMb, useDoc } from "@/lib/portfolia/store";
 
+// The 3D reader (Three.js, pdf.js) is a large download. Load it as separate chunks so the headline, upload box and copy paint first.
+const StudioDemo = lazy(() => import("@/components/pf/StudioDemo").then((m) => ({ default: m.StudioDemo })));
+const FeatureShowcase = lazy(() => import("@/components/pf/FeatureShowcase").then((m) => ({ default: m.FeatureShowcase })));
+
+/** Renders children only once the placeholder is close to the viewport. */
+function WhenNear({ children, minHeight, margin = "800px" }: { children: ReactNode; minHeight: string; margin?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || near) return;
+    if (typeof IntersectionObserver === "undefined") { setNear(true); return; }
+    const io = new IntersectionObserver(([e]) => { if (e?.isIntersecting) { setNear(true); io.disconnect(); } }, { rootMargin: margin });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [near, margin]);
+  return <div ref={ref} style={near ? undefined : { minHeight }}>{near ? <Suspense fallback={<div style={{ minHeight }} />}>{children}</Suspense> : null}</div>;
+}
 
 export const Route = createFileRoute("/")({
   staticData: { sitemap: true },
@@ -98,11 +114,11 @@ function Landing() {
                 <Link to="/pricing" className="text-muted-foreground hover:underline underline-offset-4">Compare plans</Link>
               </div>
             </div>
-            <StudioDemo className="w-full min-w-0 max-w-full" />
+            <Suspense fallback={<div className="h-[28rem] w-full rounded-3xl border border-border bg-[#02011e] sm:h-[36rem] lg:h-[40rem]" aria-hidden />}><StudioDemo className="w-full min-w-0 max-w-full" /></Suspense>
           </div>
         </section>
 
-        <FeatureShowcase />
+        <WhenNear minHeight="46rem"><FeatureShowcase /></WhenNear>
 
         <section className="rule-t">
           <div className="shell py-12">
