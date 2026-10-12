@@ -147,7 +147,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   scene.add(book);
   const ambient = new THREE.HemisphereLight(0xffffff, 0xd5cfbf, 2.2);
   const light = new THREE.DirectionalLight(0xffffff, 2.3);
-  light.position.set(0, 0, 5);
+  light.position.set(-1.8, 2.8, 5.5);
   light.castShadow = true;
   // A tight frustum keeps shadow detail high.
   const shadowExtent = Math.hypot(1, ratio / 2) + 0.7;
@@ -636,14 +636,14 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     sunPatch.map = pattern ? dapples.get(pattern)! : null;
     sunPatch.intensity = next.studio ? presetDirectLight(next.hdri, next.strength) : 0;
     sunPatch.penumbra = pattern === "window" || pattern === "blinds" ? .12 : .35;
-    // Project the sunlight pattern onto paper, but keep the book's shadow
-    // on the original soft directional light. The narrow projector produced
-    // a hard, distorted silhouette on the backdrop for Lighting 5–8.
-    sunPatch.castShadow = false;
+    // The patterned light casts the moving sheet onto the backdrop; a shadow-only
+    // directional source covers even environments without adding illumination.
+    sunPatch.castShadow = next.studio && Boolean(pattern) && mix.hdri > 0;
+    sunPatch.shadow.radius = 6;
     sunPatch.visible = Boolean(pattern);
     scene.environmentIntensity = next.studio ? (pattern ? 1 - .3 * mix.hdri : 1) : 0;
     // Studio illumination comes only from the diffused environment and preset pattern.
-    light.position.set(0, 0, 5);
+    light.position.set(-1.8, 2.8, 5.5);
     light.color.set(0xffffff);
     light.intensity = next.studio ? mix.top : 0;
     light.shadow.radius = 6;
@@ -651,12 +651,12 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     ambient.color.set(0xffffff);
     ambient.groundColor.set(next.studio ? 0xb7bdca : 0xffffff);
     // Studio shows only the real shadow cast by the light and the paper; the soft shadow is the Simple look's.
-    contactOn = next.studio || next.simpleShadow;
+    contactOn = !next.studio && next.simpleShadow;
     contactOpacity = next.studio ? .2 : THREE.MathUtils.clamp(next.simpleShadowOpacity, 0, 1);
     applyContact();
-    shadowCatcher.material.opacity = 0.45;
-    shadowCatcher.visible = false;
-    light.castShadow = next.studio && mix.top > 0;
+    shadowCatcher.material.opacity = .3;
+    shadowCatcher.visible = next.studio;
+    light.castShadow = next.studio && (!pattern || mix.hdri === 0);
     let bump: THREE.CanvasTexture | null = null;
     if (variantChanged && next.studio) {
       const key = next.material;
