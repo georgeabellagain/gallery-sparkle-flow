@@ -25,9 +25,11 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
   const normals = new THREE.CanvasTexture(normalCanvas); normals.colorSpace = THREE.NoColorSpace;
   material.normalMap = normals; material.normalScale.set(.35, .35);
   return {
-    set(url: string | undefined, nextFit: Partial<BackgroundFit> | undefined, active: boolean) {
+    set(url: string | undefined, nextFit: Partial<BackgroundFit> | undefined, active: boolean, colour = "#191d3a") {
+      material.color.set(url ? "#ffffff" : colour);
+      material.map = url ? texture : null; material.normalMap = url ? normals : null; material.needsUpdate = true;
       enabled = active; fit = { ...DEFAULT_FIT, ...nextFit }; dimensions = "";
-      plane.visible = enabled && !!source && url === currentUrl;
+      plane.visible = enabled && (!url || (!!source && url === currentUrl));
       if (url === currentUrl) { repaint(); return; }
       currentUrl = url; source = null; plane.visible = false;
       const request = ++revision;
@@ -39,9 +41,9 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
       }).catch(() => { /* The unlit DOM image remains available when decoding fails. */ });
     },
     frame(camera: THREE.PerspectiveCamera, width: number, height: number) {
-      if (!source || !enabled) { plane.visible = false; if (catcher) catcher.visible=false; return; }
+      if ((!source && currentUrl) || !enabled) { plane.visible = false; if (catcher) catcher.visible=false; return; }
       const stamp = `${width}|${height}|${fit.scale}|${fit.x}|${fit.y}`;
-      if (stamp !== dimensions) {
+      if (source && stamp !== dimensions) {
         dimensions = stamp;
         const cap = Math.min(1, 2048 / Math.max(width, height));
         canvas.width = Math.max(1, Math.round(width * cap)); canvas.height = Math.max(1, Math.round(height * cap));

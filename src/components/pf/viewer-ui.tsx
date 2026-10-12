@@ -150,7 +150,7 @@ export function Segmented<T extends string>({
 export function BackdropLayer({ colour, imageUrl, fit, className }: { colour: string; imageUrl?: string; fit?: Partial<BackgroundFit>; className?: string }) {
   return (
     <div aria-hidden className={cn("absolute inset-0 overflow-hidden", className)} style={{ background: colour }}>
-      {imageUrl && <img src={imageUrl} alt="" draggable={false} className="h-full w-full select-none object-cover" style={{ transform: fitTransform(fit) }} />}
+      {imageUrl && <div className="absolute inset-0" style={{ backgroundImage: `url(${JSON.stringify(imageUrl)})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat", transform: fitTransform(fit) }} />}
     </div>
   );
 }
