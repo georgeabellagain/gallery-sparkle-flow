@@ -7,3 +7,5 @@ Run the capture Vite config and recorder in the same network environment. The re
 The homepage uses `/features/{lighting,background,tabs}.mp4` and matching WebP posters. Only the selected slide mounts. Videos pause offscreen and honour the slideshow's pause/reduced-motion state; `object-contain` keeps every page edge in frame. Other feature demos retain their existing behaviour.
 
 Do not commit the featured PDF or temporary capture frames. Public upload and production release require authorization before publishing these portfolio-derived videos.
+
+The paged, scroll, links and share demos are recorded by `capture/record-flat.cjs` at 1600 × 1000, 30 fps and H.264 CRF 17 from artwork rendered at up to 1920 pixels. Set `PLAYWRIGHT_MODULE` and `CHROMIUM_EXECUTABLE` if needed. Before recording, place the selected PDF at `public/capture/featured.pdf` and copy `node_modules/pdfjs-dist/build/pdf.worker.min.mjs` to `public/capture/pdf.worker.min.mjs`. Run the capture Vite server and recorder in the same network environment. The homepage frame uses the matching 8:5 ratio with cover sizing, keeping all recorded scenes full width.
