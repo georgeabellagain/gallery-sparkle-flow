@@ -78,7 +78,10 @@ export function PdfViewer({
   onBookReadyChange,
   onLoadError,
   lightweight = false,
+  initialLook,
 }: {
+  /** Opening appearance for a standalone demonstration; visitors may still switch. */
+  initialLook?: "clean" | "studio";
   source: Source | null;
   fileName: string;
   allowDownload?: boolean;
@@ -354,9 +357,9 @@ export function PdfViewer({
   useEffect(() => setMode(startMode), [startMode]);
   const enabledLooks = looksForMode(view, mode);
   const studioAvailable = enabledLooks.includes("studio");
-  const [selectedLook, setSelectedLook] = useState(() => compact && autoTurn ? view.look : openingLook(view, startMode));
+  const [selectedLook, setSelectedLook] = useState(() => initialLook ?? (compact && autoTurn ? view.look : openingLook(view, startMode)));
   const [previewLook, setPreviewLook] = useState(() => compact ? getPreviewLook() : null);
-  useEffect(() => { setSelectedLook(compact && autoTurn ? view.look : openingLook(view, mode)); }, [view.look, JSON.stringify(view.looks), JSON.stringify(view.studioModes), source]);
+  useEffect(() => { setSelectedLook(initialLook ?? (compact && autoTurn ? view.look : openingLook(view, mode))); }, [view.look, JSON.stringify(view.looks), JSON.stringify(view.studioModes), source, initialLook]);
   useEffect(() => {
     if (!compact) return;
     setPreviewLook(getPreviewLook());
