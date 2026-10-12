@@ -844,10 +844,10 @@ function ScrapbookWorkspace({
                   </div>
                 ),
               )}
-            {!rendering && leaf && tags.filter(t => t.page === leaf.page).map(t => {
+            {!rendering && leaf && tags.map(t => {
               const slot = tabSlot(ratio, tags.findIndex(tag => tag.id === t.id), tags.length, t.position);
               const centre = .5 - slot.y / ratio;
-              return <EditablePageTab key={t.id} tag={t} centre={centre} height={slot.height / ratio} left={leaf.half === "left" || (!leaf.half && t.page % 2 === 0)} selected={selectedTag === t.id && panel === "tabs"} disabled={preview} page={page} onSelect={() => { setPanel("tabs"); setSelectedTag(t.id); }} onMove={position => editTag(t.id, { position })}/>;
+              return <EditablePageTab key={t.id} tag={t} centre={centre} height={slot.height / ratio} left={t.page < leaf.page || (t.page === leaf.page && (leaf.half === "left" || (!leaf.half && t.page % 2 === 0)))} selected={selectedTag === t.id && panel === "tabs"} disabled={preview} page={page} onSelect={() => { setPanel("tabs"); setSelectedTag(t.id); }} onMove={position => editTag(t.id, { position })}/>;
             })}
             {!rendering &&
               leaf &&
@@ -869,7 +869,7 @@ function ScrapbookWorkspace({
           <p className="mx-auto mt-4 max-w-xl text-center text-xs text-muted-foreground">
             {preview
               ? "Click a note to unfold it. Escape closes the flap."
-              : "Drag a coloured page tab along the page edge. Drop a picture anywhere on this page. Select a note or link to move it; use corner handles to resize. Arrow keys nudge; Shift + arrows moves farther."}
+              : "All page tabs are shown along the edges. Drag a coloured tab to reposition it. Drop a picture anywhere on this page. Select a note or link to move it; use corner handles to resize. Arrow keys nudge; Shift + arrows moves farther."}
           </p>
         </section>
         <aside

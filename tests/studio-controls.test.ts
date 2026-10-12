@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { studioLightMix } from "../src/lib/portfolia/lighting";
+import { studioLightMix, presetDirectLight } from "../src/lib/portfolia/lighting";
 import { PAPER_STYLES, paperRelief } from "../src/lib/portfolia/surface";
 import { tabSlot } from "../src/lib/portfolia/tab-geometry";
 
-test("lighting blends from neutral top light to HDRI alone", () => {
+test("neutral top light fades out as preset strength reaches full", () => {
   assert.deepEqual(studioLightMix(1), { hdri: 1, top: 0, ambient: 0 });
   assert.deepEqual(studioLightMix(0), { hdri: 0, top: 2.3, ambient: .65 });
   assert.ok(studioLightMix(.2).top > studioLightMix(.8).top);
@@ -23,4 +23,13 @@ test("dragged tabs stay fully within the top and bottom of the page", () => {
     const slot = tabSlot(ratio, 0, 4, position);
     assert.ok(Math.abs(slot.y) + slot.height / 2 <= ratio / 2 + 1e-9);
   }
+});
+
+test("window and blinds retain their direct-light pattern at full preset strength", () => {
+  for (const preset of ["7", "8"] as const) {
+    assert.equal(presetDirectLight(preset, 0), 0);
+    assert.equal(presetDirectLight(preset, 1), 1.4);
+    assert.equal(presetDirectLight(preset, .5), .7);
+  }
+  assert.equal(presetDirectLight("1", 1), 0);
 });

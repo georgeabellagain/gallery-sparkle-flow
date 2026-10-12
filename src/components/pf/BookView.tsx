@@ -41,7 +41,7 @@ const lookFrom = (viewer: ViewerSettings): Look => ({
   studio: viewer.look === "studio",
   material: viewer.finish,
   strength: viewer.studioLightingStrength ?? .75,
-  textureStrength: viewer.paperTextureStrength ?? 1,
+  textureStrength: 1,
   brightness: viewer.studioBrightness ?? 0.5,
   hdri: viewer.studioLighting ?? "4",
   simpleShadow: viewer.simpleShadow ?? true,
@@ -430,7 +430,7 @@ export function BookView({
   useEffect(() => {
     setSettings(lookFor());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.studioLightingStrength, viewer.paperTextureStrength, previewLook]);
+  }, [viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.studioLightingStrength, previewLook]);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; from: number; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
   const panning = useRef<{ id: number; x: number; y: number } | null>(null);

@@ -22,8 +22,14 @@ export const HDRI_PRESETS: readonly { id: HdriId; label: string; file: string; p
 /** The shadow the Simple look starts with: light, so it is there without being heavy. */
 export const DEFAULT_SIMPLE_SHADOW_OPACITY = 0.2;
 
-/** HDRI is the only illumination at full strength; the other endpoint is neutral overhead light. */
+/** Preset lighting is the only illumination at full strength; the other endpoint is neutral overhead light. */
 export function studioLightMix(value = .75) {
   const hdri = Math.max(0, Math.min(1, Number.isFinite(value) ? value : .75));
   return { hdri, top: 2.3 * (1 - hdri), ambient: .65 * (1 - hdri) };
+}
+
+/** The directional pattern belongs to the selected preset, alongside its environment. */
+export function presetDirectLight(id: HdriId, strength = .75) {
+  const pattern = HDRI_PRESETS.find(preset => preset.id === id)?.dapple;
+  return (pattern === "window" || pattern === "blinds" ? 1.4 : pattern ? 1.8 : 0) * studioLightMix(strength).hdri;
 }
