@@ -391,8 +391,8 @@ export function PdfViewer({
   }, [studioAvailable, mode, !!doc, warmFlatStudio]);
   const pageStudio = useMemo<PageStudioSettings | null>(() => studioAvailable ? {
     hdri: view.studioLighting ?? "4", brightness: view.studioBrightness ?? .5,
-    finish: view.finish === "textured" ? "textured" : "satin",
-  } : null, [studioAvailable, view.studioLighting, view.studioBrightness, view.finish]);
+    finish: view.finish, strength: view.studioLightingStrength ?? .75, textureStrength: view.paperTextureStrength ?? 1,
+  } : null, [studioAvailable, view.studioLighting, view.studioBrightness, view.finish, view.studioLightingStrength, view.paperTextureStrength]);
   useEffect(() => {
     if (!pageLighting || !pageStudio) return;
     let cancelled = false;
@@ -403,6 +403,9 @@ export function PdfViewer({
     });
     return () => { cancelled = true; cancelAnimationFrame(frame); };
   }, [pageLighting, pageStudio]);
+  useEffect(() => {
+    pageLighting?.setBackdrop(backgroundUrl, view.backgroundFit, studio && Boolean(view.backgroundLighting));
+  }, [pageLighting, backgroundUrl, view.backgroundFit, view.backgroundLighting, studio]);
   useEffect(() => {
     setZoom(1);
   }, [mode]);
@@ -604,7 +607,7 @@ export function PdfViewer({
               )}
               {/* The flipbook shows its own page number at the bottom, so it is not repeated here. */}
               {doc && mode !== "book" && (
-                <span className={cn("hidden px-1 text-[11px] tabular-nums sm:inline", quiet)} aria-live="polite">
+                <span className={cn("hidden rounded-full px-2.5 py-2 text-[11px] tabular-nums ring-1 backdrop-blur-sm sm:inline", tone === "dark" ? "bg-slate-950/75 text-white ring-white/20" : "bg-white/90 text-slate-700 ring-black/15")} aria-live="polite">
                   {current} / {doc.numPages}
                 </span>
               )}

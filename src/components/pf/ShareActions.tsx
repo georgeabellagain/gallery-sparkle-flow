@@ -34,7 +34,7 @@ export function ShareActions({ p }: { p: Portfolio }) {
     <section aria-label="Share portfolio">
       
       <p className="mt-1 text-xs text-muted-foreground">Share the published version by link, embed or personal QR code.</p>
-      <code className="mt-3 block overflow-x-auto rounded-xl border border-border bg-muted p-3 text-xs select-all">{origin}{sharePath}</code>
+      <code className="mt-3 block break-all whitespace-normal rounded-xl border border-border bg-muted p-3 text-xs select-all">{origin}{sharePath}</code>
       {msg && <p role="alert" className="mt-2 text-sm text-destructive">{msg}</p>}
       <div className="mt-3 flex flex-wrap gap-2">
         <Button size="sm" disabled={!published} onClick={() => void copy()}><Copy /> {copied ? "Copied" : "Copy link"}</Button>

@@ -1,14 +1,15 @@
 import { readerSlideOffset, READER_SLIDE_MS } from "./reader-slide";
 import { createFrameCommits } from "./frame-commits";
 import * as THREE from "three";
-import { HDRI_PRESETS, type HdriId } from "./lighting";
+import { HDRI_PRESETS, studioLightMix, type HdriId } from "./lighting";
 import { parseRgbe } from "./rgbe";
 import { dappleTexture } from "./dapple-light";
-import { surfaceCanvas } from "./surface";
+import { surfaceCanvas, paperRelief, type SurfaceKind } from "./surface";
+import { createLitBackdrop } from "./lit-backdrop";
 import { bookSurfaceRatio, readerTextureEvictions } from "./render-budget";
 import { pageWorldRect } from "./page-position";
 
-export type PageStudioSettings = { hdri: HdriId; brightness: number; finish: "satin" | "textured" };
+export type PageStudioSettings = { hdri: HdriId; brightness: number; finish: SurfaceKind; strength?: number; textureStrength?: number };
 type Presentation = { layer: HTMLElement; direction: 1 | -1; animate: boolean };
 type Page = { layer?: HTMLElement; slide?: { started: number; direction: 1 | -1 }; element: HTMLElement; source: HTMLCanvasElement; near: boolean; mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial> | null; revealAt: number | null; usedAt: number };
 
@@ -62,14 +63,14 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
     page.mesh.material.dispose(); page.mesh = null;
   };
   const applyMaterial = (material: THREE.MeshStandardMaterial) => {
-    const textured = settings.finish === "textured";
+    const textured = settings.finish !== "satin";
     if (textured && !bumps.has(settings.finish)) {
       const bump = new THREE.CanvasTexture(surfaceCanvas(settings.finish, "soft"));
       bump.wrapS = bump.wrapT = THREE.RepeatWrapping; bump.repeat.set(5, 5);
       bumps.set(settings.finish, bump);
     }
     material.bumpMap = textured ? bumps.get(settings.finish)! : null;
-    material.bumpScale = textured ? .006 : 0;
+    material.bumpScale = paperRelief(settings.finish, settings.textureStrength);
     material.roughness = textured ? .97 : .42;
     // Flat readers keep HDRI/dapple lighting, without the costly clearcoat layer.
     material.needsUpdate = true;
@@ -124,6 +125,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       camera.aspect = box.width / box.height;
       camera.position.set(0, 0, worldHeight / (2 * Math.tan(THREE.MathUtils.degToRad(18))));
       camera.updateProjectionMatrix();
+      backdrop.frame(camera, box.width, box.height);
       const lit: Page[] = [];
       let revealing = false;
       for (const page of pages.values()) {
@@ -189,6 +191,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
     if (disposed) return;
     if (!frame) frame = requestAnimationFrame(paint);
   };
+  const backdrop = createLitBackdrop(scene, requestPaint);
   const observer = new IntersectionObserver(entries => {
     for (const entry of entries) { const page = pages.get(entry.target as HTMLElement); if (page) page.near = entry.isIntersecting; }
     requestPaint();
@@ -240,10 +243,13 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       const pattern = HDRI_PRESETS.find(p => p.id === next.hdri)?.dapple;
       if (pattern && !masks.has(pattern)) masks.set(pattern, dappleTexture(pattern));
       sun.map = pattern ? masks.get(pattern)! : null; sun.visible = Boolean(pattern);
-      sun.intensity = pattern === "window" || pattern === "blinds" ? 1.4 : pattern ? 1.8 : 0;
+      sun.intensity = 0;
       sun.penumbra = pattern === "window" || pattern === "blinds" ? .12 : .35;
-      scene.environment = target.texture; scene.environmentIntensity = pattern ? .7 : 1;
-      ambient.intensity = pattern ? .4 : .65;
+      scene.environment = target.texture;
+      const mix = studioLightMix(next.strength);
+      scene.environmentIntensity = mix.hdri;
+      ambient.intensity = mix.ambient;
+      key.position.set(0, 0, 5); key.intensity = mix.top;
       renderer.toneMappingExposure = .55 + Math.max(0, Math.min(1, next.brightness)) * 1.6;
       pages.forEach(page => { if (page.mesh) applyMaterial(page.mesh.material); });
       failed = false; ready = true; requestPaint();
@@ -251,6 +257,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   };
   return {
     configure,
+    setBackdrop: backdrop.set,
     present(element: HTMLElement, source: HTMLCanvasElement, commit: (live: boolean) => Presentation | void, current = () => true) {
       if (disposed || failed) { if (current()) commit(false); return; }
       pending.stage(element, { source, commit, current });
@@ -268,6 +275,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       observer.disconnect(); resize.disconnect();
       viewport.removeEventListener("scroll", scroll); viewport.removeEventListener("animationstart", animate);
       renderer.domElement.removeEventListener("webglcontextlost", lost);
+      backdrop.dispose();
       pending.clear(); pages.forEach(page => release(page)); pages.clear();
       environments.forEach(p => { void p.then(t => t.dispose(), () => undefined); });
       masks.forEach(t => t.dispose()); bumps.forEach(t => t.dispose());

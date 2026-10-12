@@ -5,8 +5,17 @@
  * artwork colour is preserved and only the surface relief shows.
  * Wood tabletops are generated the same way — no external image assets.
  */
-export type SurfaceKind = "matte" | "satin" | "textured" | "natural";
+export type SurfaceKind = "matte" | "satin" | "textured" | "natural" | "linen" | "cotton" | "recycled" | "watercolour" | "laid";
 export type Light = "soft" | "bright";
+
+export const PAPER_STYLES: readonly (readonly [SurfaceKind, string])[] = [
+  ["matte", "Matte"], ["satin", "Satin"], ["natural", "Uncoated"], ["textured", "Grained"],
+  ["linen", "Linen"], ["cotton", "Cotton"], ["recycled", "Recycled"], ["watercolour", "Watercolour"], ["laid", "Laid"],
+];
+export function paperRelief(kind: SurfaceKind, strength = 1) {
+  const amount = Math.max(0, Math.min(1, Number.isFinite(strength) ? strength : 1));
+  return (kind === "satin" ? 0.0003 : kind === "matte" ? 0.001 : kind === "watercolour" ? 0.008 : 0.006) * amount;
+}
 
 const cache = new Map<string, HTMLCanvasElement>();
 
@@ -36,6 +45,11 @@ const SPECS: Record<SurfaceKind, Spec> = {
   textured: { octaves: [[24, 0.55], [48, 0.3], [128, 0.15]], stretch: 1, bump: 3.5, shine: 8, spec: 0.05 },
   // Uncoated stock: soft, slightly fibrous.
   natural: { octaves: [[32, 0.5], [96, 0.5]], stretch: 2.4, bump: 1.8, shine: 0, spec: 0 },
+  linen: { octaves: [[48, 0.8], [96, 0.2]], stretch: 1, bump: 3, shine: 0, spec: 0 },
+  cotton: { octaves: [[16, 0.4], [80, 0.6]], stretch: 1.4, bump: 2, shine: 0, spec: 0 },
+  recycled: { octaves: [[12, 0.3], [48, 0.3], [128, 0.4]], stretch: 2, bump: 2.8, shine: 0, spec: 0 },
+  watercolour: { octaves: [[12, 0.6], [32, 0.3], [96, 0.1]], stretch: 1, bump: 4, shine: 0, spec: 0 },
+  laid: { octaves: [[32, 0.7], [128, 0.3]], stretch: 8, bump: 2.4, shine: 0, spec: 0 },
 };
 
 export function surfaceCanvas(kind: SurfaceKind, light: Light): HTMLCanvasElement {
@@ -52,6 +66,8 @@ export function surfaceCanvas(kind: SurfaceKind, light: Light): HTMLCanvasElemen
         const px = Math.round(sc / spec.stretch) || 1;
         v += amp * noise((x / N) * px, (y / N) * sc, sc, i + 7);
       });
+      if (kind === "linen") v = 0.3 * v + 0.35 * (Math.sin(x * Math.PI / 4) + Math.sin(y * Math.PI / 4));
+      if (kind === "laid") v = 0.35 * v + 0.65 * Math.sin(y * Math.PI / 4);
       h[y * N + x] = v;
     }
   const L = light === "bright" ? [-0.45, -0.55, 0.7] : [-0.35, -0.45, 0.82];

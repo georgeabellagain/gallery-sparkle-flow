@@ -5,22 +5,23 @@ import { pageRelief } from "./page-relief";
 import { createBookTabs } from "./book-tabs";
 import type { TabEdge, TabPlan } from "./tab-geometry";
 import * as THREE from "three";
-import { surfaceCanvas, type SurfaceKind } from "./surface";
+import { createLitBackdrop } from "./lit-backdrop";
+import { surfaceCanvas, paperRelief, type SurfaceKind } from "./surface";
 import { parseRgbe } from "./rgbe";
-import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS, type HdriId } from "./lighting";
+import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS, studioLightMix, type HdriId } from "./lighting";
 import { GPU_BYTES, deviceTier, gpuBytesOf } from "./resolution";
 
 export { HDRI_PRESETS };
 export type { HdriId };
 
-/** The studio's own light: above, in front and to the left, so the shadow falls below and a little to the right. */
-const KEY_LIGHT: [number, number, number] = [-3, 5, 5];
 
 export type StudioSettings = {
   studio: boolean;
   material: SurfaceKind;
   /** 0..1 overall studio brightness. */
   brightness: number;
+  strength?: number;
+  textureStrength?: number;
   hdri: HdriId;
   /** Simple look only: whether the soft shadow under the book shows. */
   simpleShadow: boolean;
@@ -142,7 +143,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   scene.add(book);
   const ambient = new THREE.HemisphereLight(0xffffff, 0xd5cfbf, 2.2);
   const light = new THREE.DirectionalLight(0xffffff, 2.3);
-  light.position.set(...KEY_LIGHT);
+  light.position.set(0, 0, 5);
   light.castShadow = true;
   // A tight frustum keeps shadow detail high.
   const shadowExtent = Math.hypot(1, ratio / 2) + 0.7;
@@ -397,6 +398,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const update = pendingDragShape;
     pendingDragShape = null;
     update?.();
+    backdrop.frame(camera, host.clientWidth, host.clientHeight);
     renderer.render(scene, camera);
   };
   /** Coalesces rapid pointer input into at most one render per frame. */
@@ -599,9 +601,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   // The paper's look depends on the look (Simple/Studio) and the paper, not on brightness or the shadow settings,
   // so dragging a slider only changes the exposure or the shadow and never rebuilds the materials.
   let variant = "";
+  const backdrop = createLitBackdrop(scene, requestPaint);
   const configure = (next: StudioSettings) => {
     settings = next;
     const brightness = THREE.MathUtils.clamp(next.brightness, 0, 1);
+    const mix = studioLightMix(next.strength);
     const nextVariant = `${next.studio ? 1 : 0}|${next.material}`;
     const variantChanged = nextVariant !== variant;
     const tone = next.studio ? studioTone : THREE.NoToneMapping;
@@ -626,20 +630,20 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const pattern = next.studio ? HDRI_PRESETS.find(p => p.id === next.hdri)?.dapple : undefined;
     if (pattern && !dapples.has(pattern)) dapples.set(pattern, dappleTexture(pattern));
     sunPatch.map = pattern ? dapples.get(pattern)! : null;
-    sunPatch.intensity = pattern === "window" || pattern === "blinds" ? 1.4 : pattern ? 1.8 : 0;
+    sunPatch.intensity = 0;
     sunPatch.penumbra = pattern === "window" || pattern === "blinds" ? .12 : .35;
     // Project the sunlight pattern onto paper, but keep the book's shadow
     // on the original soft directional light. The narrow projector produced
     // a hard, distorted silhouette on the backdrop for Lighting 5–8.
     sunPatch.castShadow = false;
     sunPatch.visible = Boolean(pattern);
-    scene.environmentIntensity = next.studio ? (pattern ? .7 : 1) : 0;
-    // The studio's own light is the same whatever the lighting, so the shadow always falls the same way.
-    light.position.set(...KEY_LIGHT);
+    scene.environmentIntensity = next.studio ? mix.hdri : 0;
+    // Neutral overhead light fades out as the HDRI contribution grows.
+    light.position.set(0, 0, 5);
     light.color.set(0xffffff);
-    light.intensity = next.studio ? 0.55 : 0;
+    light.intensity = next.studio ? mix.top : 0;
     light.shadow.radius = 6;
-    ambient.intensity = next.studio ? (pattern ? .4 : .65) : Math.PI;
+    ambient.intensity = next.studio ? mix.ambient : Math.PI;
     ambient.color.set(0xffffff);
     ambient.groundColor.set(next.studio ? 0xb7bdca : 0xffffff);
     // Studio shows only the real shadow cast by the light and the paper; the soft shadow is the Simple look's.
@@ -648,7 +652,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     applyContact();
     shadowCatcher.material.opacity = 0.45;
     shadowCatcher.visible = next.studio;
-    light.castShadow = next.studio;
+    light.castShadow = next.studio && mix.top > 0;
     let bump: THREE.CanvasTexture | null = null;
     if (variantChanged && next.studio) {
       const key = next.material;
@@ -661,12 +665,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       bump = bumps.get(key)!;
     }
     const satin = next.material === "satin";
-    const textured = next.material === "textured";
     if (variantChanged) variant = nextVariant;
-    for (const m of variantChanged ? pageMaterials : []) {
-      m.bumpMap = bump;
+    for (const m of pageMaterials) {
+      if (variantChanged) m.bumpMap = bump;
       // Satin is smooth with a visible sheen; textured shows clear paper grain.
-      m.bumpScale = next.studio ? (textured ? 0.006 : 0.0003) : 0;
+      m.bumpScale = next.studio ? paperRelief(next.material, next.textureStrength) : 0;
       m.roughness = next.studio ? (satin ? 0.42 : 0.97) : 0.96;
       m.clearcoat = next.studio && satin ? 0.4 : 0;
       m.clearcoatRoughness = 0.28;
@@ -675,7 +678,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       m.emissive.set(next.studio ? 0x000000 : 0xffffff);
       m.emissiveMap = next.studio ? null : m.map;
       m.color.set(next.studio ? 0xffffff : 0x000000);
-      m.needsUpdate = true;
+      if (variantChanged) m.needsUpdate = true;
     }
     if (!warmedLooks.has(next.studio)) {
       warmedLooks.add(next.studio);
@@ -827,6 +830,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   configure(settings);
   resize();
   return {
+    setBackdrop: backdrop.set,
     setNotes: notes.set,
     clearNotes: notes.clear,
     noteProgress: notes.progress,
@@ -1026,6 +1030,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     dispose() {
       notes.clear();
       tabs.clear();
+      backdrop.dispose();
       disposed = true;
       cancelAnimationFrame(frame);
       cancelAnimationFrame(paintQueued);

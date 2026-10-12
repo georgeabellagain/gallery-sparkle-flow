@@ -39,13 +39,19 @@ export interface ViewerSettings {
   studioModes?: ("scroll" | "paged" | "book")[];
   /** Creator-defined Studio lighting. */
   studioBrightness?: number;
+  /** Mix of HDRI and neutral top light, 0..1. */
+  studioLightingStrength?: number;
+  /** Relief of the selected paper texture, 0..1. */
+  paperTextureStrength?: number;
+  /** Illuminate uploaded backgrounds with the same Studio scene. */
+  backgroundLighting?: boolean;
   studioLighting?: "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8";
   /** Simple look: the soft shadow under the book. On unless switched off. */
   simpleShadow?: boolean;
   /** How dark that shadow is, 0 to 1. Starts at 0.2. */
   simpleShadowOpacity?: number;
   background: "midnight" | "black" | "paper" | "soft" | "oak" | "walnut";
-  finish: "matte" | "satin" | "textured";
+  finish: import("./surface").SurfaceKind;
   paper: "smooth" | "natural";
   light: "soft" | "bright";
   shadow: "none" | "subtle" | "grounded";
