@@ -7,7 +7,7 @@ import { DEFAULT_STYLE, DEFAULT_VIEWER, FONT_OPTIONS, patchPortfolioAppearance, 
 import { backgroundColour, DEFAULT_FIT } from "@/lib/portfolia/background";
 import { useBlob, useObjectUrl } from "@/components/pf/Chrome";
 import { Segmented } from "@/components/pf/viewer-ui";
-import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS } from "@/lib/portfolia/lighting";
+import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS, MAX_STUDIO_BRIGHTNESS } from "@/lib/portfolia/lighting";
 import { PAPER_STYLES, type SurfaceKind } from "@/lib/portfolia/surface";
 import { setPreviewLook } from "@/lib/portfolia/preview-look";
 
@@ -258,13 +258,13 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
                   </div>
                   <label className="flex items-center gap-3">
                     <span className="w-20 shrink-0">Brightness</span>
-                    <input type="range" aria-label="Studio brightness" min="0" max="100" step="1" value={Math.round(studioBrightness * 100)} onChange={(e) => setViewer({ studioBrightness: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground" />
+                    <input type="range" aria-label="Studio brightness" min="0" max={MAX_STUDIO_BRIGHTNESS * 100} step="1" value={Math.round(studioBrightness * 100)} onChange={(e) => setViewer({ studioBrightness: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground" />
                     <span className="w-9 text-right tabular-nums">{Math.round(studioBrightness * 100)}%</span>
                   </label>
                   <div className="space-y-1.5">
                     <p>Lighting</p>
-                    <label className="flex items-center gap-2"><span className="shrink-0">Strength</span><input type="range" aria-label="Studio lighting strength" min="0" max="100" value={Math.round((viewer.studioLightingStrength ?? .75) * 100)} onChange={e => setViewer({ studioLightingStrength: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground"/><span className="w-9 text-right tabular-nums">{Math.round((viewer.studioLightingStrength ?? .75) * 100)}%</span></label>
-                    <p className="text-xs text-muted-foreground">Blend neutral top light into the scene. At 100%, only the selected lighting and its direct-light pattern are used.</p>
+                    <label className="flex items-center gap-2"><span className="shrink-0">Diffusion</span><input type="range" aria-label="Studio lighting diffusion" min="0" max="100" value={Math.round((1 - (viewer.studioLightingStrength ?? .75)) * 100)} onChange={e => setViewer({ studioLightingStrength: 1 - Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground"/><span className="w-9 text-right tabular-nums">{Math.round((1 - (viewer.studioLightingStrength ?? .75)) * 100)}%</span></label>
+                    <p className="text-xs text-muted-foreground">0% retains the HDRI and direct-light pattern. 100% diffuses them into an even, solid colour.</p>
                     <div role="radiogroup" aria-label="Studio lighting" className="grid grid-cols-4 gap-1.5">
                       {HDRI_PRESETS.map((light) => (
                         <button

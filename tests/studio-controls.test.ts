@@ -1,13 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { studioLightMix, presetDirectLight } from "../src/lib/portfolia/lighting";
+import { studioLightMix, presetDirectLight, studioExposure } from "../src/lib/portfolia/lighting";
 import { PAPER_STYLES, paperRelief } from "../src/lib/portfolia/surface";
 import { tabSlot } from "../src/lib/portfolia/tab-geometry";
 
-test("neutral top light fades out as preset strength reaches full", () => {
+test("diffusion removes HDRI detail without adding top or ambient light", () => {
   assert.deepEqual(studioLightMix(1), { hdri: 1, top: 0, ambient: 0 });
-  assert.deepEqual(studioLightMix(0), { hdri: 0, top: 2.3, ambient: .65 });
-  assert.ok(studioLightMix(.2).top > studioLightMix(.8).top);
+  assert.deepEqual(studioLightMix(0), { hdri: 0, top: 0, ambient: 0 });
+  assert.equal(studioLightMix(.2).top, 0);
+  assert.equal(studioLightMix(.8).ambient, 0);
   assert.deepEqual(studioLightMix(2), studioLightMix(1));
   assert.deepEqual(studioLightMix(NaN), studioLightMix(.75));
 });
@@ -32,4 +33,16 @@ test("window and blinds retain their direct-light pattern at full preset strengt
     assert.equal(presetDirectLight(preset, .5), .7);
   }
   assert.equal(presetDirectLight("1", 1), 0);
+});
+
+test("brightness extends past the old maximum without changing existing exposure", () => {
+  assert.ok(Math.abs(studioExposure(1) - 2.15) < 1e-9);
+  assert.ok(studioExposure(2) > studioExposure(1));
+  assert.equal(studioExposure(3), studioExposure(2));
+});
+
+test("diffused solid colour keeps the environment's average radiance", async () => {
+  const { averageEnvironment } = await import("../src/lib/portfolia/environment-diffusion");
+  const colour = averageEnvironment(new Float32Array([.2,.4,.8, .4,.6,1]), 2, 1);
+  for (const [i, expected] of [.3,.5,.9].entries()) assert.ok(Math.abs(colour[i]! - expected) < 1e-6);
 });
