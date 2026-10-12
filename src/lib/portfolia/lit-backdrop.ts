@@ -1,13 +1,17 @@
+import { backdropNormals } from "./backdrop-normals";
 import * as THREE from "three";
 import { DEFAULT_FIT, type BackgroundFit } from "./background";
 
 /** A matte photograph on the table, shaded by the same environment as the pages. */
-export function createLitBackdrop(scene: THREE.Scene, repaint: () => void) {
-  const material = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0 });
+export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shadows = false) {
+  const material = new THREE.MeshStandardMaterial({ roughness: .82, metalness: 0 });
   const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), material);
   plane.position.z = -0.072;
+  plane.receiveShadow = true;
   plane.visible = false;
   scene.add(plane);
+  const catcher = shadows ? new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShadowMaterial({opacity:.3, depthWrite:false})) : null;
+  if (catcher) { catcher.position.z = -.071; catcher.receiveShadow = true; catcher.visible = false; scene.add(catcher); }
   let source: HTMLImageElement | null = null;
   let currentUrl: string | undefined;
   let fit = DEFAULT_FIT;
@@ -17,6 +21,9 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   material.map = texture;
+  const normalCanvas = document.createElement("canvas");
+  const normals = new THREE.CanvasTexture(normalCanvas); normals.colorSpace = THREE.NoColorSpace;
+  material.normalMap = normals; material.normalScale.set(.35, .35);
   return {
     set(url: string | undefined, nextFit: Partial<BackgroundFit> | undefined, active: boolean) {
       enabled = active; fit = { ...DEFAULT_FIT, ...nextFit }; dimensions = "";
@@ -32,7 +39,7 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void) {
       }).catch(() => { /* The unlit DOM image remains available when decoding fails. */ });
     },
     frame(camera: THREE.PerspectiveCamera, width: number, height: number) {
-      if (!source || !enabled) { plane.visible = false; return; }
+      if (!source || !enabled) { plane.visible = false; if (catcher) catcher.visible=false; return; }
       const stamp = `${width}|${height}|${fit.scale}|${fit.x}|${fit.y}`;
       if (stamp !== dimensions) {
         dimensions = stamp;
@@ -44,11 +51,17 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void) {
         const x = (canvas.width - w) / 2 + Math.max(-1, Math.min(1, fit.x)) * canvas.width * (scale - 1) / 2;
         const y = (canvas.height - h) / 2 + Math.max(-1, Math.min(1, fit.y)) * canvas.height * (scale - 1) / 2;
         canvas.getContext("2d")!.drawImage(source, x, y, w, h); texture.needsUpdate = true;
+        const normalCap = Math.min(1, 512 / Math.max(canvas.width, canvas.height));
+        normalCanvas.width = Math.max(1, Math.round(canvas.width * normalCap)); normalCanvas.height = Math.max(1, Math.round(canvas.height * normalCap));
+        const context = normalCanvas.getContext("2d")!; context.drawImage(canvas, 0, 0, normalCanvas.width, normalCanvas.height);
+        const image = context.getImageData(0, 0, normalCanvas.width, normalCanvas.height);
+        image.data.set(backdropNormals(image.data, normalCanvas.width, normalCanvas.height)); context.putImageData(image, 0, 0); normals.needsUpdate = true;
       }
       const worldHeight = 2 * (camera.position.z - plane.position.z) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
       plane.position.x = camera.position.x; plane.position.y = camera.position.y;
       plane.scale.set(worldHeight * camera.aspect, worldHeight, 1); plane.visible = true;
+      if (catcher) { catcher.position.x=plane.position.x;catcher.position.y=plane.position.y;catcher.scale.copy(plane.scale);catcher.visible=true; }
     },
-    dispose() { disposed = true; revision++; source = null; scene.remove(plane); texture.dispose(); plane.geometry.dispose(); material.dispose(); },
+    dispose() { disposed = true; revision++; source = null; scene.remove(plane); texture.dispose(); normals.dispose(); plane.geometry.dispose(); material.dispose(); if (catcher) {scene.remove(catcher);catcher.geometry.dispose();catcher.material.dispose();} },
   };
 }

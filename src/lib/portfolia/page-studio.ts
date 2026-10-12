@@ -19,6 +19,7 @@ type Page = { layer?: HTMLElement; slide?: { started: number; direction: 1 | -1 
 export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElement) {
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance" });
   renderer.localClippingEnabled = true;
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.domElement.setAttribute("aria-hidden", "true");
@@ -33,6 +34,8 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   const sun = new THREE.SpotLight(0xfff3dc, 0, 0, Math.PI / 5, .35, 0);
   sun.position.set(-1.8, 2.8, 5.5);
   scene.add(ambient, key, sun, sun.target);
+  key.shadow.mapSize.set(512,512); key.shadow.camera.left=-2;key.shadow.camera.right=2;key.shadow.camera.top=3;key.shadow.camera.bottom=-3;key.shadow.camera.updateProjectionMatrix();key.shadow.normalBias=.008;key.shadow.bias=-.0001;key.shadow.radius=6;
+  sun.shadow.mapSize.set(512,512);sun.shadow.normalBias=.008;sun.shadow.bias=-.0001;sun.shadow.radius=6;
   const masks = new Map<string, THREE.CanvasTexture>();
   const bumps = new Map<string, THREE.CanvasTexture>();
   const environments = new Map<HdriId, Promise<THREE.WebGLRenderTarget>>();
@@ -150,6 +153,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
           if (page.layer) material.clippingPlanes = [new THREE.Plane(new THREE.Vector3(1, 0, 0)), new THREE.Plane(new THREE.Vector3(-1, 0, 0)), new THREE.Plane(new THREE.Vector3(0, 1, 0)), new THREE.Plane(new THREE.Vector3(0, -1, 0))];
           applyMaterial(material);
           page.mesh = new THREE.Mesh(paperGeometry, material);
+          page.mesh.castShadow = true;
           scene.add(page.mesh);
           renderer.initTexture(texture);
         }
@@ -194,7 +198,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
     if (disposed) return;
     if (!frame) frame = requestAnimationFrame(paint);
   };
-  const backdrop = createLitBackdrop(scene, requestPaint);
+  const backdrop = createLitBackdrop(scene, requestPaint, true);
   const observer = new IntersectionObserver(entries => {
     for (const entry of entries) { const page = pages.get(entry.target as HTMLElement); if (page) page.near = entry.isIntersecting; }
     requestPaint();
@@ -253,7 +257,8 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       scene.environment = diffuser.apply(target, mix.hdri, environmentColours.get(next.hdri));
       scene.environmentIntensity = pattern ? 1 - .3 * mix.hdri : 1;
       ambient.intensity = mix.ambient;
-      key.position.set(0, 0, 5); key.intensity = mix.top;
+      key.position.set(-1.8, 2.8, 5.5); key.intensity = mix.top;
+      key.castShadow = !pattern || mix.hdri === 0; sun.castShadow = Boolean(pattern) && mix.hdri > 0;
       renderer.toneMappingExposure = studioExposure(next.brightness);
       pages.forEach(page => { if (page.mesh) applyMaterial(page.mesh.material); });
       failed = false; ready = true; requestPaint();
