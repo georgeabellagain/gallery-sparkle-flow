@@ -120,7 +120,7 @@ function acquireArtwork(url: string) {
         dimensions[n - 1] = { w: base.width, h: base.height };
         if ([4, 5, 6, 7, 8, 10, 12, 13].includes(n)) {
           const viewport = page.getViewport({
-            scale: Math.min(640 / base.width, 640 / base.height),
+            scale: Math.min(1920 / base.width, 1920 / base.height),
           });
           const canvas = document.createElement("canvas");
           canvas.width = Math.ceil(viewport.width);
@@ -129,7 +129,7 @@ function acquireArtwork(url: string) {
             canvasContext: canvas.getContext("2d")!,
             viewport,
           }).promise;
-          artwork[n] = canvas.toDataURL("image/webp", 0.68);
+          artwork[n] = canvas.toDataURL("image/webp", 0.96);
           if (n === START.notes) {
             // A close-up taken directly from the right-hand artwork of this PDF page.
             const detail = document.createElement("canvas");
@@ -481,7 +481,7 @@ function LiveFeatureAnimation({
   );
 }
 
-const RECORDED_FEATURES = new Set<FeatureId>(["lighting", "background", "tabs"]);
+const RECORDED_FEATURES = new Set<FeatureId>(["lighting", "background", "tabs", "paged", "scroll", "links", "share"]);
 type FeatureAnimationProps = Parameters<typeof LiveFeatureAnimation>[0];
 
 /** Keep the original 3D scenes available for recording; visitors decode video. */
@@ -515,7 +515,7 @@ function RecordedFeatureAnimation({ feature, playing, onReady, onError }: Featur
       onLoadedData={() => onReady(true)}
       onError={onError}
       aria-label={`Animated ${feature} demonstration using Scarlett Bushell’s portfolio`}
-      className="absolute inset-0 h-full w-full object-contain"
+      className="absolute inset-0 h-full w-full object-cover"
     />
   </div>;
 }

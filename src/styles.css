@@ -573,7 +573,7 @@
 @media (prefers-reduced-motion: reduce) { .pf-paged-slide { animation: none; } }
 
 /* The feature showcase uses the real reader, fitted to its image area. */
-.pf-feature-live { height: clamp(340px, 62svh, 760px); overflow-y: auto; }
+.pf-feature-live { aspect-ratio: 8 / 5; height: auto; overflow: hidden; }
 .pf-feature-live .pf-book-viewport { height: clamp(340px, 62svh, 760px); }
 
 /* Presentation loops use real PDF renders. No editing/reader chrome is exposed. */
