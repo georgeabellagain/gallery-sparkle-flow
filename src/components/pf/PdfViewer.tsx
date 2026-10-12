@@ -391,8 +391,8 @@ export function PdfViewer({
   }, [studioAvailable, mode, !!doc, warmFlatStudio]);
   const pageStudio = useMemo<PageStudioSettings | null>(() => studioAvailable ? {
     hdri: view.studioLighting ?? "4", brightness: view.studioBrightness ?? .5,
-    finish: view.finish, strength: view.studioLightingStrength ?? .75, textureStrength: view.paperTextureStrength ?? 1,
-  } : null, [studioAvailable, view.studioLighting, view.studioBrightness, view.finish, view.studioLightingStrength, view.paperTextureStrength]);
+    finish: view.finish, strength: view.studioLightingStrength ?? .75, textureStrength: 1,
+  } : null, [studioAvailable, view.studioLighting, view.studioBrightness, view.finish, view.studioLightingStrength]);
   useEffect(() => {
     if (!pageLighting || !pageStudio) return;
     let cancelled = false;

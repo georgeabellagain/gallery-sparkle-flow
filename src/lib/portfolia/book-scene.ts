@@ -8,7 +8,7 @@ import * as THREE from "three";
 import { createLitBackdrop } from "./lit-backdrop";
 import { surfaceCanvas, paperRelief, type SurfaceKind } from "./surface";
 import { parseRgbe } from "./rgbe";
-import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS, studioLightMix, type HdriId } from "./lighting";
+import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS, studioLightMix, presetDirectLight, type HdriId } from "./lighting";
 import { GPU_BYTES, deviceTier, gpuBytesOf } from "./resolution";
 
 export { HDRI_PRESETS };
@@ -630,14 +630,14 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const pattern = next.studio ? HDRI_PRESETS.find(p => p.id === next.hdri)?.dapple : undefined;
     if (pattern && !dapples.has(pattern)) dapples.set(pattern, dappleTexture(pattern));
     sunPatch.map = pattern ? dapples.get(pattern)! : null;
-    sunPatch.intensity = 0;
+    sunPatch.intensity = next.studio ? presetDirectLight(next.hdri, next.strength) : 0;
     sunPatch.penumbra = pattern === "window" || pattern === "blinds" ? .12 : .35;
     // Project the sunlight pattern onto paper, but keep the book's shadow
     // on the original soft directional light. The narrow projector produced
     // a hard, distorted silhouette on the backdrop for Lighting 5–8.
     sunPatch.castShadow = false;
     sunPatch.visible = Boolean(pattern);
-    scene.environmentIntensity = next.studio ? mix.hdri : 0;
+    scene.environmentIntensity = next.studio ? mix.hdri * (pattern ? .7 : 1) : 0;
     // Neutral overhead light fades out as the HDRI contribution grows.
     light.position.set(0, 0, 5);
     light.color.set(0xffffff);

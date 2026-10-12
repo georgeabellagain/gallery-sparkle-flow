@@ -1,7 +1,7 @@
 import { readerSlideOffset, READER_SLIDE_MS } from "./reader-slide";
 import { createFrameCommits } from "./frame-commits";
 import * as THREE from "three";
-import { HDRI_PRESETS, studioLightMix, type HdriId } from "./lighting";
+import { HDRI_PRESETS, studioLightMix, presetDirectLight, type HdriId } from "./lighting";
 import { parseRgbe } from "./rgbe";
 import { dappleTexture } from "./dapple-light";
 import { surfaceCanvas, paperRelief, type SurfaceKind } from "./surface";
@@ -243,11 +243,11 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       const pattern = HDRI_PRESETS.find(p => p.id === next.hdri)?.dapple;
       if (pattern && !masks.has(pattern)) masks.set(pattern, dappleTexture(pattern));
       sun.map = pattern ? masks.get(pattern)! : null; sun.visible = Boolean(pattern);
-      sun.intensity = 0;
+      sun.intensity = presetDirectLight(next.hdri, next.strength);
       sun.penumbra = pattern === "window" || pattern === "blinds" ? .12 : .35;
       scene.environment = target.texture;
       const mix = studioLightMix(next.strength);
-      scene.environmentIntensity = mix.hdri;
+      scene.environmentIntensity = mix.hdri * (pattern ? .7 : 1);
       ambient.intensity = mix.ambient;
       key.position.set(0, 0, 5); key.intensity = mix.top;
       renderer.toneMappingExposure = .55 + Math.max(0, Math.min(1, next.brightness)) * 1.6;

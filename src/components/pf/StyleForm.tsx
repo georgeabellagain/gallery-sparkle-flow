@@ -255,7 +255,6 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
                     <select aria-label="Studio paper" className="w-full min-w-0 rounded-lg border border-border bg-background p-2" value={viewer.finish} onChange={e => setViewer({ finish: e.target.value as SurfaceKind })}>
                       {PAPER_STYLES.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
                     </select>
-                    <label className="flex items-center gap-2"><span className="shrink-0">Texture</span><input type="range" aria-label="Paper texture strength" min="0" max="100" value={Math.round((viewer.paperTextureStrength ?? 1) * 100)} onChange={e => setViewer({ paperTextureStrength: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground"/><span className="w-9 text-right tabular-nums">{Math.round((viewer.paperTextureStrength ?? 1) * 100)}%</span></label>
                   </div>
                   <label className="flex items-center gap-3">
                     <span className="w-20 shrink-0">Brightness</span>
@@ -265,7 +264,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
                   <div className="space-y-1.5">
                     <p>Lighting</p>
                     <label className="flex items-center gap-2"><span className="shrink-0">Strength</span><input type="range" aria-label="Studio lighting strength" min="0" max="100" value={Math.round((viewer.studioLightingStrength ?? .75) * 100)} onChange={e => setViewer({ studioLightingStrength: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground"/><span className="w-9 text-right tabular-nums">{Math.round((viewer.studioLightingStrength ?? .75) * 100)}%</span></label>
-                    <p className="text-xs text-muted-foreground">Blend neutral top light into the scene. At 100%, only HDRI lighting is used.</p>
+                    <p className="text-xs text-muted-foreground">Blend neutral top light into the scene. At 100%, only the selected lighting and its direct-light pattern are used.</p>
                     <div role="radiogroup" aria-label="Studio lighting" className="grid grid-cols-4 gap-1.5">
                       {HDRI_PRESETS.map((light) => (
                         <button

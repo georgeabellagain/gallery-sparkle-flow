@@ -41,8 +41,6 @@ export interface ViewerSettings {
   studioBrightness?: number;
   /** Mix of HDRI and neutral top light, 0..1. */
   studioLightingStrength?: number;
-  /** Relief of the selected paper texture, 0..1. */
-  paperTextureStrength?: number;
   /** Illuminate uploaded backgrounds with the same Studio scene. */
   backgroundLighting?: boolean;
   studioLighting?: "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8";
