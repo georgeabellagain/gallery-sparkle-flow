@@ -278,6 +278,7 @@ export function BookView({
   demoLightingCycle,
   lightweight = false,
   previewTextureCap = 1600,
+  captureQuality = false,
   foldouts,
   tags,
   links,
@@ -320,6 +321,8 @@ export function BookView({
   lightweight?: boolean;
   /** Small showcase-only textures; normal portfolio artwork is unchanged. */
   previewTextureCap?: number;
+  /** Offline feature recording keeps the drawing surface at its original resolution. */
+  captureQuality?: boolean;
   foldouts?: Foldout[];
   /** Coloured tabs on the edges of the book; each jumps to its page. */
   tags?: PageTag[];
@@ -456,10 +459,10 @@ export function BookView({
   );
   useEffect(() => {
     if (!ready || !scene.current) return;
-    scene.current.setInset(getBookInset());
-    const apply = (value: number) => { scene.current?.setInset(value); syncBounds(); };
+    scene.current.setInset(captureQuality ? Math.max(0.35, getBookInset()) : getBookInset());
+    const apply = (value: number) => { scene.current?.setInset(captureQuality ? Math.max(0.35, value) : value); syncBounds(); };
     return subscribeBookInset(apply);
-  }, [ready]);
+  }, [ready, captureQuality]);
   useEffect(() => {
     if (!ready || fallback || !scene.current) return;
     scene.current.setTabs(tabEntries.map((t) => ({ id: t.id, text: t.label || String(t.page), colour: t.colour, position: t.position })), narrow);
@@ -560,7 +563,8 @@ export function BookView({
       if (cancelled) return;
       let made: BookScene | null = null;
       try {
-        made = createBookScene(element, ratio, () => lost(made), () => restored(made), latestSettings.current);
+        made = createBookScene(element, ratio, () => lost(made), () => restored(made), latestSettings.current, captureQuality);
+        if (captureQuality) made.setInset(0.35);
       } catch (error) {
         console.error(`[flipbook] 3D could not start (try ${attempt + 1}):`, error);
         failed();
@@ -591,7 +595,7 @@ export function BookView({
       scene.current?.dispose();
       scene.current = null;
     };
-  }, [doc, ratio, layout, lightweight, previewTextureCap, fullSpread, additions, pageLinks]);
+  }, [doc, ratio, layout, lightweight, previewTextureCap, captureQuality, fullSpread, additions, pageLinks]);
 
   const faces = useCallback(
     async (value: Spread): Promise<BookFaces> => {

@@ -193,7 +193,7 @@ function acquireArtwork(url: string) {
 }
 
 /** Presentation-only loops: PDF artwork plus the actual book renderer, with no reader/editor UI. */
-export function FeatureAnimation({
+function LiveFeatureAnimation({
   url,
   feature,
   playing,
@@ -371,6 +371,7 @@ export function FeatureAnimation({
             awake={false}
             fullSpread
             lightweight={!live}
+            captureQuality={live}
             previewTextureCap={live ? 2048 : 800}
             onReadyChange={bookReady}
             onRenderError={onError}
@@ -474,4 +475,43 @@ export function FeatureAnimation({
       )}
     </div>
   );
+}
+
+const RECORDED_FEATURES = new Set<FeatureId>(["lighting", "background", "tabs"]);
+type FeatureAnimationProps = Parameters<typeof LiveFeatureAnimation>[0];
+
+/** Keep the original 3D scenes available for recording; visitors decode video. */
+export function FeatureAnimation(props: FeatureAnimationProps) {
+  if (!props.live && RECORDED_FEATURES.has(props.feature))
+    return <RecordedFeatureAnimation {...props} />;
+  return <LiveFeatureAnimation {...props} />;
+}
+
+function RecordedFeatureAnimation({ feature, playing, onReady, onError }: FeatureAnimationProps) {
+  const video = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const element = video.current;
+    if (!element) return;
+    if (playing) void element.play().catch(() => {
+      // Autoplay may be denied; the full-resolution poster stays visible.
+    });
+    else element.pause();
+    return () => element.pause();
+  }, [playing, feature]);
+  useEffect(() => {
+    onReady(false);
+    if (video.current && video.current.readyState >= 2) onReady(true);
+  }, [feature, onReady]);
+  return <div className={`pf-feature-animation pf-feature-${feature}`} data-playing={playing}>
+    <video
+      ref={video}
+      src={`/features/${feature}.mp4`}
+      poster={`/features/${feature}-poster.webp`}
+      muted loop playsInline preload="auto"
+      onLoadedData={() => onReady(true)}
+      onError={onError}
+      aria-label={`Animated ${feature} demonstration using Scarlett Bushell’s portfolio`}
+      className="absolute inset-0 h-full w-full object-contain"
+    />
+  </div>;
 }
