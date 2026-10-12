@@ -1,3 +1,4 @@
+import { averageEnvironment, createEnvironmentDiffuser } from "./environment-diffusion";
 import { dappleTexture } from "./dapple-light";
 import { bookSurfaceRatio, bookMotionBudget } from "./render-budget";
 import { createBookNotes } from "./book-notes";
@@ -8,7 +9,7 @@ import * as THREE from "three";
 import { createLitBackdrop } from "./lit-backdrop";
 import { surfaceCanvas, paperRelief, type SurfaceKind } from "./surface";
 import { parseRgbe } from "./rgbe";
-import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS, studioLightMix, presetDirectLight, type HdriId } from "./lighting";
+import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS, studioLightMix, presetDirectLight, studioExposure, type HdriId } from "./lighting";
 import { GPU_BYTES, deviceTier, gpuBytesOf } from "./resolution";
 
 export { HDRI_PRESETS };
@@ -75,6 +76,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   // The lighting environments are real photographs, downloaded the first time one is chosen and
   // prefiltered for paper. They are held as half-floats, which every device can filter.
   const environments = new Map<HdriId, THREE.WebGLRenderTarget>();
+  const environmentColours = new Map<HdriId, [number, number, number]>();
+  const diffuser = createEnvironmentDiffuser(renderer);
   const loading = new Map<HdriId, Promise<THREE.WebGLRenderTarget | null>>();
   const toEnvironment = (data: Uint16Array, width: number, height: number) => {
     const hdr = new THREE.DataTexture(data, width, height, THREE.RGBAFormat, THREE.HalfFloatType);
@@ -114,6 +117,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         .then((buffer) => {
           if (disposed) return null;
           const { width, height, rgb } = parseRgbe(buffer);
+          environmentColours.set(id, averageEnvironment(rgb, width, height));
           const half = new Uint16Array(width * height * 4);
           const one = THREE.DataUtils.toHalfFloat(1);
           // A picture file starts with its top row; a texture starts with its bottom row.
@@ -466,6 +470,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const restored = () => {
     if (disposed) return;
     environments.clear();
+    diffuser.reset();
     evenLight = null;
     scene.environment = null;
     warmedLooks.clear(); // the shaders were lost with the old context
@@ -604,25 +609,24 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const backdrop = createLitBackdrop(scene, requestPaint);
   const configure = (next: StudioSettings) => {
     settings = next;
-    const brightness = THREE.MathUtils.clamp(next.brightness, 0, 1);
     const mix = studioLightMix(next.strength);
     const nextVariant = `${next.studio ? 1 : 0}|${next.material}`;
     const variantChanged = nextVariant !== variant;
     const tone = next.studio ? studioTone : THREE.NoToneMapping;
     if (renderer.toneMapping !== tone) renderer.toneMapping = tone;
     // The brightness slider drives overall exposure so the change is obvious.
-    renderer.toneMappingExposure = next.studio ? 0.55 + brightness * 1.6 : 1;
+    renderer.toneMappingExposure = next.studio ? studioExposure(next.brightness) : 1;
     // The lighting is a real photograph. While one downloads, the previous lighting (or a plain even light) stays.
     const request = ++environmentRequest;
     if (!next.studio) scene.environment = null;
     else {
       const ready = environments.get(next.hdri);
-      if (ready) scene.environment = ready.texture;
+      if (ready) scene.environment = diffuser.apply(ready, mix.hdri, environmentColours.get(next.hdri));
       else {
         if (!scene.environment) scene.environment = even().texture;
         void loadEnvironment(next.hdri).then((target) => {
           if (disposed || request !== environmentRequest) return;
-          scene.environment = (target ?? even()).texture;
+          scene.environment = diffuser.apply(target ?? even(), mix.hdri, environmentColours.get(next.hdri));
           paint();
         });
       }
@@ -637,8 +641,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // a hard, distorted silhouette on the backdrop for Lighting 5–8.
     sunPatch.castShadow = false;
     sunPatch.visible = Boolean(pattern);
-    scene.environmentIntensity = next.studio ? mix.hdri * (pattern ? .7 : 1) : 0;
-    // Neutral overhead light fades out as the HDRI contribution grows.
+    scene.environmentIntensity = next.studio ? (pattern ? 1 - .3 * mix.hdri : 1) : 0;
+    // Studio illumination comes only from the diffused environment and preset pattern.
     light.position.set(0, 0, 5);
     light.color.set(0xffffff);
     light.intensity = next.studio ? mix.top : 0;
@@ -647,11 +651,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     ambient.color.set(0xffffff);
     ambient.groundColor.set(next.studio ? 0xb7bdca : 0xffffff);
     // Studio shows only the real shadow cast by the light and the paper; the soft shadow is the Simple look's.
-    contactOn = !next.studio && next.simpleShadow;
-    contactOpacity = THREE.MathUtils.clamp(next.simpleShadowOpacity, 0, 1);
+    contactOn = next.studio || next.simpleShadow;
+    contactOpacity = next.studio ? .2 : THREE.MathUtils.clamp(next.simpleShadowOpacity, 0, 1);
     applyContact();
     shadowCatcher.material.opacity = 0.45;
-    shadowCatcher.visible = next.studio;
+    shadowCatcher.visible = false;
     light.castShadow = next.studio && mix.top > 0;
     let bump: THREE.CanvasTexture | null = null;
     if (variantChanged && next.studio) {
@@ -1031,6 +1035,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       notes.clear();
       tabs.clear();
       backdrop.dispose();
+      diffuser.dispose();
       disposed = true;
       cancelAnimationFrame(frame);
       cancelAnimationFrame(paintQueued);

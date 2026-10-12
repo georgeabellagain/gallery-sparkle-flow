@@ -63,7 +63,7 @@ export function FeatureShowcase() {
   const [motion, setMotion] = useState(false);
   const [paused, setPaused] = useState(false);
   const [autoAdvance, setAutoAdvance] = useState(true);
-  const [selected, setSelected] = useState(0);
+  const [selected, setSelected] = useState(() => FEATURES.findIndex(feature => feature.id === "links"));
   const [data, setData] = useState<PublicPortfolio>(null);
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);

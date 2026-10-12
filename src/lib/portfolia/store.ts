@@ -38,8 +38,9 @@ export interface ViewerSettings {
   /** Reading modes allowed to offer Studio. Omitted retains all modes for older portfolios. */
   studioModes?: ("scroll" | "paged" | "book")[];
   /** Creator-defined Studio lighting. */
+  /** Studio exposure control, 0..2 (200%). */
   studioBrightness?: number;
-  /** Mix of HDRI and neutral top light, 0..1. */
+  /** Retention of HDRI detail versus its solid average colour, 0..1. */
   studioLightingStrength?: number;
   /** Illuminate uploaded backgrounds with the same Studio scene. */
   backgroundLighting?: boolean;

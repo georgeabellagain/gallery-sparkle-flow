@@ -1,7 +1,8 @@
+import { averageEnvironment, createEnvironmentDiffuser } from "./environment-diffusion";
 import { readerSlideOffset, READER_SLIDE_MS } from "./reader-slide";
 import { createFrameCommits } from "./frame-commits";
 import * as THREE from "three";
-import { HDRI_PRESETS, studioLightMix, presetDirectLight, type HdriId } from "./lighting";
+import { HDRI_PRESETS, studioLightMix, presetDirectLight, studioExposure, type HdriId } from "./lighting";
 import { parseRgbe } from "./rgbe";
 import { dappleTexture } from "./dapple-light";
 import { surfaceCanvas, paperRelief, type SurfaceKind } from "./surface";
@@ -35,6 +36,8 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   const masks = new Map<string, THREE.CanvasTexture>();
   const bumps = new Map<string, THREE.CanvasTexture>();
   const environments = new Map<HdriId, Promise<THREE.WebGLRenderTarget>>();
+  const environmentColours = new Map<HdriId, [number, number, number]>();
+  const diffuser = createEnvironmentDiffuser(renderer);
   const pages = new Map<HTMLElement, Page>();
   const animations = new Set<Animation>();
   // Artwork commits and GPU swaps happen in the same drawing frame.
@@ -216,6 +219,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
         if (!response.ok) throw new Error("Lighting could not load");
         const { width, height, rgb } = parseRgbe(await response.arrayBuffer());
         if (disposed) throw new Error("Reader closed");
+        environmentColours.set(id, averageEnvironment(rgb, width, height));
         const pixels = new Uint16Array(width * height * 4);
         for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
           const from = ((height - 1 - y) * width + x) * 3, to = (y * width + x) * 4;
@@ -245,12 +249,12 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       sun.map = pattern ? masks.get(pattern)! : null; sun.visible = Boolean(pattern);
       sun.intensity = presetDirectLight(next.hdri, next.strength);
       sun.penumbra = pattern === "window" || pattern === "blinds" ? .12 : .35;
-      scene.environment = target.texture;
       const mix = studioLightMix(next.strength);
-      scene.environmentIntensity = mix.hdri * (pattern ? .7 : 1);
+      scene.environment = diffuser.apply(target, mix.hdri, environmentColours.get(next.hdri));
+      scene.environmentIntensity = pattern ? 1 - .3 * mix.hdri : 1;
       ambient.intensity = mix.ambient;
       key.position.set(0, 0, 5); key.intensity = mix.top;
-      renderer.toneMappingExposure = .55 + Math.max(0, Math.min(1, next.brightness)) * 1.6;
+      renderer.toneMappingExposure = studioExposure(next.brightness);
       pages.forEach(page => { if (page.mesh) applyMaterial(page.mesh.material); });
       failed = false; ready = true; requestPaint();
     } catch { if (!disposed && version === revision) fallback(); }
@@ -276,6 +280,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       viewport.removeEventListener("scroll", scroll); viewport.removeEventListener("animationstart", animate);
       renderer.domElement.removeEventListener("webglcontextlost", lost);
       backdrop.dispose();
+      diffuser.dispose();
       pending.clear(); pages.forEach(page => release(page)); pages.clear();
       environments.forEach(p => { void p.then(t => t.dispose(), () => undefined); });
       masks.forEach(t => t.dispose()); bumps.forEach(t => t.dispose());
