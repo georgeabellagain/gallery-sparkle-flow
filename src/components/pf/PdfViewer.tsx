@@ -558,6 +558,7 @@ export function PdfViewer({
   return (
     <div
       ref={rootRef}
+      data-fullscreen={full}
       style={full ? { background: colour, height: "100dvh" } : { background: colour }}
       className={cn("isolate overflow-clip", pseudoFull ? "fixed inset-0 z-[200] overscroll-contain" : "relative", immersive && "min-h-[100svh]", SHOW_LOADER && !contentReady && !error && "min-h-[22rem]", full && "overflow-auto")}
       onPointerMove={autoHide ? wake : undefined}

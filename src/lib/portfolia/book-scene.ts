@@ -65,6 +65,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.setAttribute("aria-hidden", "true");
+  // CSS owns the display size; the renderer owns only the drawing buffer.
+  renderer.domElement.style.width = "100%";
+  renderer.domElement.style.height = "100%";
   host.appendChild(renderer.domElement);
   // 8x is visually the same as 16x for pages seen almost face-on, and noticeably cheaper to draw.
   const maxAnisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
@@ -393,12 +396,21 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     mat.map = canvas ? textureFor(canvas) : placeholder;
     mat.emissiveMap = settings.studio ? null : mat.map;
   };
+  const surfaceSize = new THREE.Vector2();
   let pendingDragShape: (() => void) | null = null;
   const paint = () => {
     if (disposed) return;
     // A direct animation draw supersedes an input/contact-shadow draw queued
     // for the same frame. Avoid shading the fullscreen surface twice.
     if (paintQueued) { cancelAnimationFrame(paintQueued); paintQueued = 0; }
+    // Fullscreen can change layout before ResizeObserver delivers its callback.
+    // Never draw a new camera aspect into a buffer with the previous aspect.
+    const w = Math.max(1, host.clientWidth), h = Math.max(1, host.clientHeight);
+    const size = renderer.getSize(surfaceSize);
+    if (size.x !== w || size.y !== h) {
+      renderer.setSize(w, h, false);
+      frameCamera();
+    }
     const update = pendingDragShape;
     pendingDragShape = null;
     update?.();
@@ -453,8 +465,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       appliedRatio = next;
       renderer.setPixelRatio(next);
     }
-    const currentSize = renderer.getSize(new THREE.Vector2());
-    if (currentSize.x !== w || currentSize.y !== h) renderer.setSize(w, h);
+    const currentSize = renderer.getSize(surfaceSize);
+    if (currentSize.x !== w || currentSize.y !== h) renderer.setSize(w, h, false);
     frameCamera();
     paint();
   };
