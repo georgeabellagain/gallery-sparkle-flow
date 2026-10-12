@@ -961,7 +961,7 @@ export function BookView({
   const updateLook = (look: "clean" | "studio") => { setSettings((current) => ({ ...current, studio: look === "studio" })); onLookChange?.(look); };
 
   // Tell the viewer when the book is rendered and ready, so it can show nothing but a loader until then.
-  useEffect(() => { if (error) onRenderError?.(error); }, [error, onRenderError]);
+  useEffect(() => { if (error) { console.error("Book render error", error); onRenderError?.(error); } }, [error, onRenderError]);
   const bookReady = (ready > 0 || fallback) && warm && !loading && !error;
   const [litNotesKey, setLitNotesKey] = useState("");
   const notesKey = JSON.stringify([ready,spread,narrow,leaf,additions,bookReady,busy,wait,fallback]);
