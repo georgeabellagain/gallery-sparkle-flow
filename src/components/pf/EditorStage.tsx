@@ -59,7 +59,7 @@ export function EditorBar({
           {status}
         </span>
         {(
-          <div className="hidden w-44 rounded-full bg-muted p-0.5 sm:block">
+          <div className="hidden w-fit rounded-full bg-muted p-0.5 sm:block">
             <Segmented
               label="Preview appearance"
               value={shown}
@@ -214,7 +214,7 @@ export function EditorStage({
       {tool && (
         <section
           aria-label={title}
-          className="absolute inset-x-2 bottom-36 z-30 max-h-[62%] overflow-auto rounded-2xl border border-border bg-background p-4 shadow-soft lg:inset-x-auto lg:bottom-4 lg:right-4 lg:top-4 lg:max-h-none lg:w-[19rem]"
+          className="absolute inset-x-2 bottom-36 z-30 max-h-[62%] overflow-y-auto overflow-x-hidden [overflow-wrap:anywhere] rounded-2xl border border-border bg-background p-4 shadow-soft lg:inset-x-auto lg:bottom-4 lg:right-4 lg:top-4 lg:max-h-none lg:w-[19rem]"
         >
           <div className="mb-3 flex items-center justify-between border-b border-border pb-2">
             <h2 className="text-sm font-medium">{title}</h2>

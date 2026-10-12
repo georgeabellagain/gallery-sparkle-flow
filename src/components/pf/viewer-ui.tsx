@@ -129,7 +129,7 @@ export function Segmented<T extends string>({
   className?: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className={cn("inline-flex flex-wrap gap-0.5 rounded-full border border-border p-0.5 text-xs", className)}>
+    <div role="radiogroup" aria-label={label} className={cn("flex w-fit max-w-full shrink-0 flex-wrap gap-0.5 rounded-full border border-border p-0.5 text-xs", className)}>
       {options.map(([v, text]) => (
         <button
           key={v}

@@ -8,6 +8,7 @@ import { backgroundColour, DEFAULT_FIT } from "@/lib/portfolia/background";
 import { useBlob, useObjectUrl } from "@/components/pf/Chrome";
 import { Segmented } from "@/components/pf/viewer-ui";
 import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS } from "@/lib/portfolia/lighting";
+import { PAPER_STYLES, type SurfaceKind } from "@/lib/portfolia/surface";
 import { setPreviewLook } from "@/lib/portfolia/preview-look";
 
 /** Shrinks a chosen picture to a size that looks sharp on a large screen but stays light to load. */
@@ -61,7 +62,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
   const flipbookBox = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const away = (e: PointerEvent) => {
-      if (!flipbookBox.current || !flipbookBox.current.contains(e.target as Node)) setPreviewLook(null);
+      if ((!flipbookBox.current || !flipbookBox.current.contains(e.target as Node)) && !(e.target as Element)?.closest?.("[data-studio-background]")) setPreviewLook(null);
     };
     document.addEventListener("pointerdown", away);
     return () => {
@@ -134,7 +135,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
   };
 
   return (
-    <div className={`grid min-w-0 items-start gap-x-10 gap-y-6 ${sidebar || part !== "all" ? "" : "lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]"}`}>
+    <div className={`grid min-w-0 [&_*]:min-w-0 items-start gap-x-10 gap-y-6 ${sidebar || part !== "all" ? "" : "lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]"}`}>
       {showAppearance && <div>
       <p className="flex items-center gap-2 text-xs font-medium">
         <Palette className="size-4 text-leaf" aria-hidden /> Page style
@@ -251,7 +252,10 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
                   <p className="font-medium">Studio</p>
                   <div className="space-y-1.5">
                     <p>Paper</p>
-                    <Segmented label="Studio paper" value={viewer.finish === "textured" ? "textured" : "satin"} options={[["satin", "Satin"], ["textured", "Textured"]] as const} onChange={(finish) => setViewer({ finish })} />
+                    <select aria-label="Studio paper" className="w-full min-w-0 rounded-lg border border-border bg-background p-2" value={viewer.finish} onChange={e => setViewer({ finish: e.target.value as SurfaceKind })}>
+                      {PAPER_STYLES.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+                    </select>
+                    <label className="flex items-center gap-2"><span className="shrink-0">Texture</span><input type="range" aria-label="Paper texture strength" min="0" max="100" value={Math.round((viewer.paperTextureStrength ?? 1) * 100)} onChange={e => setViewer({ paperTextureStrength: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground"/><span className="w-9 text-right tabular-nums">{Math.round((viewer.paperTextureStrength ?? 1) * 100)}%</span></label>
                   </div>
                   <label className="flex items-center gap-3">
                     <span className="w-20 shrink-0">Brightness</span>
@@ -260,8 +264,10 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
                   </label>
                   <div className="space-y-1.5">
                     <p>Lighting</p>
+                    <label className="flex items-center gap-2"><span className="shrink-0">Strength</span><input type="range" aria-label="Studio lighting strength" min="0" max="100" value={Math.round((viewer.studioLightingStrength ?? .75) * 100)} onChange={e => setViewer({ studioLightingStrength: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground"/><span className="w-9 text-right tabular-nums">{Math.round((viewer.studioLightingStrength ?? .75) * 100)}%</span></label>
+                    <p className="text-xs text-muted-foreground">Blend neutral top light into the scene. At 100%, only HDRI lighting is used.</p>
                     <div role="radiogroup" aria-label="Studio lighting" className="grid grid-cols-4 gap-1.5">
-                      {HDRI_PRESETS.map((light, index) => (
+                      {HDRI_PRESETS.map((light) => (
                         <button
                           key={light.id}
                           type="button"
@@ -273,7 +279,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
                           className={`relative h-12 overflow-hidden rounded-lg border text-sm font-medium text-white transition-opacity ${studioLighting === light.id ? "border-foreground opacity-100 ring-2 ring-foreground/30" : "border-border opacity-75 hover:opacity-100"}`}
                           style={{ background: light.preview }}
                         >
-                          <span className="absolute inset-0 flex items-center justify-center bg-black/25 [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">{index < 4 ? index + 1 : light.label}</span>
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/25 [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">{light.id}</span>
                         </button>
                       ))}
                     </div>
@@ -283,9 +289,9 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
             </div>
           )}
           {showBackground && <div className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <span>Viewer background</span>
-              <span className="flex items-center gap-2">
+              <span className="flex min-w-0 flex-wrap items-center gap-2">
                 <input
                   type="color"
                   aria-label="Viewer background colour"
@@ -301,7 +307,8 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
               </span>
             </div>
             {viewer.backgroundKey && (
-              <div className="space-y-2 rounded-xl border border-border p-3">
+              <div data-studio-background={viewer.backgroundLighting ? "true" : undefined} onPointerDownCapture={() => { if (viewer.backgroundLighting) setPreviewLook("studio"); }} className="space-y-2 rounded-xl border border-border p-3">
+                <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 shrink-0 accent-foreground" checked={viewer.backgroundLighting ?? false} onChange={e => { setViewer({ backgroundLighting: e.target.checked }); setPreviewLook("studio"); }}/><span>Light background with HDRI <span className="block text-xs text-muted-foreground">Applies in Studio view.</span></span></label>
                 {backgroundUrl && <img src={backgroundUrl} alt="Your background picture" className="h-16 w-full rounded-md object-cover" />}
                 <label className="flex items-center gap-3"><span className="w-16 shrink-0">Size</span><input type="range" aria-label="Background picture size" min="100" max="300" step="5" value={Math.round(fit.scale * 100)} onChange={(e) => setFit({ scale: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground" /><span className="w-10 text-right tabular-nums">{Math.round(fit.scale * 100)}%</span></label>
                 <label className="flex items-center gap-3"><span className="w-16 shrink-0">Left / right</span><input type="range" aria-label="Move background picture left or right" min="-100" max="100" step="2" value={Math.round(fit.x * 100)} disabled={fit.scale <= 1} onChange={(e) => setFit({ x: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground disabled:opacity-40" /></label>

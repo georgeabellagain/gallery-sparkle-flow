@@ -52,6 +52,7 @@ import {
   coverWithSpreads,
   coverThenSpreads,
 } from "@/lib/portfolia/mixed-layout";
+import { tabSlot } from "@/lib/portfolia/tab-geometry";
 import { bookLayout, type Leaf } from "@/lib/portfolia/book-layout";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
 import { FoldoutCard, NoteSurface } from "./FoldoutCard";
@@ -139,6 +140,7 @@ function ScrapbookWorkspace({
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const [tags, setTags] = useState(() => readablePageTags(pdf.tags, pdf.pages));
+  const [selectedTag, setSelectedTag] = useState<string | null>(tags[0]?.id ?? null);
   const tagsRef = useRef(tags);
   tagsRef.current = tags;
   const [links, setLinks] = useState(() => readablePageLinks(pdf.links, pdf.pages));
@@ -670,10 +672,10 @@ function ScrapbookWorkspace({
       )}
       <div className="grid min-h-0 flex-1 overflow-auto md:grid-cols-[minmax(0,1fr)_300px]">
         <section
-          className="min-w-0 overflow-auto bg-muted/60 p-4 sm:p-6"
+          className="min-w-0 overflow-y-auto overflow-x-hidden bg-muted/60 p-4 sm:p-6"
           aria-label="Page placement"
         >
-          <div className="mb-4 flex items-center justify-center gap-3 text-xs">
+          <div className="mb-4 flex flex-wrap items-center justify-center gap-3 text-xs">
             <Button
               size="sm"
               variant="quiet"
@@ -719,7 +721,7 @@ function ScrapbookWorkspace({
           )}
           <div
             ref={page}
-            className={`relative mx-auto w-full bg-white shadow-sm ${dropActive ? "ring-4 ring-leaf" : ""}`}
+            className={`relative mx-auto w-[calc(100%-3rem)] bg-white shadow-sm ${dropActive ? "ring-4 ring-leaf" : ""}`}
             style={{
               maxWidth: 650,
               aspectRatio: `1 / ${ratio}`,
@@ -842,6 +844,11 @@ function ScrapbookWorkspace({
                   </div>
                 ),
               )}
+            {!rendering && leaf && tags.filter(t => t.page === leaf.page).map(t => {
+              const slot = tabSlot(ratio, tags.findIndex(tag => tag.id === t.id), tags.length, t.position);
+              const centre = .5 - slot.y / ratio;
+              return <EditablePageTab key={t.id} tag={t} centre={centre} height={slot.height / ratio} left={leaf.half === "left" || (!leaf.half && t.page % 2 === 0)} selected={selectedTag === t.id && panel === "tabs"} disabled={preview} page={page} onSelect={() => { setPanel("tabs"); setSelectedTag(t.id); }} onMove={position => editTag(t.id, { position })}/>;
+            })}
             {!rendering &&
               leaf &&
               linksForLeaf(links, leaf).map((l) => (
@@ -862,11 +869,11 @@ function ScrapbookWorkspace({
           <p className="mx-auto mt-4 max-w-xl text-center text-xs text-muted-foreground">
             {preview
               ? "Click a note to unfold it. Escape closes the flap."
-              : "Drop a picture anywhere on this page. Select a note or link to move it; use corner handles to resize. Arrow keys nudge; Shift + arrows moves farther."}
+              : "Drag a coloured page tab along the page edge. Drop a picture anywhere on this page. Select a note or link to move it; use corner handles to resize. Arrow keys nudge; Shift + arrows moves farther."}
           </p>
         </section>
         <aside
-          className="border-l bg-background p-4"
+          className="min-w-0 overflow-x-hidden border-l bg-background p-4"
           aria-label="Note settings"
         >
           <div className="mb-4 grid grid-cols-3 gap-1 rounded-lg bg-muted p-1" role="tablist" aria-label="What to edit">
@@ -891,6 +898,8 @@ function ScrapbookWorkspace({
               leaf={leaf}
               onAdd={addTag}
               onEdit={editTag}
+              selected={selectedTag}
+              onSelect={t => { setSelectedTag(t.id); const target = leaves.findIndex(l => l.page === t.page && l.half !== "left"); if (target >= 0) choosePage(target); }}
               onRemove={(id) => changeTags(tagsRef.current.filter((t) => t.id !== id))}
             />
           ) : panel === "links" ? (
@@ -1432,7 +1441,11 @@ function TagsPanel({
   onAdd,
   onEdit,
   onRemove,
+  selected,
+  onSelect,
 }: {
+  selected: string | null;
+  onSelect: (tag: PageTag) => void;
   tags: PageTag[];
   leaves: Leaf[];
   leaf?: Leaf;
@@ -1452,7 +1465,8 @@ function TagsPanel({
       {tags.length === 0 && <p className="text-sm text-muted-foreground">No tabs yet.</p>}
       <ul className="space-y-3">
         {[...tags].sort((a, b) => a.page - b.page).map((t) => (
-          <li key={t.id} className="space-y-2 rounded-lg border p-3">
+          <li key={t.id} className={`space-y-2 rounded-lg border p-3 ${selected === t.id ? "ring-2 ring-primary" : ""}`}>
+            <Button size="sm" variant="quiet" onClick={() => onSelect(t)}>Show tab on page {t.page}</Button>
             <div className="flex items-center gap-2">
               <span
                 aria-hidden
@@ -1672,4 +1686,27 @@ function LinksPanel({
       )}
     </div>
   );
+}
+
+
+function EditablePageTab({tag, centre, height, left, selected, disabled, page, onSelect, onMove}: {
+  tag: PageTag; centre: number; height: number; left: boolean; selected: boolean; disabled: boolean;
+  page: RefObject<HTMLDivElement | null>; onSelect: () => void; onMove: (position: number) => void;
+}) {
+  const drag = useRef<{id: number; y: number; centre: number} | null>(null);
+  const clamp = (value: number) => Math.max(height / 2, Math.min(1 - height / 2, value));
+  const stop = (e: PointerEvent<HTMLButtonElement>) => {
+    if (drag.current?.id !== e.pointerId) return;
+    drag.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+  };
+  return <button type="button" aria-label={`Move tab ${tag.label || `page ${tag.page}`}`} title="Drag along the page edge; arrow keys adjust the position" disabled={disabled}
+    className={`absolute z-20 touch-none select-none rounded-sm text-xs shadow-sm ${selected ? "ring-2 ring-primary ring-offset-2" : ""}`}
+    style={{top: `${(centre - height / 2) * 100}%`, height: `${height * 100}%`, width: '7.5%', [left ? 'right' : 'left']: '99.6%', background: tag.colour, color: '#111', cursor: disabled ? 'default' : 'ns-resize'}}
+    onClick={onSelect}
+    onPointerDown={e => {if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return; e.preventDefault();e.stopPropagation();onSelect();e.currentTarget.setPointerCapture(e.pointerId);drag.current={id:e.pointerId,y:e.clientY,centre};}}
+    onPointerMove={e => {const g=drag.current, box=page.current?.getBoundingClientRect();if (g && g.id===e.pointerId && box?.height) onMove(clamp(g.centre+(e.clientY-g.y)/box.height));}}
+    onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={() => {drag.current=null;}}
+    onKeyDown={e => {if (e.key==='ArrowUp'||e.key==='ArrowDown'){e.preventDefault();e.stopPropagation();onSelect();onMove(clamp(centre+(e.key==='ArrowUp'?-1:1)*(e.shiftKey?.05:.01)));} else if(e.key==='Home'||e.key==='End'){e.preventDefault();onSelect();onMove(clamp(e.key==='Home'?0:1));}}}
+  ><span className="block max-h-full overflow-hidden [writing-mode:vertical-rl] mx-auto">{tag.label || tag.page}</span></button>;
 }

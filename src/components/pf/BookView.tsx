@@ -36,10 +36,12 @@ import { BackdropLayer, IconButton, Segmented, type Tone } from "@/components/pf
 /** Full screen is the visible height of the window, which on a phone changes as the address bar slides away. */
 const FULL_HEIGHT = typeof CSS !== "undefined" && CSS.supports?.("height", "100dvh") ? "100dvh" : "100vh";
 
-type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri" | "simpleShadow" | "simpleShadowOpacity">;
+type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri" | "simpleShadow" | "simpleShadowOpacity" | "strength" | "textureStrength">;
 const lookFrom = (viewer: ViewerSettings): Look => ({
   studio: viewer.look === "studio",
-  material: viewer.finish === "textured" ? "textured" : "satin",
+  material: viewer.finish,
+  strength: viewer.studioLightingStrength ?? .75,
+  textureStrength: viewer.paperTextureStrength ?? 1,
   brightness: viewer.studioBrightness ?? 0.5,
   hdri: viewer.studioLighting ?? "4",
   simpleShadow: viewer.simpleShadow ?? true,
@@ -428,7 +430,7 @@ export function BookView({
   useEffect(() => {
     setSettings(lookFor());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, previewLook]);
+  }, [viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.studioLightingStrength, viewer.paperTextureStrength, previewLook]);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; from: number; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
   const panning = useRef<{ id: number; x: number; y: number } | null>(null);
@@ -629,6 +631,10 @@ export function BookView({
     }
     if (!zoomFrame.current) wheelZoom.current = zoom;
   }, [narrow, zoom, focus, busy, ready, settings]);
+
+  useEffect(() => {
+    scene.current?.setBackdrop(backgroundUrl, viewer.backgroundFit, settings.studio && Boolean(viewer.backgroundLighting));
+  }, [backgroundUrl, viewer.backgroundFit, viewer.backgroundLighting, settings.studio, ready]);
 
   // On a touch screen: tap the left or right of the book to turn that way, and pinch to zoom the book itself
   // (not the whole web page). While two fingers are down nothing else (a pan, a swipe) happens.
@@ -1134,7 +1140,7 @@ export function BookView({
           </IconButton>
         </div>
         <p aria-live="polite" className={cn("pointer-events-none absolute inset-x-0 bottom-5 z-10 text-center text-[11px] tabular-nums transition-opacity duration-300", awake ? "opacity-100" : "opacity-0", tone === "dark" ? "text-white/45" : "text-black/40")}>
-          {label}
+          <span className={cn("inline-flex rounded-full px-3 py-2 ring-1 backdrop-blur-sm", tone === "dark" ? "bg-slate-950/75 text-white ring-white/20" : "bg-white/90 text-slate-700 ring-black/15")}>{label}</span>
         </p>
         {/* Simple / Studio: only offered when the creator has enabled both. Everything else is set in the editor. */}
         {enabledLooks.length > 1 && (
