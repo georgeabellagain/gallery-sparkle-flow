@@ -405,8 +405,8 @@ export function PdfViewer({
     return () => { cancelled = true; cancelAnimationFrame(frame); };
   }, [pageLighting, pageStudio]);
   useEffect(() => {
-    pageLighting?.setBackdrop(backgroundUrl, view.backgroundFit, studio && Boolean(view.backgroundLighting));
-  }, [pageLighting, backgroundUrl, view.backgroundFit, view.backgroundLighting, studio]);
+    pageLighting?.setBackdrop(backgroundUrl, view.backgroundFit, studio && Boolean(view.backgroundLighting), colour);
+  }, [pageLighting, backgroundUrl, view.backgroundFit, view.backgroundLighting, studio, colour]);
   useEffect(() => {
     setZoom(1);
   }, [mode]);

@@ -633,8 +633,8 @@ export function BookView({
   }, [narrow, zoom, focus, busy, ready, settings]);
 
   useEffect(() => {
-    scene.current?.setBackdrop(backgroundUrl, viewer.backgroundFit, settings.studio && Boolean(viewer.backgroundLighting));
-  }, [backgroundUrl, viewer.backgroundFit, viewer.backgroundLighting, settings.studio, ready]);
+    scene.current?.setBackdrop(backgroundUrl, viewer.backgroundFit, settings.studio && Boolean(viewer.backgroundLighting), colour);
+  }, [backgroundUrl, viewer.backgroundFit, viewer.backgroundLighting, settings.studio, ready, colour]);
 
   // On a touch screen: tap the left or right of the book to turn that way, and pinch to zoom the book itself
   // (not the whole web page). While two fingers are down nothing else (a pan, a swipe) happens.
