@@ -244,7 +244,8 @@ function LiveFeatureAnimation({
         setImages(value.images);
         setDoc(value.doc);
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error("Feature artwork failed", error);
         if (!cancelled) onError();
       });
     return () => {
