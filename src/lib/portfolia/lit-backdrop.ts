@@ -18,11 +18,11 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
   let enabled = false, disposed = false, revision = 0;
   let dimensions = "";
   const canvas = document.createElement("canvas");
-  const texture = new THREE.CanvasTexture(canvas);
+  let texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   material.map = texture;
   const normalCanvas = document.createElement("canvas");
-  const normals = new THREE.CanvasTexture(normalCanvas); normals.colorSpace = THREE.NoColorSpace;
+  let normals = new THREE.CanvasTexture(normalCanvas); normals.colorSpace = THREE.NoColorSpace;
   material.normalMap = normals; material.normalScale.set(.35, .35);
   return {
     set(url: string | undefined, nextFit: Partial<BackgroundFit> | undefined, active: boolean, colour = "#191d3a") {
@@ -45,6 +45,7 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
       const stamp = `${width}|${height}|${fit.scale}|${fit.x}|${fit.y}`;
       if (source && stamp !== dimensions) {
         dimensions = stamp;
+        const previousWidth = canvas.width, previousHeight = canvas.height;
         const cap = Math.min(1, 2048 / Math.max(width, height));
         canvas.width = Math.max(1, Math.round(width * cap)); canvas.height = Math.max(1, Math.round(height * cap));
         const scale = Math.max(1, Math.min(3, fit.scale));
@@ -52,12 +53,29 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
         const w = source.naturalWidth * cover * scale, h = source.naturalHeight * cover * scale;
         const x = (canvas.width - w) / 2 + Math.max(-1, Math.min(1, fit.x)) * canvas.width * (scale - 1) / 2;
         const y = (canvas.height - h) / 2 + Math.max(-1, Math.min(1, fit.y)) * canvas.height * (scale - 1) / 2;
-        canvas.getContext("2d")!.drawImage(source, x, y, w, h); texture.needsUpdate = true;
+        canvas.getContext("2d")!.drawImage(source, x, y, w, h);
+        // Uploaded textures have fixed GPU storage. A fullscreen resize must
+        // allocate fresh storage rather than update the old preview-sized image.
+        if (canvas.width !== previousWidth || canvas.height !== previousHeight) {
+          texture.dispose();
+          texture = new THREE.CanvasTexture(canvas);
+          texture.colorSpace = THREE.SRGBColorSpace;
+          material.map = texture;
+        }
+        texture.needsUpdate = true;
         const normalCap = Math.min(1, 512 / Math.max(canvas.width, canvas.height));
+        const previousNormalWidth = normalCanvas.width, previousNormalHeight = normalCanvas.height;
         normalCanvas.width = Math.max(1, Math.round(canvas.width * normalCap)); normalCanvas.height = Math.max(1, Math.round(canvas.height * normalCap));
         const context = normalCanvas.getContext("2d")!; context.drawImage(canvas, 0, 0, normalCanvas.width, normalCanvas.height);
         const image = context.getImageData(0, 0, normalCanvas.width, normalCanvas.height);
-        image.data.set(backdropNormals(image.data, normalCanvas.width, normalCanvas.height)); context.putImageData(image, 0, 0); normals.needsUpdate = true;
+        image.data.set(backdropNormals(image.data, normalCanvas.width, normalCanvas.height)); context.putImageData(image, 0, 0);
+        if (normalCanvas.width !== previousNormalWidth || normalCanvas.height !== previousNormalHeight) {
+          normals.dispose();
+          normals = new THREE.CanvasTexture(normalCanvas);
+          normals.colorSpace = THREE.NoColorSpace;
+          material.normalMap = normals;
+        }
+        normals.needsUpdate = true;
       }
       const worldHeight = 2 * (camera.position.z - plane.position.z) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
       plane.position.x = camera.position.x; plane.position.y = camera.position.y;
