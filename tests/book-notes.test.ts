@@ -65,6 +65,7 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
         }
         return { maxZ, mesh };
       };
+      const closedBounds = notes.bounds();
       notes.progress("a", 0.5);
       const mid = flap();
       assert.ok(mid.maxZ > 0.1, "flap lifts above the book");
@@ -84,7 +85,10 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
       box.getCenter(centre);
       if (hinge === "left") assert.ok(centre.x < 0);
       if (hinge === "right") assert.ok(centre.x > 0);
-      if (hinge === "top") assert.ok(centre.y > 0);
+      if (hinge === "top") {
+        assert.ok(centre.y > 0);
+        assert.ok(notes.bounds()!.max.y > (closedBounds?.max.y ?? -.1), "open note bounds expand above its original page position");
+      }
       if (hinge === "bottom") assert.ok(centre.y < 0);
       notes.progress("a", 0);
       assert.equal(group.visible, hinge === "sticky");

@@ -211,6 +211,7 @@ export function createBookNotes(
             pos.needsUpdate = true;
             geometry.computeVertexNormals();
             geometry.computeBoundingSphere();
+            geometry.computeBoundingBox();
           }
         };
         shapeFlap(0);
@@ -274,7 +275,7 @@ export function createBookNotes(
         }
         positions.needsUpdate = true;
         mesh.geometry.computeVertexNormals();
-        mesh.geometry.computeBoundingSphere();
+        mesh.geometry.computeBoundingSphere(); mesh.geometry.computeBoundingBox();
       }
     },
     endTurn(complete = false) {
@@ -282,7 +283,7 @@ export function createBookNotes(
         if (complete && mesh.parent) mesh.parent.visible = incoming;
         const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
         positions.array.set(rest); positions.needsUpdate = true;
-        mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere();
+        mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere(); mesh.geometry.computeBoundingBox();
       }
       moving = [];
       const visibleIds = complete ? destinationIds : sourceIds;
@@ -293,6 +294,15 @@ export function createBookNotes(
       if (complete && destinationKey) currentKey = destinationKey;
     },
     clear,
+    bounds() {
+      const bounds = new THREE.Box3();
+      book.updateWorldMatrix(true, true);
+      for (const entry of entries.values()) {
+        if (!entry.group.visible) continue;
+        for (const child of entry.group.children) if (child.visible) bounds.union(new THREE.Box3().setFromObject(child));
+      }
+      return bounds.isEmpty() ? null : bounds;
+    },
     progress(id: string, p: number) {
       const e = entries.get(id);
       if (!e) return;
