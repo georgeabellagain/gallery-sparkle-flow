@@ -223,14 +223,23 @@ export function createBookNotes(
     repaint();
   };
   let moving: Array<{ mesh: THREE.Mesh; rest: Float32Array; centre: THREE.Vector3; incoming: boolean }> = [];
+  let covered: Array<{ mesh: THREE.Mesh; rest: Float32Array; centre: THREE.Vector3 }> = [];
   const beginTurn = (side: number) => {
-    moving = [];
+    moving = []; covered = [];
     for (const [id, entry] of entries) {
       if (sourceIds && destinationIds && !sourceIds.has(id) && !destinationIds.has(id)) { entry.group.visible = false; continue; }
       if (!entry.sticky) { entry.group.visible = false; continue; }
       entry.group.visible = true;
       entry.shapeFlap(0);
-      if (entry.side !== (entry.incoming ? 1 - side : side)) continue;
+      if (entry.side !== (entry.incoming ? 1 - side : side)) {
+        if (!entry.incoming && destinationIds && !destinationIds.has(id)) {
+          for (const child of entry.group.children) {
+            const mesh = child as THREE.Mesh;
+            covered.push({ mesh, rest: Float32Array.from(mesh.geometry.getAttribute("position").array), centre: entry.group.position.clone() });
+          }
+        }
+        continue;
+      }
       for (const child of entry.group.children) {
         const mesh = child as THREE.Mesh;
         const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
@@ -250,6 +259,20 @@ export function createBookNotes(
     },
     beginTurn,
     turn(progress: number, dir: 1 | -1, sheetPoint?: (u: number, v: number) => { position: THREE.Vector3; normal: THREE.Vector3 }) {
+      // Compress the note under the approaching sheet, fully flat at 75%.
+      const t = Math.min(1, Math.max(0, (progress - .6) / .15));
+      const flatten = t * t * (3 - 2 * t);
+      for (const { mesh, rest, centre } of covered) {
+        const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
+        const faceGap = (mesh.material as THREE.MeshPhysicalMaterial).side === THREE.BackSide ? -.0002 : .0002;
+        for (let i = 0; i < positions.count; i++) {
+          const originalZ = rest[i * 3 + 2]!;
+          const flatZ = reliefAt(rest[i * 3]! + centre.x, rest[i * 3 + 1]! + centre.y) + .002 + faceGap;
+          positions.setZ(i, THREE.MathUtils.lerp(originalZ, flatZ, flatten));
+        }
+        positions.needsUpdate = true;
+        mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere(); mesh.geometry.computeBoundingBox();
+      }
       const angle = Math.PI * progress, sin = Math.sin(angle), cos = Math.cos(angle);
       for (const { mesh, rest, centre, incoming } of moving) {
         const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
@@ -279,6 +302,12 @@ export function createBookNotes(
       }
     },
     endTurn(complete = false) {
+      for (const { mesh, rest } of covered) {
+        const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
+        positions.array.set(rest); positions.needsUpdate = true;
+        mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere(); mesh.geometry.computeBoundingBox();
+      }
+      covered = [];
       for (const { mesh, rest, incoming } of moving) {
         if (complete && mesh.parent) mesh.parent.visible = incoming;
         const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
