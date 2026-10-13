@@ -91,6 +91,26 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
       if (hinge === "sticky") {
         assert.equal(group.children.length, 4, "adhesive strip stays attached above the base and two paper faces");
         assert.ok(flap().maxZ > .04, "closed sticky note stays lifted above the page");
+        const front = group.children[1] as THREE.Mesh;
+        assert.equal(front.castShadow, true);
+        assert.equal(front.receiveShadow, false);
+        assert.equal((group.children[2] as THREE.Mesh).castShadow, false);
+        const rest = Float32Array.from(front.geometry.getAttribute("position").array);
+        notes.beginTurn(0);
+        notes.turn(.5, -1);
+        assert.deepEqual(front.geometry.getAttribute("position").array, rest, "note on the other page remains stationary");
+        notes.endTurn();
+        notes.beginTurn(1);
+        notes.turn(.5, 1);
+        assert.ok(flap().maxZ > .2, "sticky note travels above the book with its turning page");
+        notes.endTurn();
+        assert.deepEqual(front.geometry.getAttribute("position").array, rest, "cancelled turn restores the attached note");
+        notes.beginTurn(1);
+        notes.turn(1, 1);
+        const position = front.geometry.getAttribute("position");
+        assert.ok(position.getX(0) + group.position.x < 0, "note lands on the opposite side of the book");
+        notes.endTurn(true);
+        assert.equal(group.visible, false, "completed turn hides the old page note until destination notes commit");
       }
       notes.clear();
       assert.equal(book.children.length, 0);

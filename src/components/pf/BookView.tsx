@@ -976,13 +976,13 @@ export function BookView({
   useEffect(() => { if (error) { console.error("Book render error", error); onRenderError?.(error); } }, [error, onRenderError]);
   const bookReady = (ready > 0 || fallback) && warm && !loading && !error;
   const [litNotesKey, setLitNotesKey] = useState("");
-  const notesKey = JSON.stringify([ready,spread,narrow,leaf,additions,bookReady,busy,wait,fallback]);
+  const notesKey = JSON.stringify([ready,spread,narrow,leaf,additions,bookReady,wait,fallback]);
   useEffect(() => {
     const renderer = scene.current;
     if (!renderer) return;
     let cancelled = false;
     setLitNotesKey("");
-    if (!bookReady || busy || wait || fallback) { renderer.clearNotes(); return; }
+    if (!bookReady || wait || fallback) { renderer.clearNotes(); return; }
     const visible = spread.flatMap((n,side) => n === null || (narrow && n !== leaf) ? [] : foldoutsForLeaf(additions,layout.leaves[n]!).map(item=>({item,side})));
     void renderer.setNotes(visible).then(()=>{if(!cancelled)setLitNotesKey(notesKey);});
     return ()=>{cancelled=true;renderer.clearNotes();};

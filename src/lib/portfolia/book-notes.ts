@@ -15,7 +15,7 @@ export function createBookNotes(
   let generation = 0;
   const entries = new Map<
     string,
-    { group: THREE.Group; sticky: boolean; shapeFlap: (p: number) => void }
+    { group: THREE.Group; side: number; sticky: boolean; shapeFlap: (p: number) => void }
   >();
   const resources: Array<{ dispose: () => void }> = [];
   const ownMaterials: THREE.MeshPhysicalMaterial[] = [];
@@ -120,13 +120,15 @@ export function createBookNotes(
           }
           mat.map = texture;
           mat.side = side;
+          mat.shadowSide = THREE.DoubleSide;
+          mat.transparent = false; mat.opacity = 1; mat.depthWrite = true;
           mat.emissiveMap = mat.emissive.getHex() ? texture : null;
           materials.push(mat);
           ownMaterials.push(mat);
           resources.push(mat);
           const m = new THREE.Mesh(geometry, mat);
           m.castShadow = true;
-          m.receiveShadow = true;
+          m.receiveShadow = f.style !== "sticky";
           m.frustumCulled = false;
           return m;
         };
@@ -146,7 +148,9 @@ export function createBookNotes(
             NOTE_LIFT + reliefAt(centre.x + basePos.getX(i), centre.y + basePos.getY(i)),
           );
         baseGeometry.computeVertexNormals();
-        group.add(mesh(half(negative), baseGeometry, THREE.FrontSide));
+        const baseMesh = mesh(half(negative), baseGeometry, THREE.FrontSide);
+        baseMesh.castShadow = false;
+        group.add(baseMesh);
         // The flap is a gridded sheet shaped every frame: it rotates about its hinge, trails like paper in the
         // hand, and settles onto the page's curve wherever it lands.
         const along = vertical ? h : w,
@@ -159,6 +163,7 @@ export function createBookNotes(
         resources.push(frontGeometry, backGeometry);
         const frontMesh = mesh(front, frontGeometry, THREE.FrontSide),
           back = mesh(half(!negative), backGeometry, THREE.BackSide);
+        back.castShadow = false;
         group.add(frontMesh, back);
         if (f.style === "sticky") {
           const adhesiveArt = surface(cw, Math.max(1, Math.round(ch * .08)));
@@ -172,7 +177,9 @@ export function createBookNotes(
             positions.setZ(i, NOTE_LIFT + FLAP_LIFT + .002 + reliefAt(centre.x + positions.getX(i), centre.y + y));
           }
           adhesiveGeometry.computeVertexNormals();
-          group.add(mesh(adhesiveArt, adhesiveGeometry, THREE.FrontSide));
+          const adhesive = mesh(adhesiveArt, adhesiveGeometry, THREE.FrontSide);
+          adhesive.castShadow = false;
+          group.add(adhesive);
         }
         group.visible = f.style === "sticky";
         book.add(group);
@@ -201,15 +208,58 @@ export function createBookNotes(
           }
         };
         shapeFlap(0);
-        entries.set(f.id, { group, sticky: f.style === "sticky", shapeFlap });
+        entries.set(f.id, { group, side, sticky: f.style === "sticky", shapeFlap });
       }
     } finally {
       images.forEach((i) => i.close());
     }
     repaint();
   };
+  let moving: Array<{ mesh: THREE.Mesh; rest: Float32Array; centre: THREE.Vector3 }> = [];
+  const beginTurn = (side: number) => {
+    moving = [];
+    for (const entry of entries.values()) {
+      if (!entry.sticky) { entry.group.visible = false; continue; }
+      entry.shapeFlap(0);
+      if (entry.side !== side) continue;
+      for (const child of entry.group.children) {
+        const mesh = child as THREE.Mesh;
+        const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
+        moving.push({ mesh, rest: Float32Array.from(positions.array), centre: entry.group.position.clone() });
+      }
+    }
+  };
   return {
     set,
+    beginTurn,
+    turn(progress: number, dir: 1 | -1) {
+      const angle = Math.PI * progress, sin = Math.sin(angle), cos = Math.cos(angle);
+      for (const { mesh, rest, centre } of moving) {
+        const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
+        for (let i = 0; i < positions.count; i++) {
+          const x = rest[i * 3]! + centre.x, y = rest[i * 3 + 1]! + centre.y;
+          const u = Math.max(0, Math.min(1, Math.abs(x))), v = y / ratio + .5;
+          const curl = sin * .22 * Math.sin(Math.PI * u) * (1 + .35 * (.5 - v));
+          const lift = rest[i * 3 + 2]! - reliefAt(x, y);
+          positions.setXYZ(i,
+            dir * (u * cos + curl * sin - lift * sin) - centre.x,
+            rest[i * 3 + 1]!,
+            u * sin - curl * cos + reliefAt(x, y) + .01 + lift * cos);
+        }
+        positions.needsUpdate = true;
+        mesh.geometry.computeVertexNormals();
+        mesh.geometry.computeBoundingSphere();
+      }
+    },
+    endTurn(complete = false) {
+      for (const { mesh, rest } of moving) {
+        if (complete && mesh.parent) mesh.parent.visible = false;
+        const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
+        positions.array.set(rest); positions.needsUpdate = true;
+        mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere();
+      }
+      moving = [];
+    },
     clear,
     progress(id: string, p: number) {
       const e = entries.get(id);
