@@ -648,7 +648,7 @@ export function BookView({
   const applyPinch = (asked: number, x: number, y: number) => {
     if (busy || wait || !scene.current) return;
     pinching.current = true;
-    const next = Math.min(3, Math.max(1, asked));
+    const next = Math.min(3, Math.max(additions.length ? .5 : 1, asked));
     if (Math.abs(next - wheelZoom.current) < 0.001) return;
     scene.current.zoomAt(next, x, y);
     wheelZoom.current = next;
@@ -682,7 +682,7 @@ export function BookView({
       if (busy || wait || !scene.current) return;
       event.preventDefault();
       const dy = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 100 : 1);
-      const next = Math.min(3, Math.max(1, wheelZoom.current * Math.exp(-dy * 0.0015)));
+      const next = Math.min(3, Math.max(additions.length ? .5 : 1, wheelZoom.current * Math.exp(-dy * 0.0015)));
       if (Math.abs(next - wheelZoom.current) < 0.001) return;
       const rect = element.getBoundingClientRect();
       scene.current.zoomAt(next, (event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height);
