@@ -683,13 +683,14 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const satin = next.material === "satin";
     if (variantChanged) variant = nextVariant;
     for (const m of pageMaterials) {
-      if (variantChanged) m.bumpMap = bump;
+      const stickyMatte = Boolean(m.userData["stickyMatte"]);
+      if (variantChanged && !stickyMatte) m.bumpMap = bump;
       // Satin is smooth with a visible sheen; textured shows clear paper grain.
-      m.bumpScale = next.studio ? paperRelief(next.material, next.textureStrength) : 0;
-      m.roughness = next.studio ? (satin ? 0.42 : 0.97) : 0.96;
-      m.clearcoat = next.studio && satin ? 0.4 : 0;
+      m.bumpScale = next.studio ? (stickyMatte ? .0015 : paperRelief(next.material, next.textureStrength)) : 0;
+      m.roughness = stickyMatte ? .97 : next.studio ? (satin ? 0.42 : 0.97) : 0.96;
+      m.clearcoat = next.studio && satin && !stickyMatte ? 0.4 : 0;
       m.clearcoatRoughness = 0.28;
-      m.specularIntensity = next.studio ? (satin ? 0.7 : 0.1) : 0.12;
+      m.specularIntensity = stickyMatte ? .1 : next.studio ? (satin ? 0.7 : 0.1) : 0.12;
       // Simple mode reproduces the source artwork independently of studio light.
       m.emissive.set(next.studio ? 0x000000 : 0xffffff);
       m.emissiveMap = next.studio ? null : m.map;

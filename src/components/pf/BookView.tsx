@@ -467,9 +467,15 @@ export function BookView({
   }, [ready, captureQuality]);
   useEffect(() => {
     if (!ready || fallback || !scene.current) return;
-    scene.current.setTabs(tabEntries.map((t) => ({ id: t.id, text: t.label || String(t.page), colour: t.colour, position: t.position })), narrow);
-    scene.current.setTabRest(Object.fromEntries(tabEntries.map((t) => [t.id, tabEdge(t.leaf, spread, narrow)])));
-    syncBounds();
+    const activeScene = scene.current;
+    let cancelled = false;
+    void loadNoteFonts(tabEntries).then(() => {
+      if (cancelled || scene.current !== activeScene) return;
+      activeScene.setTabs(tabEntries.map((t) => ({ id: t.id, text: t.label || String(t.page), colour: t.colour, position: t.position, font: t.font })), narrow);
+      activeScene.setTabRest(Object.fromEntries(tabEntries.map((t) => [t.id, tabEdge(t.leaf, spread, narrow)])));
+      syncBounds();
+    });
+    return () => { cancelled = true; };
   }, [ready, fallback, tabEntries, narrow]);
   useEffect(() => {
     if (!ready || fallback || busy || !scene.current || !tabEntries.length) return;
@@ -1062,7 +1068,7 @@ export function BookView({
           const onLeaf = linksForLeaf(pageLinks, layout.leaves[n]!);
           return <div key={`${n}:${settings.studio}`} className="pointer-events-none absolute z-30" style={{ left: `${bounds.x}%`, top: `${bounds.y}%`, width: `${bounds.width}%`, height: `${bounds.height}%` }}>
             {onLeaf.map(link => <PageLinkAnchor key={link.id} link={link} />)}
-            {visible.map(item => <StoredFoldout key={`${item.id}:${litNotesKey === notesKey}:${JSON.stringify(item)}`} item={item} demoAnimate={demoNotes} baked sceneRendered={litNotesKey === notesKey} onProgress={p=>scene.current?.noteProgress(item.id,p)} closers={noteClosers} />)}
+            {visible.map(item => <StoredFoldout key={`${item.id}:${litNotesKey === notesKey}:${JSON.stringify(item)}`} item={item} demoAnimate={demoNotes} baked={item.style !== "sticky"} sceneRendered={litNotesKey === notesKey} onProgress={p=>scene.current?.noteProgress(item.id,p)} closers={noteClosers} />)}
           </div>;
         })}
         {bookReady && !fallback && tabRects.length > 0 && (

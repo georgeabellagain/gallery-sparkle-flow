@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { foldoutSurfaces, type Foldout } from "./foldouts";
 import { flapGeometry, flapGrid, flapShape, NOTE_LIFT, FLAP_LIFT, PAPER_GAP, FLAP_SEGMENTS, FLAP_ACROSS } from "./note-flap";
 import { pageRelief } from "./page-relief";
-import { loadNoteFonts, loadNoteImages, paintNoteSurface } from "./foldout-paint";
+import { loadNoteFonts, loadNoteImages, paintNoteSurface, paintStickySurface } from "./foldout-paint";
 
 /** Real paper meshes share the book's scene, materials, environment and shadows. */
 export function createBookNotes(
@@ -15,7 +15,7 @@ export function createBookNotes(
   let generation = 0;
   const entries = new Map<
     string,
-    { group: THREE.Group; shapeFlap: (p: number) => void }
+    { group: THREE.Group; sticky: boolean; shapeFlap: (p: number) => void }
   >();
   const resources: Array<{ dispose: () => void }> = [];
   const ownMaterials: THREE.MeshPhysicalMaterial[] = [];
@@ -71,7 +71,7 @@ export function createBookNotes(
         };
         const { outside, inside } = foldoutSurfaces(f);
         const front = surface(cw, ch);
-        paintNoteSurface(front.getContext("2d")!, cw, ch, outside, images);
+        (f.style === "sticky" ? paintStickySurface : paintNoteSurface)(front.getContext("2d")!, cw, ch, outside, images);
         const panorama = surface(
           cw * (vertical ? 1 : 2),
           ch * (vertical ? 2 : 1),
@@ -104,6 +104,20 @@ export function createBookNotes(
           texture.anisotropy = 4;
           resources.push(texture);
           const mat = template().clone();
+          if (f.style === "sticky") {
+            const grain = new Uint8Array(64 * 64 * 4);
+            for (let i = 0; i < 64 * 64; i++) {
+              const value = 110 + ((i * 73 + (i >> 6) * 37) % 36);
+              grain.set([value, value, value, 255], i * 4);
+            }
+            const texture = new THREE.DataTexture(grain, 64, 64);
+            texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(4, 4); texture.needsUpdate = true;
+            resources.push(texture);
+            mat.userData["stickyMatte"] = true;
+            mat.bumpMap = texture; mat.bumpScale = .0015;
+            mat.roughness = .97; mat.clearcoat = 0; mat.specularIntensity = .1;
+          }
           mat.map = texture;
           mat.side = side;
           mat.emissiveMap = mat.emissive.getHex() ? texture : null;
@@ -146,7 +160,21 @@ export function createBookNotes(
         const frontMesh = mesh(front, frontGeometry, THREE.FrontSide),
           back = mesh(half(!negative), backGeometry, THREE.BackSide);
         group.add(frontMesh, back);
-        group.visible = false;
+        if (f.style === "sticky") {
+          const adhesiveArt = surface(cw, Math.max(1, Math.round(ch * .08)));
+          adhesiveArt.getContext("2d")!.drawImage(front, 0, 0, cw, ch * .08, 0, 0, cw, adhesiveArt.height);
+          const adhesiveGeometry = new THREE.PlaneGeometry(w, h * .08, 8, 1);
+          resources.push(adhesiveGeometry);
+          const positions = adhesiveGeometry.getAttribute("position") as THREE.BufferAttribute;
+          for (let i = 0; i < positions.count; i++) {
+            const y = positions.getY(i) + h * .46;
+            positions.setY(i, y);
+            positions.setZ(i, NOTE_LIFT + FLAP_LIFT + .002 + reliefAt(centre.x + positions.getX(i), centre.y + y));
+          }
+          adhesiveGeometry.computeVertexNormals();
+          group.add(mesh(adhesiveArt, adhesiveGeometry, THREE.FrontSide));
+        }
+        group.visible = f.style === "sticky";
         book.add(group);
         const shapeFlap = (p: number) => {
           const points = flapShape(
@@ -163,7 +191,8 @@ export function createBookNotes(
                 i,
                 q.x + q.nx * sign * PAPER_GAP,
                 q.y + q.ny * sign * PAPER_GAP,
-                q.z + q.nz * sign * PAPER_GAP + NOTE_LIFT + FLAP_LIFT,
+                q.z + q.nz * sign * PAPER_GAP + NOTE_LIFT + FLAP_LIFT
+                  + (f.style === "sticky" ? .035 * grid.a[i]! ** 2 * (1 - Math.sin(Math.PI * p)) : 0),
               );
             }
             pos.needsUpdate = true;
@@ -172,7 +201,7 @@ export function createBookNotes(
           }
         };
         shapeFlap(0);
-        entries.set(f.id, { group, shapeFlap });
+        entries.set(f.id, { group, sticky: f.style === "sticky", shapeFlap });
       }
     } finally {
       images.forEach((i) => i.close());
@@ -185,7 +214,7 @@ export function createBookNotes(
     progress(id: string, p: number) {
       const e = entries.get(id);
       if (!e) return;
-      e.group.visible = p > 0.0001;
+      e.group.visible = e.sticky || p > 0.0001;
       if (e.group.visible) e.shapeFlap(p);
       repaint();
     },

@@ -644,3 +644,6 @@
 .pf-flat-tabs { position: absolute; right: 4%; top: 22%; display: flex; flex-direction: column; gap: 6px; }
 .pf-flat-tabs span { font-size: 11px; padding: 4px 10px; border-radius: 0 999px 999px 0; background: rgb(255 255 255 / 0.75); color: #10162e; transition: transform .4s ease, background .4s ease; }
 .pf-flat-tabs span[data-active="true"] { transform: translateX(6px); background: #fff; }
+
+/* Sticky paper keeps a narrow adhesive band and a lifted free edge. */
+.pf-foldout[data-note-style="sticky"] .pf-foldout-flap { box-shadow: 0 5px 8px rgb(0 0 0 / 20%); }
