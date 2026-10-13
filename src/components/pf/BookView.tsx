@@ -984,14 +984,17 @@ export function BookView({
   const [litNotesKey, setLitNotesKey] = useState("");
   const notesForSpread = (pages: Array<number | null>) => pages.flatMap((n, side) => n === null ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side })));
   useEffect(() => { noteProgresses.current.clear(); setOpenNote(false); }, [leaf, additions]);
+  const currentNoteSpecs = spread.flatMap((n, side) => n === null || (narrow && n !== leaf) ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side })));
+  const preparedNotesReady = !!scene.current?.notesReady(currentNoteSpecs);
   const notesKey = JSON.stringify([ready,spread,narrow,leaf,additions,bookReady,wait,fallback]);
   useEffect(() => {
     const renderer = scene.current;
     if (!renderer) return;
     let cancelled = false;
-    setLitNotesKey("");
-    if (!bookReady || wait || fallback) { renderer.clearNotes(); return; }
+    if (!bookReady || wait || fallback) { setLitNotesKey(""); renderer.clearNotes(); return; }
     const visible = spread.flatMap((n,side) => n === null || (narrow && n !== leaf) ? [] : foldoutsForLeaf(additions,layout.leaves[n]!).map(item=>({item,side})));
+    if (renderer.notesReady(visible)) { setLitNotesKey(notesKey); return; }
+    setLitNotesKey("");
     void renderer.setNotes(visible).then(()=>{if(!cancelled)setLitNotesKey(notesKey);});
     return ()=>{cancelled=true;};
   }, [notesKey]);
@@ -1076,7 +1079,7 @@ export function BookView({
           const onLeaf = linksForLeaf(pageLinks, layout.leaves[n]!);
           return <div key={`${n}:${settings.studio}`} className="pointer-events-none absolute z-30" style={{ left: `${bounds.x}%`, top: `${bounds.y}%`, width: `${bounds.width}%`, height: `${bounds.height}%` }}>
             {onLeaf.map(link => <PageLinkAnchor key={link.id} link={link} />)}
-            {visible.map(item => <StoredFoldout key={`${item.id}:${litNotesKey === notesKey}:${JSON.stringify(item)}`} item={item} demoAnimate={demoNotes} baked={item.style !== "sticky"} sceneRendered={litNotesKey === notesKey} onProgress={p => {
+            {visible.map(item => <StoredFoldout key={`${item.id}:${(preparedNotesReady || litNotesKey === notesKey)}:${JSON.stringify(item)}`} item={item} demoAnimate={demoNotes} baked={item.style !== "sticky"} sceneRendered={(preparedNotesReady || litNotesKey === notesKey)} onProgress={p => {
               noteProgresses.current.set(item.id, p);
               setOpenNote([...noteProgresses.current.values()].some(value => value > .001));
               scene.current?.noteProgress(item.id, p);
