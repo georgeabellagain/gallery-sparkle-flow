@@ -845,7 +845,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     attr.needsUpdate = true;
     geometry.computeVertexNormals();
     const stickyPosition = new THREE.Vector3(), stickyNormal = new THREE.Vector3();
-    const stickySample = { position: stickyPosition, normal: stickyNormal };
+    const stickySample = { position: stickyPosition, normal: stickyNormal, floorZ: 0 };
     notes.turn(progress, dir, (u, v) => {
       const x = Math.min(32, Math.max(0, u * 32)), y = Math.min(16, Math.max(0, (1 - v) * 16));
       const x0 = Math.min(31, Math.floor(x)), y0 = Math.min(15, Math.floor(y));
@@ -858,6 +858,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         normal.x += normals.getX(index) * weight!; normal.y += normals.getY(index) * weight!; normal.z += normals.getZ(index) * weight!;
       }
       normal.normalize().multiplyScalar(dir);
+      const resting = position.x < 0 ? left : right;
+      // Use the actual resting page's relief, including its saved seed.
+      stickySample.floorZ = pageRelief(Math.abs(position.x), position.y / ratio + .5, resting.userData["seed"] as number);
       return stickySample;
     });
     if (tabPlan) tabs.turn(tabPlan, progress, dir);

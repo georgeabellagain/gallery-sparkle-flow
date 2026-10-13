@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
-import { createBookNotes } from "../src/lib/portfolia/book-notes";
+import { createBookNotes, stickyTurnClearance } from "../src/lib/portfolia/book-notes";
 import type { Foldout } from "../src/lib/portfolia/foldouts";
 
 test("each flap lifts toward the viewer, opens outward, shares paper and releases resources", async () => {
@@ -168,4 +168,14 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
   } finally {
     globalThis.document = original;
   }
+});
+
+test("backward turns compress sticky paper near the spine without crossing the resting page", () => {
+  const normal = new THREE.Vector3(-.6, 0, -.8);
+  const lift = stickyTurnClearance(.05, .015, normal, .04, .03);
+  assert.ok(.04 + normal.z * lift >= .032 - 1e-9, "paper stays above the underlying page");
+  assert.ok(Math.abs(normal.x * lift) <= .015 * .5, "raised paper does not reach across the fold");
+  assert.equal(stickyTurnClearance(.05, .4, new THREE.Vector3(0, 0, 1), .3, .03), .05, "notes away from the fold retain their curl");
+  const incoming = stickyTurnClearance(-.05, .015, new THREE.Vector3(.6, 0, .8), .04, .03);
+  assert.ok(.04 + .8 * incoming >= .032 - 1e-9, "the opposite face has the same clearance");
 });

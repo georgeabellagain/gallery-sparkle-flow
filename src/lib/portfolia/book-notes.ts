@@ -4,6 +4,16 @@ import { flapGeometry, flapGrid, flapShape, NOTE_LIFT, FLAP_LIFT, PAPER_GAP, FLA
 import { pageRelief } from "./page-relief";
 import { loadNoteFonts, loadNoteImages, paintNoteSurface, paintStickySurface } from "./foldout-paint";
 
+/** Compress raised paper where the fold leaves too little clearance above a resting page. */
+export function stickyTurnClearance(lift: number, u: number, normal: THREE.Vector3, sheetZ: number, floorZ?: number) {
+  let distance = Math.abs(lift);
+  if (floorZ !== undefined && normal.z * lift < 0) {
+    distance = Math.min(distance, Math.max(.0005, sheetZ - floorZ - .002) / Math.max(.001, Math.abs(normal.z)));
+  }
+  if (u < .12 && Math.abs(normal.x) > .2) distance = Math.min(distance, Math.max(.001, u * .5) / Math.abs(normal.x));
+  return Math.sign(lift) * distance;
+}
+
 /** Real paper meshes share the book's scene, materials, environment and shadows. */
 export function createBookNotes(
   book: THREE.Group,
@@ -268,7 +278,7 @@ export function createBookNotes(
       await set([...from, ...to.filter(n => !ids.has(n.item.id)).map(n => ({ ...n, incoming: true }))]);
     },
     beginTurn,
-    turn(progress: number, dir: 1 | -1, sheetPoint?: (u: number, v: number) => { position: THREE.Vector3; normal: THREE.Vector3 }) {
+    turn(progress: number, dir: 1 | -1, sheetPoint?: (u: number, v: number) => { position: THREE.Vector3; normal: THREE.Vector3; floorZ?: number }) {
       // Compress the note under the approaching sheet, fully flat at 75%.
       const t = Math.min(1, Math.max(0, (progress - .6) / .15));
       const flatten = t * t * (3 - 2 * t);
@@ -295,12 +305,13 @@ export function createBookNotes(
           const lift = (rest[i * 3 + 2]! - reliefAt(x, y)) * (incoming ? -1 : 1);
           if (sheetPoint) {
             const surface = sheetPoint(u, v);
+            const clearance = stickyTurnClearance(lift, u, surface.normal, surface.position.z, surface.floorZ);
             // Offset along the real curved sheet normal, not a flat rotation.
             // The destination note belongs to its opposite face.
             positions.setXYZ(i,
-              surface.position.x + surface.normal.x * lift - centre.x,
-              surface.position.y + surface.normal.y * lift - centre.y,
-              surface.position.z + surface.normal.z * lift);
+              surface.position.x + surface.normal.x * clearance - centre.x,
+              surface.position.y + surface.normal.y * clearance - centre.y,
+              surface.position.z + surface.normal.z * clearance);
           } else {
             positions.setXYZ(i,
               dir * (u * cos + curl * sin - lift * sin) - centre.x,
