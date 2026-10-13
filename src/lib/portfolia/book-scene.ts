@@ -837,7 +837,22 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     attr.needsUpdate = true;
     geometry.computeVertexNormals();
-    notes.turn(progress, dir);
+    const stickyPosition = new THREE.Vector3(), stickyNormal = new THREE.Vector3();
+    const stickySample = { position: stickyPosition, normal: stickyNormal };
+    notes.turn(progress, dir, (u, v) => {
+      const x = Math.min(32, Math.max(0, u * 32)), y = Math.min(16, Math.max(0, (1 - v) * 16));
+      const x0 = Math.min(31, Math.floor(x)), y0 = Math.min(15, Math.floor(y));
+      const tx = x - x0, ty = y - y0;
+      const position = stickyPosition.set(0, 0, 0), normal = stickyNormal.set(0, 0, 0);
+      const normals = geometry.getAttribute("normal");
+      for (const [column, row, weight] of [[x0, y0, (1-tx)*(1-ty)], [x0+1, y0, tx*(1-ty)], [x0, y0+1, (1-tx)*ty], [x0+1, y0+1, tx*ty]]) {
+        const index = row! * 33 + column!;
+        position.x += attr.getX(index) * weight!; position.y += attr.getY(index) * weight!; position.z += attr.getZ(index) * weight!;
+        normal.x += normals.getX(index) * weight!; normal.y += normals.getY(index) * weight!; normal.z += normals.getZ(index) * weight!;
+      }
+      normal.normalize().multiplyScalar(dir);
+      return stickySample;
+    });
     if (tabPlan) tabs.turn(tabPlan, progress, dir);
     driveContact(progress);
   };
@@ -911,7 +926,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     },
     viewport(isNarrow: boolean, scale: number, target: number) {
       narrow = isNarrow;
-      zoom = THREE.MathUtils.clamp(scale, 1, 3);
+      zoom = THREE.MathUtils.clamp(scale, .5, 3);
       focus = target;
       frameCamera();
       paint();
@@ -921,7 +936,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const delta = cameraHeight(zoom) - cameraHeight(scale);
       panX += (x - 0.5) * delta * aspect;
       panY += (0.5 - y) * delta;
-      zoom = THREE.MathUtils.clamp(scale, 1, 3);
+      zoom = THREE.MathUtils.clamp(scale, .5, 3);
       frameCamera();
       requestPaint();
     },

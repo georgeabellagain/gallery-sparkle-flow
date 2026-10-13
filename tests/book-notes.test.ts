@@ -101,6 +101,9 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
         assert.deepEqual(front.geometry.getAttribute("position").array, rest, "note on the other page remains stationary");
         notes.endTurn();
         notes.beginTurn(1);
+        notes.turn(.5, 1, (u, v) => ({ position: new THREE.Vector3(0, (v - .5) * 1.4, u), normal: new THREE.Vector3(1, 0, 0) }));
+        const attached = front.geometry.getAttribute("position");
+        for (let i = 0; i < attached.count; i++) assert.ok(attached.getX(i) + group.position.x > .02, "sticky paper stays offset from the actual turning surface");
         notes.turn(.5, 1);
         assert.ok(flap().maxZ > .2, "sticky note travels above the book with its turning page");
         notes.endTurn();
@@ -124,6 +127,12 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
         assert.equal(incoming.children[0].visible, false, "sticky note has no coloured base hiding the PDF underneath");
         await notes.set(destination);
         assert.equal(book.children[0], incoming, "committing the destination does not recreate or flash the note");
+        await notes.prepare(destination, []);
+        notes.beginTurn(0); notes.turn(1, -1); notes.endTurn(true);
+        assert.equal(book.children.length, 0, "departed page notes are removed");
+        await notes.prepare([], []);
+        notes.beginTurn(1); notes.turn(.5, 1);
+        assert.equal(book.children.length, 0, "turning another page cannot resurrect a stale sticky note");
       }
       notes.clear();
       assert.equal(book.children.length, 0);

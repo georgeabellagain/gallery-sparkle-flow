@@ -224,7 +224,8 @@ export function createBookNotes(
   let moving: Array<{ mesh: THREE.Mesh; rest: Float32Array; centre: THREE.Vector3; incoming: boolean }> = [];
   const beginTurn = (side: number) => {
     moving = [];
-    for (const entry of entries.values()) {
+    for (const [id, entry] of entries) {
+      if (sourceIds && destinationIds && !sourceIds.has(id) && !destinationIds.has(id)) { entry.group.visible = false; continue; }
       if (!entry.sticky) { entry.group.visible = false; continue; }
       entry.group.visible = true;
       entry.shapeFlap(0);
@@ -247,7 +248,7 @@ export function createBookNotes(
       await set([...from, ...to.filter(n => !ids.has(n.item.id)).map(n => ({ ...n, incoming: true }))]);
     },
     beginTurn,
-    turn(progress: number, dir: 1 | -1) {
+    turn(progress: number, dir: 1 | -1, sheetPoint?: (u: number, v: number) => { position: THREE.Vector3; normal: THREE.Vector3 }) {
       const angle = Math.PI * progress, sin = Math.sin(angle), cos = Math.cos(angle);
       for (const { mesh, rest, centre, incoming } of moving) {
         const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
@@ -256,10 +257,20 @@ export function createBookNotes(
           const u = Math.max(0, Math.min(1, Math.abs(x))), v = y / ratio + .5;
           const curl = sin * .22 * Math.sin(Math.PI * u) * (1 + .35 * (.5 - v));
           const lift = (rest[i * 3 + 2]! - reliefAt(x, y)) * (incoming ? -1 : 1);
-          positions.setXYZ(i,
-            dir * (u * cos + curl * sin - lift * sin) - centre.x,
-            rest[i * 3 + 1]!,
-            u * sin - curl * cos + reliefAt(x, y) + .01 + lift * cos);
+          if (sheetPoint) {
+            const surface = sheetPoint(u, v);
+            // Offset along the real curved sheet normal, not a flat rotation.
+            // The destination note belongs to its opposite face.
+            positions.setXYZ(i,
+              surface.position.x + surface.normal.x * lift - centre.x,
+              surface.position.y + surface.normal.y * lift - centre.y,
+              surface.position.z + surface.normal.z * lift);
+          } else {
+            positions.setXYZ(i,
+              dir * (u * cos + curl * sin - lift * sin) - centre.x,
+              rest[i * 3 + 1]!,
+              u * sin - curl * cos + reliefAt(x, y) + .01 + lift * cos);
+          }
         }
         positions.needsUpdate = true;
         mesh.geometry.computeVertexNormals();
@@ -275,7 +286,10 @@ export function createBookNotes(
       }
       moving = [];
       const visibleIds = complete ? destinationIds : sourceIds;
-      if (visibleIds) for (const [id, entry] of entries) entry.group.visible = entry.sticky && visibleIds.has(id);
+      if (visibleIds) for (const [id, entry] of entries) {
+        if (!visibleIds.has(id)) { book.remove(entry.group); entries.delete(id); }
+        else { entry.group.visible = entry.sticky; entry.incoming = false; }
+      }
       if (complete && destinationKey) currentKey = destinationKey;
     },
     clear,

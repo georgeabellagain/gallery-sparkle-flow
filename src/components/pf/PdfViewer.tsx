@@ -251,7 +251,8 @@ export function PdfViewer({
   const modeLive = useRef(mode);
   modeLive.current = mode;
   const [jump, setJump] = useState<{ page: number; t: number } | null>(null);
-  const z = (d: number) => setZoom((v) => Math.min(3, Math.max(1, Math.round((v + d) * 100) / 100)));
+  const minimumZoom = mode === "book" && foldouts?.length ? .5 : 1;
+  const z = (d: number) => setZoom((v) => Math.min(3, Math.max(minimumZoom, Math.round((v + d) * 100) / 100)));
   const zoomStep = mode === "scroll" ? 0.05 : 0.25;
   const total = doc?.numPages ?? 0;
   const sections = useMemo(() => readableProjects(projects, total), [projects, total]);
@@ -614,7 +615,7 @@ export function PdfViewer({
                 </span>
               )}
               {doc && (
-                <IconButton label="Zoom out" tone={tone} onClick={() => z(-zoomStep)} disabled={zoom <= 1}>
+                <IconButton label="Zoom out" tone={tone} onClick={() => z(-zoomStep)} disabled={zoom <= minimumZoom}>
                   <ZoomOut className="size-[17px]" />
                 </IconButton>
               )}
