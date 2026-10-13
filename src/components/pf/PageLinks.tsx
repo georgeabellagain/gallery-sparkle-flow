@@ -52,7 +52,7 @@ export function PageLinkAnchor({ link, visible = false }: { link: PageLink; visi
     >
       <span className="block aspect-square w-full rounded-[22%] transition-colors group-hover:bg-foreground/5 group-focus-visible:ring-2 group-focus-visible:ring-foreground/60 [container-type:inline-size]">
         {visible && <span className="block text-[36cqw]"><LinkLogo link={link} /></span>}
-        {visible && link.label?.trim() && <span className="relative -left-[45%] mt-[10%] block w-[190%] text-center font-medium leading-tight text-foreground text-[24cqw]">{link.label}</span>}
+        {visible && link.label?.trim() && <span className="relative -left-[45%] mt-[10%] block w-[190%] text-center font-medium leading-tight text-foreground text-[24cqw]" style={{ fontSize: `${24 * (link.fontSize ?? 100) / 100}cqw` }}>{link.label}</span>}
       </span>
     </a>
   );

@@ -205,6 +205,7 @@ export function FoldoutCard({
       data-open={progress > 0.5}
       data-revealed={progress > 0}
       data-baked={baked}
+      data-scene-rendered={sceneRendered}
       data-note-style={item.style ?? "foldout"}
       data-hinge={item.hinge}
       style={{ ...style, touchAction: "none" }}
@@ -275,7 +276,7 @@ export function FoldoutCard({
     >
       <div
         className="pf-foldout-base"
-        style={{ opacity: sceneRendered ? 0 : 1 }}
+        style={{ opacity: sceneRendered || item.style === "sticky" ? 0 : 1 }}
       >
         {image(negative)}
       </div>

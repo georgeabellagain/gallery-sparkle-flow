@@ -646,4 +646,6 @@
 .pf-flat-tabs span[data-active="true"] { transform: translateX(6px); background: #fff; }
 
 /* Sticky paper keeps a narrow adhesive band and a lifted free edge. */
-.pf-foldout[data-note-style="sticky"] .pf-foldout-flap { box-shadow: 0 5px 8px rgb(0 0 0 / 20%); }
+.pf-foldout[data-note-style="sticky"][data-scene-rendered="false"] .pf-foldout-flap { box-shadow: 0 5px 8px rgb(0 0 0 / 20%); }
+
+.pf-profile-card .text-sm { font-size: inherit; }

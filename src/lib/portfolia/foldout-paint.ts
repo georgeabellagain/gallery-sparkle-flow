@@ -108,7 +108,7 @@ export function paintNoteSurface(
       ctx.font = `${size}px ${family}`;
       return ctx.measureText(t).width;
     };
-    const { size, lines } = layoutNoteText(side.text, w - pad * 2, h - pad * 2, Math.min(w * 0.115, h * 0.18), measure);
+    const { size, lines } = layoutNoteText(side.text, w - pad * 2, h - pad * 2, Math.min(w * 0.115, h * 0.18) * (side.fontSize ?? 100) / 100, measure);
     const lineHeight = size * 1.3;
     const textHeight = lines.length * lineHeight;
     const valign = side.valign ?? "top";

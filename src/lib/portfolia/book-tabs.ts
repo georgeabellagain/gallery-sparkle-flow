@@ -11,6 +11,7 @@ export interface TabSpec {
   text: string;
   colour: string;
   font?: NoteFont;
+  fontSize?: number;
   position?: number;
 }
 const COLS = 4;
@@ -51,7 +52,7 @@ export function createBookTabs(
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const family = spec.font ? NOTE_FONT_FAMILIES[spec.font].css : '"Instrument Sans", Arial, sans-serif';
-    let px = Math.min(width * 0.52, 44);
+    let px = Math.min(width * 0.52, 44) * (spec.fontSize ?? 100) / 100;
     ctx.font = `600 ${px}px ${family}`;
     while (px > 8 && ctx.measureText(spec.text).width > height * 0.84) {
       px *= 0.9;

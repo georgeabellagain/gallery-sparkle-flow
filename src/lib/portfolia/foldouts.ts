@@ -11,6 +11,7 @@ export interface FoldoutSurface {
   text: string;
   imageKey?: string;
   font?: NoteFont;
+  fontSize?: number;
   /** Horizontal text alignment. Missing means left. */
   align?: NoteAlign;
   /** Vertical text position. Missing means top. */
@@ -77,6 +78,7 @@ export function validateFoldout(f: Foldout, pages: number): string | null {
   )
     return "Choose a valid image.";
   for (const side of Object.values(foldoutSurfaces(f))) {
+    if (side?.fontSize !== undefined && (!Number.isFinite(side.fontSize) || side.fontSize < 25 || side.fontSize > 300)) return "Choose a note font size from 25% to 300%.";
     if (
       side?.font !== undefined &&
       !(NOTE_FONT_IDS as readonly string[]).includes(side.font)

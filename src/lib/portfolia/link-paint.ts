@@ -75,7 +75,7 @@ export function paintPageLinks(ctx: CanvasRenderingContext2D, w: number, h: numb
     }
     const caption = l.label?.trim();
     if (caption) {
-      let px = size * 0.24;
+      let px = size * 0.24 * (l.fontSize ?? 100) / 100;
       ctx.font = `500 ${px}px Arial, sans-serif`;
       while (px > 6 && ctx.measureText(caption).width > size * 1.9) {
         px *= 0.92;

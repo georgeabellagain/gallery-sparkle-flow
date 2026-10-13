@@ -471,7 +471,7 @@ export function BookView({
     let cancelled = false;
     void loadNoteFonts(tabEntries).then(() => {
       if (cancelled || scene.current !== activeScene) return;
-      activeScene.setTabs(tabEntries.map((t) => ({ id: t.id, text: t.label || String(t.page), colour: t.colour, position: t.position, font: t.font })), narrow);
+      activeScene.setTabs(tabEntries.map((t) => ({ id: t.id, text: t.label || String(t.page), colour: t.colour, position: t.position, font: t.font, fontSize: t.fontSize })), narrow);
       activeScene.setTabRest(Object.fromEntries(tabEntries.map((t) => [t.id, tabEdge(t.leaf, spread, narrow)])));
       syncBounds();
     });
@@ -804,6 +804,7 @@ export function BookView({
         const [from, to] = await Promise.all([faces(fromSpread), faces(nextSpread)]);
         if (!alive.current) return;
         if (!fallback && scene.current) {
+          await scene.current.prepareNotes(notesForSpread(fromSpread), notesForSpread(nextSpread));
           await scene.current.resetZoom();
           if (alive.current) onZoomChange(1);
           if (!alive.current) return;
@@ -845,6 +846,7 @@ export function BookView({
         const [from, to] = await Promise.all([faces(fromSpread), faces(nextSpread)]);
         if (!alive.current) return;
         if (!fallback && scene.current) {
+          await scene.current.prepareNotes(notesForSpread(fromSpread), notesForSpread(nextSpread));
           await scene.current.resetZoom();
           if (alive.current) onZoomChange(1);
           if (!alive.current) return;
@@ -915,6 +917,7 @@ export function BookView({
       await scene.current.resetZoom();
       if (!alive.current || !scene.current) return;
       onZoomChange(1);
+      await scene.current.prepareNotes(notesForSpread(fromSpread), notesForSpread(nextSpread));
       await scene.current.prepareTurn(from, to, direction, target, 1, tabPlanFor(fromSpread, nextSpread, direction), true);
       if (drag.current === gesture) scene.current.dragTurn(gesture.progress);
     })();
@@ -976,6 +979,7 @@ export function BookView({
   useEffect(() => { if (error) { console.error("Book render error", error); onRenderError?.(error); } }, [error, onRenderError]);
   const bookReady = (ready > 0 || fallback) && warm && !loading && !error;
   const [litNotesKey, setLitNotesKey] = useState("");
+  const notesForSpread = (pages: Array<number | null>) => pages.flatMap((n, side) => n === null ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side })));
   const notesKey = JSON.stringify([ready,spread,narrow,leaf,additions,bookReady,wait,fallback]);
   useEffect(() => {
     const renderer = scene.current;
@@ -985,7 +989,7 @@ export function BookView({
     if (!bookReady || wait || fallback) { renderer.clearNotes(); return; }
     const visible = spread.flatMap((n,side) => n === null || (narrow && n !== leaf) ? [] : foldoutsForLeaf(additions,layout.leaves[n]!).map(item=>({item,side})));
     void renderer.setNotes(visible).then(()=>{if(!cancelled)setLitNotesKey(notesKey);});
-    return ()=>{cancelled=true;renderer.clearNotes();};
+    return ()=>{cancelled=true;};
   }, [notesKey]);
 
   useEffect(() => {

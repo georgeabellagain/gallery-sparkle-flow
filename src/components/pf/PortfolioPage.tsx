@@ -124,14 +124,14 @@ function ProfileCard({ profile, photoUrl, bannerUrl, cvUrl, cv, pageStyle }: {
 }) {
   const profileLinks = profile.links.filter(l => l.url.trim());
   return (
-    <div className="-m-3 rounded-2xl p-3" style={pageStyle ? { background: pageStyle.background, color: pageStyle.text } : undefined}>
+    <div className="pf-profile-card -m-3 rounded-2xl p-3" style={pageStyle ? { background: pageStyle.background, color: pageStyle.text, fontSize: `${14 * (pageStyle.detailsFontSize ?? 100) / 100}px` } : undefined}>
       {bannerUrl && (
         <img src={bannerUrl} alt={profile.name ? `${profile.name} portfolio banner` : "Portfolio banner"} className="-mx-3 -mt-3 mb-3 h-24 w-[calc(100%+1.5rem)] max-w-none rounded-t-2xl object-cover" />
       )}
       <div className="flex items-start gap-3">
         {photoUrl && <img src={photoUrl} alt={profile.name || "Profile photo"} className="size-12 shrink-0 rounded-full object-cover" />}
         <div className="min-w-0">
-          <p style={pageStyle ? { fontFamily: pageStyle.font } : undefined} className="display-title text-xl leading-tight">
+          <p style={pageStyle ? { fontFamily: pageStyle.font, fontSize: `${20 * (pageStyle.nameFontSize ?? 100) / 100}px` } : undefined} className="display-title text-xl leading-tight">
             {profile.name || "Your name"}
           </p>
           {profile.title && <p className="text-sm text-muted-foreground">{profile.title}</p>}

@@ -151,6 +151,9 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
               {FONT_OPTIONS.map((f) => <option key={f.label} value={f.css}>{f.label}</option>)}
             </select>
           </label>
+          {([["nameFontSize", "Name font size"], ["detailsFontSize", "Details font size"]] as const).map(([key, label]) => <label key={key} className="flex items-center gap-2">
+            <span>{label}</span><input aria-label={label} type="range" min="25" max="300" step="5" value={style[key] ?? 100} onChange={e => set({ [key]: Number(e.target.value) })} /><span>{style[key] ?? 100}%</span>
+          </label>)}
           {([["text", "Details text"], ["background", "Page background"]] as const).map(([k, l]) => (
             <label key={k} className="flex items-center justify-between gap-3">
               <span>{l}</span>
