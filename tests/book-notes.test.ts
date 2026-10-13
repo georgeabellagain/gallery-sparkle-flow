@@ -132,6 +132,15 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
         await notes.set(destination);
         assert.equal(book.children[0], incoming, "committing the destination does not recreate or flash the note");
         await notes.prepare(destination, []);
+        const coveredNote = book.children[0], coveredPaper = coveredNote.children[1] as THREE.Mesh;
+        const coveredRest = Float32Array.from(coveredPaper.geometry.getAttribute("position").array);
+        notes.beginTurn(1); notes.turn(.75, 1);
+        const compressed = coveredPaper.geometry.getAttribute("position");
+        for (let i = 0; i < compressed.count; i++) assert.ok(compressed.getZ(i) < coveredRest[i * 3 + 2]!, "covered sticky note is pressed below the landing sheet by 75% of the turn");
+        notes.turn(.5, 1);
+        assert.deepEqual(compressed.array, coveredRest, "reversing the turn restores the curl");
+        notes.endTurn();
+        assert.deepEqual(compressed.array, coveredRest, "cancelling restores the stationary note");
         notes.beginTurn(0); notes.turn(1, -1); notes.endTurn(true);
         assert.equal(book.children.length, 0, "departed page notes are removed");
         await notes.prepare([], []);
