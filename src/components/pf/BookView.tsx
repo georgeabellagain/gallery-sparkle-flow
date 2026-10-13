@@ -433,6 +433,9 @@ export function BookView({
   }, [viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.studioLightingStrength, previewLook]);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; from: number; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
+  const [openNote, setOpenNote] = useState(false);
+  const noteProgresses = useRef(new Map<string, number>());
+  const canPan = zoom > 1 || openNote;
   const panning = useRef<{ id: number; x: number; y: number } | null>(null);
   const prefetchToken = useRef(0);
   const index = spreadIndex(layout.spreads, leaf);
@@ -980,6 +983,7 @@ export function BookView({
   const bookReady = (ready > 0 || fallback) && warm && !loading && !error;
   const [litNotesKey, setLitNotesKey] = useState("");
   const notesForSpread = (pages: Array<number | null>) => pages.flatMap((n, side) => n === null ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side })));
+  useEffect(() => { noteProgresses.current.clear(); setOpenNote(false); }, [leaf, additions]);
   const notesKey = JSON.stringify([ready,spread,narrow,leaf,additions,bookReady,wait,fallback]);
   useEffect(() => {
     const renderer = scene.current;
@@ -1010,7 +1014,7 @@ export function BookView({
       <div
         ref={viewportRef}
         className="pf-book-viewport"
-        style={{ ...(fullscreen ? { height: FULL_HEIGHT } : immersive ? { height: "max(420px, 100svh)" } : {}), touchAction: zoom > 1 ? "none" : "pan-y" }}
+        style={{ ...(fullscreen ? { height: FULL_HEIGHT } : immersive ? { height: "max(420px, 100svh)" } : {}), touchAction: canPan ? "none" : "pan-y" }}
         data-busy={busy || wait}
         data-narrow={narrow}
         data-panning={panning.current !== null}
@@ -1018,7 +1022,7 @@ export function BookView({
           if (e.target !== e.currentTarget && e.target !== host.current && e.target !== host.current?.firstChild) return;
           if (e.pointerType === "mouse" && e.button !== 0) return;
           if (!e.isPrimary || pinching.current) return;
-          if (zoom <= 1 || busy || wait || !scene.current) return;
+          if (!canPan || busy || wait || !scene.current) return;
           panning.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
           e.currentTarget.setPointerCapture(e.pointerId);
         }}
@@ -1039,7 +1043,7 @@ export function BookView({
         }}
         onTouchStart={(e) => {
           touch.current =
-            e.touches.length === 1 && zoom <= 1 && !(e.target as Element).closest("button, a, input, select, textarea, [data-foldout], [role=dialog], [role=toolbar]")
+            e.touches.length === 1 && !canPan && !(e.target as Element).closest("button, a, input, select, textarea, [data-foldout], [role=dialog], [role=toolbar]")
               ? { x: e.touches[0]!.clientX, y: e.touches[0]!.clientY }
               : null;
         }}
@@ -1072,7 +1076,12 @@ export function BookView({
           const onLeaf = linksForLeaf(pageLinks, layout.leaves[n]!);
           return <div key={`${n}:${settings.studio}`} className="pointer-events-none absolute z-30" style={{ left: `${bounds.x}%`, top: `${bounds.y}%`, width: `${bounds.width}%`, height: `${bounds.height}%` }}>
             {onLeaf.map(link => <PageLinkAnchor key={link.id} link={link} />)}
-            {visible.map(item => <StoredFoldout key={`${item.id}:${litNotesKey === notesKey}:${JSON.stringify(item)}`} item={item} demoAnimate={demoNotes} baked={item.style !== "sticky"} sceneRendered={litNotesKey === notesKey} onProgress={p=>scene.current?.noteProgress(item.id,p)} closers={noteClosers} />)}
+            {visible.map(item => <StoredFoldout key={`${item.id}:${litNotesKey === notesKey}:${JSON.stringify(item)}`} item={item} demoAnimate={demoNotes} baked={item.style !== "sticky"} sceneRendered={litNotesKey === notesKey} onProgress={p => {
+              noteProgresses.current.set(item.id, p);
+              setOpenNote([...noteProgresses.current.values()].some(value => value > .001));
+              scene.current?.noteProgress(item.id, p);
+              syncBounds();
+            }} closers={noteClosers} />)}
           </div>;
         })}
         {bookReady && !fallback && tabRects.length > 0 && (
@@ -1087,7 +1096,7 @@ export function BookView({
         {/* Each full page side turns at normal zoom; zoomed pages keep drag-to-pan. */}
         {!narrow &&
           !fallback &&
-          zoom <= 1 &&
+          !canPan &&
           (
             [
               [-1, "left"],

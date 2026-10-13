@@ -438,9 +438,16 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   /** Dragging may never move the view outside the initial framing. */
   const clampPan = () => {
     const aspect = Math.max(1, host.clientWidth) / Math.max(1, host.clientHeight);
-    const limit = Math.max(0, cameraHeight(1) - cameraHeight(zoom)) / 2;
-    panY = THREE.MathUtils.clamp(panY, -limit, limit);
-    panX = THREE.MathUtils.clamp(panX, -limit * aspect, limit * aspect);
+    const baseline = cameraHeight(1), height = cameraHeight(zoom);
+    const bounds = notes.bounds();
+    const margin = .12;
+    // Include opened paper in the drag envelope without changing the zoom.
+    const top = Math.max(baseline / 2, bounds ? bounds.max.y + margin : baseline / 2);
+    const bottom = Math.min(-baseline / 2, bounds ? bounds.min.y - margin : -baseline / 2);
+    const leftEdge = Math.min(focus - baseline * aspect / 2, bounds ? bounds.min.x - margin : focus - baseline * aspect / 2);
+    const rightEdge = Math.max(focus + baseline * aspect / 2, bounds ? bounds.max.x + margin : focus + baseline * aspect / 2);
+    panY = THREE.MathUtils.clamp(panY, Math.min(0, bottom + height / 2), Math.max(0, top - height / 2));
+    panX = THREE.MathUtils.clamp(panX, Math.min(0, leftEdge + height * aspect / 2 - focus), Math.max(0, rightEdge - height * aspect / 2 - focus));
   };
   const frameCamera = () => {
     const w = Math.max(1, host.clientWidth),
@@ -867,7 +874,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     setNotes: notes.set,
     prepareNotes: notes.prepare,
     clearNotes: notes.clear,
-    noteProgress: notes.progress,
+    noteProgress(id: string, progress: number) {
+      notes.progress(id, progress);
+      frameCamera();
+      requestPaint();
+    },
     setInset(value: number) {
       inset = Math.max(0, value);
       frameCamera();
