@@ -2,7 +2,7 @@ import { ChevronDown } from "lucide-react";
 
 const pages = [
   ["/architecture-portfolio", "Architecture"], ["/graphic-design-portfolio", "Graphic design"],
-  ["/fashion-portfolio", "Fashion"], ["/photography-portfolio", "Photography"],
+  ["/marketing-portfolio", "Marketing"], ["/fashion-portfolio", "Fashion"], ["/photography-portfolio", "Photography"],
   ["/zine-flipbook", "Zines"], ["/magazine-flipbook", "Magazines"],
 ];
 export function HomeNavigation() {

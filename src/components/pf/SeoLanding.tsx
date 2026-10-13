@@ -8,6 +8,8 @@ import { SiteHeader, SiteFooter } from "@/components/pf/Chrome";
 
 export interface SeoContent {
   path: string;
+  sections?: { title: string; body: string }[];
+  checklist?: string[];
   title: string;
   description: string;
   h1: string;
@@ -141,9 +143,9 @@ export function SeoLanding({ c: base, children, hideDefaultExample = false }: { 
           </div>
         </section>
 
-        {guide && <section className="rule-t"><div className="shell max-w-4xl space-y-9 py-14">
-          {guide.sections.map(section => <article key={section.title}><h2 className="display-title text-2xl">{section.title}</h2><p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">{section.body}</p></article>)}
-          <div className="rounded-2xl border border-border bg-card p-6"><h2 className="text-base font-medium">Before you share</h2><ul className="mt-4 space-y-3 text-sm">{guide.checklist.map(item=><li key={item} className="flex gap-3"><Check aria-hidden className="mt-0.5 size-4 shrink-0 text-leaf"/>{item}</li>)}</ul><p className="mt-5 text-sm"><Link to="/portfolio-checker" className="underline underline-offset-4">Check your PDF locally</Link> before uploading, or explore our <Link to="/embed-flipbook-in-squarespace" className="underline underline-offset-4">website embedding guide</Link>.</p></div>
+        {(guide || c.sections?.length) && <section className="rule-t"><div className="shell max-w-4xl space-y-9 py-14">
+          {(guide?.sections ?? c.sections ?? []).map(section => <article key={section.title}><h2 className="display-title text-2xl">{section.title}</h2><p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">{section.body}</p></article>)}
+          <div className="rounded-2xl border border-border bg-card p-6"><h2 className="text-base font-medium">Before you share</h2><ul className="mt-4 space-y-3 text-sm">{(guide?.checklist ?? c.checklist ?? []).map(item=><li key={item} className="flex gap-3"><Check aria-hidden className="mt-0.5 size-4 shrink-0 text-leaf"/>{item}</li>)}</ul><p className="mt-5 text-sm"><Link to="/portfolio-checker" className="underline underline-offset-4">Check your PDF locally</Link> before uploading, or explore our <Link to="/embed-flipbook-in-squarespace" className="underline underline-offset-4">website embedding guide</Link>.</p></div>
         </div></section>}
 
         <section className="rule-t">

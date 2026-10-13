@@ -34,6 +34,7 @@ import { Route as InteriorDesignPortfolioRouteImport } from './routes/interior-d
 import { Route as IssuuAlternativeRouteImport } from './routes/issuu-alternative'
 import { Route as LandscapeArchitecturePortfolioRouteImport } from './routes/landscape-architecture-portfolio'
 import { Route as MagazineFlipbookRouteImport } from './routes/magazine-flipbook'
+import { Route as MarketingPortfolioRouteImport } from './routes/marketing-portfolio'
 import { Route as PaperturnAlternativeRouteImport } from './routes/paperturn-alternative'
 import { Route as PdfdeckAlternativeRouteImport } from './routes/pdfdeck-alternative'
 import { Route as PhotographyPortfolioRouteImport } from './routes/photography-portfolio'
@@ -185,6 +186,11 @@ const LandscapeArchitecturePortfolioRoute =
 const MagazineFlipbookRoute = MagazineFlipbookRouteImport.update({
   id: '/magazine-flipbook',
   path: '/magazine-flipbook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MarketingPortfolioRoute = MarketingPortfolioRouteImport.update({
+  id: '/marketing-portfolio',
+  path: '/marketing-portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PaperturnAlternativeRoute = PaperturnAlternativeRouteImport.update({
@@ -342,6 +348,7 @@ export interface FileRoutesByFullPath {
   '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
   '/magazine-flipbook': typeof MagazineFlipbookRoute
+  '/marketing-portfolio': typeof MarketingPortfolioRoute
   '/paperturn-alternative': typeof PaperturnAlternativeRoute
   '/pdfdeck-alternative': typeof PdfdeckAlternativeRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
@@ -394,6 +401,7 @@ export interface FileRoutesByTo {
   '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
   '/magazine-flipbook': typeof MagazineFlipbookRoute
+  '/marketing-portfolio': typeof MarketingPortfolioRoute
   '/paperturn-alternative': typeof PaperturnAlternativeRoute
   '/pdfdeck-alternative': typeof PdfdeckAlternativeRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
@@ -447,6 +455,7 @@ export interface FileRoutesById {
   '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
   '/magazine-flipbook': typeof MagazineFlipbookRoute
+  '/marketing-portfolio': typeof MarketingPortfolioRoute
   '/paperturn-alternative': typeof PaperturnAlternativeRoute
   '/pdfdeck-alternative': typeof PdfdeckAlternativeRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
@@ -501,6 +510,7 @@ export interface FileRouteTypes {
     | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
     | '/magazine-flipbook'
+    | '/marketing-portfolio'
     | '/paperturn-alternative'
     | '/pdfdeck-alternative'
     | '/photography-portfolio'
@@ -553,6 +563,7 @@ export interface FileRouteTypes {
     | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
     | '/magazine-flipbook'
+    | '/marketing-portfolio'
     | '/paperturn-alternative'
     | '/pdfdeck-alternative'
     | '/photography-portfolio'
@@ -605,6 +616,7 @@ export interface FileRouteTypes {
     | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
     | '/magazine-flipbook'
+    | '/marketing-portfolio'
     | '/paperturn-alternative'
     | '/pdfdeck-alternative'
     | '/photography-portfolio'
@@ -658,6 +670,7 @@ export interface RootRouteChildren {
   IssuuAlternativeRoute: typeof IssuuAlternativeRoute
   LandscapeArchitecturePortfolioRoute: typeof LandscapeArchitecturePortfolioRoute
   MagazineFlipbookRoute: typeof MagazineFlipbookRoute
+  MarketingPortfolioRoute: typeof MarketingPortfolioRoute
   PaperturnAlternativeRoute: typeof PaperturnAlternativeRoute
   PdfdeckAlternativeRoute: typeof PdfdeckAlternativeRoute
   PhotographyPortfolioRoute: typeof PhotographyPortfolioRoute
@@ -860,6 +873,13 @@ declare module '@tanstack/react-router' {
       path: '/magazine-flipbook'
       fullPath: '/magazine-flipbook'
       preLoaderRoute: typeof MagazineFlipbookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/marketing-portfolio': {
+      id: '/marketing-portfolio'
+      path: '/marketing-portfolio'
+      fullPath: '/marketing-portfolio'
+      preLoaderRoute: typeof MarketingPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/paperturn-alternative': {
@@ -1066,6 +1086,7 @@ const rootRouteChildren: RootRouteChildren = {
   IssuuAlternativeRoute: IssuuAlternativeRoute,
   LandscapeArchitecturePortfolioRoute: LandscapeArchitecturePortfolioRoute,
   MagazineFlipbookRoute: MagazineFlipbookRoute,
+  MarketingPortfolioRoute: MarketingPortfolioRoute,
   PaperturnAlternativeRoute: PaperturnAlternativeRoute,
   PdfdeckAlternativeRoute: PdfdeckAlternativeRoute,
   PhotographyPortfolioRoute: PhotographyPortfolioRoute,

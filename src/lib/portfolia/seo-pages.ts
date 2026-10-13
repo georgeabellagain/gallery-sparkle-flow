@@ -6,6 +6,33 @@ const qrFaq = { q: "Can I share it with a QR code?", a: "Yes. Every published po
 const sizeFaq = { q: "How large can my PDF be?", a: "Up to 10 MB on Free, or up to 50 MB per portfolio on Personal." };
 
 export const DISCIPLINE_PAGES: Record<string, Page> = {
+  "marketing-portfolio": {
+    label: "Marketing portfolio",
+    title: "Marketing Portfolio — Share Your Campaigns as a Free PDF Flipbook | Portfolia",
+    description: "Turn your marketing portfolio PDF into a shareable online flipbook. Present campaign case studies, content and results to employers or clients. Start free.",
+    h1: "Your marketing portfolio,", h1Accent: "ready for your next opportunity.",
+    intro: "Bring your campaigns, content and case studies together in the PDF you already designed. Upload it to Portfolia and share one portfolio link with employers, agencies and clients.",
+    points: [
+      { title: "Show the thinking behind the campaign", body: "Keep your brief, audience, strategy and creative work together. Present social media, email, content marketing and brand campaigns in the order that tells your story." },
+      { title: "Send people to the relevant work", body: "Add named projects and page ranges, then share a link to a particular case study. Add website-link icons to connect your PDF pages to live campaigns or published content." },
+      { title: "Update your work, keep your link", body: "Replace your PDF as you finish new campaigns. Your sharing address stays the same, so applications and client proposals can point to your latest work." },
+    ],
+    sections: [
+      { title: "What should a marketing portfolio include?", body: "Start with a short introduction explaining your specialism and the work you want to do. Choose a focused selection of projects rather than every asset you have produced. For each case study, show the objective, intended audience, your role, the approach and a few examples of the finished work. A social media portfolio might include a content plan and selected posts; an email marketing case study could pair the audience strategy with newsletter layouts; a content marketing project could show an article, landing page or editorial calendar. Explain your own contribution and credit collaborators." },
+      { title: "Turn campaign results into clear case studies", body: "Connect each result to the campaign objective. Where you have permission to share them, include relevant measures such as engagement, qualified enquiries or conversions, with the timeframe and baseline needed to understand them. Distinguish results you measured from outcomes you only contributed to. If you cannot disclose client data, describe the method and learning without exposing confidential information. Portfolia presents the PDF you upload; it does not generate campaign reports or verify performance claims." },
+      { title: "Build a marketing portfolio without client experience", body: "Students and early-career marketers can include coursework, personal projects, volunteering or a campaign concept. Label speculative work clearly, explain the audience and decisions, and show the deliverables you created. You can discuss how you would measure success without inventing results. Design your case studies in your preferred tool, export them as a PDF and preview them here. Check headings, screenshots and charts on both a phone and a laptop before publishing. Keep the first few pages relevant to the employer or client receiving the link." },
+    ],
+    checklist: ["Explain the objective, audience and your contribution.", "Label concept work and credit collaborators.", "Share client assets and results only with permission.", "Check text, screenshots and project links on mobile."],
+    steps: ["Export your marketing case studies as a PDF from your preferred design tool.", "Upload your PDF, choose a reading style and organise your named projects.", "Publish and share your marketing portfolio link or downloadable QR code."],
+    faqs: [
+      { q: "How do I create an online marketing portfolio?", a: "Put your introduction and campaign case studies into a PDF, upload it to Portfolia, then publish a sharing link. You can choose Flipbook, Scroll or Page by page reading and add named projects. Portfolia hosts your existing PDF rather than designing the case studies for you." },
+      { q: "Can I make a marketing portfolio for free?", a: "Yes. Portfolia's Free plan supports one PDF portfolio up to 10 MB, with a sharing link and downloadable QR code. You can preview your PDF before signing up; an account is needed to save and publish it." },
+      { q: "Can I use it for a social media or digital marketing portfolio?", a: "Yes. Your PDF can include social posts, campaign plans, email layouts, content samples and results. Add website-link icons in the editor to send readers to relevant published work." },
+      { q: "Can I share a single marketing case study?", a: "Yes. Add a named project and its page range, then copy that project's link. It opens at the project's first page while leaving the rest of your portfolio available." },
+      { q: "Can I protect confidential client work?", a: "Personal offers password protection and expiring links. These controls do not replace a client's permission to share their work or data; remove confidential information before uploading." },
+      sizeFaq, qrFaq,
+    ],
+  },
   "fashion-portfolio": {
     label: "Fashion portfolio",
     title: "Fashion Portfolio Website — Share Your PDF Lookbook Free | Portfolia",
