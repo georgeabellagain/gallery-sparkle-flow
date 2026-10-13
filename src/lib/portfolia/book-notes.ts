@@ -15,13 +15,15 @@ export function createBookNotes(
   let generation = 0;
   const entries = new Map<
     string,
-    { group: THREE.Group; side: number; sticky: boolean; shapeFlap: (p: number) => void }
+    { group: THREE.Group; side: number; incoming: boolean; sticky: boolean; shapeFlap: (p: number) => void }
   >();
   const resources: Array<{ dispose: () => void }> = [];
   const ownMaterials: THREE.MeshPhysicalMaterial[] = [];
   /** Height of the page at a point of the book (book units): both pages share one arch, measured from the gutter. */
   const reliefAt = (x: number, y: number) => pageRelief(Math.abs(x), y / ratio + 0.5, 0);
+  let currentKey = "";
   const clear = () => {
+    currentKey = "";
     generation++;
     entries.forEach((e) => book.remove(e.group));
     entries.clear();
@@ -33,8 +35,11 @@ export function createBookNotes(
     resources.splice(0).forEach((r) => r.dispose());
     repaint();
   };
-  const set = async (notes: Array<{ item: Foldout; side: number }>) => {
+  const set = async (notes: Array<{ item: Foldout; side: number; incoming?: boolean }>) => {
+    const key = JSON.stringify(notes);
+    if (key === currentKey) return;
     clear();
+    currentKey = key;
     const ticket = generation;
     await loadNoteFonts(notes.flatMap(({ item }) => Object.values(foldoutSurfaces(item))));
     if (ticket !== generation) return;
@@ -50,7 +55,7 @@ export function createBookNotes(
       return;
     }
     try {
-      for (const { item: f, side } of notes) {
+      for (const { item: f, side, incoming = false } of notes) {
         if (f.hinge === "none") continue;
         const vertical = f.hinge === "top" || f.hinge === "bottom",
           negative = f.hinge === "left" || f.hinge === "top";
@@ -150,6 +155,7 @@ export function createBookNotes(
         baseGeometry.computeVertexNormals();
         const baseMesh = mesh(half(negative), baseGeometry, THREE.FrontSide);
         baseMesh.castShadow = false;
+        baseMesh.visible = f.style !== "sticky";
         group.add(baseMesh);
         // The flap is a gridded sheet shaped every frame: it rotates about its hinge, trails like paper in the
         // hand, and settles onto the page's curve wherever it lands.
@@ -181,7 +187,7 @@ export function createBookNotes(
           adhesive.castShadow = false;
           group.add(adhesive);
         }
-        group.visible = f.style === "sticky";
+        group.visible = f.style === "sticky" && !incoming;
         book.add(group);
         const shapeFlap = (p: number) => {
           const points = flapShape(
@@ -208,39 +214,48 @@ export function createBookNotes(
           }
         };
         shapeFlap(0);
-        entries.set(f.id, { group, side, sticky: f.style === "sticky", shapeFlap });
+        entries.set(f.id, { group, side, incoming, sticky: f.style === "sticky", shapeFlap });
       }
     } finally {
       images.forEach((i) => i.close());
     }
     repaint();
   };
-  let moving: Array<{ mesh: THREE.Mesh; rest: Float32Array; centre: THREE.Vector3 }> = [];
+  let moving: Array<{ mesh: THREE.Mesh; rest: Float32Array; centre: THREE.Vector3; incoming: boolean }> = [];
   const beginTurn = (side: number) => {
     moving = [];
     for (const entry of entries.values()) {
       if (!entry.sticky) { entry.group.visible = false; continue; }
+      entry.group.visible = true;
       entry.shapeFlap(0);
-      if (entry.side !== side) continue;
+      if (entry.side !== (entry.incoming ? 1 - side : side)) continue;
       for (const child of entry.group.children) {
         const mesh = child as THREE.Mesh;
         const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
-        moving.push({ mesh, rest: Float32Array.from(positions.array), centre: entry.group.position.clone() });
+        moving.push({ mesh, rest: Float32Array.from(positions.array), centre: entry.group.position.clone(), incoming: entry.incoming });
       }
     }
   };
+  let destinationKey = "";
+  let sourceIds: Set<string> | undefined, destinationIds: Set<string> | undefined;
   return {
     set,
+    async prepare(from: Array<{ item: Foldout; side: number }>, to: Array<{ item: Foldout; side: number }>) {
+      destinationKey = JSON.stringify(to);
+      const ids = new Set(from.map(n => n.item.id));
+      sourceIds = ids; destinationIds = new Set(to.map(n => n.item.id));
+      await set([...from, ...to.filter(n => !ids.has(n.item.id)).map(n => ({ ...n, incoming: true }))]);
+    },
     beginTurn,
     turn(progress: number, dir: 1 | -1) {
       const angle = Math.PI * progress, sin = Math.sin(angle), cos = Math.cos(angle);
-      for (const { mesh, rest, centre } of moving) {
+      for (const { mesh, rest, centre, incoming } of moving) {
         const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
         for (let i = 0; i < positions.count; i++) {
           const x = rest[i * 3]! + centre.x, y = rest[i * 3 + 1]! + centre.y;
           const u = Math.max(0, Math.min(1, Math.abs(x))), v = y / ratio + .5;
           const curl = sin * .22 * Math.sin(Math.PI * u) * (1 + .35 * (.5 - v));
-          const lift = rest[i * 3 + 2]! - reliefAt(x, y);
+          const lift = (rest[i * 3 + 2]! - reliefAt(x, y)) * (incoming ? -1 : 1);
           positions.setXYZ(i,
             dir * (u * cos + curl * sin - lift * sin) - centre.x,
             rest[i * 3 + 1]!,
@@ -252,13 +267,16 @@ export function createBookNotes(
       }
     },
     endTurn(complete = false) {
-      for (const { mesh, rest } of moving) {
-        if (complete && mesh.parent) mesh.parent.visible = false;
+      for (const { mesh, rest, incoming } of moving) {
+        if (complete && mesh.parent) mesh.parent.visible = incoming;
         const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
         positions.array.set(rest); positions.needsUpdate = true;
         mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere();
       }
       moving = [];
+      const visibleIds = complete ? destinationIds : sourceIds;
+      if (visibleIds) for (const [id, entry] of entries) entry.group.visible = entry.sticky && visibleIds.has(id);
+      if (complete && destinationKey) currentKey = destinationKey;
     },
     clear,
     progress(id: string, p: number) {

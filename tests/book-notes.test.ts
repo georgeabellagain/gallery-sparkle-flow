@@ -111,6 +111,19 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
         assert.ok(position.getX(0) + group.position.x < 0, "note lands on the opposite side of the book");
         notes.endTurn(true);
         assert.equal(group.visible, false, "completed turn hides the old page note until destination notes commit");
+        const destination = [{ item, side: 0 }];
+        await notes.prepare([], destination);
+        const incoming = book.children[0];
+        assert.equal(incoming.visible, false, "destination note waits for the page turn");
+        notes.beginTurn(1);
+        notes.turn(.5, 1);
+        assert.equal(incoming.visible, true, "destination note is present during the turn");
+        notes.turn(1, 1);
+        notes.endTurn(true);
+        assert.equal(incoming.visible, true, "destination note stays visible at rest");
+        assert.equal(incoming.children[0].visible, false, "sticky note has no coloured base hiding the PDF underneath");
+        await notes.set(destination);
+        assert.equal(book.children[0], incoming, "committing the destination does not recreate or flash the note");
       }
       notes.clear();
       assert.equal(book.children.length, 0);

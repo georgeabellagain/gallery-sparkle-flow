@@ -22,6 +22,8 @@ export interface CvFile {
 
 export interface PageStyle {
   font: string;
+  nameFontSize?: number;
+  detailsFontSize?: number;
   text: string;
   background: string;
   backdrop: string;

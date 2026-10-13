@@ -1337,6 +1337,10 @@ function TextStyleControls({
           ))}
         </div>
       </div>
+      <label className="flex items-center gap-2 text-xs">Font size
+        <input aria-label="Note font size" type="range" min="25" max="300" step="5" value={side.fontSize ?? 100} onChange={e => onChange({ ...side, fontSize: Number(e.target.value) })} />
+        <span>{side.fontSize ?? 100}%</span>
+      </label>
       <div>
         <p className="text-xs">Text position</p>
         <div className="mt-1 flex gap-1.5" role="radiogroup" aria-label="Text alignment">
@@ -1504,6 +1508,10 @@ function TagsPanel({
                 {FONT_CHOICES.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
               </select>
             </label>
+            <label className="flex items-center gap-2 text-xs">Font size
+              <input aria-label="Tab font size" type="range" min="25" max="300" step="5" value={t.fontSize ?? 100} onChange={e => onEdit(t.id, { fontSize: Number(e.target.value) })} />
+              <span>{t.fontSize ?? 100}%</span>
+            </label>
             <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Tab colour">
               {TAG_COLOURS.map((c) => (
                 <button
@@ -1660,6 +1668,10 @@ function LinksPanel({
             />
             {bad && <span className="mt-1 block text-destructive">That doesn't look like a web address.</span>}
           </label>
+          <label className="flex items-center gap-2 text-xs">Caption font size
+            <input aria-label="Caption font size" type="range" min="25" max="300" step="5" value={link.fontSize ?? 100} onChange={e => onEdit(link.id, { fontSize: Number(e.target.value) })} />
+            <span>{link.fontSize ?? 100}%</span>
+          </label>
           <label className="block text-xs">
             Caption (optional)
             <input
@@ -1716,7 +1728,7 @@ function EditablePageTab({tag, centre, height, left, selected, disabled, page, o
   };
   return <button type="button" aria-label={`Move tab ${tag.label || `page ${tag.page}`}`} title="Drag along the page edge; arrow keys adjust the position" disabled={disabled}
     className={`absolute z-20 touch-none select-none rounded-sm text-xs shadow-sm ${selected ? "ring-2 ring-primary ring-offset-2" : ""}`}
-    style={{top: `${(centre - height / 2) * 100}%`, height: `${height * 100}%`, width: '7.5%', [left ? 'right' : 'left']: '99.6%', fontFamily: tag.font ? NOTE_FONT_FAMILIES[tag.font].css : undefined, background: tag.colour, color: '#111', cursor: disabled ? 'default' : 'ns-resize'}}
+    style={{top: `${(centre - height / 2) * 100}%`, height: `${height * 100}%`, width: '7.5%', [left ? 'right' : 'left']: '99.6%', fontSize: `${12 * (tag.fontSize ?? 100) / 100}px`, fontFamily: tag.font ? NOTE_FONT_FAMILIES[tag.font].css : undefined, background: tag.colour, color: '#111', cursor: disabled ? 'default' : 'ns-resize'}}
     onClick={onSelect}
     onPointerDown={e => {if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return; e.preventDefault();e.stopPropagation();onSelect();e.currentTarget.setPointerCapture(e.pointerId);drag.current={id:e.pointerId,y:e.clientY,centre};}}
     onPointerMove={e => {const g=drag.current, box=page.current?.getBoundingClientRect();if (g && g.id===e.pointerId && box?.height) onMove(clamp(g.centre+(e.clientY-g.y)/box.height));}}

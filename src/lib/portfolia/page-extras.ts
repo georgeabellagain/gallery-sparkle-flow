@@ -8,6 +8,7 @@ export interface PageTag {
   colour: string;
   /** Omitted preserves the original tab typeface. */
   font?: NoteFont;
+  fontSize?: number;
   /** Centre along the page edge: 0 is top, 1 is bottom. Omitted keeps automatic spacing. */
   position?: number;
 }
@@ -19,6 +20,7 @@ export interface PageLink {
   url: string;
   /** Optional caption shown under the logo. */
   label?: string;
+  fontSize?: number;
   /** Position of the link's top-left corner as a fraction of the page. */
   x: number;
   y: number;
@@ -70,6 +72,7 @@ export function validatePageTag(t: PageTag, pages: number): string | null {
   if (!Number.isInteger(t.page) || t.page < 1 || t.page > pages) return "Choose a page in this PDF.";
   if (typeof t.label !== "string" || t.label.length > TAG_LABEL_LIMIT) return `Keep tag text to ${TAG_LABEL_LIMIT} characters.`;
   if (!hex.test(t.colour)) return "Choose a tag colour.";
+  if (t.fontSize !== undefined && (!Number.isFinite(t.fontSize) || t.fontSize < 25 || t.fontSize > 300)) return "Choose a tab font size from 25% to 300%.";
   if (t.font !== undefined && !(NOTE_FONT_IDS as readonly unknown[]).includes(t.font)) return "Choose a tab font.";
   if (t.position !== undefined && (!Number.isFinite(t.position) || t.position < 0 || t.position > 1)) return "Keep the tab on the page edge.";
   return null;
@@ -80,6 +83,7 @@ export function validatePageLink(l: PageLink, pages: number): string | null {
   if (l.half !== "left" && l.half !== "right") return "Choose a page half.";
   if (typeof l.url !== "string" || normaliseUrl(l.url) !== l.url) return "Enter a web address that starts with http or https.";
   if (l.label !== undefined && (typeof l.label !== "string" || l.label.length > 40)) return "Keep the link caption short.";
+  if (l.fontSize !== undefined && (!Number.isFinite(l.fontSize) || l.fontSize < 25 || l.fontSize > 300)) return "Choose a caption font size from 25% to 300%.";
   if (l.iconKey !== undefined && (typeof l.iconKey !== "string" || !key.test(l.iconKey))) return "Choose a valid logo.";
   if (![l.x, l.y, l.size].every(Number.isFinite) || l.size < LINK_SIZE.min - 1e-9 || l.size > LINK_SIZE.max + 1e-9) return "Choose a valid link size.";
   if (l.x < 0 || l.y < 0 || l.x + l.size > 1.0001 || l.y > 1.0001) return "Keep the link on the page.";

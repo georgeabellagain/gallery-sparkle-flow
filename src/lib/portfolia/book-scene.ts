@@ -850,6 +850,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   return {
     setBackdrop: backdrop.set,
     setNotes: notes.set,
+    prepareNotes: notes.prepare,
     clearNotes: notes.clear,
     noteProgress: notes.progress,
     setInset(value: number) {
