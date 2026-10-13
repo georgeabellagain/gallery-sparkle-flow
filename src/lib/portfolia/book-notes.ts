@@ -70,6 +70,10 @@ export function createBookNotes(
         if (f.hinge === "none") continue;
         const vertical = f.hinge === "top" || f.hinge === "bottom",
           negative = f.hinge === "left" || f.hinge === "top";
+        const spineDistance = side === 0 ? 1 - f.x - f.width : f.x;
+        const spineBlend = Math.min(1, Math.max(0, (spineDistance - .12) / .08));
+        const curlAmount = spineBlend * spineBlend * (3 - 2 * spineBlend);
+        const stickyLift = THREE.MathUtils.lerp(.003, NOTE_LIFT + FLAP_LIFT, curlAmount);
         const w = f.width,
           h = f.height * ratio;
         const density = Math.min(
@@ -191,7 +195,7 @@ export function createBookNotes(
           for (let i = 0; i < positions.count; i++) {
             const y = positions.getY(i) + h * .46;
             positions.setY(i, y);
-            positions.setZ(i, NOTE_LIFT + FLAP_LIFT + .002 + reliefAt(centre.x + positions.getX(i), centre.y + y));
+            positions.setZ(i, stickyLift + .002 + reliefAt(centre.x + positions.getX(i), centre.y + y));
           }
           adhesiveGeometry.computeVertexNormals();
           const adhesive = mesh(adhesiveArt, adhesiveGeometry, THREE.FrontSide);
@@ -215,8 +219,8 @@ export function createBookNotes(
                 i,
                 q.x + q.nx * sign * PAPER_GAP,
                 q.y + q.ny * sign * PAPER_GAP,
-                q.z + q.nz * sign * PAPER_GAP + NOTE_LIFT + FLAP_LIFT
-                  + (f.style === "sticky" ? .035 * grid.a[i]! ** 2 * (1 - Math.sin(Math.PI * p)) : 0),
+                q.z + q.nz * sign * PAPER_GAP + (f.style === "sticky" ? stickyLift : NOTE_LIFT + FLAP_LIFT)
+                  + (f.style === "sticky" ? curlAmount * .035 * grid.a[i]! ** 2 * (1 - Math.sin(Math.PI * p)) : 0),
               );
             }
             pos.needsUpdate = true;

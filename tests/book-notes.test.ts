@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
 import { createBookNotes, stickyTurnClearance } from "../src/lib/portfolia/book-notes";
+import { pageRelief } from "../src/lib/portfolia/page-relief";
 import type { Foldout } from "../src/lib/portfolia/foldouts";
 
 test("each flap lifts toward the viewer, opens outward, shares paper and releases resources", async () => {
@@ -159,6 +160,17 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
         await notes.prepare([], []);
         notes.beginTurn(1); notes.turn(.5, 1);
         assert.equal(book.children.length, 0, "turning another page cannot resurrect a stale sticky note");
+        for (const side of [0, 1]) {
+          const nearSpine = { ...item, x: side === 0 ? 1 - item.width - .01 : .01 };
+          await notes.set([{ item: nearSpine, side }]);
+          const flatGroup = book.children[0], flatPaper = flatGroup.children[1] as THREE.Mesh;
+          const positions = flatPaper.geometry.getAttribute("position");
+          for (let i = 0; i < positions.count; i++) {
+            const x = positions.getX(i) + flatGroup.position.x;
+            const y = positions.getY(i) + flatGroup.position.y;
+            assert.ok(positions.getZ(i) - pageRelief(Math.abs(x), y / 1.4 + .5, 0) < .004, "notes next to either side of the spine rest flat without a curled free edge");
+          }
+        }
       }
       notes.clear();
       assert.equal(book.children.length, 0);
