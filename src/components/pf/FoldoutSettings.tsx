@@ -801,10 +801,9 @@ function ScrapbookWorkspace({
                         }
                       }}
                     >
-                      <NoteSurface
-                        side={foldoutSurfaces(f).outside}
-                        label={f.title}
-                      />
+                      <div className="relative h-full w-full" style={f.style === "sticky" ? { boxShadow: "0 5px 8px #0003", background: foldoutSurfaces(f).outside.colour } : undefined}>
+                        <NoteSurface side={foldoutSurfaces(f).outside} label={f.title} sticky={f.style === "sticky"} />
+                      </div>
                     </button>
                     {f.id === selected &&
                       (["nw", "ne", "sw", "se"] as const).map((c) => (
@@ -1002,9 +1001,17 @@ function ScrapbookWorkspace({
                 </select>
               </label>
               <label className="mt-3 block text-xs">
+                Note style
+                <select aria-label="Note style" className="mt-1 w-full rounded border bg-background p-2 text-sm" value={note.style ?? "foldout"} onChange={e => edit(note.id, { style: e.target.value as Foldout["style"], ...(e.target.value === "sticky" ? { hinge: "top" as const } : {}) })}>
+                  <option value="foldout">Fold-out note</option>
+                  <option value="sticky">Sticky note</option>
+                </select>
+              </label>
+              <label className="mt-3 block text-xs">
                 Opening direction
                 <select
                   className="mt-1 w-full rounded border bg-background p-2 text-sm"
+                  disabled={note.style === "sticky"}
                   value={note.hinge}
                   onChange={(e) => {
                     edit(note.id, {
@@ -1453,6 +1460,7 @@ function TagsPanel({
   onEdit: (id: string, patch: Partial<PageTag>) => void;
   onRemove: (id: string) => void;
 }) {
+  useEffect(() => { void loadNoteFonts(tags); }, [tags]);
   const pages = [...new Set(leaves.map((l) => l.page))];
   return (
     <div className="space-y-4">
@@ -1490,6 +1498,12 @@ function TagsPanel({
                 Remove
               </button>
             </div>
+            <label className="flex items-center gap-2 text-xs">Font
+              <select aria-label="Tab font" className="min-w-0 rounded border bg-background p-2 text-sm" value={t.font ?? ""} onChange={e => onEdit(t.id, { font: (e.target.value || undefined) as PageTag["font"] })}>
+                <option value="">Default</option>
+                {FONT_CHOICES.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+              </select>
+            </label>
             <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Tab colour">
               {TAG_COLOURS.map((c) => (
                 <button
@@ -1702,7 +1716,7 @@ function EditablePageTab({tag, centre, height, left, selected, disabled, page, o
   };
   return <button type="button" aria-label={`Move tab ${tag.label || `page ${tag.page}`}`} title="Drag along the page edge; arrow keys adjust the position" disabled={disabled}
     className={`absolute z-20 touch-none select-none rounded-sm text-xs shadow-sm ${selected ? "ring-2 ring-primary ring-offset-2" : ""}`}
-    style={{top: `${(centre - height / 2) * 100}%`, height: `${height * 100}%`, width: '7.5%', [left ? 'right' : 'left']: '99.6%', background: tag.colour, color: '#111', cursor: disabled ? 'default' : 'ns-resize'}}
+    style={{top: `${(centre - height / 2) * 100}%`, height: `${height * 100}%`, width: '7.5%', [left ? 'right' : 'left']: '99.6%', fontFamily: tag.font ? NOTE_FONT_FAMILIES[tag.font].css : undefined, background: tag.colour, color: '#111', cursor: disabled ? 'default' : 'ns-resize'}}
     onClick={onSelect}
     onPointerDown={e => {if (!e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return; e.preventDefault();e.stopPropagation();onSelect();e.currentTarget.setPointerCapture(e.pointerId);drag.current={id:e.pointerId,y:e.clientY,centre};}}
     onPointerMove={e => {const g=drag.current, box=page.current?.getBoundingClientRect();if (g && g.id===e.pointerId && box?.height) onMove(clamp(g.centre+(e.clientY-g.y)/box.height));}}

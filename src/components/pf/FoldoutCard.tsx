@@ -8,14 +8,17 @@ import {
   loadNoteFonts,
   loadNoteImages,
   paintNoteSurface,
+  paintStickySurface,
 } from "@/lib/portfolia/foldout-paint";
 
 export function NoteSurface({
   side,
   label,
+  sticky = false,
 }: {
   side: FoldoutSurface;
   label?: string;
+  sticky?: boolean;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -30,7 +33,7 @@ export function NoteSurface({
         h = canvas.clientHeight || height;
       canvas.width = Math.max(1, Math.round(w * 2));
       canvas.height = Math.max(1, Math.round(h * 2));
-      paintNoteSurface(
+      (sticky ? paintStickySurface : paintNoteSurface)(
         canvas.getContext("2d")!,
         canvas.width,
         canvas.height,
@@ -55,7 +58,7 @@ export function NoteSurface({
       observer.disconnect();
       images.forEach((i) => i.close());
     };
-  }, [JSON.stringify(side)]);
+  }, [JSON.stringify(side), sticky]);
   return (
     <canvas
       ref={ref}
@@ -202,6 +205,7 @@ export function FoldoutCard({
       data-open={progress > 0.5}
       data-revealed={progress > 0}
       data-baked={baked}
+      data-note-style={item.style ?? "foldout"}
       data-hinge={item.hinge}
       style={{ ...style, touchAction: "none" }}
       onTouchStart={(e) => e.stopPropagation()}
@@ -291,7 +295,7 @@ export function FoldoutCard({
           className="pf-foldout-front"
           style={{ opacity: sceneRendered ? 0 : 1 }}
         >
-          {!sceneRendered && <NoteSurface side={outside} />}
+          {!sceneRendered && <NoteSurface side={outside} sticky={item.style === "sticky"} />}
         </span>
         <span
           className="pf-foldout-back"

@@ -11,7 +11,7 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
       width: 1,
       height: 1,
       getContext: () => ({
-        save() {},
+        save() {}, translate() {},
         restore() {},
         beginPath() {},
         rect() {},
@@ -22,7 +22,7 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
     }),
   } as unknown as Document;
   try {
-    for (const hinge of ["left", "right", "top", "bottom", "none"] as const) {
+    for (const hinge of ["left", "right", "top", "bottom", "none", "sticky"] as const) {
       const book = new THREE.Group(),
         paper = new THREE.MeshPhysicalMaterial({ roughness: 0.42 });
       const mats = [paper];
@@ -41,7 +41,8 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
         colour: "#ffffff",
         outside: { colour: "#ffffff", text: "" },
         inside: { colour: "#eeeeee", text: "" },
-        hinge,
+        hinge: hinge === "sticky" ? "top" : hinge,
+        ...(hinge === "sticky" ? { style: "sticky" as const } : {}),
         x: 0.2,
         y: 0.3,
         width: 0.3,
@@ -67,7 +68,8 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
       notes.progress("a", 0.5);
       const mid = flap();
       assert.ok(mid.maxZ > 0.1, "flap lifts above the book");
-      assert.equal(mid.mesh.material.roughness, paper.roughness);
+      assert.equal(mid.mesh.material.roughness, hinge === "sticky" ? .97 : paper.roughness);
+      if (hinge === "sticky") { assert.equal(mid.mesh.material.clearcoat, 0); assert.ok(mid.mesh.material.bumpMap); }
       // The flap bends: its points do not all lie in one plane.
       const pos = mid.mesh.geometry.getAttribute("position");
       const sample = new Set<string>();
@@ -85,7 +87,11 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
       if (hinge === "top") assert.ok(centre.y > 0);
       if (hinge === "bottom") assert.ok(centre.y < 0);
       notes.progress("a", 0);
-      assert.equal(group.visible, false);
+      assert.equal(group.visible, hinge === "sticky");
+      if (hinge === "sticky") {
+        assert.equal(group.children.length, 4, "adhesive strip stays attached above the base and two paper faces");
+        assert.ok(flap().maxZ > .04, "closed sticky note stays lifted above the page");
+      }
       notes.clear();
       assert.equal(book.children.length, 0);
       assert.deepEqual(mats, [paper]);

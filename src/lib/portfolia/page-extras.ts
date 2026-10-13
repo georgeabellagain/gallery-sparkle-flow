@@ -1,3 +1,4 @@
+import { NOTE_FONT_IDS, type NoteFont } from "./foldouts";
 /** Page tabs and website links: small extras that sit on a page of the book. Pure data and validation. */
 export interface PageTag {
   id: string;
@@ -5,6 +6,8 @@ export interface PageTag {
   page: number;
   label: string;
   colour: string;
+  /** Omitted preserves the original tab typeface. */
+  font?: NoteFont;
   /** Centre along the page edge: 0 is top, 1 is bottom. Omitted keeps automatic spacing. */
   position?: number;
 }
@@ -67,6 +70,7 @@ export function validatePageTag(t: PageTag, pages: number): string | null {
   if (!Number.isInteger(t.page) || t.page < 1 || t.page > pages) return "Choose a page in this PDF.";
   if (typeof t.label !== "string" || t.label.length > TAG_LABEL_LIMIT) return `Keep tag text to ${TAG_LABEL_LIMIT} characters.`;
   if (!hex.test(t.colour)) return "Choose a tag colour.";
+  if (t.font !== undefined && !(NOTE_FONT_IDS as readonly unknown[]).includes(t.font)) return "Choose a tab font.";
   if (t.position !== undefined && (!Number.isFinite(t.position) || t.position < 0 || t.position > 1)) return "Keep the tab on the page edge.";
   return null;
 }

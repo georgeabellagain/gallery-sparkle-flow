@@ -1,4 +1,6 @@
 import * as THREE from "three";
+import type { NoteFont } from "./foldouts";
+import { NOTE_FONT_FAMILIES } from "./foldout-paint";
 import { noteInk } from "./foldout-paint";
 import { pageRelief } from "./page-relief";
 import { nearPage, TAB_SIZE, tabFrame, tabSlot, type TabEdge, type TabPlan } from "./tab-geometry";
@@ -8,6 +10,7 @@ export interface TabSpec {
   /** What the tab says. */
   text: string;
   colour: string;
+  font?: NoteFont;
   position?: number;
 }
 const COLS = 4;
@@ -47,11 +50,12 @@ export function createBookTabs(
     ctx.fillStyle = noteInk(spec.colour);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+    const family = spec.font ? NOTE_FONT_FAMILIES[spec.font].css : '"Instrument Sans", Arial, sans-serif';
     let px = Math.min(width * 0.52, 44);
-    ctx.font = `600 ${px}px "Instrument Sans", Arial, sans-serif`;
+    ctx.font = `600 ${px}px ${family}`;
     while (px > 8 && ctx.measureText(spec.text).width > height * 0.84) {
       px *= 0.9;
-      ctx.font = `600 ${px}px "Instrument Sans", Arial, sans-serif`;
+      ctx.font = `600 ${px}px ${family}`;
     }
     ctx.translate(width / 2, height / 2);
     ctx.rotate(-Math.PI / 2);

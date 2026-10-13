@@ -150,6 +150,8 @@ export function paintClosedNotes(
 ) {
   const ctx = canvas.getContext("2d")!;
   for (const f of items) {
+    // Sticky notes remain separate raised meshes, including while closed.
+    if (f.style === "sticky") continue;
     ctx.save();
     ctx.translate(f.x * canvas.width, f.y * canvas.height);
     paintNoteSurface(
@@ -161,4 +163,16 @@ export function paintClosedNotes(
     );
     ctx.restore();
   }
+}
+
+/** Reserve the adhesive strip so note text remains below it. */
+export function paintStickySurface(ctx: CanvasRenderingContext2D, width: number, height: number, side: FoldoutSurface, images: NoteImages) {
+  ctx.fillStyle = side.colour;
+  ctx.fillRect(0, 0, width, height);
+  ctx.save();
+  ctx.translate(0, height * .08);
+  paintNoteSurface(ctx, width, height * .92, side, images);
+  ctx.restore();
+  ctx.fillStyle = "rgba(0,0,0,.09)";
+  ctx.fillRect(0, 0, width, height * .08);
 }
