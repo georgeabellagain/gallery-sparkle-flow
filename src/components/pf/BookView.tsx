@@ -982,9 +982,9 @@ export function BookView({
   useEffect(() => { if (error) { console.error("Book render error", error); onRenderError?.(error); } }, [error, onRenderError]);
   const bookReady = (ready > 0 || fallback) && warm && !loading && !error;
   const [litNotesKey, setLitNotesKey] = useState("");
-  const notesForSpread = (pages: Array<number | null>) => pages.flatMap((n, side) => n === null ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side })));
+  const notesForSpread = (pages: Array<number | null>) => pages.flatMap((n, side) => n === null ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side, exterior: n === 0 || n === layout.leaves.length - 1 })));
   useEffect(() => { noteProgresses.current.clear(); setOpenNote(false); }, [leaf, additions]);
-  const currentNoteSpecs = spread.flatMap((n, side) => n === null || (narrow && n !== leaf) ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side })));
+  const currentNoteSpecs = spread.flatMap((n, side) => n === null || (narrow && n !== leaf) ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side, exterior: n === 0 || n === layout.leaves.length - 1 })));
   const preparedNotesReady = !!scene.current?.notesReady(currentNoteSpecs);
   const notesKey = JSON.stringify([ready,spread,narrow,leaf,additions,bookReady,wait,fallback]);
   useEffect(() => {
@@ -992,7 +992,7 @@ export function BookView({
     if (!renderer) return;
     let cancelled = false;
     if (!bookReady || wait || fallback) { setLitNotesKey(""); renderer.clearNotes(); return; }
-    const visible = spread.flatMap((n,side) => n === null || (narrow && n !== leaf) ? [] : foldoutsForLeaf(additions,layout.leaves[n]!).map(item=>({item,side})));
+    const visible = spread.flatMap((n,side) => n === null || (narrow && n !== leaf) ? [] : foldoutsForLeaf(additions,layout.leaves[n]!).map(item=>({item,side,exterior: n === 0 || n === layout.leaves.length - 1})));
     if (renderer.notesReady(visible)) { setLitNotesKey(notesKey); return; }
     setLitNotesKey("");
     void renderer.setNotes(visible).then(()=>{if(!cancelled)setLitNotesKey(notesKey);});

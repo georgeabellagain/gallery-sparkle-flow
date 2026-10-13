@@ -25,7 +25,7 @@ export function createBookNotes(
   let generation = 0;
   const entries = new Map<
     string,
-    { group: THREE.Group; side: number; incoming: boolean; sticky: boolean; shapeFlap: (p: number) => void }
+    { group: THREE.Group; side: number; exterior: boolean; incoming: boolean; sticky: boolean; shapeFlap: (p: number) => void }
   >();
   const resources: Array<{ dispose: () => void }> = [];
   const ownMaterials: THREE.MeshPhysicalMaterial[] = [];
@@ -45,7 +45,7 @@ export function createBookNotes(
     resources.splice(0).forEach((r) => r.dispose());
     repaint();
   };
-  const set = async (notes: Array<{ item: Foldout; side: number; incoming?: boolean }>) => {
+  const set = async (notes: Array<{ item: Foldout; side: number; exterior?: boolean; incoming?: boolean }>) => {
     const key = JSON.stringify(notes);
     if (key === currentKey) return;
     // Keep the current meshes visible while destination fonts/images prepare.
@@ -66,12 +66,12 @@ export function createBookNotes(
     clear();
     currentKey = key;
     try {
-      for (const { item: f, side, incoming = false } of notes) {
+      for (const { item: f, side, exterior = false, incoming = false } of notes) {
         if (f.hinge === "none") continue;
         const vertical = f.hinge === "top" || f.hinge === "bottom",
           negative = f.hinge === "left" || f.hinge === "top";
         const spineDistance = side === 0 ? 1 - f.x - f.width : f.x;
-        const spineBlend = Math.min(1, Math.max(0, (spineDistance - .12) / .08));
+        const spineBlend = exterior ? 1 : Math.min(1, Math.max(0, (spineDistance - .12) / .08));
         const curlAmount = spineBlend * spineBlend * (3 - 2 * spineBlend);
         const stickyLift = THREE.MathUtils.lerp(.003, NOTE_LIFT + FLAP_LIFT, curlAmount);
         const w = f.width,
@@ -230,7 +230,7 @@ export function createBookNotes(
           }
         };
         shapeFlap(0);
-        entries.set(f.id, { group, side, incoming, sticky: f.style === "sticky", shapeFlap });
+        entries.set(f.id, { group, side, exterior, incoming, sticky: f.style === "sticky", shapeFlap });
       }
     } finally {
       images.forEach((i) => i.close());
@@ -238,7 +238,7 @@ export function createBookNotes(
     settledKey = key;
     repaint();
   };
-  let moving: Array<{ mesh: THREE.Mesh; rest: Float32Array; centre: THREE.Vector3; incoming: boolean }> = [];
+  let moving: Array<{ mesh: THREE.Mesh; rest: Float32Array; centre: THREE.Vector3; incoming: boolean; exterior: boolean }> = [];
   let covered: Array<{ mesh: THREE.Mesh; rest: Float32Array; centre: THREE.Vector3; revealing: boolean }> = [];
   const beginTurn = (side: number) => {
     moving = []; covered = [];
@@ -266,7 +266,7 @@ export function createBookNotes(
       for (const child of entry.group.children) {
         const mesh = child as THREE.Mesh;
         const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
-        moving.push({ mesh, rest: Float32Array.from(positions.array), centre: entry.group.position.clone(), incoming: entry.incoming });
+        moving.push({ mesh, rest: Float32Array.from(positions.array), centre: entry.group.position.clone(), incoming: entry.incoming, exterior: entry.exterior });
       }
     }
   };
@@ -274,8 +274,8 @@ export function createBookNotes(
   let sourceIds: Set<string> | undefined, destinationIds: Set<string> | undefined;
   return {
     set,
-    has(notes: Array<{ item: Foldout; side: number }>) { return settledKey === JSON.stringify(notes); },
-    async prepare(from: Array<{ item: Foldout; side: number }>, to: Array<{ item: Foldout; side: number }>) {
+    has(notes: Array<{ item: Foldout; side: number; exterior?: boolean }>) { return settledKey === JSON.stringify(notes); },
+    async prepare(from: Array<{ item: Foldout; side: number; exterior?: boolean }>, to: Array<{ item: Foldout; side: number; exterior?: boolean }>) {
       destinationKey = JSON.stringify(to);
       const ids = new Set(from.map(n => n.item.id));
       sourceIds = ids; destinationIds = new Set(to.map(n => n.item.id));
@@ -300,7 +300,7 @@ export function createBookNotes(
         mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere(); mesh.geometry.computeBoundingBox();
       }
       const angle = Math.PI * progress, sin = Math.sin(angle), cos = Math.cos(angle);
-      for (const { mesh, rest, centre, incoming } of moving) {
+      for (const { mesh, rest, centre, incoming, exterior } of moving) {
         const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
         for (let i = 0; i < positions.count; i++) {
           const x = rest[i * 3]! + centre.x, y = rest[i * 3 + 1]! + centre.y;
@@ -309,7 +309,7 @@ export function createBookNotes(
           const lift = (rest[i * 3 + 2]! - reliefAt(x, y)) * (incoming ? -1 : 1);
           if (sheetPoint) {
             const surface = sheetPoint(u, v);
-            const clearance = stickyTurnClearance(lift, u, surface.normal, surface.position.z, surface.floorZ);
+            const clearance = stickyTurnClearance(lift, exterior ? 1 : u, surface.normal, surface.position.z, surface.floorZ);
             // Offset along the real curved sheet normal, not a flat rotation.
             // The destination note belongs to its opposite face.
             positions.setXYZ(i,

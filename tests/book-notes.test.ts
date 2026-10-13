@@ -170,6 +170,12 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
             const y = positions.getY(i) + flatGroup.position.y;
             assert.ok(positions.getZ(i) - pageRelief(Math.abs(x), y / 1.4 + .5, 0) < .004, "notes next to either side of the spine rest flat without a curled free edge");
           }
+          await notes.set([{ item: nearSpine, side, exterior: true }]);
+          const cover = book.children[0], coverPaper = cover.children[1] as THREE.Mesh;
+          const coverPositions = coverPaper.geometry.getAttribute("position");
+          let curl = 0;
+          for (let i = 0; i < coverPositions.count; i++) curl = Math.max(curl, coverPositions.getZ(i) - pageRelief(Math.abs(coverPositions.getX(i) + cover.position.x), (coverPositions.getY(i) + cover.position.y) / 1.4 + .5, 0));
+          assert.ok(curl > .05, "first and last page notes retain their full curl beside the spine");
         }
       }
       notes.clear();
