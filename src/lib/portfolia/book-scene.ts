@@ -837,6 +837,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     attr.needsUpdate = true;
     geometry.computeVertexNormals();
+    notes.turn(progress, dir);
     if (tabPlan) tabs.turn(tabPlan, progress, dir);
     driveContact(progress);
   };
@@ -962,7 +963,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       turning = true;
       applyPendingQuality();
       resize();
-      notes.clear();
+      notes.beginTurn(dir === 1 ? 1 : 0);
       tabPlan = plan;
       const originalFocus = focus;
       // A cover first aligns with the open spread. The sheet then turns.
@@ -1023,6 +1024,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       // At the end the sheet lies exactly over the covered page, so swapping
       // the textures in the same frame as hiding it is invisible.
       sheet.visible = false;
+      notes.endTurn(complete);
       contactTurn = null;
       if (tabPlan) {
         tabs.setRest(Object.fromEntries(tabPlan.map((p) => [p.id, complete ? p.to : p.from])));
