@@ -823,7 +823,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const shape = (progress: number, dir: 1 | -1) => {
     if (turnRestPages) {
       [left, right].forEach((mesh, i) => {
-        const visible = turnRestPages![i] && turnRestVisible(progress, i === (dir === 1 ? 1 : 0));
+        const visible = !!turnRestPages![i] && turnRestVisible(progress, i === (dir === 1 ? 1 : 0));
         if (mesh.visible !== visible) { mesh.visible = visible; shadowsDirty = true; }
       });
     }
