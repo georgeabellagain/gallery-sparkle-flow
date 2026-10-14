@@ -1,3 +1,5 @@
+> Rendering is temporarily disabled by STUDIO_RENDERING_ENABLED: creation, preview controls and video playback are hidden. Saved assets/settings remain available for later re-enabling.
+
 # Rendered Studio
 
 An optional publishing mode. The editor and live Studio remain available.
@@ -47,10 +49,12 @@ Rendered playback downloads all stills and clips into a cancellable in-memory bl
 
 Wheel zoom preserves the cursor point in rendered playback and scroll/page readers. Live book wheel zoom already uses the scene's cursor anchor. Page-by-page changes no longer slide or fade in. The appearance toggle has no enclosing bar.
 
-Sticky notes support Openable/Not openable; a fixed sticky still follows its page and stays matte. Note curvature uses the owning page's seed. Covered notes flatten before the overlapping page crosses, incoming notes remain hidden until their face is exposed, and page-tab jumps place the destination directly before revealing notes. Tabs tuck further into the paper with a minimal surface offset and sample its actual edge relief. Portfolio name is an optional synced field edited at the top of Customise. New renders use 60 FPS and invalidate older captures.
+Sticky notes support Openable/Not openable; a fixed sticky still follows its page and stays matte. Note curvature uses the owning page's seed. Covered notes stay visible and flatten from 60% to 75% of the covering turn, incoming notes remain hidden until their face is exposed, and page-tab jumps place the destination directly before revealing notes. Tabs tuck further into the paper with a minimal surface offset and sample its actual edge relief. Portfolio name is an optional synced field edited at the top of Customise. New renders use 60 FPS and invalidate older captures.
 
 
 ### Export throughput
 Offline capture again encodes every frame at 60 FPS. AVC capability probing is cached per output size. Encoding still awaits per-frame backpressure, but cooperative yields use MessageChannel rather than a nested timer after every frame. Saving up to two assets overlaps with capture/encoding; the portfolio only switches to the new render after every save succeeds. Cancellation/failure waits for outstanding saves before deleting assets. High-resolution capture and bitrate are unchanged. Real-time fallback remains dependent on device frame delivery. These are throughput improvements, not a measured browser speed-up.
 
 Scroll mode uses normal mouse-wheel scrolling and a right-hand scrollbar. Ctrl-wheel retains cursor-anchored zoom there; page-by-page and flipbook wheel zoom remain unchanged. Background presets can be reduced to 25% size; seamless repeating tiles cover the frame in both live appearances and capture. Uploaded photos retain their existing minimum size.
+
+Natural imperfections now use a 0–100% intensity slider. Legacy enabled/disabled values map to 100%/0%; all four effects scale together. Editor and homepage flipbook page numbers are at the top, above the editing widget.

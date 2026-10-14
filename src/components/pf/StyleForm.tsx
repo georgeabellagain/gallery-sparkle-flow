@@ -1,3 +1,5 @@
+import { naturalIntensity } from "@/lib/portfolia/natural-imperfections";
+import { STUDIO_RENDERING_ENABLED } from "@/lib/portfolia/studio-render-feature";
 import { RenderStudioPanel, RenderedStudioPreview } from "./RenderStudioPanel";
 import { currentRender } from "@/lib/portfolia/rendered-studio";
 import { BACKGROUND_PRESETS, backgroundPicture } from "@/lib/portfolia/background-presets";
@@ -260,14 +262,14 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
               {enabledLooks.includes("studio") && (
                 <div className="space-y-3 border-t border-border pt-3" onPointerDownCapture={() => setPreviewLook("studio")} onFocusCapture={() => setPreviewLook("studio")}>
                   <p className="font-medium">Studio</p>
-                  <div className="space-y-2 rounded-xl border border-border p-3">
+                  {STUDIO_RENDERING_ENABLED && <div className="space-y-2 rounded-xl border border-border p-3">
                     <p className="text-xs text-muted-foreground">Rendered Studio plays HD page turns and note animations on your shared portfolio.</p>
                     <Button size="xs" variant="line" onClick={() => setRenderDialog(true)}>{currentRender(p) ? "Render again" : "Render Studio in HD"}</Button>
                     {currentRender(p) && <Button size="xs" variant="line" onClick={() => setRenderPreview(true)}>View rendered version</Button>}
                     {p.pdf?.renderedStudio && !currentRender(p) && <p className="text-xs">The render is out of date. Live Studio is used until you render again.</p>}
                     <label className="flex items-center gap-2"><input type="checkbox" checked={viewer.studioPlayback === "rendered"} disabled={!currentRender(p)} onChange={e=>setViewer({studioPlayback:e.target.checked?"rendered":"live"})}/><span>Use rendered Studio on shared links</span></label>
-                  </div>
-                  <label className="flex items-start gap-2"><input type="checkbox" className="mt-1 accent-foreground" checked={viewer.studioImperfections ?? false} onChange={e=>setViewer({studioImperfections:e.target.checked})} /><span>Natural imperfections<span className="block text-xs text-muted-foreground">Paper fibres, subtle colour variation, edge wear and a little backdrop dust.</span></span></label>
+                  </div>}
+                  <label className="block space-y-1 text-xs"><span>Natural imperfections</span><span className="flex items-center gap-2"><input type="range" aria-label="Natural imperfections intensity" min="0" max="100" step="1" className="min-w-0 flex-1 accent-foreground" value={Math.round(naturalIntensity(viewer.studioImperfections)*100)} onChange={e=>setViewer({studioImperfections:Number(e.target.value)/100})} /><span className="w-10 text-right tabular-nums">{Math.round(naturalIntensity(viewer.studioImperfections)*100)}%</span></span><span className="block text-muted-foreground">Paper fibres, colour variation, edge wear and backdrop dust. 0% turns them off.</span></label>
                   <div className="space-y-1.5">
                     <p>Paper</p>
                     <select aria-label="Studio paper" className="w-full min-w-0 rounded-lg border border-border bg-background p-2" value={viewer.finish} onChange={e => setViewer({ finish: e.target.value as SurfaceKind })}>
@@ -353,8 +355,8 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
           </div>}
         </div>
       </div>}
-      {renderPreview && <RenderedStudioPreview p={p} onClose={() => setRenderPreview(false)} />}
-      {renderDialog && <RenderStudioPanel p={p} onClose={() => setRenderDialog(false)} />}
+      {STUDIO_RENDERING_ENABLED && renderPreview && <RenderedStudioPreview p={p} onClose={() => setRenderPreview(false)} />}
+      {STUDIO_RENDERING_ENABLED && renderDialog && <RenderStudioPanel p={p} onClose={() => setRenderDialog(false)} />}
     </div>
   );
 }

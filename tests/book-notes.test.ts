@@ -149,7 +149,11 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
         await preparing;
         const coveredNote = book.children[0], coveredPaper = coveredNote.children[1] as THREE.Mesh;
         const coveredRest = Float32Array.from(coveredPaper.geometry.getAttribute("position").array);
-        notes.beginTurn(1); notes.turn(.75, 1);
+        notes.beginTurn(1); notes.turn(.55, 1);
+        assert.equal(coveredNote.visible,true,"covering note remains visible, rather than disappearing halfway");
+        assert.deepEqual(coveredPaper.geometry.getAttribute("position").array, coveredRest,"curl is retained until the later flattening phase");
+        notes.turn(.75, 1);
+        assert.equal(coveredNote.visible,true,"flattened note is occluded by the page instead of hidden");
         const compressed = coveredPaper.geometry.getAttribute("position");
         for (let i = 0; i < compressed.count; i++) assert.ok(compressed.getZ(i) < coveredRest[i * 3 + 2]!, "covered sticky note is pressed below the landing sheet by 75% of the turn");
         notes.turn(.2, 1);

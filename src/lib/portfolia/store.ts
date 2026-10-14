@@ -44,7 +44,7 @@ export interface ViewerSettings {
   studioBrightness?: number;
   /** Optional white overhead fill, 0..1; omitted is off. */
   studioTopLight?: number;
-  studioImperfections?: boolean;
+  studioImperfections?: boolean | number;
   studioPlayback?: "live" | "rendered";
   /** Retention of HDRI detail versus its solid average colour, 0..1. */
   studioLightingStrength?: number;

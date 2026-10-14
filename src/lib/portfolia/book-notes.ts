@@ -126,7 +126,7 @@ export function createBookNotes(
           texture.anisotropy = 4;
           resources.push(texture);
           const mat = template().clone();
-          setNaturalImperfections(mat,Boolean(template().userData["naturalEnabled"]));
+          setNaturalImperfections(mat,template().userData["naturalEnabled"] as number | boolean | undefined);
           if (f.style === "sticky") {
             const grain = new Uint8Array(64 * 64 * 4);
             for (let i = 0; i < 64 * 64; i++) {
@@ -286,13 +286,13 @@ export function createBookNotes(
     },
     beginTurn,
     turn(progress: number, dir: 1 | -1, sheetPoint?: (u: number, v: number) => { position: THREE.Vector3; normal: THREE.Vector3; floorZ?: number }) {
-      // Compress the note under the approaching sheet, fully flat before halfway.
-      const t = Math.min(1, Math.max(0, (progress - .25) / .2));
+      // Compress the note under the approaching sheet, fully flat at 75% of the turn.
+      const t = Math.min(1, Math.max(0, (progress - .6) / .15));
       const flatten = t * t * (3 - 2 * t);
       const reveal = Math.min(1, Math.max(0, (progress - .55) / .2));
       const revealFlatten = 1 - reveal * reveal * (3 - 2 * reveal);
       for (const { mesh, rest, centre, seed, revealing } of covered) {
-        if(mesh.parent) mesh.parent.visible = revealing ? progress >= .5 : progress < .5;
+        if(mesh.parent) mesh.parent.visible = revealing ? progress >= .5 : true;
         const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
         const faceGap = (mesh.material as THREE.MeshPhysicalMaterial).side === THREE.BackSide ? -.0002 : .0002;
         for (let i = 0; i < positions.count; i++) {
