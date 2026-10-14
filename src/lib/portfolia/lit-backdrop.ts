@@ -1,3 +1,4 @@
+import { setNaturalImperfections } from "./natural-imperfections";
 import { backdropCoverage } from "./backdrop-coverage";
 import { backdropNormals } from "./backdrop-normals";
 import * as THREE from "three";
@@ -28,6 +29,7 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
   let normals = new THREE.CanvasTexture(normalCanvas); normals.colorSpace = THREE.NoColorSpace;
   material.normalMap = normals; material.normalScale.set(.35, .35);
   return {
+    setImperfections(enabled: boolean) { setNaturalImperfections(material, enabled, "backdrop"); repaint(); },
     set(url: string | undefined, nextFit: Partial<BackgroundFit> | undefined, active: boolean, colour = "#191d3a", lit = true) {
       material.toneMapped = lit;
       material.color.set(lit ? (url ? "#ffffff" : colour) : "#000000");

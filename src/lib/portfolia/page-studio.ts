@@ -1,3 +1,4 @@
+import { setNaturalImperfections } from "./natural-imperfections";
 import { averageEnvironment, createEnvironmentDiffuser } from "./environment-diffusion";
 import { readerSlideOffset, READER_SLIDE_MS } from "./reader-slide";
 import { createFrameCommits } from "./frame-commits";
@@ -10,7 +11,7 @@ import { createLitBackdrop } from "./lit-backdrop";
 import { bookSurfaceRatio, readerTextureEvictions } from "./render-budget";
 import { pageWorldRect } from "./page-position";
 
-export type PageStudioSettings = { hdri: HdriId; brightness: number; topLight?: number; finish: SurfaceKind; strength?: number; textureStrength?: number };
+export type PageStudioSettings = { hdri: HdriId; brightness: number; topLight?: number; imperfections?: boolean; finish: SurfaceKind; strength?: number; textureStrength?: number };
 type Presentation = { layer: HTMLElement; direction: 1 | -1; animate: boolean };
 type Page = { layer?: HTMLElement; slide?: { started: number; direction: 1 | -1 }; element: HTMLElement; source: HTMLCanvasElement; near: boolean; mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial> | null; revealAt: number | null; usedAt: number };
 
@@ -71,6 +72,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
     page.mesh.material.dispose(); page.mesh = null;
   };
   const applyMaterial = (material: THREE.MeshStandardMaterial) => {
+    setNaturalImperfections(material,Boolean(settings.imperfections));
     const textured = settings.finish !== "satin";
     if (textured && !bumps.has(settings.finish)) {
       const bump = new THREE.CanvasTexture(surfaceCanvas(settings.finish, "soft"));
@@ -250,6 +252,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       const target = await environment(next.hdri);
       if (disposed || version !== revision) return;
       settings = next;
+      backdrop.setImperfections(Boolean(next.imperfections));
       const pattern = HDRI_PRESETS.find(p => p.id === next.hdri)?.dapple;
       if (pattern && !masks.has(pattern)) masks.set(pattern, dappleTexture(pattern));
       sun.map = pattern ? masks.get(pattern)! : null; sun.visible = Boolean(pattern);

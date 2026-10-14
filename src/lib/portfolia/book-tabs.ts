@@ -1,3 +1,4 @@
+import { setNaturalImperfections } from "./natural-imperfections";
 import * as THREE from "three";
 import type { NoteFont } from "./foldouts";
 import { NOTE_FONT_FAMILIES } from "./foldout-paint";
@@ -100,6 +101,7 @@ export function createBookTabs(
       resources.push(texture);
       const meshFor = (g: THREE.BufferGeometry, side: THREE.Side) => {
         const mat = template().clone();
+          setNaturalImperfections(mat,Boolean(template().userData["naturalEnabled"]));
         mat.map = texture;
         mat.side = side;
         mat.emissiveMap = mat.emissive.getHex() ? texture : null;

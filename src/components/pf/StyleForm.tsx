@@ -267,6 +267,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
                     {p.pdf?.renderedStudio && !currentRender(p) && <p className="text-xs">The render is out of date. Live Studio is used until you render again.</p>}
                     <label className="flex items-center gap-2"><input type="checkbox" checked={viewer.studioPlayback === "rendered"} disabled={!currentRender(p)} onChange={e=>setViewer({studioPlayback:e.target.checked?"rendered":"live"})}/><span>Use rendered Studio on shared links</span></label>
                   </div>
+                  <label className="flex items-start gap-2"><input type="checkbox" className="mt-1 accent-foreground" checked={viewer.studioImperfections ?? false} onChange={e=>setViewer({studioImperfections:e.target.checked})} /><span>Natural imperfections<span className="block text-xs text-muted-foreground">Paper fibres, subtle colour variation, edge wear and a little backdrop dust.</span></span></label>
                   <div className="space-y-1.5">
                     <p>Paper</p>
                     <select aria-label="Studio paper" className="w-full min-w-0 rounded-lg border border-border bg-background p-2" value={viewer.finish} onChange={e => setViewer({ finish: e.target.value as SurfaceKind })}>
