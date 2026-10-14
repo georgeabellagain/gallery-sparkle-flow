@@ -25,8 +25,11 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
   let normals = new THREE.CanvasTexture(normalCanvas); normals.colorSpace = THREE.NoColorSpace;
   material.normalMap = normals; material.normalScale.set(.35, .35);
   return {
-    set(url: string | undefined, nextFit: Partial<BackgroundFit> | undefined, active: boolean, colour = "#191d3a") {
-      material.color.set(url ? "#ffffff" : colour);
+    set(url: string | undefined, nextFit: Partial<BackgroundFit> | undefined, active: boolean, colour = "#191d3a", lit = true) {
+      material.toneMapped = lit;
+      material.color.set(lit ? (url ? "#ffffff" : colour) : "#000000");
+      material.emissive.set(lit ? "#000000" : (url ? "#ffffff" : colour));
+      material.emissiveMap = !lit && url ? texture : null;
       material.map = url ? texture : null; material.normalMap = url ? normals : null; material.needsUpdate = true;
       enabled = active; fit = { ...DEFAULT_FIT, ...nextFit }; dimensions = "";
       plane.visible = enabled && (!url || (!!source && url === currentUrl));
@@ -40,7 +43,7 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
         source = image; plane.visible = enabled; dimensions = ""; repaint();
       }).catch(() => { /* The unlit DOM image remains available when decoding fails. */ });
     },
-    frame(camera: THREE.PerspectiveCamera, width: number, height: number) {
+    frame(camera: THREE.PerspectiveCamera, width: number, height: number, anchoredHeight?: number) {
       if ((!source && currentUrl) || !enabled) { plane.visible = false; if (catcher) catcher.visible=false; return; }
       const stamp = `${width}|${height}|${fit.scale}|${fit.x}|${fit.y}`;
       if (source && stamp !== dimensions) {
@@ -61,6 +64,7 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
           texture = new THREE.CanvasTexture(canvas);
           texture.colorSpace = THREE.SRGBColorSpace;
           material.map = texture;
+          if (material.emissiveMap) material.emissiveMap = texture;
         }
         texture.needsUpdate = true;
         const normalCap = Math.min(1, 512 / Math.max(canvas.width, canvas.height));
@@ -78,8 +82,18 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
         normals.needsUpdate = true;
       }
       const worldHeight = 2 * (camera.position.z - plane.position.z) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-      plane.position.x = camera.position.x; plane.position.y = camera.position.y;
-      plane.scale.set(worldHeight * camera.aspect, worldHeight, 1); plane.visible = true;
+      const anchored = anchoredHeight !== undefined;
+      const extent = anchored ? 8 : 1;
+      const uv = plane.geometry.getAttribute("uv");
+      if (plane.userData["extent"] !== extent) {
+        for (let i = 0; i < uv.count; i++) uv.setXY(i, (i % 2) * extent - (extent - 1) / 2, (i < 2 ? 1 : 0) * extent - (extent - 1) / 2);
+        uv.needsUpdate = true; plane.userData["extent"] = extent;
+      }
+      // A fixed table shares the book's camera. Outside the photograph, clamp
+      // its edge pixels rather than exposing the unlit DOM background.
+      plane.position.x = anchored ? 0 : camera.position.x; plane.position.y = anchored ? 0 : camera.position.y;
+      const heightInWorld = anchoredHeight ?? worldHeight;
+      plane.scale.set(heightInWorld * camera.aspect * extent, heightInWorld * extent, 1); plane.visible = true;
       if (catcher) { catcher.position.x=plane.position.x;catcher.position.y=plane.position.y;catcher.scale.copy(plane.scale);catcher.visible=true; }
     },
     dispose() { disposed = true; revision++; source = null; scene.remove(plane); texture.dispose(); normals.dispose(); plane.geometry.dispose(); material.dispose(); if (catcher) {scene.remove(catcher);catcher.geometry.dispose();catcher.material.dispose();} },
