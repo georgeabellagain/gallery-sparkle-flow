@@ -14,8 +14,8 @@ export type RenderedStudio = {
   version: 1;
   signature: string;
   createdAt: number;
-  width: 1920;
-  height: 1080;
+  width: number;
+  height: number;
   states: RenderedState[];
   bytes: number;
 };
@@ -42,7 +42,7 @@ export function renderSignature(p: Portfolio) {
         : value;
   return JSON.stringify(
     canonical([
-      "studio-capture-4",
+      "studio-capture-5",
       p.pdf?.blobKey,
       viewer,
       p.style?.backdrop,
@@ -66,8 +66,8 @@ export function currentRender(p: Portfolio) {
     !pack ||
     pack.version !== 1 ||
     pack.signature !== renderSignature(p) ||
-    pack.width !== 1920 ||
-    pack.height !== 1080 ||
+    !Number.isInteger(pack.width) || !Number.isInteger(pack.height) ||
+    pack.width < 2 || pack.height < 2 || pack.width > 4096 || pack.height > 4096 || pack.width * pack.height > 8_294_400 ||
     !Array.isArray(pack.states) ||
     !pack.states.length ||
     pack.states.length > 600

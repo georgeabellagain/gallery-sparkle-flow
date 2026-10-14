@@ -366,7 +366,7 @@ export function PdfViewer({
   };
 
   useEffect(() => setMode(startMode), [startMode]);
-  const enabledLooks = looksForMode(view, mode);
+  const enabledLooks = renderedStudio && mode === "book" && !compact ? ["clean", "studio"] as const : looksForMode(view, mode);
   const studioAvailable = enabledLooks.includes("studio");
   const [selectedLook, setSelectedLook] = useState(() => initialLook ?? (compact && autoTurn ? view.look : openingLook(view, startMode)));
   const [previewLook, setPreviewLook] = useState(() => compact ? getPreviewLook() : null);
@@ -712,7 +712,7 @@ export function PdfViewer({
       {mode === "book" && activeLook === "studio" && renderedStudio && !renderFailed && !compact ? (
         <RenderedBook fill={full || immersive} pack={renderedStudio} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} onReady={bookReadyChanged} onFallback={() => setRenderFailed(true)} />
       ) : mode === "book" ? (
-        <Suspense fallback={null}><BookView onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...view, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
+        <Suspense fallback={null}><BookView frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...view, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>
@@ -750,7 +750,7 @@ export function PdfViewer({
         </div>
       )}
 
-      {mode !== "book" && enabledLooks.length > 1 && showControls && (
+      {(mode !== "book" || (renderedStudio && !compact)) && enabledLooks.length > 1 && showControls && (
         <div className="absolute bottom-1.5 left-1.5 z-30 flex w-fit rounded-full bg-background/90 shadow-soft backdrop-blur">
           <Segmented label="Page appearance" value={activeLook} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={changeLook} />
         </div>

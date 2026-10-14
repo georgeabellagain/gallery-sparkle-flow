@@ -1,13 +1,13 @@
-export async function studioCaptureCapability(): Promise<"offline" | "realtime" | "unsupported"> {
+export async function studioCaptureCapability(width = 3840, height = 2160): Promise<"offline" | "realtime" | "unsupported"> {
   if (typeof VideoEncoder !== "undefined") {
     try {
       const { canEncodeVideo, Quality } = await import("mediabunny");
       if (
         await canEncodeVideo("avc", {
-          width: 1920,
-          height: 1080,
+          width,
+          height,
           frameRate: 60,
-          quality: new Quality({ bitrate: 12_000_000 }),
+          quality: new Quality({ bitrate: 32_000_000 }),
         })
       )
         return "offline";
@@ -22,7 +22,7 @@ export async function studioCaptureCapability(): Promise<"offline" | "realtime" 
     ? "realtime"
     : "unsupported";
 }
-/** Frame-count driven 1080p/60 FPS MP4, with a real-time fallback on older browsers. */
+/** Frame-count driven high-resolution/60 FPS MP4, with a real-time fallback on older browsers. */
 export async function recordStudioClip(
   canvas: HTMLCanvasElement,
   action: () => Promise<void>,
@@ -32,11 +32,11 @@ export async function recordStudioClip(
   if (clock && typeof VideoEncoder !== "undefined") {
     const { Output, Mp4OutputFormat, BufferTarget, CanvasSource, Quality, canEncodeVideo } =
       await import("mediabunny");
-    const quality = new Quality({ bitrate: 12_000_000 });
-    if (await canEncodeVideo("avc", { width: 1920, height: 1080, frameRate: 60, quality })) {
+    const quality = new Quality({ bitrate: 32_000_000 });
+    if (await canEncodeVideo("avc", { width: canvas.width, height: canvas.height, frameRate: 60, quality })) {
       const target = new BufferTarget();
       const output = new Output({ format: new Mp4OutputFormat(), target });
-      const source = new CanvasSource(canvas, { codec: "avc", quality, keyFrameInterval: .1 });
+      const source = new CanvasSource(canvas, { codec: "avc", quality, keyFrameInterval: 1 });
       output.addVideoTrack(source, { frameRate: 60 });
       let frame = 0;
       const encode = async () => {
@@ -71,7 +71,7 @@ export async function recordStudioClip(
   signal.throwIfAborted();
   const stream = canvas.captureStream(60),
     chunks: Blob[] = [];
-  const recorder = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 12_000_000 });
+  const recorder = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 32_000_000 });
   let rejectRecording: (error: Error) => void = () => {};
   const finished = new Promise<Blob>((resolve, reject) => {
     rejectRecording = reject;
@@ -114,7 +114,7 @@ export function canvasStill(canvas: HTMLCanvasElement): Promise<Blob> {
     canvas.toBlob(
       (b) => (b ? resolve(b) : reject(new Error("Could not render this page."))),
       "image/webp",
-      0.94,
+      1,
     ),
   );
 }

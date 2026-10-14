@@ -284,6 +284,7 @@ export function BookView({
   demoLightingCycle,
   lightweight = false,
   previewTextureCap = 1600,
+  frameAspect,
   captureQuality = false,
   onExporter,
   foldouts,
@@ -329,6 +330,7 @@ export function BookView({
   /** Small showcase-only textures; normal portfolio artwork is unchanged. */
   previewTextureCap?: number;
   /** Offline feature recording keeps the drawing surface at its original resolution. */
+  frameAspect?: number;
   captureQuality?: boolean;
   onExporter?: (exporter: StudioExporter | null) => void;
   foldouts?: Foldout[];
@@ -1015,7 +1017,7 @@ export function BookView({
     onExporter({render: async (signature, save, progress, signal) => {
       if (lock.current) throw new Error("The book is still moving. Please try again.");
       lock.current = true;
-      const output = document.createElement("canvas"); output.width=1920; output.height=1080;
+      const output = document.createElement("canvas"); output.width=Math.round(viewportRef.current!.clientWidth*2); output.height=Math.round(viewportRef.current!.clientHeight*2);
       const context = output.getContext("2d")!;
       let bytes = 0, completed = 0;
       const total = layout.spreads.length + layout.spreads.reduce((n, _, i) => n + notesForSpread(layout.spreads[i]!).length * 3, 0) + Math.max(0, layout.spreads.length - 1) * 2;
@@ -1025,13 +1027,13 @@ export function BookView({
       const states: RenderedState[] = [];
       let stepFrame: (()=>Promise<void>) | undefined;
       const record = (action:()=>Promise<void>)=>recordStudioClip(output,action,signal,frame=>{stepFrame=frame;renderer.setCaptureClock(frame);});
-      const draw = (canvas: HTMLCanvasElement) => { context.drawImage(canvas,0,0,1920,1080); };
+      const draw = (canvas: HTMLCanvasElement) => { context.drawImage(canvas,0,0,output.width,output.height); };
       const specs = (index: number) => notesForSpread(layout.spreads[index]!);
       const show = async (index: number) => {
         signal.throwIfAborted(); if(scene.current!==renderer)throw new Error("The graphics renderer changed. Please try again."); const spread = layout.spreads[index]!;
         const images = await faces(spread);
         await renderer.setNotes(specs(index));
-        renderer.show(images); renderer.viewport(false, 1.3, bookFocus(spread, spread.find(n=>n!==null)!, false));
+        renderer.show(images); renderer.viewport(false, 1, bookFocus(spread, spread.find(n=>n!==null)!, false));
         renderer.setTabRest(Object.fromEntries((tabPlanFor(spread, spread, 1) ?? []).map(t=>[t.id,t.to])));
         renderer.renderFrame(); return images;
       };
@@ -1048,21 +1050,7 @@ export function BookView({
         await document.fonts.ready;
         await renderer.captureReady();
         renderer.setFrameSink(draw);
-        let exportInset = .35; renderer.setInset(exportInset);
-        // Fit every open note before saving any clip, keeping one camera scale
-        // for all recorded states and avoiding a cut-off flap.
-        for(let i=0;i<layout.spreads.length;i++) {
-          await show(i);
-          for(const spec of specs(i)) {
-            renderer.noteProgress(spec.item.id,1);renderer.renderFrame();
-            for(let attempt=0;attempt<10;attempt++) {
-              const b=renderer.noteBounds(spec.item.id);
-              if(!b||b.x>=3&&b.y>=3&&b.x+b.width<=97&&b.y+b.height<=97)break;
-              exportInset=(1+exportInset)*1.2-1;renderer.setInset(exportInset);renderer.renderFrame();
-            }
-            renderer.noteProgress(spec.item.id,0);renderer.renderFrame();
-          }
-        }
+        renderer.setInset(0);
         for(let i=0;i<layout.spreads.length;i++) {
           report(`Rendering page ${i+1} of ${layout.spreads.length}`);
           await show(i);
@@ -1092,7 +1080,7 @@ export function BookView({
           if(dir===1)states[i]!.forward=clip;else states[i]!.backward=clip;
         }
         signal.throwIfAborted();if(scene.current!==renderer)throw new Error("The graphics renderer changed. Please try again.");
-        return {version:1,signature,createdAt:Date.now(),width:1920,height:1080,states,bytes};
+        return {version:1,signature,createdAt:Date.now(),width:output.width,height:output.height,states,bytes};
       } finally { renderer.setCaptureClock(); renderer.setFrameSink(); lock.current=false; if(alive.current) { await renderer.setNotes(currentNoteSpecs); renderer.show(await faces(spread)); renderer.viewport(narrow,zoom,bookFocus(spread,leafRef.current,narrow)); } }
     }});
     return () => onExporter(null);
@@ -1112,7 +1100,7 @@ export function BookView({
       <div
         ref={viewportRef}
         className="pf-book-viewport"
-        style={{ ...(fullscreen ? { height: FULL_HEIGHT } : immersive ? { height: "max(420px, 100svh)" } : {}), touchAction: canPan ? "none" : "pan-y" }}
+        style={{ ...(frameAspect ? { height: "auto", aspectRatio: String(frameAspect) } : fullscreen ? { height: FULL_HEIGHT } : immersive ? { height: "max(420px, 100svh)" } : {}), touchAction: canPan ? "none" : "pan-y" }}
         data-busy={busy || wait}
         data-narrow={narrow}
         data-panning={panning.current !== null}
@@ -1260,7 +1248,7 @@ export function BookView({
           <span className={cn("inline-flex rounded-full px-3 py-2 ring-1 backdrop-blur-sm", tone === "dark" ? "bg-slate-950/75 text-white ring-white/20" : "bg-white/90 text-slate-700 ring-black/15")}>{label}</span>
         </p>
         {/* Simple / Studio: only offered when the creator has enabled both. Everything else is set in the editor. */}
-        {enabledLooks.length > 1 && (
+        {enabledLooks.length > 1 && !frameAspect && (
           <div className={cn("absolute bottom-1.5 left-1.5 z-20 flex w-fit rounded-full bg-background/90 shadow-soft backdrop-blur transition-opacity duration-300", awake ? "opacity-100" : "pointer-events-none opacity-0")}>
             <Segmented label="Book appearance" value={settings.studio ? "studio" : "clean"} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={updateLook} />
           </div>

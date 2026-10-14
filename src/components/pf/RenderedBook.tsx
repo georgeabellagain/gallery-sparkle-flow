@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { resolveAssetUrl } from "@/lib/portfolia/assets";
 import { stateForPage, renderedAction, type RenderedStudio } from "@/lib/portfolia/rendered-studio";
-import { turnVideoTime } from "@/lib/portfolia/turn-motion";
 import { normaliseUrl } from "@/lib/portfolia/page-extras";
 
 export function RenderedBook({
@@ -32,12 +31,12 @@ export function RenderedBook({
     [error, setError] = useState("");
   const lock = useRef(false),
     video = useRef<HTMLVideoElement>(null),
-    stage = useRef<HTMLDivElement>(null);
+    stage = useRef<HTMLDivElement>(null),
+    frame = useRef<HTMLDivElement>(null);
   const complete = useRef<((error?: Error) => void) | null>(null),
     mounted = useRef(true);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const pointer = useRef<{ id: number; x: number; y: number; startX: number; startY: number; width: number; direction: 1 | -1; mode: "pending" | "pan" | "turn"; released?: boolean; cancelled?: boolean } | null>(null);
-  const scrub = useRef<{ direction: 1 | -1; progress: number; ready: boolean; released: boolean; commit: boolean; settling: boolean; resolve: () => void } | null>(null);
+  const pointer = useRef<{ id: number; x: number; y: number; startX: number; startY: number; moved: boolean } | null>(null);
   const suppressClickUntil = useRef(0);
   const state = pack.states[index]!;
   const url = async (key: string) => {
@@ -61,7 +60,6 @@ export function RenderedBook({
     return () => {
       mounted.current = false;
       complete.current?.();
-      scrub.current?.resolve();
     };
   }, []);
   useEffect(() => {
@@ -83,7 +81,18 @@ export function RenderedBook({
   useEffect(() => {
     if (zoom < 1) onZoomChange(1);
     if (zoom <= 1) setPan({ x: 0, y: 0 });
+    else { const box=stage.current?.getBoundingClientRect(); if(box)setPan(v=>({x:Math.max(-box.width*(zoom-1)/2,Math.min(box.width*(zoom-1)/2,v.x)),y:Math.max(-box.height*(zoom-1)/2,Math.min(box.height*(zoom-1)/2,v.y))})); }
   }, [zoom]);
+  useEffect(() => {
+    const element = stage.current;
+    if (!element) return;
+    const wheel = (event: WheelEvent) => {
+      event.preventDefault();
+      onZoomChange(Math.max(1, Math.min(3, zoom * Math.exp(-Math.max(-100, Math.min(100, event.deltaY)) * .002))));
+    };
+    element.addEventListener("wheel", wheel, { passive: false });
+    return () => element.removeEventListener("wheel", wheel);
+  }, [zoom, onZoomChange]);
   const play = async (key: string) => {
     const src = await url(key);
     if (!mounted.current) return;
@@ -133,82 +142,16 @@ export function RenderedBook({
     });
   const turn = (direction: 1 | -1) => action({ direction });
   const note = (id: string) => action({ note: id });
-  const seek = async (element: HTMLVideoElement, time: number) => {
-    if (Math.abs(element.currentTime - time) < .001 && !element.seeking) return;
-    await new Promise<void>((resolve, reject) => {
-      const finish = () => { clearTimeout(timer); element.removeEventListener("seeked", finish); resolve(); };
-      const timer = window.setTimeout(() => { element.removeEventListener("seeked", finish); reject(new Error("Video seeking timed out.")); }, 5000);
-      element.addEventListener("seeked", finish);
-      element.currentTime = time;
-    });
-  };
-  const settleScrub = async () => {
-    const gesture = scrub.current, element = video.current;
-    if (!gesture || !gesture.ready || !gesture.released || gesture.settling || !element) return;
-    gesture.settling = true;
-    try {
-      const from = gesture.progress, to = gesture.commit ? 1 : 0, start = performance.now();
-      // Paused video seeking supports both forward completion and rewind.
-      while (mounted.current && scrub.current === gesture) {
-        const t = Math.min(1, (performance.now() - start) / 240);
-        const eased = t * t * (3 - 2 * t);
-        await seek(element, Math.max(0, Math.min(element.duration - .001, turnVideoTime(from + (to - from) * eased) * element.duration)));
-        if (t === 1) break;
-        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-      }
-      if (!mounted.current || scrub.current !== gesture) return;
-      const next = gesture.commit ? index + gesture.direction : index;
-      await showStill(pack.states[next]!.still);
-      setIndex(next); setOpen(null);
-    } catch {
-      setError("Rendered dragging failed. You can switch to live Studio.");
-    } finally {
-      if (scrub.current === gesture) scrub.current = null;
-      gesture.resolve();
-    }
-  };
-  const startScrub = (direction: 1 | -1) => {
-    const capturedPointer = pointer.current;
-    const plan = renderedAction(pack, index, open, { direction });
-    if (!plan) return;
-    void run(async () => {
-      // A note must close before scrubbing the page turn itself.
-      for (const key of plan.clips.slice(0, -1)) await play(key);
-      if (open) { await showStill(state.still); setOpen(null); }
-      const src = await url(plan.clips.at(-1)!);
-      if (!mounted.current) return;
-      await new Promise<void>(resolve => {
-        const p = capturedPointer;
-        const progress = p ? Math.max(0, Math.min(1, direction * (p.startX - p.x) / (p.width * .5))) : 0;
-        const timeout = window.setTimeout(() => {
-          if(scrub.current?.resolve === finish) { setError("The turn video could not load. You can switch to live Studio."); scrub.current=null; finish(); }
-        }, 30000);
-        const finish = () => { clearTimeout(timeout); resolve(); };
-        scrub.current = { direction, progress, ready: false, released: !p || !!p.released, commit: !!p?.released && !p.cancelled && progress > .45, settling: false, resolve: finish };
-        setPlaying(false); setClip(src);
-      });
-    });
-  };
-  const releasePointer = (cancelled: boolean) => {
-    const p = pointer.current;
-    pointer.current = null;
-    if (!p) return;
-    p.released = true; p.cancelled = cancelled;
-    if (p.mode !== "pending") suppressClickUntil.current = Date.now() + 400;
-    const gesture = scrub.current;
-    if (gesture) {
-      gesture.released = true;
-      gesture.commit = !cancelled && gesture.progress > .45;
-      void settleScrub();
-    }
-  };
   return (
     <section
       onClick={(e) => {
         if (Date.now() < suppressClickUntil.current) return;
-        if (zoom > 1 || busy || (e.target as Element).closest("button,a")) return;
-        const box = e.currentTarget.getBoundingClientRect();
-        turn(e.clientX - box.left < box.width / 2 ? -1 : 1);
+        if (busy || (e.target as Element).closest("button,a")) return;
+        const box = frame.current?.getBoundingClientRect();
+        if (!box) return;
+        const x=(e.clientX-box.left)/box.width*100, y=(e.clientY-box.top)/box.height*100;
+        if (state.pageBounds && !state.pageBounds.some(b=>x>=b.x&&x<=b.x+b.width&&y>=b.y&&y<=b.y+b.height)) return;
+        turn(x < 50 ? -1 : 1);
       }}
       aria-label="Rendered Studio flipbook"
       tabIndex={0}
@@ -222,52 +165,40 @@ export function RenderedBook({
           turn(-1);
         }
       }}
-      className="relative flex min-h-[420px] items-center justify-center overflow-hidden"
-      style={{ height: fill ? "100dvh" : "66vh" }}
+      className="pf-book-viewport relative flex items-center justify-center overflow-hidden"
+      style={{ height: "auto", aspectRatio: `${pack.width}/${pack.height}` }}
       ref={stage}
     >
       <div
-        className="relative aspect-video w-full"
+        ref={frame}
+        className="relative w-full"
         style={{
-          maxWidth: fill ? "calc(100dvh * 16 / 9)" : "calc(66vh * 16 / 9)",
+          aspectRatio: `${pack.width}/${pack.height}`,
           transform: `translate(${pan.x}px,${pan.y}px) scale(${Math.max(1, zoom)})`,
-          touchAction: "none",
+          touchAction: "none", cursor: zoom > 1 ? "grab" : "pointer",
         }}
         onPointerDown={(e) => {
-          if (busy || (e.target as Element).closest("button,a") || e.button !== 0) return;
-          const box = e.currentTarget.getBoundingClientRect();
-          const x = (e.clientX - box.left) / box.width * 100, y = (e.clientY - box.top) / box.height * 100;
-          const onPage = (state.pageBounds ?? [{ x: 10, y: 10, width: 80, height: 80 }]).some(b => x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height);
-          const direction = x < 50 ? -1 : 1;
-          const canTurn = direction === 1 ? !!state.forward : !!state.backward;
-          pointer.current = { id: e.pointerId, x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, width: box.width, direction, mode: onPage && canTurn && !e.shiftKey ? "pending" : "pan" };
+          if ((e.target as Element).closest("button,a") || e.button !== 0) return;
+          pointer.current = { id: e.pointerId, x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY, moved: false };
           e.currentTarget.setPointerCapture(e.pointerId);
         }}
         onPointerMove={(e) => {
           const p = pointer.current, b = stage.current?.getBoundingClientRect();
           if (!p || p.id !== e.pointerId || !b) return;
-          const dx = e.clientX - p.startX, dy = e.clientY - p.startY;
-          if (p.mode === "pending" && Math.max(Math.abs(dx), Math.abs(dy)) > 5) {
-            p.mode = Math.abs(dx) > Math.abs(dy) ? "turn" : "pan";
-            if (p.mode === "turn") startScrub(p.direction);
-          }
-          if (p.mode === "pan" && zoom > 1) {
-            setPan(v => ({
-              x: Math.max(-b.width * (zoom - 1) / 2, Math.min(b.width * (zoom - 1) / 2, v.x + e.clientX - p.x)),
-              y: Math.max(-b.height * (zoom - 1) / 2, Math.min(b.height * (zoom - 1) / 2, v.y + e.clientY - p.y)),
-            }));
-          }
-          p.x = e.clientX; p.y = e.clientY;
-          const gesture = scrub.current;
-          if (p.mode === "turn" && gesture && !gesture.released) {
-            gesture.progress = Math.max(0, Math.min(1, p.direction * (p.startX - e.clientX) / (p.width * .5)));
-            const element = video.current;
-            if (gesture.ready && element && Number.isFinite(element.duration)) element.currentTime = Math.min(element.duration - .001, turnVideoTime(gesture.progress) * element.duration);
-          }
+          if (Math.hypot(e.clientX-p.startX,e.clientY-p.startY)>5) p.moved = true;
+          if (p.moved && zoom > 1) setPan(v => ({
+            x: Math.max(-b.width*(zoom-1)/2,Math.min(b.width*(zoom-1)/2,v.x+e.clientX-p.x)),
+            y: Math.max(-b.height*(zoom-1)/2,Math.min(b.height*(zoom-1)/2,v.y+e.clientY-p.y)),
+          }));
+          p.x=e.clientX; p.y=e.clientY;
         }}
-        onPointerUp={(e) => { releasePointer(false); if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId); }}
-        onPointerCancel={() => releasePointer(true)}
-        onLostPointerCapture={() => releasePointer(true)}
+        onPointerUp={(e) => {
+          if(pointer.current?.moved)suppressClickUntil.current=Date.now()+400;
+          pointer.current=null;
+          if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);
+        }}
+        onPointerCancel={() => { pointer.current=null; suppressClickUntil.current=Date.now()+400; }}
+        onLostPointerCapture={() => { pointer.current=null; }}
       >
         {still && (
           <img
@@ -288,13 +219,6 @@ export function RenderedBook({
             className="absolute inset-0 h-full w-full"
             style={{ opacity: playing ? 1 : 0 }}
             onLoadedData={() => {
-              const gesture = scrub.current, element = video.current;
-              if (gesture && element) {
-                element.pause(); gesture.ready = true; setPlaying(true);
-                element.currentTime = Math.max(0, Math.min(element.duration - .001, turnVideoTime(gesture.progress) * element.duration));
-                if (gesture.released) void settleScrub();
-                return;
-              }
               void video.current?.play().catch(() => {
                 complete.current?.(new Error("Playback blocked."));
               });
@@ -303,7 +227,6 @@ export function RenderedBook({
             onEnded={() => complete.current?.()}
             onError={() => {
               complete.current?.(new Error("Video failed."));
-              if(scrub.current) { setError("Rendered dragging failed. You can switch to live Studio."); scrub.current.resolve(); scrub.current=null; }
             }}
           />
         )}
@@ -393,12 +316,6 @@ export function RenderedBook({
           </button>
         )}
       </nav>
-      {zoom > 1 && !busy && <p className="absolute top-3 rounded-xl bg-background/90 p-2 text-xs">Drag a page to turn. Drag the background or hold Shift to pan.</p>}
-      {busy && !playing && (
-        <p role="status" className="absolute top-3 rounded-xl bg-background/90 p-2 text-xs">
-          Preparing animation…
-        </p>
-      )}
       {error && (
         <div role="alert" className="absolute top-3 rounded-xl bg-background p-3 text-sm">
           {error}{" "}
