@@ -101,7 +101,7 @@ export function createBookTabs(
       resources.push(texture);
       const meshFor = (g: THREE.BufferGeometry, side: THREE.Side) => {
         const mat = template().clone();
-          setNaturalImperfections(mat,Boolean(template().userData["naturalEnabled"]));
+          setNaturalImperfections(mat,template().userData["naturalEnabled"] as number | boolean | undefined);
         mat.map = texture;
         mat.side = side;
         mat.emissiveMap = mat.emissive.getHex() ? texture : null;

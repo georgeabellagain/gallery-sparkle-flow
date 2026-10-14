@@ -1,3 +1,4 @@
+import { STUDIO_RENDERING_ENABLED } from "@/lib/portfolia/studio-render-feature";
 import type { StudioExporter, RenderedStudio } from "@/lib/portfolia/rendered-studio";
 import { RenderedBook } from "./RenderedBook";
 import { backgroundPicture } from "@/lib/portfolia/background-presets";
@@ -54,7 +55,7 @@ const MODES = [
  */
 export function PdfViewer({
   source,
-  renderedStudio, onExporter, renderCapture = false,
+  renderedStudio: savedRenderedStudio, onExporter, renderCapture = false,
   fileName,
   allowDownload,
   onDownload,
@@ -130,6 +131,7 @@ export function PdfViewer({
   onBookReadyChange?: (ready: boolean) => void;
   onLoadError?: (message: string) => void;
 }) {
+  const renderedStudio = STUDIO_RENDERING_ENABLED ? savedRenderedStudio : undefined;
   const [renderFailed, setRenderFailed] = useState(false);
   const view = { ...DEFAULT_VIEWER, ...viewer };
   const backgroundUrl = backgroundPicture(view, uploadedBackgroundUrl);

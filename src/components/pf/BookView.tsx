@@ -1246,7 +1246,7 @@ export function BookView({
             <ChevronRight className="size-6" />
           </IconButton>
         </div>
-        <p aria-live="polite" className={cn("pointer-events-none absolute inset-x-0 bottom-5 z-10 text-center text-[11px] tabular-nums transition-opacity duration-300", awake ? "opacity-100" : "opacity-0", tone === "dark" ? "text-white/45" : "text-black/40")}>
+        <p aria-live="polite" className={cn("pf-book-page-number pointer-events-none absolute inset-x-0 bottom-5 z-10 text-center text-[11px] tabular-nums transition-opacity duration-300", awake ? "opacity-100" : "opacity-0", tone === "dark" ? "text-white/45" : "text-black/40")}>
           <span className={cn("inline-flex rounded-full px-3 py-2 ring-1 backdrop-blur-sm", tone === "dark" ? "bg-slate-950/75 text-white ring-white/20" : "bg-white/90 text-slate-700 ring-black/15")}>{label}</span>
         </p>
         {/* Simple / Studio: only offered when the creator has enabled both. Everything else is set in the editor. */}

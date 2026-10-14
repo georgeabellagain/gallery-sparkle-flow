@@ -24,7 +24,7 @@ export type StudioSettings = {
   /** 0..1 overall studio brightness. */
   brightness: number;
   topLight?: number;
-  imperfections?: boolean;
+  imperfections?: boolean | number;
   strength?: number;
   textureStrength?: number;
   hdri: HdriId;
@@ -706,9 +706,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     const satin = next.material === "satin";
     if (variantChanged) variant = nextVariant;
-    backdrop.setImperfections(next.studio && Boolean(next.imperfections));
+    backdrop.setImperfections(next.studio ? next.imperfections ?? 0 : 0);
     for (const m of pageMaterials) {
-      setNaturalImperfections(m,next.studio && Boolean(next.imperfections));
+      setNaturalImperfections(m,next.studio ? next.imperfections ?? 0 : 0);
       const stickyMatte = Boolean(m.userData["stickyMatte"]);
       if (variantChanged && !stickyMatte) m.bumpMap = bump;
       // Satin is smooth with a visible sheen; textured shows clear paper grain.
