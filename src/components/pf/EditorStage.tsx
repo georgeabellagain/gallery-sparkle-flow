@@ -52,7 +52,7 @@ export function EditorBar({
       <Link to="/dashboard" aria-label="Back to your portfolios" title="Your portfolios" className="rounded-lg p-2 hover:bg-muted"><ArrowLeft className="size-4" /></Link>
       <Wordmark className="shrink-0" />
       <span className="hidden h-6 w-px bg-border sm:block" aria-hidden />
-      <span className="hidden min-w-0 truncate text-sm text-muted-foreground sm:block">{p.profile.name || p.pdf?.name}</span>
+      <span className="hidden min-w-0 truncate text-sm text-muted-foreground sm:block">{p.name || p.profile.name || p.pdf?.name}</span>
       <div className="mx-auto flex flex-col items-center gap-1 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span className="size-1.5 rounded-full bg-current opacity-60" aria-hidden />
@@ -236,6 +236,7 @@ export function EditorStage({
             </button>
           </div>
           {tool === "customise" && <div className="space-y-2">
+            <label className="mb-3 block text-xs">Portfolio name<input aria-label="Portfolio name" className="mt-1 w-full rounded-lg border bg-background p-2 text-sm" value={p.name ?? ""} maxLength={120} placeholder={p.pdf?.name ?? "My portfolio"} onChange={e=>patchPortfolio({name:e.target.value})} /></label>
             {([["reading", "Reading style"], ["look", "Lighting & paper"], ["background", "Background"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="line" size="sm" onClick={() => setTool(id)}>{label}</Button>)}
             <details className="pt-3"><summary className="cursor-pointer text-sm">More options</summary><div className="mt-3 grid gap-2">{([["profile", "Profile details"], ["projects", "Named projects"], ["publish", "File & publishing"], ["statistics", "Statistics"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="quiet" size="sm" onClick={() => setTool(id)}>{label}</Button>)}</div></details>
           </div>}

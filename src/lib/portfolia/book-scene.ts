@@ -894,7 +894,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     driveContact(progress);
   };
   const notes = createBookNotes(book, ratio, pageMaterials, () => right.material as THREE.MeshPhysicalMaterial, requestPaint);
-  const tabs = createBookTabs(book, ratio, pageMaterials, () => right.material as THREE.MeshPhysicalMaterial, requestPaint);
+  const tabs = createBookTabs(book, ratio, pageMaterials, () => right.material as THREE.MeshPhysicalMaterial, requestPaint, (x,y)=>pageRelief(Math.abs(x),y/ratio+.5,(x<0?left:right).userData["seed"] as number));
   /** How the tabs move during the turn in progress (set when a turn is prepared). */
   let tabPlan: TabPlan[] | null = null;
   configure(settings);

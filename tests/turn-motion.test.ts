@@ -25,8 +25,8 @@ test("click turns stay above differently curved receiving pages at both ends", (
 test('offline capture encodes every sample despite a slow encoder',async()=>{
   const samples:number[]=[];let frames=0;
   await captureFrames(1000,t=>samples.push(t),async()=>{await Promise.resolve();frames++;});
-  assert.equal(frames,61);assert.equal(samples[0],0);assert.equal(samples.at(-1),1);
-  samples.forEach((t,i)=>assert.equal(t,i/60));
+  assert.equal(frames,31);assert.equal(samples[0],0);assert.equal(samples.at(-1),1);
+  samples.forEach((t,i)=>assert.equal(t,i/30));
 });
 
 test("turning geometry matches its resting surface exactly at both endpoints", () => {

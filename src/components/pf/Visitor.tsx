@@ -29,8 +29,8 @@ export function OwnVisitor({ p, preview, trackActivity = true }: { p: Portfolio;
     tag.setAttribute("content", p.searchIndexing && !preview ? "index, follow" : "noindex, nofollow");
   }, [p.searchIndexing, preview]);
   useEffect(() => {
-    if (p.profile.name) document.title = `${p.profile.name} — Portfolio`;
-  }, [p.profile.name]);
+    if (p.name || p.profile.name) document.title = `${p.name || p.profile.name} — Portfolio`;
+  }, [p.name, p.profile.name]);
   return (
     <div className="min-h-screen">
       {preview && (

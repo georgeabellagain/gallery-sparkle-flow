@@ -139,7 +139,7 @@ export function FoldoutCard({
       frame.current = requestAnimationFrame(step);
     });
   useEffect(() => {
-    if (!demoAnimate || item.hinge === "none") return;
+    if (!demoAnimate || item.hinge === "none" || item.style === "sticky" && item.openable === false) return;
     const open = window.setTimeout(() => void settle(1, 1800), 700);
     const close = window.setTimeout(() => void settle(0, 1000), 4500);
     return () => { clearTimeout(open); clearTimeout(close); };
@@ -192,6 +192,7 @@ export function FoldoutCard({
     width: `${item.width * 100}%`,
     height: `${item.height * 100}%`,
   };
+  if (item.style === "sticky" && item.openable === false) return sceneRendered ? null : <div className="pf-foldout" style={style}><NoteSurface side={outside} label={item.title} sticky /></div>;
   if (item.hinge === "none")
     return baked ? null : (
       <div className="pf-foldout" style={style}>

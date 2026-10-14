@@ -28,7 +28,9 @@ export function RenderedBook({
     [clip, setClip] = useState(""),
     [playing, setPlaying] = useState(false),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [prepared, setPrepared] = useState(false),
+    [warmClips, setWarmClips] = useState<string[]>([]);
   const lock = useRef(false),
     video = useRef<HTMLVideoElement>(null),
     stage = useRef<HTMLDivElement>(null),
@@ -39,9 +41,19 @@ export function RenderedBook({
   const pointer = useRef<{ id: number; x: number; y: number; startX: number; startY: number; moved: boolean } | null>(null);
   const suppressClickUntil = useRef(0);
   const state = pack.states[index]!;
-  const url = async (key: string) => {
-    const value = await resolveAssetUrl({ id: key, blobKey: key });
-    if (!value) throw new Error("The rendered file could not load.");
+  const cache = useRef(new Map<string, Promise<string>>()), objectUrls = useRef<string[]>([]), preloadAbort = useRef<AbortController | null>(null);
+  const queue = useRef<Array<1 | -1>>([]);
+  const url = (key: string) => {
+    let value=cache.current.get(key);
+    if(!value){value=(async()=>{
+      const source=await resolveAssetUrl({id:key,blobKey:key});
+      if(!source)throw new Error("The rendered file could not load.");
+      const response=await fetch(source,{signal:preloadAbort.current?.signal});
+      if(!response.ok)throw new Error("The rendered file could not load.");
+      const blob=await response.blob();
+      if(!mounted.current)throw new Error("Viewer closed.");
+      const src=URL.createObjectURL(blob);objectUrls.current.push(src);return src;
+    })();cache.current.set(key,value);value.catch(()=>cache.current.delete(key));}
     return value;
   };
   const showStill = async (key: string) => {
@@ -51,7 +63,6 @@ export function RenderedBook({
     await image.decode();
     if (mounted.current) {
       setStill(src);
-      onReady(true);
     }
   };
   useEffect(() => {
@@ -70,8 +81,19 @@ export function RenderedBook({
     onPage(state.pages[0] ?? 1);
   }, [index, pack]);
   useEffect(() => {
-    for (const key of [state.forward, state.backward]) if (key) void url(key).catch(() => {});
-  }, [index, pack]);
+    const abort=new AbortController();preloadAbort.current=abort;setPrepared(false);
+    const keys=[...new Set(pack.states.flatMap(s=>[s.still,s.forward,s.backward,...s.notes.flatMap(n=>[n.open,n.close,n.openStill])]).filter((k):k is string=>!!k))];
+    let cursor=0;
+    const worker=async()=>{while(cursor<keys.length&&!abort.signal.aborted)await url(keys[cursor++]!);};
+    void Promise.all([worker(),worker(),worker()]).then(()=>{if(!abort.signal.aborted)setPrepared(true);}).catch(()=>{if(!abort.signal.aborted){setError("The rendered animations could not be prepared. You can switch to live Studio.");onReady(true);}});
+    return()=>{abort.abort();objectUrls.current.forEach(URL.revokeObjectURL);objectUrls.current=[];cache.current.clear();};
+  },[pack]);
+  useEffect(()=>{if(prepared&&still)onReady(true);},[prepared,still]);
+  useEffect(()=>{
+    let active=true;
+    void Promise.all([state.forward,state.backward].filter((key):key is string=>!!key).map(url)).then(sources=>{if(active)setWarmClips(sources);}).catch(()=>{});
+    return()=>{active=false;};
+  },[index,pack]);
   useEffect(() => {
     if (jump && !lock.current) {
       setOpen(null);
@@ -88,7 +110,11 @@ export function RenderedBook({
     if (!element) return;
     const wheel = (event: WheelEvent) => {
       event.preventDefault();
-      onZoomChange(Math.max(1, Math.min(3, zoom * Math.exp(-Math.max(-100, Math.min(100, event.deltaY)) * .002))));
+      const next=Math.max(1,Math.min(3,zoom*Math.exp(-Math.max(-100,Math.min(100,event.deltaY))*.002)));
+      const box=element.getBoundingClientRect(), ratio=next/zoom;
+      const x=event.clientX-box.left-box.width/2, y=event.clientY-box.top-box.height/2;
+      setPan(p=>({x:Math.max(-box.width*(next-1)/2,Math.min(box.width*(next-1)/2,x-(x-p.x)*ratio)),y:Math.max(-box.height*(next-1)/2,Math.min(box.height*(next-1)/2,y-(y-p.y)*ratio))}));
+      onZoomChange(next);
     };
     element.addEventListener("wheel", wheel, { passive: false });
     return () => element.removeEventListener("wheel", wheel);
@@ -140,13 +166,14 @@ export function RenderedBook({
       setOpen(plan.opened);
       setIndex(plan.index);
     });
-  const turn = (direction: 1 | -1) => action({ direction });
+  const turn = (direction: 1 | -1) => { if(lock.current){if(queue.current.length<8)queue.current.push(direction);return;}action({direction}); };
+  useEffect(()=>{if(!busy&&queue.current.length)turn(queue.current.shift()!);},[busy,index,open]);
   const note = (id: string) => action({ note: id });
   return (
     <section
       onClick={(e) => {
         if (Date.now() < suppressClickUntil.current) return;
-        if (busy || (e.target as Element).closest("button,a")) return;
+        if ((e.target as Element).closest("button,a")) return;
         const box = frame.current?.getBoundingClientRect();
         if (!box) return;
         const x=(e.clientX-box.left)/box.width*100, y=(e.clientY-box.top)/box.height*100;
@@ -286,12 +313,13 @@ export function RenderedBook({
             ) : null;
           })}
       </div>
+      {warmClips.map(src=><video key={src} src={src} muted playsInline preload="auto" className="hidden" aria-hidden />)}
       <nav
         aria-label="Rendered book controls"
         className="absolute bottom-4 flex gap-2 rounded-full bg-background/90 p-2 text-xs shadow-soft"
       >
         <button
-          disabled={busy || index === 0}
+          disabled={index === 0}
           onClick={() => turn(-1)}
           className="px-2 disabled:opacity-30"
         >
@@ -301,7 +329,7 @@ export function RenderedBook({
           {index + 1} / {pack.states.length}
         </span>
         <button
-          disabled={busy || index === pack.states.length - 1}
+          disabled={index === pack.states.length - 1}
           onClick={() => turn(1)}
           className="px-2 disabled:opacity-30"
         >

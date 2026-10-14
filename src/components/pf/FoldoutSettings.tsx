@@ -176,8 +176,8 @@ function ScrapbookWorkspace({
   const leaf = leaves[index];
   const note = items.find((f) => f.id === selected);
   useEffect(() => {
-    if (note?.hinge === "none") setSide("outside");
-  }, [note?.id, note?.hinge]);
+    if (note?.hinge === "none" || note?.style === "sticky" && note.openable === false) setSide("outside");
+  }, [note?.id, note?.hinge, note?.openable]);
   const visible = leaf ? foldoutsForLeaf(items, leaf) : [];
   const change = (next: Foldout[]) => {
     itemsRef.current = next;
@@ -1007,11 +1007,14 @@ function ScrapbookWorkspace({
                   <option value="sticky">Sticky note</option>
                 </select>
               </label>
-              <label className="mt-3 block text-xs">
+              {note.style === "sticky" ? <label className="mt-3 block text-xs">Sticky note
+                <select aria-label="Sticky note opening" className="mt-1 w-full rounded border bg-background p-2 text-sm" value={note.openable === false ? "fixed" : "openable"} onChange={e=>edit(note.id,{openable:e.target.value === "openable",hinge:"top"})}>
+                  <option value="openable">Openable</option><option value="fixed">Not openable</option>
+                </select>
+              </label> : <label className="mt-3 block text-xs">
                 Opening direction
                 <select
                   className="mt-1 w-full rounded border bg-background p-2 text-sm"
-                  disabled={note.style === "sticky"}
                   value={note.hinge}
                   onChange={(e) => {
                     edit(note.id, {
@@ -1026,13 +1029,13 @@ function ScrapbookWorkspace({
                   <option value="bottom">Unfold down</option>
                   <option value="none">No flap · flat note</option>
                 </select>
-              </label>
+              </label>}
               <div
                 className="my-4 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1"
                 role="group"
                 aria-label="Edit note surface"
               >
-                {(note.hinge === "none"
+                {(note.hinge === "none" || note.style === "sticky" && note.openable === false
                   ? (["outside"] as const)
                   : (["outside", "inside"] as const)
                 ).map((s) => (

@@ -133,6 +133,7 @@ export interface Profile {
 }
 
 export interface Portfolio {
+  name?: string;
   code: string; // free address: /p/<code>
   status: "draft" | "published";
   profile: Profile;

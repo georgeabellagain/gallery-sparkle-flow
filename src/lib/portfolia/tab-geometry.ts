@@ -10,8 +10,8 @@ export interface TabPlan {
 }
 /** How far a tab sticks out of the page edge and how far it tucks under it, in page widths. */
 export const TAB_SIZE = {
-  full: { out: 0.075, in: 0.004 },
-  compact: { out: 0.036, in: 0.004 },
+  full: { out: 0.075, in: 0.012 },
+  compact: { out: 0.036, in: 0.012 },
 };
 /** How strongly a turning sheet bows (matches the sheet in book-scene). */
 export const SHEET_CURL = 0.22;
