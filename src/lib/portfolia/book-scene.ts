@@ -63,12 +63,20 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NoToneMapping;
   renderer.shadowMap.enabled = true;
+  renderer.shadowMap.autoUpdate = false;
+  let shadowsDirty = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.domElement.setAttribute("aria-hidden", "true");
   // CSS owns the display size; the renderer owns only the drawing buffer.
   renderer.domElement.style.width = "100%";
   renderer.domElement.style.height = "100%";
   host.appendChild(renderer.domElement);
+  const readingCanvas = document.createElement("canvas");
+  Object.assign(readingCanvas.style, { position: "absolute", inset: "0", width: "100%", height: "100%", pointerEvents: "none" });
+  readingCanvas.setAttribute("aria-hidden", "true");
+  host.appendChild(readingCanvas);
+  let hybridEnabled = false;
+  const readingContext = readingCanvas.getContext("2d");
   // Preserve oblique page detail using the filtering supported by this GPU.
   const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
   // Neutral tone mapping keeps artwork colours true; ACES is the fallback.
@@ -414,11 +422,33 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const update = pendingDragShape;
     pendingDragShape = null;
     update?.();
-    backdrop.frame(camera, host.clientWidth, host.clientHeight);
+    backdrop.frame(camera, w, h, Math.max(ratio * 1.1 + FRAME_PAD, 2.32 / camera.aspect) * (1 + inset));
+    const hybrid = hybridEnabled && !settings.studio && !turning && !!readingContext;
+    readingCanvas.style.display = hybrid ? "block" : "none";
+    const visible = [left.visible, right.visible];
+    if (hybrid) {
+      const density = bookSurfaceRatio(w, h, Math.min(dpr, 2), MAX_SURFACE_PIXELS);
+      const cw = Math.round(w * density), ch = Math.round(h * density);
+      if (readingCanvas.width !== cw || readingCanvas.height !== ch) { readingCanvas.width = cw; readingCanvas.height = ch; }
+      readingContext!.clearRect(0, 0, cw, ch);
+      scene.updateMatrixWorld(true);
+      for (const mesh of [left, right]) {
+        const image = mesh.material.map?.image as HTMLCanvasElement | undefined;
+        if (!mesh.visible || !image) continue;
+        const a = mesh.localToWorld(new THREE.Vector3(-.5, ratio / 2, 0)).project(camera);
+        const b = mesh.localToWorld(new THREE.Vector3(.5, -ratio / 2, 0)).project(camera);
+        readingContext!.drawImage(image, (a.x + 1) * cw / 2, (1 - a.y) * ch / 2, (b.x - a.x) * cw / 2, (a.y - b.y) * ch / 2);
+        mesh.visible = false;
+      }
+    }
+    renderer.shadowMap.needsUpdate = turning || shadowsDirty;
     renderer.render(scene, camera);
+    shadowsDirty = false;
+    left.visible = visible[0]!; right.visible = visible[1]!;
   };
   /** Coalesces rapid pointer input into at most one render per frame. */
   const requestPaint = () => {
+    shadowsDirty = true;
     if (paintQueued || disposed) return;
     paintQueued = requestAnimationFrame(() => {
       paintQueued = 0;
@@ -628,6 +658,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const backdrop = createLitBackdrop(scene, requestPaint);
   const configure = (next: StudioSettings) => {
     settings = next;
+    shadowsDirty = true;
     const mix = studioLightMix(next.strength);
     const nextVariant = `${next.studio ? 1 : 0}|${next.material}`;
     const variantChanged = nextVariant !== variant;
@@ -713,6 +744,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     else requestPaint();
   };
   const show = (next: BookFaces, render = true) => {
+    shadowsDirty = true;
     [left, right].forEach((mesh, i) => {
       mesh.visible = !!next[i];
       setMap(mesh.material, next[i] ?? null);
@@ -873,7 +905,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   configure(settings);
   resize();
   return {
-    setBackdrop: backdrop.set,
+    setBackdrop(url: string | undefined, fit: Parameters<typeof backdrop.set>[1], lit: boolean, colour: string) {
+      backdrop.set(url, fit, true, colour, lit);
+    },
+    setHybridEnabled(value: boolean) { hybridEnabled = value; requestPaint(); },
     setNotes: notes.set,
     notesReady: notes.has,
     prepareNotes: notes.prepare,
@@ -1114,6 +1149,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       renderer.dispose();
       renderer.forceContextLoss();
       renderer.domElement.remove();
+      readingCanvas.remove();
     },
   };
 }
