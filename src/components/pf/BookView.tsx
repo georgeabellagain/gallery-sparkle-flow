@@ -996,10 +996,10 @@ export function BookView({
   useEffect(() => { noteProgresses.current.clear(); setOpenNote(false); }, [leaf, additions]);
   const currentNoteSpecs = spread.flatMap((n, side) => n === null || (narrow && n !== leaf) ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side, seed: n + 1, exterior: n === 0 || n === layout.leaves.length - 1 })));
   const preparedNotesReady = !!scene.current?.notesReady(currentNoteSpecs);
-  const notesKey = JSON.stringify([ready,spread,narrow,leaf,additions,bookReady,wait,fallback]);
+  const notesKey = JSON.stringify([ready,spread,narrow,leaf,additions,bookReady,wait,fallback,busy]);
   useEffect(() => {
     const renderer = scene.current;
-    if (!renderer) return;
+    if (!renderer || lock.current) return;
     let cancelled = false;
     if (!bookReady || wait || fallback) { setLitNotesKey(""); renderer.clearNotes(); return; }
     const visible = spread.flatMap((n,side) => n === null || (narrow && n !== leaf) ? [] : foldoutsForLeaf(additions,layout.leaves[n]!).map(item=>({item,side,seed: n + 1,exterior: n === 0 || n === layout.leaves.length - 1})));

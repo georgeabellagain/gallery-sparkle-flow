@@ -133,6 +133,10 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
         await notes.set(destination);
         assert.equal(book.children[0], incoming, "committing the destination does not recreate or flash the note");
         assert.equal(notes.has(destination), true, "prepared destination remains ready during the viewer handoff");
+        incoming.visible=false;
+        assert.equal(notes.has(destination),false,"a missing visible sticky note must not be treated as ready");
+        await notes.set(destination);
+        assert.equal(book.children[0].visible,true,"returning to the same cached page repairs a missing visible note");
         await notes.prepare([], destination);
         const revealed = book.children[0], revealedPaper = revealed.children[1] as THREE.Mesh;
         const raised = Float32Array.from(revealedPaper.geometry.getAttribute("position").array);
@@ -156,6 +160,9 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
         assert.equal(coveredNote.visible,true,"flattened note is occluded by the page instead of hidden");
         const compressed = coveredPaper.geometry.getAttribute("position");
         for (let i = 0; i < compressed.count; i++) assert.ok(compressed.getZ(i) < coveredRest[i * 3 + 2]!, "covered sticky note is pressed below the landing sheet by 75% of the turn");
+        const ceiling=.006;
+        notes.turn(1,1,()=>({position:new THREE.Vector3(0,0,ceiling),normal:new THREE.Vector3(0,0,1)}));
+        for(let i=0;i<compressed.count;i++)assert.ok(compressed.getZ(i)<ceiling,"covered note cannot poke through the closing sheet on its final frame");
         notes.turn(.2, 1);
         assert.deepEqual(compressed.array, coveredRest, "reversing the turn restores the curl");
         notes.endTurn();

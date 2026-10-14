@@ -48,7 +48,7 @@ export function createBookNotes(
   };
   const set = async (notes: Array<{ item: Foldout; side: number; seed?: number; exterior?: boolean; incoming?: boolean }>) => {
     const key = JSON.stringify(notes);
-    if (key === currentKey) return;
+    if (key === currentKey && notes.filter(n=>n.item.hinge !== "none").every(n=>{const e=entries.get(n.item.id);return e && e.side===n.side && (n.incoming || !e.sticky || e.group.visible);})) return;
     // Keep the current meshes visible while destination fonts/images prepare.
     const ticket = ++generation;
     await loadNoteFonts(notes.flatMap(({ item }) => Object.values(foldoutSurfaces(item))));
@@ -277,7 +277,9 @@ export function createBookNotes(
   let sourceIds: Set<string> | undefined, destinationIds: Set<string> | undefined;
   return {
     set,
-    has(notes: Array<{ item: Foldout; side: number; seed?: number; exterior?: boolean }>) { return settledKey === JSON.stringify(notes); },
+    has(notes: Array<{ item: Foldout; side: number; seed?: number; exterior?: boolean }>) {
+      return settledKey === JSON.stringify(notes) && notes.filter(n=>n.item.hinge !== "none").every(n=>{const entry=entries.get(n.item.id);return entry && entry.side===n.side && !entry.incoming && (!entry.sticky || entry.group.visible);});
+    },
     async prepare(from: Array<{ item: Foldout; side: number; seed?: number; exterior?: boolean }>, to: Array<{ item: Foldout; side: number; seed?: number; exterior?: boolean }>) {
       destinationKey = JSON.stringify(to);
       const ids = new Set(from.map(n => n.item.id));
@@ -298,7 +300,14 @@ export function createBookNotes(
         for (let i = 0; i < positions.count; i++) {
           const originalZ = rest[i * 3 + 2]!;
           const flatZ = reliefAt(rest[i * 3]! + centre.x, rest[i * 3 + 1]! + centre.y, seed) + .002 + faceGap;
-          positions.setZ(i, THREE.MathUtils.lerp(originalZ, flatZ, revealing ? revealFlatten : flatten));
+          let height = THREE.MathUtils.lerp(originalZ, flatZ, revealing ? revealFlatten : flatten);
+          if(!revealing && sheetPoint && progress>.75){
+            const x=rest[i*3]!+centre.x,y=rest[i*3+1]!+centre.y;
+            const cover=sheetPoint(Math.min(1,Math.abs(x)),y/ratio+.5);
+            const t=Math.min(1,(progress-.75)/.2), blend=t*t*(3-2*t);
+            height=THREE.MathUtils.lerp(height,Math.min(height,cover.position.z-.001),blend);
+          }
+          positions.setZ(i,height);
         }
         positions.needsUpdate = true;
         mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere(); mesh.geometry.computeBoundingBox();
