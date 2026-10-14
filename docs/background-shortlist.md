@@ -1,7 +1,7 @@
 # Background image shortlist
 
 Eight general-purpose surface assets from Poly Haven, checked 14 October 2026.
-Use the downloadable **Diffuse/Albedo** image, exported as a 2K–4K WebP/JPEG for the viewer. These are shortlisted for import; no images are bundled by this change.
+Use the downloadable **Diffuse/Albedo** image, exported as a 2K–4K WebP/JPEG for the viewer. Imported as bundled 2048px WebP assets with separate 256px picker thumbnails.
 
 | Surface | Source |
 | --- | --- |

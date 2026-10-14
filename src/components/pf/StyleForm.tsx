@@ -1,3 +1,4 @@
+import { BACKGROUND_PRESETS, backgroundPicture } from "@/lib/portfolia/background-presets";
 import { usePortfolioFont } from "@/lib/portfolia/fonts";
 import { useEffect, useRef, useState } from "react";
 import { Minus, Palette, Plus, RotateCcw, X } from "lucide-react";
@@ -72,7 +73,9 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
   }, []);
   const [backgroundErr, setBackgroundErr] = useState<string | null>(null);
   const backgroundBlob = useBlob(viewer.backgroundKey);
-  const backgroundUrl = useObjectUrl(backgroundBlob);
+  const uploadedBackgroundUrl = useObjectUrl(backgroundBlob);
+  const backgroundUrl = backgroundPicture(viewer, uploadedBackgroundUrl);
+  const hasBackground = !!(viewer.backgroundKey || viewer.backgroundPreset);
   /** The colour behind the PDF as it shows now, so the colour wheel starts on the right colour. */
   const wheelColour = backgroundColour(viewer, paid ? style.backdrop : undefined);
   const fit = { ...DEFAULT_FIT, ...viewer.backgroundFit };
@@ -106,7 +109,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
       const key = uid("bg");
       await putBlob(key, blob);
       const old = viewer.backgroundKey;
-      if (!setViewer({ backgroundKey: key, backgroundFit: DEFAULT_FIT })) { void deleteUnusedPortfolioAsset(key); return; }
+      if (!setViewer({ backgroundKey: key, backgroundPreset: undefined, backgroundFit: DEFAULT_FIT })) { void deleteUnusedPortfolioAsset(key); return; }
       void deleteUnusedPortfolioAsset(old);
     } catch {
       setBackgroundErr("That picture couldn’t be saved. Try a JPG or PNG, or check your connection.");
@@ -114,7 +117,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
   };
   const removeBackgroundImage = () => {
     const old = viewer.backgroundKey;
-    if (setViewer({ backgroundKey: undefined, backgroundFit: undefined })) void deleteUnusedPortfolioAsset(old);
+    if (setViewer({ backgroundKey: undefined, backgroundPreset: undefined, backgroundFit: undefined })) void deleteUnusedPortfolioAsset(old);
   };
 
   const onBanner = (f?: File) => {
@@ -302,19 +305,28 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
                 <input
                   type="color"
                   aria-label="Viewer background colour"
-                  title={viewer.backgroundKey ? "Remove the picture to use a colour" : "Choose a colour"}
+                  title={hasBackground ? "Remove the picture to use a colour" : "Choose a colour"}
                   value={wheelColour}
-                  disabled={!!viewer.backgroundKey}
+                  disabled={hasBackground}
                   onChange={(e) => setViewer({ backgroundColor: e.target.value })}
                   className="h-8 w-12 cursor-pointer rounded-full border border-border bg-transparent disabled:cursor-default disabled:opacity-40"
                 />
                 <input ref={backgroundInput} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => { void onBackgroundImage(e.target.files?.[0]); e.currentTarget.value = ""; }} />
-                <Button size="xs" variant="line" onClick={() => backgroundInput.current?.click()}>{viewer.backgroundKey ? "Replace picture" : "Upload picture"}</Button>
-                {viewer.backgroundKey && <Button size="xs" variant="quiet" onClick={removeBackgroundImage}>Remove</Button>}
+                <Button size="xs" variant="line" onClick={() => backgroundInput.current?.click()}>{hasBackground ? "Replace picture" : "Upload picture"}</Button>
+                {hasBackground && <Button size="xs" variant="quiet" onClick={removeBackgroundImage}>Remove</Button>}
               </span>
             </div>
+            <div className="grid grid-cols-2 gap-2" aria-label="Background pictures">
+              {BACKGROUND_PRESETS.map(preset => <button key={preset.id} type="button" aria-pressed={viewer.backgroundPreset === preset.id && !viewer.backgroundKey} className="overflow-hidden rounded-xl border border-border text-left aria-pressed:ring-2 aria-pressed:ring-foreground" onClick={() => {
+                const old = viewer.backgroundKey;
+                if (setViewer({ backgroundPreset: preset.id, backgroundKey: undefined, backgroundFit: DEFAULT_FIT })) void deleteUnusedPortfolioAsset(old);
+              }}>
+                <img src={preset.url.replace(".webp", "-thumb.webp")} alt="" loading="lazy" className="h-16 w-full object-cover" />
+                <span className="block px-2 py-1.5 text-xs">{preset.label}</span>
+              </button>)}
+            </div>
             <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 shrink-0 accent-foreground" checked={viewer.backgroundLighting ?? false} onChange={e => { setViewer({ backgroundLighting: e.target.checked }); setPreviewLook("studio"); }}/><span>Light background with HDRI <span className="block text-xs text-muted-foreground">Applies to colours and pictures in Studio view.</span></span></label>
-            {viewer.backgroundKey && (
+            {hasBackground && (
               <div data-studio-background={viewer.backgroundLighting ? "true" : undefined} onPointerDownCapture={() => { if (viewer.backgroundLighting) setPreviewLook("studio"); }} className="space-y-2 rounded-xl border border-border p-3">
                 {backgroundUrl && <img src={backgroundUrl} alt="Your background picture" className="h-16 w-full rounded-md object-cover" />}
                 <label className="flex items-center gap-3"><span className="w-16 shrink-0">Size</span><input type="range" aria-label="Background picture size" min="100" max="300" step="5" value={Math.round(fit.scale * 100)} onChange={(e) => setFit({ scale: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground" /><span className="w-10 text-right tabular-nums">{Math.round(fit.scale * 100)}%</span></label>
