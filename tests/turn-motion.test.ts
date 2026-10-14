@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { turnEase, turnClearance, turnSheetHeight, captureFrames } from "../src/lib/portfolia/turn-motion";
+import { turnEase, turnClearance, turnSheetHeight, captureFrames, turnRestVisible } from "../src/lib/portfolia/turn-motion";
 
 test("turns settle without a discontinuous shadow offset in either direction", () => {
   assert.equal(turnClearance(0, .01), 0);
@@ -37,4 +37,13 @@ test("turning geometry matches its resting surface exactly at both endpoints", (
     assert.ok(turnSheetHeight(height, floor, .01, .08) >= floor + .01);
     assert.ok(turnSheetHeight(height, floor, .01, .92) >= floor + .01 - 1e-12);
   }
+});
+
+test("resting pages avoid the first and last five percent in either travel direction", () => {
+  for (const t of [0, .01, .049]) assert.equal(turnRestVisible(t, true), false);
+  for (const t of [.05, .5, 1]) assert.equal(turnRestVisible(t, true), true);
+  for (const t of [0, .5, .949]) assert.equal(turnRestVisible(t, false), true);
+  for (const t of [.95, .99, 1]) assert.equal(turnRestVisible(t, false), false);
+  // Dragging back below the threshold hides the revealed page again.
+  assert.equal(turnRestVisible(.04, true), false);
 });

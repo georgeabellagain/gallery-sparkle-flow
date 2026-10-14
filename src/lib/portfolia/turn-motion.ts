@@ -17,3 +17,6 @@ export async function captureFrames(duration: number, update: (t:number)=>void, 
   const steps=Math.max(1,Math.ceil(duration*60/1000));
   for(let i=0;i<=steps;i++){update(i/steps);await encode();}
 }
+
+/** Avoid overlapping resting sheets near either end of a turn. */
+export const turnRestVisible = (progress: number, revealed: boolean) => revealed ? progress >= .05 : progress < .95;

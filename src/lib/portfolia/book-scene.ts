@@ -1,4 +1,4 @@
-import { turnEase, turnClearance, turnSheetHeight, captureFrames } from "./turn-motion";
+import { turnEase, turnClearance, turnSheetHeight, captureFrames, turnRestVisible } from "./turn-motion";
 import { averageEnvironment, createEnvironmentDiffuser } from "./environment-diffusion";
 import { dappleTexture } from "./dapple-light";
 import { bookSurfaceRatio, bookMotionBudget } from "./render-budget";
@@ -358,6 +358,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   (geometry.getAttribute("normal") as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
   let sheetSeeds: [number, number] = [0, 0];
   let reliefKey = "";
+  let turnRestPages: [boolean, boolean] | null = null;
   const uvSheet = geometry.getAttribute("uv");
   const reliefFrom = new Float32Array(uvSheet.count);
   const reliefTo = new Float32Array(uvSheet.count);
@@ -820,6 +821,12 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   };
   const stickyPosition = new THREE.Vector3(), stickyNormal = new THREE.Vector3();
   const shape = (progress: number, dir: 1 | -1) => {
+    if (turnRestPages) {
+      [left, right].forEach((mesh, i) => {
+        const visible = !!turnRestPages![i] && turnRestVisible(progress, i === (dir === 1 ? 1 : 0));
+        if (mesh.visible !== visible) { mesh.visible = visible; shadowsDirty = true; }
+      });
+    }
     const attr = geometry.getAttribute("position") as THREE.BufferAttribute;
     const uv = geometry.getAttribute("uv");
     // Halfway through, the face the viewer sees changes from one page to the
@@ -1040,10 +1047,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       setMap(frontMat, from[moving]);
       setMap(backMat, to[landing]);
       sheetSeeds = [seedFor(from[moving]), seedFor(to[landing])];
-      // The page being revealed sits underneath the turning sheet from the
-      // first frame; the page being covered stays unchanged until the end.
+      // Prepare resting textures now, but reveal the page below only after
+      // 5% travel. Hide the receiving page over the last 5% as well.
       contactTurn = { from: kindOf(from), to: kindOf(to), landing: (to[0] ? 1 : 0) + (to[1] ? 1 : 0) > (from[0] ? 1 : 0) + (from[1] ? 1 : 0) };
       show(dir === 1 ? [from[0], to[1]] : [to[0], from[1]], false);
+      turnRestPages = [left.visible, right.visible];
       sheet.visible = true;
       // Everything this turn needs reaches the graphics card now (the pictures, the sheet in mid-turn), and the card
       // is waited for, so the first frames of the animation have nothing left to stall on.
@@ -1090,6 +1098,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       // At the end the sheet lies exactly over the covered page, so swapping
       // the textures in the same frame as hiding it is invisible.
       sheet.visible = false;
+      turnRestPages = null;
       notes.endTurn(complete);
       contactTurn = null;
       if (tabPlan) {
