@@ -981,10 +981,6 @@ export function BookView({
   // Tell the viewer when the book is rendered and ready, so it can show nothing but a loader until then.
   useEffect(() => { if (error) { console.error("Book render error", error); onRenderError?.(error); } }, [error, onRenderError]);
   const bookReady = (ready > 0 || fallback) && warm && !loading && !error;
-  useEffect(() => {
-    // Keep scrapbook surfaces in the shared renderer to preserve occlusion.
-    scene.current?.setHybridEnabled(!additions.length && !pageTags.length && !pageLinks.length);
-  }, [bookReady, additions, pageTags, pageLinks]);
   const [litNotesKey, setLitNotesKey] = useState("");
   const notesForSpread = (pages: Array<number | null>) => pages.flatMap((n, side) => n === null ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side, exterior: n === 0 || n === layout.leaves.length - 1 })));
   useEffect(() => { noteProgresses.current.clear(); setOpenNote(false); }, [leaf, additions]);

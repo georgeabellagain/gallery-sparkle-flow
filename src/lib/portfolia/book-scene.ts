@@ -1,3 +1,4 @@
+import { turnEase, turnClearance } from "./turn-motion";
 import { averageEnvironment, createEnvironmentDiffuser } from "./environment-diffusion";
 import { dappleTexture } from "./dapple-light";
 import { bookSurfaceRatio, bookMotionBudget } from "./render-budget";
@@ -30,7 +31,7 @@ export type StudioSettings = {
   simpleShadowOpacity: number;
 };
 export type BookFaces = [HTMLCanvasElement | null, HTMLCanvasElement | null];
-const ease = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
+const ease = turnEase;
 const smooth = (t: number) => {
   const c = Math.min(1, Math.max(0, t));
   return c * c * (3 - 2 * c);
@@ -71,12 +72,6 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   renderer.domElement.style.width = "100%";
   renderer.domElement.style.height = "100%";
   host.appendChild(renderer.domElement);
-  const readingCanvas = document.createElement("canvas");
-  Object.assign(readingCanvas.style, { position: "absolute", inset: "0", width: "100%", height: "100%", pointerEvents: "none" });
-  readingCanvas.setAttribute("aria-hidden", "true");
-  host.appendChild(readingCanvas);
-  let hybridEnabled = false;
-  const readingContext = readingCanvas.getContext("2d");
   // Preserve oblique page detail using the filtering supported by this GPU.
   const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
   // Neutral tone mapping keeps artwork colours true; ACES is the fallback.
@@ -315,8 +310,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     mesh.geometry.computeVertexNormals();
     mesh.userData["seed"] = seed;
   };
-  const left = new THREE.Mesh(new THREE.PlaneGeometry(1, ratio, 40, 24), material());
-  const right = new THREE.Mesh(new THREE.PlaneGeometry(1, ratio, 40, 24), material());
+  const left = new THREE.Mesh(new THREE.PlaneGeometry(1, ratio, 32, 16), material());
+  const right = new THREE.Mesh(new THREE.PlaneGeometry(1, ratio, 32, 16), material());
   shapePage(left, -1, 0);
   shapePage(right, 1, 0);
   left.position.set(-0.5, 0, 0);
@@ -423,28 +418,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     pendingDragShape = null;
     update?.();
     backdrop.frame(camera, w, h, Math.max(ratio * 1.1 + FRAME_PAD, 2.32 / camera.aspect) * (1 + inset));
-    const hybrid = hybridEnabled && !settings.studio && !turning && !!readingContext;
-    readingCanvas.style.display = hybrid ? "block" : "none";
-    const visible = [left.visible, right.visible];
-    if (hybrid) {
-      const density = bookSurfaceRatio(w, h, Math.min(dpr, 2), MAX_SURFACE_PIXELS);
-      const cw = Math.round(w * density), ch = Math.round(h * density);
-      if (readingCanvas.width !== cw || readingCanvas.height !== ch) { readingCanvas.width = cw; readingCanvas.height = ch; }
-      readingContext!.clearRect(0, 0, cw, ch);
-      scene.updateMatrixWorld(true);
-      for (const mesh of [left, right]) {
-        const image = mesh.material.map?.image as HTMLCanvasElement | undefined;
-        if (!mesh.visible || !image) continue;
-        const a = mesh.localToWorld(new THREE.Vector3(-.5, ratio / 2, 0)).project(camera);
-        const b = mesh.localToWorld(new THREE.Vector3(.5, -ratio / 2, 0)).project(camera);
-        readingContext!.drawImage(image, (a.x + 1) * cw / 2, (1 - a.y) * ch / 2, (b.x - a.x) * cw / 2, (a.y - b.y) * ch / 2);
-        mesh.visible = false;
-      }
-    }
     renderer.shadowMap.needsUpdate = turning || shadowsDirty;
     renderer.render(scene, camera);
     shadowsDirty = false;
-    left.visible = visible[0]!; right.visible = visible[1]!;
   };
   /** Coalesces rapid pointer input into at most one render per frame. */
   const requestPaint = () => {
@@ -775,7 +751,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     resize();
   };
   /** The most a turn advances in one frame, however slow that frame was. */
-  const MAX_FRAME_STEP = 1000 / 30;
+  const MAX_FRAME_STEP = 1000 / 60;
   const animate = (duration: number, update: (t: number) => void) =>
     new Promise<void>((resolve) => {
       if (disposed) {
@@ -803,7 +779,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         // Time starts from the first frame that is actually drawn: if that frame is slow (a texture reaching the
         // graphics card, say) the turn begins from the start rather than skipping ahead.
         // A slow frame (a hitch of any kind) holds the turn back instead of making it jump ahead: however long a
-        // frame takes, the turn advances by at most two frames' worth, so it never skips.
+        // frame takes, the turn advances by at most one 60 Hz frame, limiting visible jumps.
         if (!start) {
           start = now;
           previous = now;
@@ -833,6 +809,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       frameCamera();
     });
   };
+  const stickyPosition = new THREE.Vector3(), stickyNormal = new THREE.Vector3();
   const shape = (progress: number, dir: 1 | -1) => {
     const attr = geometry.getAttribute("position") as THREE.BufferAttribute;
     const uv = geometry.getAttribute("uv");
@@ -848,6 +825,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       reliefKey = key;
     }
     const angle = Math.PI * progress, sin = Math.sin(angle), cos = Math.cos(angle);
+    const clearance = turnClearance(progress, SHEET_CLEARANCE);
     for (let i = 0; i < attr.count; i++) {
       const u = uv.getX(i),
         v = uv.getY(i);
@@ -857,7 +835,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const z = u * sin - curl * cos;
       // At rest the sheet matches the curved, imperfect page it came from or lands on.
       const relief = reliefFrom[i]! * (1 - blend) + reliefTo[i]! * blend;
-      attr.setXYZ(i, x, (v - 0.5) * ratio, z + relief + SHEET_CLEARANCE);
+      attr.setXYZ(i, x, (v - 0.5) * ratio, z + relief + clearance);
     }
     // Reversing travel reverses winding; preserve the physical front face.
     // The side is part of the shader, so refresh it only when it changes.
@@ -876,7 +854,6 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     attr.needsUpdate = true;
     geometry.computeVertexNormals();
-    const stickyPosition = new THREE.Vector3(), stickyNormal = new THREE.Vector3();
     const stickySample = { position: stickyPosition, normal: stickyNormal, floorZ: 0 };
     notes.turn(progress, dir, (u, v) => {
       const x = Math.min(32, Math.max(0, u * 32)), y = Math.min(16, Math.max(0, (1 - v) * 16));
@@ -908,7 +885,6 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     setBackdrop(url: string | undefined, fit: Parameters<typeof backdrop.set>[1], lit: boolean, colour: string) {
       backdrop.set(url, fit, true, colour, lit);
     },
-    setHybridEnabled(value: boolean) { hybridEnabled = value; requestPaint(); },
     setNotes: notes.set,
     notesReady: notes.has,
     prepareNotes: notes.prepare,
@@ -1077,7 +1053,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const start = turn.progress;
       const startFocus = focus;
       const end = complete ? 1 : 0;
-      await animate(Math.max(120 * speed, 700 * speed * Math.abs(end - start)), (t) => {
+      await animate(Math.max(120 * speed, 840 * speed * Math.abs(end - start)), (t) => {
         const progress = THREE.MathUtils.lerp(start, end, t);
         turn.progress = progress;
         shape(progress, dir);
@@ -1149,7 +1125,6 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       renderer.dispose();
       renderer.forceContextLoss();
       renderer.domElement.remove();
-      readingCanvas.remove();
     },
   };
 }
