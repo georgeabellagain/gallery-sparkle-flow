@@ -38,3 +38,6 @@ export function presetDirectLight(id: HdriId, strength = .75) {
   const pattern = HDRI_PRESETS.find(preset => preset.id === id)?.dapple;
   return (pattern === "window" || pattern === "blinds" ? 1.4 : pattern ? 1.8 : 0) * studioLightMix(strength).hdri;
 }
+
+/** Optional neutral fill, independent of HDRI detail and exposure. */
+export function studioTopLight(value = 0) { return Math.PI * Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0)); }

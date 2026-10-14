@@ -264,6 +264,11 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
                     <input type="range" aria-label="Studio brightness" min="0" max={MAX_STUDIO_BRIGHTNESS * 100} step="1" value={Math.round(studioBrightness * 100)} onChange={(e) => setViewer({ studioBrightness: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground" />
                     <span className="w-9 text-right tabular-nums">{Math.round(studioBrightness * 100)}%</span>
                   </label>
+                  <label className="flex items-center gap-3">
+                    <span className="w-20 shrink-0">Top light</span>
+                    <input type="range" aria-label="Studio white top light" min="0" max="100" step="1" value={Math.round((viewer.studioTopLight ?? 0) * 100)} onChange={e => setViewer({ studioTopLight: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground" />
+                    <span className="w-9 text-right tabular-nums">{Math.round((viewer.studioTopLight ?? 0) * 100)}%</span>
+                  </label>
                   <div className="space-y-1.5">
                     <p>Lighting</p>
                     <label className="flex items-center gap-2"><span className="shrink-0">Diffusion</span><input type="range" aria-label="Studio lighting diffusion" min="0" max="100" value={Math.round((1 - (viewer.studioLightingStrength ?? .75)) * 100)} onChange={e => setViewer({ studioLightingStrength: 1 - Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground"/><span className="w-9 text-right tabular-nums">{Math.round((1 - (viewer.studioLightingStrength ?? .75)) * 100)}%</span></label>

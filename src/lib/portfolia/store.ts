@@ -42,6 +42,8 @@ export interface ViewerSettings {
   /** Creator-defined Studio lighting. */
   /** Studio exposure control, 0..2 (200%). */
   studioBrightness?: number;
+  /** Optional white overhead fill, 0..1; omitted is off. */
+  studioTopLight?: number;
   /** Retention of HDRI detail versus its solid average colour, 0..1. */
   studioLightingStrength?: number;
   /** Illuminate uploaded backgrounds with the same Studio scene. */

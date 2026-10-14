@@ -25,10 +25,13 @@ export function createEnvironmentDiffuser(renderer: THREE.WebGLRenderer) {
   });
   const geometry = new THREE.PlaneGeometry(2, 2); scene.add(new THREE.Mesh(geometry, material));
   let output: THREE.WebGLRenderTarget | null = null;
+  let lastBlend = "";
   return {
     apply(source: THREE.WebGLRenderTarget, strength: number, colour: readonly number[] = [.285, .285, .285]) {
       const amount = Math.max(0, Math.min(1, strength));
       if (amount === 1) return source.texture;
+      const key = `${source.texture.uuid}|${source.width}|${source.height}|${amount}|${colour.join(",")}`;
+      if (output && lastBlend === key) return output.texture;
       if (!output || output.width !== source.width || output.height !== source.height) {
         output?.dispose();
         output = new THREE.WebGLRenderTarget(source.width, source.height, { type: THREE.HalfFloatType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, generateMipmaps: false });
@@ -40,9 +43,10 @@ export function createEnvironmentDiffuser(renderer: THREE.WebGLRenderer) {
       const previous = renderer.getRenderTarget();
       try { renderer.setRenderTarget(output); renderer.render(scene, camera); }
       finally { renderer.setRenderTarget(previous); }
+      lastBlend = key;
       return output.texture;
     },
-    reset() { output?.dispose(); output = null; },
-    dispose() { output?.dispose(); output = null; material.dispose(); geometry.dispose(); },
+    reset() { output?.dispose(); output = null; lastBlend = ""; },
+    dispose() { output?.dispose(); output = null; lastBlend = ""; material.dispose(); geometry.dispose(); },
   };
 }

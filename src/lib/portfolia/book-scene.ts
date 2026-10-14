@@ -1,4 +1,4 @@
-import { turnEase, turnClearance } from "./turn-motion";
+import { turnEase, turnClearance, turnSheetHeight } from "./turn-motion";
 import { averageEnvironment, createEnvironmentDiffuser } from "./environment-diffusion";
 import { dappleTexture } from "./dapple-light";
 import { bookSurfaceRatio, bookMotionBudget } from "./render-budget";
@@ -10,7 +10,7 @@ import * as THREE from "three";
 import { createLitBackdrop } from "./lit-backdrop";
 import { surfaceCanvas, paperRelief, type SurfaceKind } from "./surface";
 import { parseRgbe } from "./rgbe";
-import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS, studioLightMix, presetDirectLight, studioExposure, type HdriId } from "./lighting";
+import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS, studioLightMix, studioTopLight, presetDirectLight, studioExposure, type HdriId } from "./lighting";
 import { GPU_BYTES, deviceTier, gpuBytesOf } from "./resolution";
 
 export { HDRI_PRESETS };
@@ -22,6 +22,7 @@ export type StudioSettings = {
   material: SurfaceKind;
   /** 0..1 overall studio brightness. */
   brightness: number;
+  topLight?: number;
   strength?: number;
   textureStrength?: number;
   hdri: HdriId;
@@ -155,6 +156,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const light = new THREE.DirectionalLight(0xffffff, 2.3);
   light.position.set(-1.8, 2.8, 5.5);
   light.castShadow = true;
+  const topLight = new THREE.DirectionalLight(0xffffff, 0);
+  topLight.position.set(0, 0, 6); topLight.castShadow = false; scene.add(topLight);
   // A tight frustum keeps shadow detail high.
   const shadowExtent = Math.hypot(1, ratio / 2) + 0.7;
   light.shadow.mapSize.set(512, 512);
@@ -672,6 +675,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     light.position.set(-1.8, 2.8, 5.5);
     light.color.set(0xffffff);
     light.intensity = next.studio ? mix.top : 0;
+    topLight.intensity = next.studio ? studioTopLight(next.topLight) : 0;
     light.shadow.radius = 6;
     ambient.intensity = next.studio ? mix.ambient : Math.PI;
     ambient.color.set(0xffffff);
@@ -835,7 +839,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const z = u * sin - curl * cos;
       // At rest the sheet matches the curved, imperfect page it came from or lands on.
       const relief = reliefFrom[i]! * (1 - blend) + reliefTo[i]! * blend;
-      attr.setXYZ(i, x, (v - 0.5) * ratio, z + relief + clearance);
+      const resting = x < 0 ? left : right;
+      const floor = pageRelief(Math.min(1, Math.abs(x)), v, resting.userData["seed"] as number);
+      attr.setXYZ(i, x, (v - 0.5) * ratio, turnSheetHeight(z + relief + clearance, floor, SHEET_CLEARANCE));
     }
     // Reversing travel reverses winding; preserve the physical front face.
     // The side is part of the shader, so refresh it only when it changes.
