@@ -846,7 +846,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const relief = reliefFrom[i]! * (1 - blend) + reliefTo[i]! * blend;
       const resting = x < 0 ? left : right;
       const floor = pageRelief(Math.min(1, Math.abs(x)), v, resting.userData["seed"] as number);
-      attr.setXYZ(i, x, (v - 0.5) * ratio, turnSheetHeight(z + relief + clearance, floor, SHEET_CLEARANCE));
+      attr.setXYZ(i, x, (v - 0.5) * ratio, turnSheetHeight(z + relief + clearance, floor, SHEET_CLEARANCE, progress));
     }
     // Reversing travel reverses winding; preserve the physical front face.
     // The side is part of the shader, so refresh it only when it changes.
@@ -1077,7 +1077,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const start = turn.progress;
       const startFocus = focus;
       const end = complete ? 1 : 0;
-      await animate(Math.max(120 * speed, 840 * speed * Math.abs(end - start)), (t) => {
+      await animate(Math.max(120 * speed, 700 * speed * Math.abs(end - start)), (t) => {
         const progress = THREE.MathUtils.lerp(start, end, t);
         turn.progress = progress;
         shape(progress, dir);

@@ -21,6 +21,7 @@ test("Studio backdrop reallocates uploaded textures after fullscreen resize", as
     backdrop.frame(camera, 800, 640);
     const material = (scene.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial;
     const oldMap = material.map!, oldNormals = material.normalMap!;
+    assert.equal(oldMap.image.width, 1600); // preserve source detail in the small viewer
     let mapDisposed = false, normalsDisposed = false;
     oldMap.addEventListener("dispose", () => { mapDisposed = true; });
     oldNormals.addEventListener("dispose", () => { normalsDisposed = true; });
@@ -38,7 +39,7 @@ test("Studio backdrop reallocates uploaded textures after fullscreen resize", as
     camera.aspect = 800 / 640;
     backdrop.frame(camera, 800, 640);
     assert.notEqual(material.map, fullMap);
-    assert.equal(material.map!.image.width, 800);
+    assert.equal(material.map!.image.width, 1600);
   } finally {
     backdrop?.dispose();
     globalThis.document = originalDocument;

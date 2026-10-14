@@ -53,7 +53,11 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
       if (source && stamp !== dimensions) {
         dimensions = stamp;
         const previousWidth = canvas.width, previousHeight = canvas.height;
-        const cap = Math.min(Math.min(devicePixelRatio || 1, 2), 4096 / Math.max(width, height));
+        // Retain source detail when starting in a small editor/preview. Zooming
+        // the camera must not magnify a preview-sized copy of the photograph.
+        const longest = Math.max(width, height);
+        const detail = Math.max(longest * Math.min(globalThis.devicePixelRatio || 1, 2), Math.max(source.naturalWidth, source.naturalHeight));
+        const cap = Math.min(4096, detail) / longest;
         canvas.width = Math.max(1, Math.round(width * cap)); canvas.height = Math.max(1, Math.round(height * cap));
         const scale = Math.max(1, Math.min(3, fit.scale));
         const cover = Math.max(canvas.width / source.naturalWidth, canvas.height / source.naturalHeight);
