@@ -2,7 +2,7 @@ import { averageEnvironment, createEnvironmentDiffuser } from "./environment-dif
 import { readerSlideOffset, READER_SLIDE_MS } from "./reader-slide";
 import { createFrameCommits } from "./frame-commits";
 import * as THREE from "three";
-import { HDRI_PRESETS, studioLightMix, presetDirectLight, studioExposure, type HdriId } from "./lighting";
+import { HDRI_PRESETS, studioLightMix, studioTopLight, presetDirectLight, studioExposure, type HdriId } from "./lighting";
 import { parseRgbe } from "./rgbe";
 import { dappleTexture } from "./dapple-light";
 import { surfaceCanvas, paperRelief, type SurfaceKind } from "./surface";
@@ -10,7 +10,7 @@ import { createLitBackdrop } from "./lit-backdrop";
 import { bookSurfaceRatio, readerTextureEvictions } from "./render-budget";
 import { pageWorldRect } from "./page-position";
 
-export type PageStudioSettings = { hdri: HdriId; brightness: number; finish: SurfaceKind; strength?: number; textureStrength?: number };
+export type PageStudioSettings = { hdri: HdriId; brightness: number; topLight?: number; finish: SurfaceKind; strength?: number; textureStrength?: number };
 type Presentation = { layer: HTMLElement; direction: 1 | -1; animate: boolean };
 type Page = { layer?: HTMLElement; slide?: { started: number; direction: 1 | -1 }; element: HTMLElement; source: HTMLCanvasElement; near: boolean; mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshStandardMaterial> | null; revealAt: number | null; usedAt: number };
 
@@ -48,6 +48,8 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   let failed = false;
   let disposed = false, ready = false;
   let frame = 0, revision = 0;
+  const topLight = new THREE.DirectionalLight(0xffffff, 0);
+  topLight.position.set(0, 0, 6); topLight.castShadow = false; scene.add(topLight);
   let settings: PageStudioSettings = { hdri: "4", brightness: .5, finish: "satin" };
   const restore = (page: Page) => {
     page.source.style.visibility = "";
@@ -257,6 +259,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       scene.environment = diffuser.apply(target, mix.hdri, environmentColours.get(next.hdri));
       scene.environmentIntensity = pattern ? 1 - .3 * mix.hdri : 1;
       ambient.intensity = mix.ambient;
+      topLight.intensity = studioTopLight(next.topLight);
       key.position.set(-1.8, 2.8, 5.5); key.intensity = mix.top;
       key.castShadow = !pattern || mix.hdri === 0; sun.castShadow = Boolean(pattern) && mix.hdri > 0;
       renderer.toneMappingExposure = studioExposure(next.brightness);

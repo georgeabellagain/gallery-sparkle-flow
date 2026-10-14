@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { turnEase, turnClearance } from "../src/lib/portfolia/turn-motion";
+import { turnEase, turnClearance, turnSheetHeight } from "../src/lib/portfolia/turn-motion";
 
 test("turns settle without a discontinuous shadow offset in either direction", () => {
   assert.equal(turnClearance(0, .01), 0);
@@ -13,4 +13,11 @@ test("turn timing has gentle endpoints and advances monotonically", () => {
   assert.ok(turnEase(.01) < .0001);
   assert.ok(1 - turnEase(.99) < .0001);
   for (let i = 1; i <= 100; i++) assert.ok(turnEase(i/100) >= turnEase((i-1)/100));
+});
+
+test("click turns stay above differently curved receiving pages at both ends", () => {
+  for (const height of [-.003, 0, .003, .2]) for (const floor of [-.003, 0, .003]) {
+    assert.ok(turnSheetHeight(height, floor, .01) >= floor + .01);
+    assert.ok(turnSheetHeight(height, floor, .01) >= height);
+  }
 });
