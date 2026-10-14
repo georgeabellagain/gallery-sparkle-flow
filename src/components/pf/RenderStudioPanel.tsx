@@ -1,7 +1,7 @@
-import { RenderedBook } from "./RenderedBook";
+import { studioRenderDimensions } from "@/lib/portfolia/render-framing";
 import { studioCaptureCapability } from "@/lib/portfolia/studio-recorder";
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { PdfViewer } from "./PdfViewer";
 import { useBlob } from "./Chrome";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import {
 } from "@/lib/portfolia/rendered-studio";
 
 export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () => void }) {
+  const dimensions = useRef(studioRenderDimensions(typeof window === "undefined" ? 1920 : window.innerWidth, typeof window === "undefined" ? 1080 : Math.max(1, window.innerHeight - 56)));
   const pdf = useBlob(p.pdf?.blobKey),
     bg = useBlob(p.viewer?.backgroundKey);
   const [bgUrl, setBgUrl] = useState<string>(),
@@ -37,7 +38,7 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
   );
   useEffect(() => {
     let active = true;
-    void studioCaptureCapability().then((c) => {
+    void studioCaptureCapability(dimensions.current.width, dimensions.current.height).then((c) => {
       if (active) setCapability(c);
     });
     return () => {
@@ -138,7 +139,7 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
     >
       <h2 className="text-lg font-medium">Render Studio flipbook</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Create 1080p page turns and note animations. Frame-by-frame rendering uses 60 FPS where
+        Create high-resolution page turns and note animations. Frame-by-frame rendering uses 60 FPS where
         supported. Keep this tab open while rendering. Your editor stays live; shared Studio views
         use the finished render.
       </p>
@@ -157,7 +158,7 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
       </div>
       <p className="my-3 text-xs text-muted-foreground">
         {capability === "offline"
-          ? "Frame-by-frame 1080p / 60 FPS rendering."
+          ? "Frame-by-frame high-resolution / 60 FPS rendering."
           : capability === "realtime"
             ? "Real-time recording: animation quality depends on this device."
             : capability === "unsupported"
@@ -196,7 +197,8 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
       </div>
       {preview && <RenderedStudioPreview p={getDoc().portfolio ?? p} onClose={() => setPreview(false)} />}
       <div
-        className="pf-render-capture pointer-events-none fixed left-[-10000px] top-0 h-[1080px] w-[1920px]"
+        className="pf-render-capture pointer-events-none fixed left-[-10000px] top-0"
+        style={{width: dimensions.current.width/2, height: dimensions.current.height/2, "--pf-render-height": `${dimensions.current.height/2}px`} as CSSProperties}
         aria-hidden="true"
         inert
       >
@@ -232,20 +234,24 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
 
 
 export function RenderedStudioPreview({ p, onClose }: { p: Portfolio; onClose: () => void }) {
-  const pack = currentRender(p);
-  const [zoom, setZoom] = useState(1);
+  const pack = currentRender(p), pdf = useBlob(p.pdf?.blobKey), background = useBlob(p.viewer?.backgroundKey);
+  const [backgroundUrl, setBackgroundUrl] = useState<string>();
+  const source = useRef<{blob: Blob} | null>(null);
+  if(pdf && source.current?.blob !== pdf) source.current={blob:pdf};
+  useEffect(()=>{
+    if(!background){setBackgroundUrl(undefined);return;}
+    const url=URL.createObjectURL(background);setBackgroundUrl(url);
+    return ()=>URL.revokeObjectURL(url);
+  },[background]);
   if (!pack || typeof document === "undefined") return null;
-  return createPortal(<dialog open aria-modal="true" aria-label="Rendered portfolio preview" className="fixed inset-0 z-[110] m-auto h-[95dvh] w-[95vw] overflow-hidden rounded-2xl border bg-background p-3 text-foreground shadow-lift">
+  return createPortal(<dialog open aria-modal="true" aria-label="Rendered portfolio preview" className="fixed inset-0 z-[110] m-auto h-[95dvh] w-[95vw] overflow-auto rounded-2xl border bg-background p-3 text-foreground shadow-lift">
     <div className="flex items-center justify-between gap-2 pb-2">
       <h2 className="font-medium">Rendered version</h2>
-      <div className="flex items-center gap-2">
-        <Button size="sm" variant="line" onClick={() => setZoom(v => Math.max(1, v - .25))} aria-label="Zoom out">−</Button>
-        <span className="text-xs tabular-nums">{Math.round(zoom * 100)}%</span>
-        <Button size="sm" variant="line" onClick={() => setZoom(v => Math.min(3, v + .25))} aria-label="Zoom in">+</Button>
-        <Button size="sm" variant="line" onClick={() => setZoom(1)}>Reset</Button>
-        <Button size="sm" onClick={onClose}>Back to editing</Button>
-      </div>
+      <Button size="sm" onClick={onClose}>Back to editing</Button>
     </div>
-    <RenderedBook pack={pack} zoom={zoom} onZoomChange={setZoom} jump={null} onPage={() => {}} onReady={() => {}} onFallback={onClose} />
+    {pdf ? <PdfViewer source={source.current} fileName={p.pdf?.name ?? "portfolio.pdf"}
+      viewer={{...DEFAULT_VIEWER,...p.viewer,mode:"book",look:"studio",looks:["clean","studio"],modes:["book"]}}
+      initialLook="studio" renderedStudio={pack} backgroundUrl={backgroundUrl} backdrop={p.style?.backdrop}
+      foldouts={p.pdf?.foldouts} tags={p.pdf?.tags} links={p.pdf?.links} fullSpread /> : <p>Loading portfolio…</p>}
   </dialog>, document.body);
 }

@@ -52,7 +52,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const dpr = window.devicePixelRatio || 1;
   // Edges are smoothed by multisampling (always on), so the picture does not need to be drawn at more than
   // twice the screen's own detail. Drawing fewer pixels is what keeps Studio's paper shading quick.
-  let pixelRatio = Math.min(Math.max(dpr, 1), compact ? 1.5 : 2);
+  let pixelRatio = fixedQuality ? 2 : Math.min(Math.max(dpr, 1), compact ? 1.5 : 2);
   let appliedRatio = pixelRatio;
   const readingRatio = pixelRatio;
   let turning = false;
@@ -479,7 +479,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // A big window gets a slightly lower pixel density rather than a surface too large for the graphics card.
     // CSS pixels are not a minimum: a 4K fullscreen canvas must still obey
     // the GPU budget. Preserve HD page textures independently of this surface.
-    const budget = bookMotionBudget(compact ? MAX_SURFACE_PIXELS_SMALL : MAX_SURFACE_PIXELS, turning);
+    const budget = fixedQuality ? 8_294_400 : bookMotionBudget(compact ? MAX_SURFACE_PIXELS_SMALL : MAX_SURFACE_PIXELS, turning);
     const next = bookSurfaceRatio(w, h, turning ? pixelRatio : readingRatio, budget);
     if (Math.abs(next - appliedRatio) > 1e-6) {
       appliedRatio = next;
