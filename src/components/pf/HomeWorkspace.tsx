@@ -79,10 +79,8 @@ export function HomeWorkspace() {
         <div className="absolute inset-x-0 bottom-1 z-40 text-center text-[10px] text-muted-foreground">{status}</div>
       </> : <div className="pf-home-example relative h-[calc(100dvh-3.5rem)] min-h-[34rem]">
         <div className="absolute inset-0"><Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted-foreground">Preparing the example…</div>}><StudioDemo workspace className="relative h-full w-full" /></Suspense></div>
-        <div className="pointer-events-none absolute inset-x-0 top-5 z-20 px-5 text-center">
-          <div className="inline-block rounded-2xl bg-background/90 px-6 py-3 shadow-soft backdrop-blur"><h1 className="display-title text-2xl sm:text-3xl">Drop your PDF to start.</h1><p className="mt-1 text-xs text-muted-foreground">No sign-up to preview.</p></div>
-        </div>
-        <span className="pointer-events-none absolute left-4 top-28 z-20 rounded-full bg-background/90 px-3 py-1.5 text-[11px] shadow-soft">Example portfolio</span>
+        <h1 className="sr-only">Portfolia portfolio workspace</h1>
+        <span className="pointer-events-none absolute left-4 top-5 z-20 rounded-full bg-background/90 px-3 py-1.5 text-[11px] shadow-soft">Example portfolio</span>
         <nav aria-label="Portfolio workspace tools" className="pf-home-toolbar absolute bottom-7 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-border bg-background/95 p-2 shadow-lift backdrop-blur">
           <Button size="sm" onClick={() => input.current?.click()}><Upload className="size-4" /><span>Upload PDF</span></Button>
           <Button size="sm" variant="quiet" onClick={() => setDialog("upload")}><SlidersHorizontal className="size-4" /><span>Customise</span></Button>
