@@ -139,7 +139,7 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
     >
       <h2 className="text-lg font-medium">Render Studio flipbook</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Create high-resolution page turns and note animations. Frame-by-frame rendering uses 60 FPS where
+        Create high-resolution page turns and note animations. Frame-by-frame rendering uses 30 FPS where
         supported. Keep this tab open while rendering. Your editor stays live; shared Studio views
         use the finished render.
       </p>
@@ -158,7 +158,7 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
       </div>
       <p className="my-3 text-xs text-muted-foreground">
         {capability === "offline"
-          ? "Frame-by-frame high-resolution / 60 FPS rendering."
+          ? "Frame-by-frame high-resolution / 30 FPS rendering."
           : capability === "realtime"
             ? "Real-time recording: animation quality depends on this device."
             : capability === "unsupported"

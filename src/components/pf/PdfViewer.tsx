@@ -278,6 +278,14 @@ export function PdfViewer({
   // (The page scrolls up and down only at normal size, so a pinch is never mistaken for a sideways scroll; once zoomed in it moves every way.)
   const pagedRef = useRef<HTMLDivElement>(null);
   const panRef = useRef<HTMLDivElement>(null);
+  const wheelAnchor=useRef<{x:number;y:number;u:number;v:number}|null>(null);
+  useLayoutEffect(()=>{
+    const a=wheelAnchor.current, el=panRef.current, content=el?.firstElementChild;
+    if(!a||!el||!content)return;
+    const rect=content.getBoundingClientRect();
+    el.scrollLeft+=rect.left+a.u*rect.width-a.x;el.scrollTop+=rect.top+a.v*rect.height-a.y;
+    wheelAnchor.current=null;
+  },[zoom]);
   const zoomLive = useRef(zoom);
   zoomLive.current = zoom;
   useEffect(() => {
@@ -329,13 +337,15 @@ export function PdfViewer({
     };
   }, [mode, doc, zoom > 1]);
   useEffect(() => {
-    const el = pagedRef.current;
-    if (mode !== "paged" || !doc || !el) return;
+    const el = mode === "paged" ? pagedRef.current : panRef.current;
+    if ((mode !== "paged" && mode !== "scroll") || !doc || !el) return;
     let frame = 0;
     let delta = 0;
     const wheel = (event: WheelEvent) => {
       if (!event.deltaY) return;
       event.preventDefault();
+      const content=panRef.current?.firstElementChild, rect=content?.getBoundingClientRect();
+      if(rect)wheelAnchor.current={x:event.clientX,y:event.clientY,u:(event.clientX-rect.left)/rect.width,v:(event.clientY-rect.top)/rect.height};
       const pixels = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? el.clientHeight : 1);
       delta += Math.max(-120, Math.min(120, pixels));
       if (frame) return;
@@ -751,7 +761,7 @@ export function PdfViewer({
       )}
 
       {(mode !== "book" || (renderedStudio && !compact)) && enabledLooks.length > 1 && showControls && (
-        <div className="absolute bottom-1.5 left-1.5 z-30 flex w-fit rounded-full bg-background/90 shadow-soft backdrop-blur">
+        <div className="absolute bottom-1.5 left-1.5 z-30 flex w-fit">
           <Segmented label="Page appearance" value={activeLook} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={changeLook} />
         </div>
       )}
@@ -916,7 +926,7 @@ function PdfPage({
       const changed = presentedPage.current !== null && (presentedPage.current.doc !== doc || presentedPage.current.n !== n);
       const direction = presentedPage.current && n < presentedPage.current.n ? -1 : 1;
       presentedPage.current = { doc, n };
-      const moving = Boolean(animate && changed && slide && !window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+      const moving = false;
       if (moving && !live) {
         layer.animate([{ transform: `translateX(${direction * READER_SLIDE_DISTANCE * 100}%)` }, { transform: "translateX(0)" }], { duration: READER_SLIDE_MS, easing: "cubic-bezier(.215,.61,.355,1)" });
       }

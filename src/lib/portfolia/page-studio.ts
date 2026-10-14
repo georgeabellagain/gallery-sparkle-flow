@@ -108,7 +108,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
         if (old) release(old);
         const presentation = job.commit(true);
         const slide = presentation?.animate ? { started: performance.now(), direction: presentation.direction } : old?.slide;
-        const page: Page = { layer: presentation?.layer ?? old?.layer, slide, element, source: job.source, near: old?.near ?? false, mesh: null, usedAt: performance.now(), revealAt: old || window.matchMedia("(prefers-reduced-motion: reduce)").matches ? null : performance.now() };
+        const page: Page = { layer: presentation?.layer ?? old?.layer, slide, element, source: job.source, near: old?.near ?? false, mesh: null, usedAt: performance.now(), revealAt: null };
         pages.set(element, page); observer.observe(element); resize.observe(element);
         for (const animation of element.getAnimations()) animations.add(animation);
       });

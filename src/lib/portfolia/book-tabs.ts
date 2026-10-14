@@ -15,7 +15,7 @@ export interface TabSpec {
   position?: number;
 }
 const COLS = 4;
-const LIFT = 0.012;
+const LIFT = 0.001;
 /** Paper tabs that are part of the book: they sit on the page edge, travel with the sheet they belong to, and are lit like the paper. */
 export function createBookTabs(
   book: THREE.Group,
@@ -23,6 +23,7 @@ export function createBookTabs(
   materials: THREE.MeshPhysicalMaterial[],
   template: () => THREE.MeshPhysicalMaterial,
   repaint: () => void,
+  relief?: (x: number, y: number) => number,
 ) {
   type Entry = { spec: TabSpec; y: number; height: number; v: number; front: THREE.BufferGeometry; back: THREE.BufferGeometry; group: THREE.Group };
   let entries: Entry[] = [];
@@ -136,7 +137,7 @@ export function createBookTabs(
             const x = frame.x + frame.tx * dist;
             const lift = frame.z + frame.tz * dist;
             const yy = e.y + (r === 0 ? -1 : 1) * (e.height / 2);
-            const z = lift + pageRelief(Math.min(1, Math.abs(frame.x)), e.v, 0) * nearPage(lift) + LIFT;
+            const z = lift + (relief ? relief(x, yy) : pageRelief(Math.min(1, Math.abs(frame.x)), e.v, 0)) * nearPage(lift) + LIFT;
             pos.setXYZ(c * 2 + r, x, yy, z);
           }
         }

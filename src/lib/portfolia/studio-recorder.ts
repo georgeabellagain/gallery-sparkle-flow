@@ -6,7 +6,7 @@ export async function studioCaptureCapability(width = 3840, height = 2160): Prom
         await canEncodeVideo("avc", {
           width,
           height,
-          frameRate: 60,
+          frameRate: 30,
           quality: new Quality({ bitrate: 32_000_000 }),
         })
       )
@@ -22,7 +22,7 @@ export async function studioCaptureCapability(width = 3840, height = 2160): Prom
     ? "realtime"
     : "unsupported";
 }
-/** Frame-count driven high-resolution/60 FPS MP4, with a real-time fallback on older browsers. */
+/** Frame-count driven high-resolution/30 FPS MP4, with a real-time fallback on older browsers. */
 export async function recordStudioClip(
   canvas: HTMLCanvasElement,
   action: () => Promise<void>,
@@ -33,15 +33,15 @@ export async function recordStudioClip(
     const { Output, Mp4OutputFormat, BufferTarget, CanvasSource, Quality, canEncodeVideo } =
       await import("mediabunny");
     const quality = new Quality({ bitrate: 32_000_000 });
-    if (await canEncodeVideo("avc", { width: canvas.width, height: canvas.height, frameRate: 60, quality })) {
+    if (await canEncodeVideo("avc", { width: canvas.width, height: canvas.height, frameRate: 30, quality })) {
       const target = new BufferTarget();
       const output = new Output({ format: new Mp4OutputFormat(), target });
       const source = new CanvasSource(canvas, { codec: "avc", quality, keyFrameInterval: 1 });
-      output.addVideoTrack(source, { frameRate: 60 });
+      output.addVideoTrack(source, { frameRate: 30 });
       let frame = 0;
       const encode = async () => {
         signal.throwIfAborted();
-        await source.add(frame++ / 60, 1 / 60);
+        await source.add(frame++ / 30, 1 / 30);
         await new Promise<void>((r) => setTimeout(r, 0));
       };
       try {
@@ -69,7 +69,7 @@ export async function recordStudioClip(
   if (!type)
     throw new Error("Video rendering is not supported in this browser. Try Chrome or Edge.");
   signal.throwIfAborted();
-  const stream = canvas.captureStream(60),
+  const stream = canvas.captureStream(30),
     chunks: Blob[] = [];
   const recorder = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 32_000_000 });
   let rejectRecording: (error: Error) => void = () => {};

@@ -138,8 +138,9 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
         const raised = Float32Array.from(revealedPaper.geometry.getAttribute("position").array);
         notes.beginTurn(0); notes.turn(.25, -1);
         const revealPositions = revealedPaper.geometry.getAttribute("position");
+        assert.equal(revealed.visible,false,"incoming stationary note stays hidden under the covering page");
         for (let i = 0; i < revealPositions.count; i++) assert.ok(revealPositions.getZ(i) < raised[i * 3 + 2]!, "revealed note stays flat until the covering page is clear");
-        notes.turn(.4, -1);
+        notes.turn(.8, -1);
         assert.deepEqual(revealPositions.array, raised, "revealed note regains its curl smoothly after clearance");
         notes.endTurn(true);
         assert.equal(notes.has(destination), true);
@@ -151,7 +152,7 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
         notes.beginTurn(1); notes.turn(.75, 1);
         const compressed = coveredPaper.geometry.getAttribute("position");
         for (let i = 0; i < compressed.count; i++) assert.ok(compressed.getZ(i) < coveredRest[i * 3 + 2]!, "covered sticky note is pressed below the landing sheet by 75% of the turn");
-        notes.turn(.5, 1);
+        notes.turn(.2, 1);
         assert.deepEqual(compressed.array, coveredRest, "reversing the turn restores the curl");
         notes.endTurn();
         assert.deepEqual(compressed.array, coveredRest, "cancelling restores the stationary note");
@@ -162,13 +163,14 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
         assert.equal(book.children.length, 0, "turning another page cannot resurrect a stale sticky note");
         for (const side of [0, 1]) {
           const nearSpine = { ...item, x: side === 0 ? 1 - item.width - .01 : .01 };
-          await notes.set([{ item: nearSpine, side }]);
+          await notes.set([{ item: nearSpine, side, seed: 7 }]);
           const flatGroup = book.children[0], flatPaper = flatGroup.children[1] as THREE.Mesh;
           const positions = flatPaper.geometry.getAttribute("position");
           for (let i = 0; i < positions.count; i++) {
             const x = positions.getX(i) + flatGroup.position.x;
             const y = positions.getY(i) + flatGroup.position.y;
-            assert.ok(positions.getZ(i) - pageRelief(Math.abs(x), y / 1.4 + .5, 0) < .004, "notes next to either side of the spine rest flat without a curled free edge");
+            assert.ok(positions.getZ(i) > pageRelief(Math.abs(x), y / 1.4 + .5, 7), "closed sticky note stays above its owning page surface");
+            assert.ok(positions.getZ(i) - pageRelief(Math.abs(x), y / 1.4 + .5, 7) < .004, "notes next to either side of the spine rest flat without a curled free edge");
           }
           await notes.set([{ item: nearSpine, side, exterior: true }]);
           const cover = book.children[0], coverPaper = cover.children[1] as THREE.Mesh;

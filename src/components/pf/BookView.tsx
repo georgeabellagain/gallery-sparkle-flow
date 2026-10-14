@@ -857,12 +857,13 @@ export function BookView({
         const [from, to] = await Promise.all([faces(fromSpread), faces(nextSpread)]);
         if (!alive.current) return;
         if (!fallback && scene.current) {
-          await scene.current.prepareNotes(notesForSpread(fromSpread), notesForSpread(nextSpread));
-          await scene.current.resetZoom();
-          if (alive.current) onZoomChange(1);
-          if (!alive.current) return;
-          if (fromIndex === toIndex) await scene.current.pan(target, 300);
-          else await scene.current.turn(from, to, direction, target, 0.6, tabPlanFor(fromSpread, nextSpread, direction));
+          // A tab jump can skip several physical sheets. Place the destination
+          // before its notes appear instead of flying them across skipped pages.
+          scene.current.clearNotes();
+          scene.current.show(to, false);
+          scene.current.viewport(narrow, 1, target);
+          onZoomChange(1);
+          await scene.current.setNotes(notesForSpread(nextSpread));
           shown.current = `${ready}|${nextSpread.join(",")}|`;
         }
         if (alive.current) goTo(nextLeaf);
@@ -990,9 +991,9 @@ export function BookView({
   useEffect(() => { if (error) { console.error("Book render error", error); onRenderError?.(error); } }, [error, onRenderError]);
   const bookReady = (ready > 0 || fallback) && warm && !loading && !error;
   const [litNotesKey, setLitNotesKey] = useState("");
-  const notesForSpread = (pages: Array<number | null>) => pages.flatMap((n, side) => n === null ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side, exterior: n === 0 || n === layout.leaves.length - 1 })));
+  const notesForSpread = (pages: Array<number | null>) => pages.flatMap((n, side) => n === null ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side, seed: n + 1, exterior: n === 0 || n === layout.leaves.length - 1 })));
   useEffect(() => { noteProgresses.current.clear(); setOpenNote(false); }, [leaf, additions]);
-  const currentNoteSpecs = spread.flatMap((n, side) => n === null || (narrow && n !== leaf) ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side, exterior: n === 0 || n === layout.leaves.length - 1 })));
+  const currentNoteSpecs = spread.flatMap((n, side) => n === null || (narrow && n !== leaf) ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side, seed: n + 1, exterior: n === 0 || n === layout.leaves.length - 1 })));
   const preparedNotesReady = !!scene.current?.notesReady(currentNoteSpecs);
   const notesKey = JSON.stringify([ready,spread,narrow,leaf,additions,bookReady,wait,fallback]);
   useEffect(() => {
@@ -1000,7 +1001,7 @@ export function BookView({
     if (!renderer) return;
     let cancelled = false;
     if (!bookReady || wait || fallback) { setLitNotesKey(""); renderer.clearNotes(); return; }
-    const visible = spread.flatMap((n,side) => n === null || (narrow && n !== leaf) ? [] : foldoutsForLeaf(additions,layout.leaves[n]!).map(item=>({item,side,exterior: n === 0 || n === layout.leaves.length - 1})));
+    const visible = spread.flatMap((n,side) => n === null || (narrow && n !== leaf) ? [] : foldoutsForLeaf(additions,layout.leaves[n]!).map(item=>({item,side,seed: n + 1,exterior: n === 0 || n === layout.leaves.length - 1})));
     if (renderer.notesReady(visible)) { setLitNotesKey(notesKey); return; }
     setLitNotesKey("");
     void renderer.setNotes(visible).then(()=>{if(!cancelled)setLitNotesKey(notesKey);});
@@ -1020,7 +1021,7 @@ export function BookView({
       const output = document.createElement("canvas"); output.width=Math.round(viewportRef.current!.clientWidth*2); output.height=Math.round(viewportRef.current!.clientHeight*2);
       const context = output.getContext("2d")!;
       let bytes = 0, completed = 0;
-      const total = layout.spreads.length + layout.spreads.reduce((n, _, i) => n + notesForSpread(layout.spreads[i]!).length * 3, 0) + Math.max(0, layout.spreads.length - 1) * 2;
+      const total = layout.spreads.length + layout.spreads.reduce((n, _, i) => n + notesForSpread(layout.spreads[i]!).filter(s=>s.item.style !== "sticky" || s.item.openable !== false).length * 3, 0) + Math.max(0, layout.spreads.length - 1) * 2;
       let status = "Preparing Studio…";
       const report = (value: string) => { status = value; progress(value, completed / total); };
       const write = async (blob: Blob) => { signal.throwIfAborted(); if(blob.size>50*1024*1024)throw new Error("A rendered clip exceeds the 50 MB file limit."); bytes += blob.size; if(bytes > 250*1024*1024) throw new Error("This render exceeds 250 MB. Use fewer pages or notes."); const key = await save(blob); completed++; progress(status, completed / total); return key; };
@@ -1060,7 +1061,7 @@ export function BookView({
           };
           const spread=layout.spreads[i]!;
           const state:RenderedState={pages:spread.filter((n):n is number=>n!==null).map(n=>layout.leaves[n]!.page),still:await write(await canvasStill(output)),pageBounds:bounds.filter((_, side)=>spread[side]!==null),notes:[],links:[]};
-          for(const spec of specs(i)) {
+          for(const spec of specs(i).filter(s=>s.item.style !== "sticky" || s.item.openable !== false)) {
             const open=await write(await record(()=>animateNote(spec.item.id,true)));
             const openStill=await write(await canvasStill(output));
             const close=await write(await record(()=>animateNote(spec.item.id,false)));
@@ -1249,7 +1250,7 @@ export function BookView({
         </p>
         {/* Simple / Studio: only offered when the creator has enabled both. Everything else is set in the editor. */}
         {enabledLooks.length > 1 && !frameAspect && (
-          <div className={cn("absolute bottom-1.5 left-1.5 z-20 flex w-fit rounded-full bg-background/90 shadow-soft backdrop-blur transition-opacity duration-300", awake ? "opacity-100" : "pointer-events-none opacity-0")}>
+          <div className={cn("absolute bottom-1.5 left-1.5 z-20 flex w-fit transition-opacity duration-300", awake ? "opacity-100" : "pointer-events-none opacity-0")}>
             <Segmented label="Book appearance" value={settings.studio ? "studio" : "clean"} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={updateLook} />
           </div>
         )}

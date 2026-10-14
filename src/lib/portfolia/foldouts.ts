@@ -33,6 +33,7 @@ export interface Foldout {
   outside?: FoldoutSurface;
   inside?: FoldoutSurface;
   style?: "foldout" | "sticky";
+  openable?: boolean;
   hinge: "left" | "right" | "top" | "bottom" | "none";
   x: number;
   y: number;
@@ -68,6 +69,7 @@ export function validateFoldout(f: Foldout, pages: number): string | null {
     !["left", "right"].includes(f.half)
   )
     return "Choose an opening direction and spread half.";
+  if (f.openable !== undefined && typeof f.openable !== "boolean") return "Choose whether the note is openable.";
   if (f.style !== undefined && !["foldout", "sticky"].includes(f.style)) return "Choose a note style.";
   if (f.style === "sticky" && f.hinge !== "top") return "Sticky notes open from the top.";
   if (typeof f.title !== "string" || !f.title.trim() || f.title.length > 60)
