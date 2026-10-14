@@ -14,7 +14,7 @@ export const turnSheetHeight = (height: number, floor: number, gap: number, prog
 
 /** Offline capture is frame-count driven, never dependent on the renderer's speed. */
 export async function captureFrames(duration: number, update: (t:number)=>void, encode: ()=>Promise<void>) {
-  const steps=Math.max(1,Math.ceil(duration*30/1000));
+  const steps=Math.max(1,Math.ceil(duration*60/1000));
   for(let i=0;i<=steps;i++){update(i/steps);await encode();}
 }
 

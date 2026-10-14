@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 import { Link } from "@tanstack/react-router";
 import logo from "@/assets/portfolia-logo.png";
 import { cn } from "@/lib/utils";
@@ -148,9 +148,12 @@ export function Segmented<T extends string>({
 
 /** The colour (or picture) behind the PDF. A picture always covers the area. */
 export function BackdropLayer({ colour, imageUrl, fit, className }: { colour: string; imageUrl?: string; fit?: Partial<BackgroundFit>; className?: string }) {
+  const host=useRef<HTMLDivElement>(null), [size,setSize]=useState(0);
+  useEffect(()=>{const el=host.current;if(!el)return;const measure=()=>setSize(Math.max(el.clientWidth,el.clientHeight));measure();const observer=new ResizeObserver(measure);observer.observe(el);return()=>observer.disconnect();},[]);
+  const tiled=fit?.tile && (fit.scale ?? 1)<1, scale=Math.max(.25,fit?.scale ?? 1);
   return (
-    <div aria-hidden className={cn("absolute inset-0 overflow-hidden", className)} style={{ background: colour }}>
-      {imageUrl && <div className="absolute inset-0" style={{ backgroundImage: `url(${JSON.stringify(imageUrl)})`, backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat", transform: fitTransform(fit) }} />}
+    <div ref={host} aria-hidden className={cn("absolute inset-0 overflow-hidden", className)} style={{ background: colour }}>
+      {imageUrl && <div className="absolute inset-0" style={{ backgroundImage: `url(${JSON.stringify(imageUrl)})`, backgroundSize: tiled ? `${Math.max(1,size)*scale}px auto` : "cover", backgroundPosition: "center", backgroundRepeat: tiled ? "repeat" : "no-repeat", transform: tiled ? undefined : fitTransform(fit) }} />}
     </div>
   );
 }

@@ -663,3 +663,8 @@
 
 .pf-render-capture .pf-book-viewport { height: var(--pf-render-height, 1080px) !important; min-height: 0; }
 .pf-render-capture .pf-book-canvas { inset: 0; }
+
+.pf-reader-scroll { scrollbar-width: auto; scrollbar-color: #64748b #e2e8f0; }
+.pf-reader-scroll::-webkit-scrollbar { width: 12px; height: 12px; }
+.pf-reader-scroll::-webkit-scrollbar-track { background: #e2e8f0; }
+.pf-reader-scroll::-webkit-scrollbar-thumb { background: #64748b; border: 3px solid #e2e8f0; border-radius: 999px; }

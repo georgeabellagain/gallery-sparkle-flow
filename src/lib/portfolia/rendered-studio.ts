@@ -42,7 +42,7 @@ export function renderSignature(p: Portfolio) {
         : value;
   return JSON.stringify(
     canonical([
-      "studio-capture-6",
+      "studio-capture-7",
       p.pdf?.blobKey,
       viewer,
       p.style?.backdrop,

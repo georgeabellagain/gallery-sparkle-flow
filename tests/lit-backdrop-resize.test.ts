@@ -5,8 +5,10 @@ import { createLitBackdrop } from "../src/lib/portfolia/lit-backdrop";
 
 test("Studio backdrop reallocates uploaded textures after fullscreen resize", async () => {
   const originalDocument = globalThis.document, originalImage = globalThis.Image;
+  let patterns=0, fills=0;
   const context = {
-    drawImage() {}, putImageData() {},
+    drawImage() {}, clearRect() {}, putImageData() {},
+    createPattern(){patterns++;return {};}, save(){}, restore(){}, translate(){}, fillRect(){fills++;},
     getImageData(_x: number, _y: number, w: number, h: number) { return { data: new Uint8ClampedArray(w * h * 4) }; },
   };
   globalThis.document = { createElement() { return { width: 300, height: 150, getContext() { return context; } }; } } as unknown as Document;
@@ -40,6 +42,12 @@ test("Studio backdrop reallocates uploaded textures after fullscreen resize", as
     backdrop.frame(camera, 800, 640);
     assert.notEqual(material.map, fullMap);
     assert.equal(material.map!.image.width, 1600);
+    backdrop.set("example.jpg",{scale:.25,tile:true},true);
+    backdrop.frame(camera,800,640);
+    assert.equal(patterns,1);assert.equal(fills,1,"a reduced preset repeats to fill the entire frame");
+    backdrop.set("example.jpg",{scale:.25},true);
+    backdrop.frame(camera,800,640);
+    assert.equal(patterns,1,"uploaded photographs keep their covering minimum scale");
   } finally {
     backdrop?.dispose();
     globalThis.document = originalDocument;
