@@ -359,6 +359,11 @@ export function createBookNotes(
       }
       return bounds.isEmpty() ? null : bounds;
     },
+    boundsFor(id: string) {
+      const entry = entries.get(id); if (!entry) return null;
+      entry.group.updateWorldMatrix(true, true);
+      return new THREE.Box3().setFromObject(entry.group, true);
+    },
     progress(id: string, p: number) {
       const e = entries.get(id);
       if (!e) return;

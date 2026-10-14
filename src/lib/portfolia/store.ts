@@ -44,6 +44,7 @@ export interface ViewerSettings {
   studioBrightness?: number;
   /** Optional white overhead fill, 0..1; omitted is off. */
   studioTopLight?: number;
+  studioPlayback?: "live" | "rendered";
   /** Retention of HDRI detail versus its solid average colour, 0..1. */
   studioLightingStrength?: number;
   /** Illuminate uploaded backgrounds with the same Studio scene. */
@@ -114,6 +115,7 @@ export interface PdfFile {
   links?: import("./page-extras").PageLink[];
   /** Optional derived JPEG used in public link previews. */
   coverKey?: string;
+  renderedStudio?: import("./rendered-studio").RenderedStudio;
   name: string;
   bytes: number;
   pages: number;

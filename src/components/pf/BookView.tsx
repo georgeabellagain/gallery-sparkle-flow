@@ -1,3 +1,6 @@
+import { captureFrames } from "@/lib/portfolia/turn-motion";
+import { canvasStill, recordStudioClip } from "@/lib/portfolia/studio-recorder";
+import type { StudioExporter, RenderedState, RenderHotspot } from "@/lib/portfolia/rendered-studio";
 import { loadNoteFonts, loadNoteImages, paintClosedNotes } from "@/lib/portfolia/foldout-paint";
 import { foldoutSurfaces } from "@/lib/portfolia/foldouts";
 import { StoredFoldout } from "./FoldoutCard";
@@ -282,6 +285,7 @@ export function BookView({
   lightweight = false,
   previewTextureCap = 1600,
   captureQuality = false,
+  onExporter,
   foldouts,
   tags,
   links,
@@ -326,6 +330,7 @@ export function BookView({
   previewTextureCap?: number;
   /** Offline feature recording keeps the drawing surface at its original resolution. */
   captureQuality?: boolean;
+  onExporter?: (exporter: StudioExporter | null) => void;
   foldouts?: Foldout[];
   /** Coloured tabs on the edges of the book; each jumps to its page. */
   tags?: PageTag[];
@@ -1003,6 +1008,92 @@ export function BookView({
   useEffect(() => {
     onReadyChange?.(bookReady);
   }, [bookReady, onReadyChange]);
+
+  useEffect(() => {
+    const renderer = scene.current;
+    if (!onExporter || !bookReady || fallback || !renderer || !settings.studio) { onExporter?.(null); return; }
+    onExporter({render: async (signature, save, progress, signal) => {
+      if (lock.current) throw new Error("The book is still moving. Please try again.");
+      lock.current = true;
+      const output = document.createElement("canvas"); output.width=1920; output.height=1080;
+      const context = output.getContext("2d")!;
+      let bytes = 0;
+      const write = async (blob: Blob) => { signal.throwIfAborted(); if(blob.size>50*1024*1024)throw new Error("A rendered clip exceeds the 50 MB file limit."); bytes += blob.size; if(bytes > 250*1024*1024) throw new Error("This render exceeds 250 MB. Use fewer pages or notes."); return save(blob); };
+      const states: RenderedState[] = [];
+      let stepFrame: (()=>Promise<void>) | undefined;
+      const record = (action:()=>Promise<void>)=>recordStudioClip(output,action,signal,frame=>{stepFrame=frame;renderer.setCaptureClock(frame);});
+      const draw = (canvas: HTMLCanvasElement) => { context.drawImage(canvas,0,0,1920,1080); };
+      const specs = (index: number) => notesForSpread(layout.spreads[index]!);
+      const show = async (index: number) => {
+        signal.throwIfAborted(); if(scene.current!==renderer)throw new Error("The graphics renderer changed. Please try again."); const spread = layout.spreads[index]!;
+        const images = await faces(spread);
+        await renderer.setNotes(specs(index));
+        renderer.show(images); renderer.viewport(false, .65, bookFocus(spread, spread.find(n=>n!==null)!, false));
+        renderer.setTabRest(Object.fromEntries((tabPlanFor(spread, spread, 1) ?? []).map(t=>[t.id,t.to])));
+        renderer.renderFrame(); return images;
+      };
+      const animateNote = async (id: string, opening: boolean) => {
+        if(stepFrame) {
+          await captureFrames(650,t=>{signal.throwIfAborted();const eased=t*t*(3-2*t);renderer.noteProgress(id,opening?eased:1-eased);renderer.renderFrame();},stepFrame);return;
+        }
+        const start = performance.now();
+        await new Promise<void>((resolve,reject) => {
+          const tick = () => { try { signal.throwIfAborted(); const t=Math.min(1,(performance.now()-start)/650); const eased=t*t*(3-2*t); renderer.noteProgress(id,opening?eased:1-eased); renderer.renderFrame(); if(t<1)requestAnimationFrame(tick);else resolve(); } catch(e){reject(e);} }; tick();
+        });
+      };
+      try {
+        await document.fonts.ready;
+        await renderer.captureReady();
+        renderer.setFrameSink(draw);
+        let exportInset = .35; renderer.setInset(exportInset);
+        // Fit every open note before saving any clip, keeping one camera scale
+        // for all recorded states and avoiding a cut-off flap.
+        for(let i=0;i<layout.spreads.length;i++) {
+          await show(i);
+          for(const spec of specs(i)) {
+            renderer.noteProgress(spec.item.id,1);renderer.renderFrame();
+            for(let attempt=0;attempt<10;attempt++) {
+              const b=renderer.noteBounds(spec.item.id);
+              if(!b||b.x>=3&&b.y>=3&&b.x+b.width<=97&&b.y+b.height<=97)break;
+              exportInset=(1+exportInset)*1.2-1;renderer.setInset(exportInset);renderer.renderFrame();
+            }
+            renderer.noteProgress(spec.item.id,0);renderer.renderFrame();
+          }
+        }
+        for(let i=0;i<layout.spreads.length;i++) {
+          progress(`Rendering page ${i+1} of ${layout.spreads.length}`);
+          await show(i);
+          const bounds=renderer.pageBounds();
+          const hotspot = (item: {id:string;title?:string;label?:string;x:number;y:number;width?:number;height?:number;size?:number},side:number):RenderHotspot => {
+            const b=bounds[side]!; return {id:item.id,label:item.title||item.label||"Open note",x:b.x+item.x*b.width,y:b.y+item.y*b.height,width:(item.width??item.size??.1)*b.width,height:(item.height??item.size??.1)*b.height};
+          };
+          const spread=layout.spreads[i]!;
+          const state:RenderedState={pages:spread.filter((n):n is number=>n!==null).map(n=>layout.leaves[n]!.page),still:await write(await canvasStill(output)),notes:[],links:[]};
+          for(const spec of specs(i)) {
+            const open=await write(await record(()=>animateNote(spec.item.id,true)));
+            const openStill=await write(await canvasStill(output));
+            const close=await write(await record(()=>animateNote(spec.item.id,false)));
+            state.notes.push({...hotspot(spec.item,spec.side),open,close,openStill});
+          }
+          spread.forEach((n,side)=>{if(n===null)return; const leaf=layout.leaves[n]!; pageLinks.filter(l=>l.page===leaf.page&&(!leaf.half||l.half===leaf.half)).forEach(l=>state.links.push({...hotspot(l,side),url:l.url}));});
+          renderer.tabRects().forEach(rect=>{const tag=pageTags.find(t=>t.id===rect.id);if(tag)state.links.push({...rect,label:tag.label||String(tag.page),page:tag.page});});
+          states.push(state);
+        }
+        for(let i=0;i<states.length;i++) for(const dir of [1,-1] as const) {
+          const next=i+dir; if(next<0||next>=states.length)continue;
+          progress(`Rendering ${dir===1?"forward":"backward"} turn ${i+1}`);
+          const from=await show(i),to=await faces(layout.spreads[next]!);
+          await renderer.prepareNotes(specs(i),specs(next));
+          const spread=layout.spreads[next]!;
+          const clip=await write(await record(()=>renderer.turn(from,to,dir,bookFocus(spread,spread.find(n=>n!==null)!,false),1,tabPlanFor(layout.spreads[i]!,spread,dir))));
+          if(dir===1)states[i]!.forward=clip;else states[i]!.backward=clip;
+        }
+        signal.throwIfAborted();if(scene.current!==renderer)throw new Error("The graphics renderer changed. Please try again.");
+        return {version:1,signature,createdAt:Date.now(),width:1920,height:1080,states,bytes};
+      } finally { renderer.setCaptureClock(); renderer.setFrameSink(); lock.current=false; if(alive.current) { await renderer.setNotes(currentNoteSpecs); renderer.show(await faces(spread)); renderer.viewport(narrow,zoom,bookFocus(spread,leafRef.current,narrow)); } }
+    }});
+    return () => onExporter(null);
+  }, [onExporter, bookReady, fallback, ready, settings.studio, layout, faces, additions, pageLinks, pageTags]);
 
   const autoDirection = useRef<1 | -1>(1);
   useEffect(() => {

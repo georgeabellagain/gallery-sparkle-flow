@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { turnEase, turnClearance, turnSheetHeight } from "../src/lib/portfolia/turn-motion";
+import { turnEase, turnClearance, turnSheetHeight, captureFrames } from "../src/lib/portfolia/turn-motion";
 
 test("turns settle without a discontinuous shadow offset in either direction", () => {
   assert.equal(turnClearance(0, .01), 0);
@@ -20,4 +20,11 @@ test("click turns stay above differently curved receiving pages at both ends", (
     assert.ok(turnSheetHeight(height, floor, .01) >= floor + .01);
     assert.ok(turnSheetHeight(height, floor, .01) >= height);
   }
+});
+
+test('offline capture encodes every sample despite a slow encoder',async()=>{
+  const samples:number[]=[];let frames=0;
+  await captureFrames(1000,t=>samples.push(t),async()=>{await Promise.resolve();frames++;});
+  assert.equal(frames,61);assert.equal(samples[0],0);assert.equal(samples.at(-1),1);
+  samples.forEach((t,i)=>assert.equal(t,i/60));
 });

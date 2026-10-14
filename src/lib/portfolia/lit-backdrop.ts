@@ -14,6 +14,7 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
   const catcher = shadows ? new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.ShadowMaterial({opacity:.3, depthWrite:false})) : null;
   if (catcher) { catcher.position.z = -.071; catcher.receiveShadow = true; catcher.visible = false; scene.add(catcher); }
   let source: HTMLImageElement | null = null;
+  let readyPromise: Promise<void> = Promise.resolve();
   let currentUrl: string | undefined;
   let fit = DEFAULT_FIT;
   let enabled = false, disposed = false, revision = 0;
@@ -40,11 +41,12 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
       const request = ++revision;
       if (!url) { repaint(); return; }
       const image = new Image(); image.crossOrigin = "anonymous"; image.src = url;
-      void image.decode().then(() => {
+      readyPromise = image.decode().then(() => {
         if (disposed || revision !== request) return;
         source = image; plane.visible = enabled; dimensions = ""; repaint();
       }).catch(() => { /* The unlit DOM image remains available when decoding fails. */ });
     },
+    async ready() { await readyPromise; if (enabled && currentUrl && !source) throw new Error("The background image could not be prepared."); },
     frame(camera: THREE.PerspectiveCamera, width: number, height: number, anchoredHeight?: number) {
       if ((!source && currentUrl) || !enabled) { plane.visible = false; if (catcher) catcher.visible=false; return; }
       const stamp = `${width}|${height}|${fit.scale}|${fit.x}|${fit.y}`;

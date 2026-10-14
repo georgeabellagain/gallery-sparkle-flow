@@ -1,3 +1,4 @@
+import { renderedKeys, type RenderedStudio } from "./rendered-studio";
 import type { Leaf } from "./book-layout";
 import { readablePageLinks } from "./page-extras";
 export const NOTE_FONT_IDS = ["serif", "sans", "mono", "hand", "neat", "script", "marker"] as const;
@@ -145,10 +146,11 @@ export function readableFoldouts(value: unknown, pages: number): Foldout[] {
     .slice(0, MAX_FOLDOUTS);
 }
 export function foldoutKeys(
-  pdf?: { foldouts?: Foldout[]; links?: unknown; pages: number } | null,
+  pdf?: { foldouts?: Foldout[]; links?: unknown; renderedStudio?: RenderedStudio; pages: number } | null,
 ): string[] {
   return [
     ...new Set([
+      ...renderedKeys(pdf?.renderedStudio),
       ...readableFoldouts(pdf?.foldouts, pdf?.pages ?? 0).flatMap((f) =>
         Object.values(foldoutSurfaces(f))
           .map((s) => s.imageKey)
