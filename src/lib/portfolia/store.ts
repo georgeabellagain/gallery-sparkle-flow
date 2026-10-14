@@ -66,6 +66,8 @@ export interface ViewerSettings {
   backgroundColor?: string;
   /** Uploaded picture behind the PDF (a stored file key). Shown instead of the colour. */
   backgroundKey?: string;
+  /** Bundled CC0 background; uploaded pictures take precedence. */
+  backgroundPreset?: string;
   /** Size and position of the background picture. */
   backgroundFit?: { scale: number; x: number; y: number };
 }

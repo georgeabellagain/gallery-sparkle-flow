@@ -1,3 +1,4 @@
+import { backgroundPicture } from "@/lib/portfolia/background-presets";
 import { createPageReadiness } from "@/lib/portfolia/page-readiness";
 import { looksForMode, openingLook } from "@/lib/portfolia/appearance";
 import { loadLinkIcons, paintPageLinks } from "@/lib/portfolia/link-paint";
@@ -69,7 +70,7 @@ export function PdfViewer({
   profile,
   profileImageUrl,
   home,
-  backgroundUrl,
+  backgroundUrl: uploadedBackgroundUrl,
   controls,
   autoTurn = false,
   demoNotes = false,
@@ -124,6 +125,7 @@ export function PdfViewer({
   onLoadError?: (message: string) => void;
 }) {
   const view = { ...DEFAULT_VIEWER, ...viewer };
+  const backgroundUrl = backgroundPicture(view, uploadedBackgroundUrl);
   // The creator chooses which reading modes visitors get, and which one opens first.
   const availableModes = view.modes?.length ? view.modes : MODES.map(([m]) => m);
   const startMode = availableModes.includes(view.mode) ? view.mode : availableModes[0] ?? "scroll";
