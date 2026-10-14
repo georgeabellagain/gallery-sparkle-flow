@@ -1,3 +1,4 @@
+import { backdropCoverage } from "./backdrop-coverage";
 import { backdropNormals } from "./backdrop-normals";
 import * as THREE from "three";
 import { DEFAULT_FIT, type BackgroundFit } from "./background";
@@ -17,6 +18,7 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
   let fit = DEFAULT_FIT;
   let enabled = false, disposed = false, revision = 0;
   let dimensions = "";
+  let coverage = 1, coverageViewport = "";
   const canvas = document.createElement("canvas");
   let texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -31,7 +33,7 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
       material.emissive.set(lit ? "#000000" : (url ? "#ffffff" : colour));
       material.emissiveMap = !lit && url ? texture : null;
       material.map = url ? texture : null; material.normalMap = url ? normals : null; material.needsUpdate = true;
-      enabled = active; fit = { ...DEFAULT_FIT, ...nextFit }; dimensions = "";
+      coverage = 1; enabled = active; fit = { ...DEFAULT_FIT, ...nextFit }; dimensions = "";
       plane.visible = enabled && (!url || (!!source && url === currentUrl));
       if (url === currentUrl) { repaint(); return; }
       currentUrl = url; source = null; plane.visible = false;
@@ -83,17 +85,14 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
       }
       const worldHeight = 2 * (camera.position.z - plane.position.z) * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
       const anchored = anchoredHeight !== undefined;
-      const extent = anchored ? 8 : 1;
-      const uv = plane.geometry.getAttribute("uv");
-      if (plane.userData["extent"] !== extent) {
-        for (let i = 0; i < uv.count; i++) uv.setXY(i, (i % 2) * extent - (extent - 1) / 2, (i < 2 ? 1 : 0) * extent - (extent - 1) / 2);
-        uv.needsUpdate = true; plane.userData["extent"] = extent;
-      }
-      // A fixed table shares the book's camera. Outside the photograph, clamp
-      // its edge pixels rather than exposing the unlit DOM background.
+      const viewport = `${width}|${height}`;
+      if (coverageViewport !== viewport) { coverage = 1; coverageViewport = viewport; }
+      if (anchored) coverage = Math.max(coverage, backdropCoverage(anchoredHeight, camera.aspect, worldHeight, camera.position.x, camera.position.y));
+      // Keep the complete photograph, enlarging it instead of stretching edge
+      // pixels when zooming out or panning approaches its boundary.
       plane.position.x = anchored ? 0 : camera.position.x; plane.position.y = anchored ? 0 : camera.position.y;
-      const heightInWorld = anchoredHeight ?? worldHeight;
-      plane.scale.set(heightInWorld * camera.aspect * extent, heightInWorld * extent, 1); plane.visible = true;
+      const heightInWorld = (anchoredHeight ?? worldHeight) * (anchored ? coverage : 1);
+      plane.scale.set(heightInWorld * camera.aspect, heightInWorld, 1); plane.visible = true;
       if (catcher) { catcher.position.x=plane.position.x;catcher.position.y=plane.position.y;catcher.scale.copy(plane.scale);catcher.visible=true; }
     },
     dispose() { disposed = true; revision++; source = null; scene.remove(plane); texture.dispose(); normals.dispose(); plane.geometry.dispose(); material.dispose(); if (catcher) {scene.remove(catcher);catcher.geometry.dispose();catcher.material.dispose();} },

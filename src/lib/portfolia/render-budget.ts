@@ -4,9 +4,9 @@ export function bookSurfaceRatio(width: number, height: number, quality: number,
   return Math.min(quality, fit * Math.min(1, quality));
 }
 
-/** Movement has a tighter fill-rate budget; settled artwork keeps its reading detail. */
+/** Keep turns at reading resolution; adaptive quality still protects slower GPUs. */
 export function bookMotionBudget(restBudget: number, moving: boolean) {
-  return moving ? Math.min(restBudget, 1_300_000) : restBudget;
+  return moving ? Math.min(restBudget, 5_200_000) : restBudget;
 }
 
 /** Keep recently used reader textures warm without evicting visible artwork. */
