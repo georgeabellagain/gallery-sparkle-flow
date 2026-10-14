@@ -653,7 +653,7 @@
 /* Product-first homepage: the book is the canvas, tools open in place. */
 .pf-workspace-demo .pf-book-viewport { height: calc(100dvh - 3.5rem); min-height: 34rem; }
 .pf-workspace-demo > div:not([role="status"]) { height: 100%; }
-.pf-workspace-demo .pf-book-viewport .pf-book-canvas { top: 4rem; bottom: 5.5rem; }
+.pf-workspace-demo .pf-book-viewport .pf-book-canvas { inset: 0; }
 .pf-home-workspace .pf-editor-stage { min-height: 34rem; }
 @media (max-width: 639px) {
   .pf-home-toolbar { max-width: calc(100vw - 1rem); gap: 0; }

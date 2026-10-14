@@ -46,7 +46,7 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
       if (source && stamp !== dimensions) {
         dimensions = stamp;
         const previousWidth = canvas.width, previousHeight = canvas.height;
-        const cap = Math.min(1, 2048 / Math.max(width, height));
+        const cap = Math.min(Math.min(devicePixelRatio || 1, 2), 4096 / Math.max(width, height));
         canvas.width = Math.max(1, Math.round(width * cap)); canvas.height = Math.max(1, Math.round(height * cap));
         const scale = Math.max(1, Math.min(3, fit.scale));
         const cover = Math.max(canvas.width / source.naturalWidth, canvas.height / source.naturalHeight);
