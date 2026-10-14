@@ -1,3 +1,5 @@
+import type { StudioExporter, RenderedStudio } from "@/lib/portfolia/rendered-studio";
+import { RenderedBook } from "./RenderedBook";
 import { backgroundPicture } from "@/lib/portfolia/background-presets";
 import { createPageReadiness } from "@/lib/portfolia/page-readiness";
 import { looksForMode, openingLook } from "@/lib/portfolia/appearance";
@@ -52,6 +54,7 @@ const MODES = [
  */
 export function PdfViewer({
   source,
+  renderedStudio, onExporter, renderCapture = false,
   fileName,
   allowDownload,
   onDownload,
@@ -84,6 +87,9 @@ export function PdfViewer({
 }: {
   /** Opening appearance for a standalone demonstration; visitors may still switch. */
   initialLook?: "clean" | "studio";
+  renderedStudio?: RenderedStudio;
+  onExporter?: (exporter: StudioExporter | null) => void;
+  renderCapture?: boolean;
   source: Source | null;
   fileName: string;
   allowDownload?: boolean;
@@ -124,6 +130,7 @@ export function PdfViewer({
   onBookReadyChange?: (ready: boolean) => void;
   onLoadError?: (message: string) => void;
 }) {
+  const [renderFailed, setRenderFailed] = useState(false);
   const view = { ...DEFAULT_VIEWER, ...viewer };
   const backgroundUrl = backgroundPicture(view, uploadedBackgroundUrl);
   // The creator chooses which reading modes visitors get, and which one opens first.
@@ -702,8 +709,10 @@ export function PdfViewer({
         )
       ) : (
         <div className={cn("relative transition-opacity duration-300", shownReady ? "opacity-100" : "pointer-events-none opacity-0")} aria-hidden={!shownReady} inert={!shownReady}>
-      {mode === "book" ? (
-        <Suspense fallback={null}><BookView demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...view, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
+      {mode === "book" && activeLook === "studio" && renderedStudio && !renderFailed && !compact ? (
+        <RenderedBook fill={full || immersive} pack={renderedStudio} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} onReady={bookReadyChanged} onFallback={() => setRenderFailed(true)} />
+      ) : mode === "book" ? (
+        <Suspense fallback={null}><BookView onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...view, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>

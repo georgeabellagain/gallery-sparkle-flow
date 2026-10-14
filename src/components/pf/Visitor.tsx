@@ -1,3 +1,4 @@
+import { currentRender } from "@/lib/portfolia/rendered-studio";
 import { AnalyticsPanel } from "./AnalyticsPanel";
 import { portfolioAnalytics } from "@/lib/portfolia/analytics";
 import { StudioDemo } from "./StudioDemo";
@@ -38,7 +39,7 @@ export function OwnVisitor({ p, preview, trackActivity = true }: { p: Portfolio;
           <Link to="/dashboard" className="underline underline-offset-4">Dashboard</Link>
         </div>
       )}
-      <PortfolioPage
+      <PortfolioPage renderedStudio={currentRender(p)}
         profile={p.profile}
         pdf={pdf}
         photoUrl={photoUrl}
@@ -111,7 +112,7 @@ export function EmbeddedVisitor({ data, startPage, mode, background }: { data: N
   // A background chosen for the embed replaces the owner's own colour or picture.
   const pageStyle = p.plan === "personal" ? (background && p.style ? { ...p.style, backdrop: "" } : p.style) : undefined;
   return (
-    <PortfolioPage
+    <PortfolioPage renderedStudio={background || mode && mode !== "book" ? undefined : currentRender(p)}
       profile={p.profile}
       pdf={pdf}
       allowDownload={p.allowDownload}

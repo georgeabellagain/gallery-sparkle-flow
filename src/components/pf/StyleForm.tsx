@@ -1,3 +1,5 @@
+import { RenderStudioPanel } from "./RenderStudioPanel";
+import { currentRender } from "@/lib/portfolia/rendered-studio";
 import { BACKGROUND_PRESETS, backgroundPicture } from "@/lib/portfolia/background-presets";
 import { usePortfolioFont } from "@/lib/portfolia/fonts";
 import { useEffect, useRef, useState } from "react";
@@ -44,6 +46,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
   usePortfolioFont(style.font);
   const paid = p.plan === "personal";
   const input = useRef<HTMLInputElement>(null);
+  const [renderDialog, setRenderDialog] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const set = (patch: Partial<PageStyle>) => {
@@ -256,6 +259,12 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
               {enabledLooks.includes("studio") && (
                 <div className="space-y-3 border-t border-border pt-3" onPointerDownCapture={() => setPreviewLook("studio")} onFocusCapture={() => setPreviewLook("studio")}>
                   <p className="font-medium">Studio</p>
+                  <div className="space-y-2 rounded-xl border border-border p-3">
+                    <p className="text-xs text-muted-foreground">Rendered Studio plays HD page turns and note animations on your shared portfolio.</p>
+                    <Button size="xs" variant="line" onClick={() => setRenderDialog(true)}>{currentRender(p) ? "Render again" : "Render Studio in HD"}</Button>
+                    {p.pdf?.renderedStudio && !currentRender(p) && <p className="text-xs">The render is out of date. Live Studio is used until you render again.</p>}
+                    <label className="flex items-center gap-2"><input type="checkbox" checked={viewer.studioPlayback === "rendered"} disabled={!currentRender(p)} onChange={e=>setViewer({studioPlayback:e.target.checked?"rendered":"live"})}/><span>Use rendered Studio on shared links</span></label>
+                  </div>
                   <div className="space-y-1.5">
                     <p>Paper</p>
                     <select aria-label="Studio paper" className="w-full min-w-0 rounded-lg border border-border bg-background p-2" value={viewer.finish} onChange={e => setViewer({ finish: e.target.value as SurfaceKind })}>
@@ -341,6 +350,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
           </div>}
         </div>
       </div>}
+      {renderDialog && <RenderStudioPanel p={p} onClose={() => setRenderDialog(false)} />}
     </div>
   );
 }

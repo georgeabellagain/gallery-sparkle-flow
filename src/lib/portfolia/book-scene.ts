@@ -1,4 +1,4 @@
-import { turnEase, turnClearance, turnSheetHeight } from "./turn-motion";
+import { turnEase, turnClearance, turnSheetHeight, captureFrames } from "./turn-motion";
 import { averageEnvironment, createEnvironmentDiffuser } from "./environment-diffusion";
 import { dappleTexture } from "./dapple-light";
 import { bookSurfaceRatio, bookMotionBudget } from "./render-budget";
@@ -56,6 +56,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let appliedRatio = pixelRatio;
   const readingRatio = pixelRatio;
   let turning = false;
+  let captureClock: (()=>Promise<void>) | undefined;
+  let frameSink: ((canvas: HTMLCanvasElement) => void) | undefined;
   const renderer = new THREE.WebGLRenderer({
     alpha: true,
     antialias: true,
@@ -423,6 +425,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     backdrop.frame(camera, w, h, Math.max(ratio * 1.1 + FRAME_PAD, 2.32 / camera.aspect) * (1 + inset));
     renderer.shadowMap.needsUpdate = turning || shadowsDirty;
     renderer.render(scene, camera);
+    frameSink?.(renderer.domElement);
     shadowsDirty = false;
   };
   /** Coalesces rapid pointer input into at most one render per frame. */
@@ -756,8 +759,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   };
   /** The most a turn advances in one frame, however slow that frame was. */
   const MAX_FRAME_STEP = 1000 / 60;
-  const animate = (duration: number, update: (t: number) => void) =>
-    new Promise<void>((resolve) => {
+  const animate = (duration: number, update: (t: number) => void): Promise<void> => {
+    if(captureClock) return captureFrames(duration,t=>{if(disposed)throw new Error("The renderer closed.");update(ease(t));paint();},captureClock);
+    return new Promise<void>((resolve) => {
       if (disposed) {
         resolve();
         return;
@@ -804,6 +808,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       };
       frame = requestAnimationFrame(tick);
     });
+  };
   const pan = async (to: number, duration = 420) => {
     const from = focus;
     // Nothing to move: finish at once so the next page can be turned immediately.
@@ -888,6 +893,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   configure(settings);
   resize();
   return {
+    setCaptureClock(clock?:()=>Promise<void>) {captureClock=clock;},
+    async captureReady() { await backdrop.ready(); if (!await loadEnvironment(settings.hdri)) throw new Error("Studio lighting could not be prepared."); },
+    setFrameSink(sink?: (canvas: HTMLCanvasElement) => void) { frameSink = sink; paint(); },
+    renderFrame: paint,
     setBackdrop(url: string | undefined, fit: Parameters<typeof backdrop.set>[1], lit: boolean, colour: string) {
       backdrop.set(url, fit, true, colour, lit);
     },
@@ -988,6 +997,15 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         panY = THREE.MathUtils.lerp(startY, 0, t);
         frameCamera();
       });
+    },
+    noteBounds(id: string) {
+      const box = notes.boundsFor(id); if (!box) return null;
+      camera.updateMatrixWorld();
+      const xs: number[] = [], ys: number[] = [];
+      for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) {
+        const point = new THREE.Vector3(x,y,z).project(camera); xs.push((point.x+1)*50); ys.push((1-point.y)*50);
+      }
+      return { x:Math.min(...xs), y:Math.min(...ys), width:Math.max(...xs)-Math.min(...xs), height:Math.max(...ys)-Math.min(...ys) };
     },
     pageBounds() {
       camera.updateMatrixWorld();

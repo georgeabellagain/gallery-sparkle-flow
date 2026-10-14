@@ -1,3 +1,4 @@
+import type { RenderedStudio } from "@/lib/portfolia/rendered-studio";
 import type { Foldout } from "@/lib/portfolia/foldouts";
 import type { PageLink, PageTag } from "@/lib/portfolia/page-extras";
 import type { PortfolioProject } from "@/lib/portfolia/projects";
@@ -15,6 +16,7 @@ import { useBlob, useObjectUrl } from "./Chrome";
  */
 export function PortfolioPage({
   profile,
+  renderedStudio,
   pdf,
   photoUrl,
   allowDownload,
@@ -35,6 +37,7 @@ export function PortfolioPage({
   startFullscreen,
 }: {
   profile: Profile;
+  renderedStudio?: RenderedStudio;
   pdf: { blob: Blob } | { url: string } | null;
   photoUrl?: string;
   allowDownload: boolean;
@@ -75,6 +78,8 @@ export function PortfolioPage({
       <div className="flex-1">
         <PdfViewer
           source={pdf}
+          renderedStudio={view.studioPlayback === "rendered" ? renderedStudio : undefined}
+          initialLook={view.studioPlayback === "rendered" && renderedStudio ? "studio" : undefined}
           fileName={`${profile.name || "portfolio"}.pdf`}
           allowDownload={allowDownload}
           onDownload={onDownload}
@@ -119,7 +124,8 @@ export function useStoredMedia(pdfKey?: string, photoKey?: string) {
 
 /** The same profile card used in the visitor's profile panel, without loading a PDF. */
 function ProfileCard({ profile, photoUrl, bannerUrl, cvUrl, cv, pageStyle }: {
-  profile: Profile; photoUrl?: string; bannerUrl?: string; cvUrl?: string;
+  profile: Profile;
+  renderedStudio?: RenderedStudio; photoUrl?: string; bannerUrl?: string; cvUrl?: string;
   cv?: Profile["cv"]; pageStyle?: PageStyle;
 }) {
   const profileLinks = profile.links.filter(l => l.url.trim());
