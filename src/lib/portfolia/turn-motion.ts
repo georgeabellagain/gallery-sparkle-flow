@@ -20,3 +20,12 @@ export async function captureFrames(duration: number, update: (t:number)=>void, 
 
 /** Avoid overlapping resting sheets near either end of a turn. */
 export const turnRestVisible = (progress: number, revealed: boolean) => revealed ? progress >= .05 : progress < .95;
+
+/** Map pointer-driven sheet progress to the eased video timeline. */
+export function turnVideoTime(progress: number) {
+  const p = Math.max(0, Math.min(1, progress));
+  if (p === 0 || p === 1) return p;
+  let low = 0, high = 1;
+  for (let i = 0; i < 24; i++) { const mid = (low + high) / 2; if (turnEase(mid) < p) low = mid; else high = mid; }
+  return (low + high) / 2;
+}

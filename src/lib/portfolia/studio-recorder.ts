@@ -36,7 +36,7 @@ export async function recordStudioClip(
     if (await canEncodeVideo("avc", { width: 1920, height: 1080, frameRate: 60, quality })) {
       const target = new BufferTarget();
       const output = new Output({ format: new Mp4OutputFormat(), target });
-      const source = new CanvasSource(canvas, { codec: "avc", quality, keyFrameInterval: 1 });
+      const source = new CanvasSource(canvas, { codec: "avc", quality, keyFrameInterval: .1 });
       output.addVideoTrack(source, { frameRate: 60 });
       let frame = 0;
       const encode = async () => {

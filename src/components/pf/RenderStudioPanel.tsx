@@ -1,3 +1,4 @@
+import { RenderedBook } from "./RenderedBook";
 import { studioCaptureCapability } from "@/lib/portfolia/studio-recorder";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -13,6 +14,7 @@ import {
 } from "@/lib/portfolia/store";
 import { putBlob, uid, formatBytes } from "@/lib/portfolia/assets";
 import {
+  currentRender,
   renderSignature,
   renderedKeys,
   type StudioExporter,
@@ -24,6 +26,9 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
   const [bgUrl, setBgUrl] = useState<string>(),
     [exporter, setExporter] = useState<StudioExporter | null>(null),
     [busy, setBusy] = useState(false),
+    [fraction, setFraction] = useState(0),
+    [finished, setFinished] = useState(false),
+    [preview, setPreview] = useState(false),
     [progress, setProgress] = useState("Preparing Studio…"),
     [error, setError] = useState(""),
     [generation, setGeneration] = useState(0);
@@ -66,6 +71,7 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
   const render = async () => {
     if (!exporter || !p.pdf) return;
     setBusy(true);
+    setFinished(false); setFraction(0);
     setError("");
     keys.current = [];
     const abort = new AbortController();
@@ -80,7 +86,7 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
           await putBlob(key, blob);
           return key;
         },
-        setProgress,
+        (text, value) => { setProgress(text); if (value !== undefined) setFraction(value); },
         abort.signal,
       );
       abort.signal.throwIfAborted();
@@ -99,6 +105,7 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
         throw new Error("The render could not be saved.");
       keys.current = [];
       previous.forEach((key) => void deleteUnusedPortfolioAsset(key));
+      setFinished(true); setFraction(1);
       setProgress(
         `Ready — ${formatBytes(pack.bytes)}. Rendered Studio will be used on your published link.`,
       );
@@ -144,6 +151,10 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
               : progress
             : progress}
       </p>
+      <div className="my-3">
+        <progress aria-label="Rendering progress" max={100} value={Math.round(fraction * 100)} className="h-2 w-full accent-foreground" />
+        <p className="mt-1 text-xs tabular-nums">{Math.round(fraction * 100)}%</p>
+      </div>
       <p className="my-3 text-xs text-muted-foreground">
         {capability === "offline"
           ? "Frame-by-frame 1080p / 60 FPS rendering."
@@ -161,6 +172,7 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
       <div className="flex gap-2">
         <Button
           disabled={
+            finished ||
             !exporter ||
             busy ||
             capability === "unsupported" ||
@@ -177,10 +189,12 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
           </Button>
         ) : (
           <Button variant="quiet" onClick={onClose}>
-            Close
+            {finished ? "Finish" : "Close"}
           </Button>
         )}
+        {finished && <Button variant="line" onClick={() => setPreview(true)}>View rendered version</Button>}
       </div>
+      {preview && <RenderedStudioPreview p={getDoc().portfolio ?? p} onClose={() => setPreview(false)} />}
       <div
         className="pf-render-capture pointer-events-none fixed left-[-10000px] top-0 h-[1080px] w-[1920px]"
         aria-hidden="true"
@@ -214,4 +228,24 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
     </dialog>,
     document.body,
   );
+}
+
+
+export function RenderedStudioPreview({ p, onClose }: { p: Portfolio; onClose: () => void }) {
+  const pack = currentRender(p);
+  const [zoom, setZoom] = useState(1);
+  if (!pack || typeof document === "undefined") return null;
+  return createPortal(<dialog open aria-modal="true" aria-label="Rendered portfolio preview" className="fixed inset-0 z-[110] m-auto h-[95dvh] w-[95vw] overflow-hidden rounded-2xl border bg-background p-3 text-foreground shadow-lift">
+    <div className="flex items-center justify-between gap-2 pb-2">
+      <h2 className="font-medium">Rendered version</h2>
+      <div className="flex items-center gap-2">
+        <Button size="sm" variant="line" onClick={() => setZoom(v => Math.max(1, v - .25))} aria-label="Zoom out">−</Button>
+        <span className="text-xs tabular-nums">{Math.round(zoom * 100)}%</span>
+        <Button size="sm" variant="line" onClick={() => setZoom(v => Math.min(3, v + .25))} aria-label="Zoom in">+</Button>
+        <Button size="sm" variant="line" onClick={() => setZoom(1)}>Reset</Button>
+        <Button size="sm" onClick={onClose}>Back to editing</Button>
+      </div>
+    </div>
+    <RenderedBook pack={pack} zoom={zoom} onZoomChange={setZoom} jump={null} onPage={() => {}} onReady={() => {}} onFallback={onClose} />
+  </dialog>, document.body);
 }

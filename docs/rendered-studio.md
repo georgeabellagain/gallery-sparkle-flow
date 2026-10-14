@@ -20,15 +20,21 @@ Each spread has a closed-note still, a forward turn clip, and a separate backwar
 - Turning with an open note closes it first, then plays the turn.
 - Opening another note closes the previous one first. This initial implementation supports one open note at a time.
 - Clicking either book side, swiping, or Previous/Next turns the page. Arrow keys work when the rendered viewer is focused.
-- Zoom uses the existing toolbar; dragging while zoomed pans the recorded scene. It does not scrub the page turn.
+- Zoom uses the existing toolbar and rendered controls. Dragging the background while zoomed pans the recorded scene; horizontal page dragging scrubs the turn.
 - Page tabs and project/page navigation jump to the corresponding recorded spread.
 
 The viewer resolves assets through the existing private portfolio-file storage and signed published URLs. Rendered files participate in cloud sync, PDF replacement and asset cleanup. Adjacent turn clips are prefetched. Errors expose a live-Studio fallback. Still images and clips use the same curved scene/camera, avoiding the earlier 3D-to-flat handoff.
 
 ## Practical limits and verification
 
-The capture is a fixed landscape camera. Zooming magnifies recorded pixels rather than rerendering PDF vectors. Large notes require wider framing. Exporting is browser-side, not a server render queue. This initial implementation does not scrub a turn or combine independently open notes.
+The capture is a fixed landscape camera. Zooming magnifies recorded pixels rather than rerendering PDF vectors. Large notes require wider framing. Exporting is browser-side, not a server render queue. Only one note is open at a time.
 
 TypeScript, production build and deterministic state/timing/storage tests are checked. Actual WebGL → WebCodecs/MediaRecorder → private storage → published video playback still needs an end-to-end check on a graphics-enabled browser, including forward/backward turns, overlapping notes, fullscreen/mobile and cancellation. The production storage bucket was checked read-only: it has no MIME restriction and a 50 MB per-file limit; the renderer also checks this limit. Do not infer GPU frame rate from unit tests.
 
 Dependency: Mediabunny 1.61.4, lazily imported for rendering, unmodified MPL-2.0. Licence text is available at /licenses/mediabunny.txt; upstream source https://github.com/Vanilagy/mediabunny.
+
+
+### Render controls and preview
+The editor's customise subpanels have a Back button. Rendering starts at twice the previous booklet scale; fitting an open note may add room to prevent cropping. Export progress counts saved stills and clips, including note animations and both turn directions. Finish returns to editing, and View rendered version opens an interactive preview from the editor or completed render dialog.
+
+Rendered playback supports zoom and panning. Dragging a page horizontally seeks the paused turn clip in both directions; release beyond 45% completes it, otherwise it rewinds. Drag the background or hold Shift to pan when zoomed. Dragging closes an open note first. H.264 clips use frequent keyframes to reduce seeking latency; actual seek smoothness depends on the browser/decoder. The preview remains separate from the live editor. New framing changes invalidate older renders.
