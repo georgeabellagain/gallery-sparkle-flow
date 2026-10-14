@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { turnEase, turnClearance, turnSheetHeight, captureFrames, turnRestVisible } from "../src/lib/portfolia/turn-motion";
+import { turnEase, turnClearance, turnSheetHeight, captureFrames, turnRestVisible, turnVideoTime } from "../src/lib/portfolia/turn-motion";
 
 test("turns settle without a discontinuous shadow offset in either direction", () => {
   assert.equal(turnClearance(0, .01), 0);
@@ -46,4 +46,10 @@ test("resting pages avoid the first and last five percent in either travel direc
   for (const t of [.95, .99, 1]) assert.equal(turnRestVisible(t, false), false);
   // Dragging back below the threshold hides the revealed page again.
   assert.equal(turnRestVisible(.04, true), false);
+});
+
+test("mouse progress maps to the eased video frame and can rewind", () => {
+  assert.equal(turnVideoTime(0),0); assert.equal(turnVideoTime(1),1);
+  for (const p of [.001,.05,.25,.5,.75,.95,.999]) assert.ok(Math.abs(turnEase(turnVideoTime(p))-p)<1e-6);
+  assert.ok(turnVideoTime(.2)<turnVideoTime(.8));
 });

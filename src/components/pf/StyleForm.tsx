@@ -1,4 +1,4 @@
-import { RenderStudioPanel } from "./RenderStudioPanel";
+import { RenderStudioPanel, RenderedStudioPreview } from "./RenderStudioPanel";
 import { currentRender } from "@/lib/portfolia/rendered-studio";
 import { BACKGROUND_PRESETS, backgroundPicture } from "@/lib/portfolia/background-presets";
 import { usePortfolioFont } from "@/lib/portfolia/fonts";
@@ -47,6 +47,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
   const paid = p.plan === "personal";
   const input = useRef<HTMLInputElement>(null);
   const [renderDialog, setRenderDialog] = useState(false);
+  const [renderPreview, setRenderPreview] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const set = (patch: Partial<PageStyle>) => {
@@ -262,6 +263,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
                   <div className="space-y-2 rounded-xl border border-border p-3">
                     <p className="text-xs text-muted-foreground">Rendered Studio plays HD page turns and note animations on your shared portfolio.</p>
                     <Button size="xs" variant="line" onClick={() => setRenderDialog(true)}>{currentRender(p) ? "Render again" : "Render Studio in HD"}</Button>
+                    {currentRender(p) && <Button size="xs" variant="line" onClick={() => setRenderPreview(true)}>View rendered version</Button>}
                     {p.pdf?.renderedStudio && !currentRender(p) && <p className="text-xs">The render is out of date. Live Studio is used until you render again.</p>}
                     <label className="flex items-center gap-2"><input type="checkbox" checked={viewer.studioPlayback === "rendered"} disabled={!currentRender(p)} onChange={e=>setViewer({studioPlayback:e.target.checked?"rendered":"live"})}/><span>Use rendered Studio on shared links</span></label>
                   </div>
@@ -350,6 +352,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
           </div>}
         </div>
       </div>}
+      {renderPreview && <RenderedStudioPreview p={p} onClose={() => setRenderPreview(false)} />}
       {renderDialog && <RenderStudioPanel p={p} onClose={() => setRenderDialog(false)} />}
     </div>
   );

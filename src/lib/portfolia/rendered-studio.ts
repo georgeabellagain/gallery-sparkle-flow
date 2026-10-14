@@ -4,6 +4,7 @@ export type RenderHotspot = PageBounds & { id: string; label: string; url?: stri
 export type RenderedState = {
   pages: number[];
   still: string;
+  pageBounds?: PageBounds[];
   notes: Array<RenderHotspot & { open: string; close: string; openStill: string }>;
   links: RenderHotspot[];
   forward?: string;
@@ -22,7 +23,7 @@ export type StudioExporter = {
   render(
     signature: string,
     save: (blob: Blob) => Promise<string>,
-    progress: (value: string) => void,
+    progress: (value: string, fraction?: number) => void,
     signal: AbortSignal,
   ): Promise<RenderedStudio>;
 };
@@ -41,7 +42,7 @@ export function renderSignature(p: Portfolio) {
         : value;
   return JSON.stringify(
     canonical([
-      "studio-capture-3",
+      "studio-capture-4",
       p.pdf?.blobKey,
       viewer,
       p.style?.backdrop,
@@ -76,6 +77,7 @@ export function currentRender(p: Portfolio) {
     (s) =>
       s &&
       key(s.still) &&
+      (!s.pageBounds || Array.isArray(s.pageBounds) && s.pageBounds.length <= 2 && s.pageBounds.every(b => b && [b.x,b.y,b.width,b.height].every(Number.isFinite) && b.width > 0 && b.height > 0)) &&
       (!s.forward || key(s.forward)) &&
       (!s.backward || key(s.backward)) &&
       Array.isArray(s.pages) &&

@@ -227,7 +227,10 @@ export function EditorStage({
           className="absolute inset-x-2 bottom-36 z-30 max-h-[62%] overflow-y-auto overflow-x-hidden [overflow-wrap:anywhere] rounded-2xl border border-border bg-background p-4 shadow-soft lg:inset-x-auto lg:bottom-4 lg:right-4 lg:top-4 lg:max-h-none lg:w-[19rem]"
         >
           <div className="mb-3 flex items-center justify-between border-b border-border pb-2">
-            <h2 className="text-sm font-medium">{title}</h2>
+            <div className="flex items-center gap-2">
+              {tool !== "customise" && <Button size="xs" variant="quiet" onClick={() => setTool("customise")} aria-label="Back to customise options"><ArrowLeft className="size-4" />Back</Button>}
+              <h2 className="text-sm font-medium">{title}</h2>
+            </div>
             <button type="button" aria-label="Close panel" className="rounded-full p-1.5 hover:bg-muted" onClick={() => setTool(null)}>
               <X className="size-4" />
             </button>

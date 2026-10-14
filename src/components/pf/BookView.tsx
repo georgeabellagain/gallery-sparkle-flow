@@ -1017,8 +1017,11 @@ export function BookView({
       lock.current = true;
       const output = document.createElement("canvas"); output.width=1920; output.height=1080;
       const context = output.getContext("2d")!;
-      let bytes = 0;
-      const write = async (blob: Blob) => { signal.throwIfAborted(); if(blob.size>50*1024*1024)throw new Error("A rendered clip exceeds the 50 MB file limit."); bytes += blob.size; if(bytes > 250*1024*1024) throw new Error("This render exceeds 250 MB. Use fewer pages or notes."); return save(blob); };
+      let bytes = 0, completed = 0;
+      const total = layout.spreads.length + layout.spreads.reduce((n, _, i) => n + notesForSpread(layout.spreads[i]!).length * 3, 0) + Math.max(0, layout.spreads.length - 1) * 2;
+      let status = "Preparing Studio…";
+      const report = (value: string) => { status = value; progress(value, completed / total); };
+      const write = async (blob: Blob) => { signal.throwIfAborted(); if(blob.size>50*1024*1024)throw new Error("A rendered clip exceeds the 50 MB file limit."); bytes += blob.size; if(bytes > 250*1024*1024) throw new Error("This render exceeds 250 MB. Use fewer pages or notes."); const key = await save(blob); completed++; progress(status, completed / total); return key; };
       const states: RenderedState[] = [];
       let stepFrame: (()=>Promise<void>) | undefined;
       const record = (action:()=>Promise<void>)=>recordStudioClip(output,action,signal,frame=>{stepFrame=frame;renderer.setCaptureClock(frame);});
@@ -1028,7 +1031,7 @@ export function BookView({
         signal.throwIfAborted(); if(scene.current!==renderer)throw new Error("The graphics renderer changed. Please try again."); const spread = layout.spreads[index]!;
         const images = await faces(spread);
         await renderer.setNotes(specs(index));
-        renderer.show(images); renderer.viewport(false, .65, bookFocus(spread, spread.find(n=>n!==null)!, false));
+        renderer.show(images); renderer.viewport(false, 1.3, bookFocus(spread, spread.find(n=>n!==null)!, false));
         renderer.setTabRest(Object.fromEntries((tabPlanFor(spread, spread, 1) ?? []).map(t=>[t.id,t.to])));
         renderer.renderFrame(); return images;
       };
@@ -1061,14 +1064,14 @@ export function BookView({
           }
         }
         for(let i=0;i<layout.spreads.length;i++) {
-          progress(`Rendering page ${i+1} of ${layout.spreads.length}`);
+          report(`Rendering page ${i+1} of ${layout.spreads.length}`);
           await show(i);
           const bounds=renderer.pageBounds();
           const hotspot = (item: {id:string;title?:string;label?:string;x:number;y:number;width?:number;height?:number;size?:number},side:number):RenderHotspot => {
             const b=bounds[side]!; return {id:item.id,label:item.title||item.label||"Open note",x:b.x+item.x*b.width,y:b.y+item.y*b.height,width:(item.width??item.size??.1)*b.width,height:(item.height??item.size??.1)*b.height};
           };
           const spread=layout.spreads[i]!;
-          const state:RenderedState={pages:spread.filter((n):n is number=>n!==null).map(n=>layout.leaves[n]!.page),still:await write(await canvasStill(output)),notes:[],links:[]};
+          const state:RenderedState={pages:spread.filter((n):n is number=>n!==null).map(n=>layout.leaves[n]!.page),still:await write(await canvasStill(output)),pageBounds:bounds.filter((_, side)=>spread[side]!==null),notes:[],links:[]};
           for(const spec of specs(i)) {
             const open=await write(await record(()=>animateNote(spec.item.id,true)));
             const openStill=await write(await canvasStill(output));
@@ -1081,7 +1084,7 @@ export function BookView({
         }
         for(let i=0;i<states.length;i++) for(const dir of [1,-1] as const) {
           const next=i+dir; if(next<0||next>=states.length)continue;
-          progress(`Rendering ${dir===1?"forward":"backward"} turn ${i+1}`);
+          report(`Rendering ${dir===1?"forward":"backward"} turn ${i+1}`);
           const from=await show(i),to=await faces(layout.spreads[next]!);
           await renderer.prepareNotes(specs(i),specs(next));
           const spread=layout.spreads[next]!;
