@@ -51,7 +51,7 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
     async ready() { await readyPromise; if (enabled && currentUrl && !source) throw new Error("The background image could not be prepared."); },
     frame(camera: THREE.PerspectiveCamera, width: number, height: number, anchoredHeight?: number) {
       if ((!source && currentUrl) || !enabled) { plane.visible = false; if (catcher) catcher.visible=false; return; }
-      const stamp = `${width}|${height}|${fit.scale}|${fit.x}|${fit.y}`;
+      const stamp = `${width}|${height}|${fit.scale}|${fit.x}|${fit.y}|${fit.tile}`;
       if (source && stamp !== dimensions) {
         dimensions = stamp;
         const previousWidth = canvas.width, previousHeight = canvas.height;
@@ -61,12 +61,19 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
         const detail = Math.max(longest * Math.min(globalThis.devicePixelRatio || 1, 2), Math.max(source.naturalWidth, source.naturalHeight));
         const cap = Math.min(4096, detail) / longest;
         canvas.width = Math.max(1, Math.round(width * cap)); canvas.height = Math.max(1, Math.round(height * cap));
-        const scale = Math.max(1, Math.min(3, fit.scale));
+        const scale = Math.max(fit.tile ? .25 : 1, Math.min(3, fit.scale));
         const cover = Math.max(canvas.width / source.naturalWidth, canvas.height / source.naturalHeight);
         const w = source.naturalWidth * cover * scale, h = source.naturalHeight * cover * scale;
         const x = (canvas.width - w) / 2 + Math.max(-1, Math.min(1, fit.x)) * canvas.width * (scale - 1) / 2;
         const y = (canvas.height - h) / 2 + Math.max(-1, Math.min(1, fit.y)) * canvas.height * (scale - 1) / 2;
-        canvas.getContext("2d")!.drawImage(source, x, y, w, h);
+        const paint = canvas.getContext("2d")!;
+        paint.clearRect(0,0,canvas.width,canvas.height);
+        if(fit.tile && scale<1){
+          const tile=document.createElement("canvas");tile.width=Math.max(1,Math.round(w));tile.height=Math.max(1,Math.round(h));
+          tile.getContext("2d")!.drawImage(source,0,0,tile.width,tile.height);
+          const pattern=paint.createPattern(tile,"repeat");
+          if(pattern){paint.save();paint.translate(x,y);paint.fillStyle=pattern;paint.fillRect(-x,-y,canvas.width,canvas.height);paint.restore();}
+        }else paint.drawImage(source, x, y, w, h);
         // Uploaded textures have fixed GPU storage. A fullscreen resize must
         // allocate fresh storage rather than update the old preview-sized image.
         if (canvas.width !== previousWidth || canvas.height !== previousHeight) {

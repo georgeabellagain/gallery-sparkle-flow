@@ -75,6 +75,8 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
     setFinished(false); setFraction(0);
     setError("");
     keys.current = [];
+    const uploads: Promise<void>[] = [], activeUploads = new Set<Promise<void>>();
+    let uploadError: unknown;
     const abort = new AbortController();
     controller.current = abort;
     try {
@@ -82,14 +84,19 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
         renderSignature(p),
         async (blob) => {
           abort.signal.throwIfAborted();
-          const key = uid("render");
-          keys.current.push(key);
-          await putBlob(key, blob);
+          if(uploadError)throw uploadError;
+          if(activeUploads.size>=2)await Promise.race(activeUploads);
+          abort.signal.throwIfAborted();
+          const key = uid("render");keys.current.push(key);
+          const upload=putBlob(key,blob);uploads.push(upload);activeUploads.add(upload);
+          void upload.then(()=>activeUploads.delete(upload),error=>{activeUploads.delete(upload);uploadError=error;});
           return key;
         },
-        (text, value) => { setProgress(text); if (value !== undefined) setFraction(value); },
+        (text, value) => { setProgress(text); if (value !== undefined) setFraction(value * .95); },
         abort.signal,
       );
+      setProgress("Saving rendered files…");
+      await Promise.all(uploads);
       abort.signal.throwIfAborted();
       const current = getDoc().portfolio;
       if (!current?.pdf || current.code !== p.code || renderSignature(current) !== pack.signature)
@@ -118,6 +125,8 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
             ? e.message
             : "Rendering failed.",
       );
+      // Let in-flight saves finish before deleting failed/cancelled assets.
+      await Promise.allSettled(uploads);
       await Promise.all(keys.current.map((key) => deleteUnusedPortfolioAsset(key)));
       keys.current = [];
     } finally {
@@ -139,7 +148,7 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
     >
       <h2 className="text-lg font-medium">Render Studio flipbook</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Create high-resolution page turns and note animations. Frame-by-frame rendering uses 30 FPS where
+        Create high-resolution page turns and note animations. Frame-by-frame rendering uses 60 FPS where
         supported. Keep this tab open while rendering. Your editor stays live; shared Studio views
         use the finished render.
       </p>
@@ -158,7 +167,7 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
       </div>
       <p className="my-3 text-xs text-muted-foreground">
         {capability === "offline"
-          ? "Frame-by-frame high-resolution / 30 FPS rendering."
+          ? "Frame-by-frame high-resolution / 60 FPS rendering."
           : capability === "realtime"
             ? "Real-time recording: animation quality depends on this device."
             : capability === "unsupported"

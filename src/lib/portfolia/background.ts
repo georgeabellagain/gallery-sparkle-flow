@@ -11,7 +11,7 @@ export const PRESET_COLOURS: Record<string, string> = {
 };
 export const DEFAULT_BACKGROUND = "#191d3a";
 
-export type BackgroundFit = { scale: number; x: number; y: number };
+export type BackgroundFit = { scale: number; x: number; y: number; tile?: boolean };
 export const DEFAULT_FIT: BackgroundFit = { scale: 1, x: 0, y: 0 };
 
 /**

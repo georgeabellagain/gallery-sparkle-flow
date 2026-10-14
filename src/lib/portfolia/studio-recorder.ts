@@ -1,15 +1,21 @@
+const encodingSupport = new Map<string, Promise<boolean>>();
+async function supportsAvc(width: number, height: number) {
+  const key = `${width}x${height}@60`;
+  let support = encodingSupport.get(key);
+  if (!support) {
+    support = (async () => {
+      const {canEncodeVideo, Quality} = await import("mediabunny");
+      return canEncodeVideo("avc", {width,height,frameRate:60,quality:new Quality({bitrate:32_000_000})});
+    })();
+    encodingSupport.set(key,support);
+    void support.catch(()=>encodingSupport.delete(key));
+  }
+  return support;
+}
 export async function studioCaptureCapability(width = 3840, height = 2160): Promise<"offline" | "realtime" | "unsupported"> {
   if (typeof VideoEncoder !== "undefined") {
     try {
-      const { canEncodeVideo, Quality } = await import("mediabunny");
-      if (
-        await canEncodeVideo("avc", {
-          width,
-          height,
-          frameRate: 30,
-          quality: new Quality({ bitrate: 32_000_000 }),
-        })
-      )
+      if (await supportsAvc(width,height))
         return "offline";
     } catch {
       /* Try real-time capture. */
@@ -22,7 +28,7 @@ export async function studioCaptureCapability(width = 3840, height = 2160): Prom
     ? "realtime"
     : "unsupported";
 }
-/** Frame-count driven high-resolution/30 FPS MP4, with a real-time fallback on older browsers. */
+/** Frame-count driven high-resolution/60 FPS MP4, with a real-time fallback on older browsers. */
 export async function recordStudioClip(
   canvas: HTMLCanvasElement,
   action: () => Promise<void>,
@@ -30,19 +36,25 @@ export async function recordStudioClip(
   clock?: (frame?: () => Promise<void>) => void,
 ): Promise<Blob> {
   if (clock && typeof VideoEncoder !== "undefined") {
-    const { Output, Mp4OutputFormat, BufferTarget, CanvasSource, Quality, canEncodeVideo } =
+    const { Output, Mp4OutputFormat, BufferTarget, CanvasSource, Quality } =
       await import("mediabunny");
     const quality = new Quality({ bitrate: 32_000_000 });
-    if (await canEncodeVideo("avc", { width: canvas.width, height: canvas.height, frameRate: 30, quality })) {
+    if (await supportsAvc(canvas.width,canvas.height)) {
       const target = new BufferTarget();
       const output = new Output({ format: new Mp4OutputFormat(), target });
       const source = new CanvasSource(canvas, { codec: "avc", quality, keyFrameInterval: 1 });
-      output.addVideoTrack(source, { frameRate: 30 });
-      let frame = 0;
+      output.addVideoTrack(source, { frameRate: 60 });
+      let frame = 0, lastYield = performance.now();
+      const channel = typeof MessageChannel === "undefined" ? null : new MessageChannel();
+      let resume: (()=>void) | undefined;
+      if(channel)channel.port1.onmessage=()=>{const finish=resume;resume=undefined;finish?.();};
+      const yieldToBrowser = () => channel ? new Promise<void>(resolve=>{resume=resolve;channel.port2.postMessage(null);}) : new Promise<void>(resolve=>setTimeout(resolve,0));
       const encode = async () => {
         signal.throwIfAborted();
-        await source.add(frame++ / 30, 1 / 30);
-        await new Promise<void>((r) => setTimeout(r, 0));
+        await source.add(frame++ / 60, 1 / 60);
+        // Encoder backpressure is still awaited for every frame. Yield without
+        // a nested timer on every frame, preserving UI/cancel responsiveness.
+        if(frame%8===0 || performance.now()-lastYield>=32){await yieldToBrowser();lastYield=performance.now();}
       };
       try {
         await output.start();
@@ -55,6 +67,7 @@ export async function recordStudioClip(
         if (!target.buffer) throw new Error("Video rendering failed.");
         return new Blob([target.buffer], { type: "video/mp4" });
       } finally {
+        channel?.port1.close();channel?.port2.close();
         clock(undefined);
         if (output.state !== "finalized" && output.state !== "canceled") await output.cancel();
       }
@@ -69,7 +82,7 @@ export async function recordStudioClip(
   if (!type)
     throw new Error("Video rendering is not supported in this browser. Try Chrome or Edge.");
   signal.throwIfAborted();
-  const stream = canvas.captureStream(30),
+  const stream = canvas.captureStream(60),
     chunks: Blob[] = [];
   const recorder = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 32_000_000 });
   let rejectRecording: (error: Error) => void = () => {};

@@ -83,7 +83,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
   /** The colour behind the PDF as it shows now, so the colour wheel starts on the right colour. */
   const wheelColour = backgroundColour(viewer, paid ? style.backdrop : undefined);
   const fit = { ...DEFAULT_FIT, ...viewer.backgroundFit };
-  const setFit = (patch: Partial<typeof fit>) => setViewer({ backgroundFit: { ...fit, ...patch } });
+  const setFit = (patch: Partial<typeof fit>) => setViewer({ backgroundFit: { ...fit, ...patch, tile: Boolean(viewer.backgroundPreset && !viewer.backgroundKey) } });
   // The creator chooses which reading modes and which flipbook appearances visitors get (always at least one of each).
   const enabledModes = viewer.modes?.length ? viewer.modes : (["scroll", "paged", "book"] as const);
   const enabledLooks = viewer.looks?.length ? viewer.looks : ([viewer.look] as const);
@@ -341,7 +341,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
             {hasBackground && (
               <div data-studio-background={viewer.backgroundLighting ? "true" : undefined} onPointerDownCapture={() => { if (viewer.backgroundLighting) setPreviewLook("studio"); }} className="space-y-2 rounded-xl border border-border p-3">
                 {backgroundUrl && <img src={backgroundUrl} alt="Your background picture" className="h-16 w-full rounded-md object-cover" />}
-                <label className="flex items-center gap-3"><span className="w-16 shrink-0">Size</span><input type="range" aria-label="Background picture size" min="100" max="300" step="5" value={Math.round(fit.scale * 100)} onChange={(e) => setFit({ scale: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground" /><span className="w-10 text-right tabular-nums">{Math.round(fit.scale * 100)}%</span></label>
+                <label className="flex items-center gap-3"><span className="w-16 shrink-0">Size</span><input type="range" aria-label="Background picture size" min={viewer.backgroundPreset && !viewer.backgroundKey ? "25" : "100"} max="300" step="5" value={Math.round(fit.scale * 100)} onChange={(e) => setFit({ scale: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground" /><span className="w-10 text-right tabular-nums">{Math.round(fit.scale * 100)}%</span></label>
                 <label className="flex items-center gap-3"><span className="w-16 shrink-0">Left / right</span><input type="range" aria-label="Move background picture left or right" min="-100" max="100" step="2" value={Math.round(fit.x * 100)} disabled={fit.scale <= 1} onChange={(e) => setFit({ x: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground disabled:opacity-40" /></label>
                 <label className="flex items-center gap-3"><span className="w-16 shrink-0">Up / down</span><input type="range" aria-label="Move background picture up or down" min="-100" max="100" step="2" value={Math.round(fit.y * 100)} disabled={fit.scale <= 1} onChange={(e) => setFit({ y: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground disabled:opacity-40" /></label>
                 <p className="text-xxs text-muted-foreground">Make the picture larger to move it.</p>

@@ -28,7 +28,7 @@ import { useTouchGestures } from "@/components/pf/touch-gestures";
 import { BookLoader } from "@/components/pf/book-loader";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 import { backgroundColour, fitTransform } from "@/lib/portfolia/background";
-import { IconButton, LogoMark, Panel, Segmented, iconClass, useDismiss, useTone } from "@/components/pf/viewer-ui";
+import { BackdropLayer, IconButton, LogoMark, Panel, Segmented, iconClass, useDismiss, useTone } from "@/components/pf/viewer-ui";
 
 import type { PageStudioRenderer, PageStudioSettings } from "@/lib/portfolia/page-studio";
 
@@ -296,6 +296,8 @@ export function PdfViewer({
     const down = (event: PointerEvent) => {
       if (event.pointerType !== "mouse" || event.button !== 0) return;
       moved = false;
+      const box=el.getBoundingClientRect();
+      if(event.clientX>=box.right-(el.offsetWidth-el.clientWidth))return;
       if ((event.target as Element).closest("a,button,input,select,textarea")) return;
       drag = { id: event.pointerId, x: event.clientX, y: event.clientY, left: el.scrollLeft, top: el.scrollTop };
       el.setPointerCapture(event.pointerId);
@@ -342,7 +344,7 @@ export function PdfViewer({
     let frame = 0;
     let delta = 0;
     const wheel = (event: WheelEvent) => {
-      if (!event.deltaY) return;
+      if (!event.deltaY || mode === "scroll" && !event.ctrlKey) return;
       event.preventDefault();
       const content=panRef.current?.firstElementChild, rect=content?.getBoundingClientRect();
       if(rect)wheelAnchor.current={x:event.clientX,y:event.clientY,u:(event.clientX-rect.left)/rect.width,v:(event.clientY-rect.top)/rect.height};
@@ -589,7 +591,7 @@ export function PdfViewer({
     >
       {backgroundUrl && mode !== "book" && (
         <div aria-hidden className="pointer-events-none sticky top-0 -z-10 -mb-[100svh] h-[100svh] w-full overflow-hidden">
-          <img src={backgroundUrl} alt="" draggable={false} className="h-full w-full select-none object-cover" style={{ transform: fitTransform(view.backgroundFit) }} />
+          <BackdropLayer colour={colour} imageUrl={backgroundUrl} fit={view.backgroundFit} />
         </div>
       )}
 
@@ -745,7 +747,7 @@ export function PdfViewer({
           )}
         </div>
       ) : (
-        <div ref={panRef} className="overflow-auto" style={{ height: pagedHeight, cursor: zoom > 1 ? "grab" : undefined, touchAction: "pan-x pan-y pinch-zoom" }}>
+        <div ref={panRef} className="pf-reader-scroll overflow-auto" style={{ height: pagedHeight, overflowY: "scroll", scrollbarGutter: "stable", cursor: zoom > 1 ? "grab" : undefined, touchAction: "pan-x pan-y pinch-zoom" }}>
           <div
             className={cn("mx-auto flex flex-col gap-4 pb-6", compact ? "px-3" : "px-3 sm:px-8")}
             style={{ paddingTop: topGap, width: `calc(min(100%, ${compact ? 900 : 1100}px) * ${zoom})` }}

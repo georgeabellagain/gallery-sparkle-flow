@@ -71,7 +71,7 @@ export interface ViewerSettings {
   /** Bundled CC0 background; uploaded pictures take precedence. */
   backgroundPreset?: string;
   /** Size and position of the background picture. */
-  backgroundFit?: { scale: number; x: number; y: number };
+  backgroundFit?: { scale: number; x: number; y: number; tile?: boolean };
 }
 
 export const DEFAULT_VIEWER: ViewerSettings = {
