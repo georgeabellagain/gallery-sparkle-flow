@@ -30,7 +30,7 @@ export type StudioSettings = {
   simpleShadowOpacity: number;
 };
 export type BookFaces = [HTMLCanvasElement | null, HTMLCanvasElement | null];
-const ease = (t: number) => t * t * (3 - 2 * t);
+const ease = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
 const smooth = (t: number) => {
   const c = Math.min(1, Math.max(0, t));
   return c * c * (3 - 2 * c);
@@ -361,7 +361,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const uvSheet = geometry.getAttribute("uv");
   const reliefFrom = new Float32Array(uvSheet.count);
   const reliefTo = new Float32Array(uvSheet.count);
-  const curlProfile = Float32Array.from({ length: uvSheet.count }, (_, i) => .22 * Math.sin(Math.PI * uvSheet.getX(i)) * (1 + .35 * (.5 - uvSheet.getY(i))));
+  const curlProfile = Float32Array.from({ length: uvSheet.count }, (_, i) => .30 * Math.sin(Math.PI * uvSheet.getX(i)) * (1 + .35 * (.5 - uvSheet.getY(i))));
   let draggedTurn: { from: BookFaces; to: BookFaces; dir: 1 | -1; destinationFocus: number; originalFocus: number; progress: number; speed: number } | null = null;
 
   // Pages kept on the graphics card are limited by count and by memory, so the browser never has a reason to take the context away.
@@ -761,17 +761,17 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const watchSpeed = (frameMs: number) => {
     if (fixedQuality) return;
     slowFrames = frameMs > 18 ? slowFrames + 1 : Math.max(0, slowFrames - 1);
-    if (slowFrames < 6 || qualityDrops >= 3 || pixelRatio <= 0.65) return;
+    if (slowFrames < 6 || qualityDrops >= 3 || pixelRatio <= 0.9) return;
     slowFrames = 0;
     // Resizing the drawing surface is itself a hitch, so it waits until the turn is over (see applyPendingQuality).
     qualityPending = true;
   };
   let qualityPending = false;
   const applyPendingQuality = () => {
-    if (!qualityPending || qualityDrops >= 3 || pixelRatio <= 0.65) return;
+    if (!qualityPending || qualityDrops >= 3 || pixelRatio <= 0.9) return;
     qualityPending = false;
     qualityDrops += 1;
-    pixelRatio = Math.max(0.65, pixelRatio * 0.8);
+    pixelRatio = Math.max(0.9, pixelRatio * 0.9);
     resize();
   };
   /** The most a turn advances in one frame, however slow that frame was. */
