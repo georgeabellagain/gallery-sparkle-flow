@@ -1,4 +1,6 @@
 import * as THREE from "three";
+/** Temporarily hidden; retain saved preferences for later re-enabling. */
+export const NATURAL_IMPERFECTIONS_ENABLED = false;
 export function naturalIntensity(value: boolean | number | undefined) {
   return value === true ? 1 : typeof value === "number" && Number.isFinite(value) ? Math.max(0,Math.min(1,value)) : 0;
 }
@@ -32,7 +34,7 @@ export function naturalPaperTexture() {
 const effects=new WeakMap<THREE.Material,{value:number}>();
 /** One texture read replaces all procedural per-pixel noise, trigonometry and derivatives. */
 export function setNaturalImperfections(material: THREE.Material, enabled: boolean | number | undefined) {
-  const value=naturalIntensity(enabled);material.userData["naturalEnabled"]=value;
+  const value=NATURAL_IMPERFECTIONS_ENABLED ? naturalIntensity(enabled) : 0;material.userData["naturalEnabled"]=value;
   let amount=effects.get(material);
   if(!amount){
     if(!value)return;
@@ -55,6 +57,7 @@ export function setNaturalImperfections(material: THREE.Material, enabled: boole
 }
 /** A small static cloud of soft motes in front of the paper, drawn in one batch. */
 export function createAirDust(scene: THREE.Scene) {
+  if(!NATURAL_IMPERFECTIONS_ENABLED)return {setIntensity(_value:boolean|number|undefined){},dispose(){}};
   const count=96,positions=new Float32Array(count*3),colours=new Float32Array(count*3);
   let seed=419;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
   for(let i=0;i<count;i++){
