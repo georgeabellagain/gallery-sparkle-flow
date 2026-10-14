@@ -4,7 +4,13 @@ export const turnEase = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
 export const turnClearance = (t: number, gap: number) => gap * Math.sin(Math.PI * Math.max(0, Math.min(1, t)));
 
 /** Keep the moving sheet above the receiving page despite different surface relief. */
-export const turnSheetHeight = (height: number, floor: number, gap: number) => Math.max(height, floor + gap);
+export const turnSheetHeight = (height: number, floor: number, gap: number, progress = .5) => {
+  // At the endpoints use the exact resting mesh. Ramp collision protection
+  // over the first/last 8% so a receiving page cannot push the sheet up on click.
+  const edge = Math.max(0, Math.min(1, progress / .08, (1 - progress) / .08));
+  const blend = edge * edge * (3 - 2 * edge);
+  return height + (Math.max(height, floor + gap) - height) * blend;
+};
 
 /** Offline capture is frame-count driven, never dependent on the renderer's speed. */
 export async function captureFrames(duration: number, update: (t:number)=>void, encode: ()=>Promise<void>) {

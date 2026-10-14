@@ -28,3 +28,13 @@ test('offline capture encodes every sample despite a slow encoder',async()=>{
   assert.equal(frames,61);assert.equal(samples[0],0);assert.equal(samples.at(-1),1);
   samples.forEach((t,i)=>assert.equal(t,i/60));
 });
+
+test("turning geometry matches its resting surface exactly at both endpoints", () => {
+  for (const height of [-.003, 0, .003, .04]) for (const floor of [-.003, 0, .08]) {
+    assert.equal(turnSheetHeight(height, floor, .01, 0), height);
+    assert.equal(turnSheetHeight(height, floor, .01, 1), height);
+    assert.ok(Math.abs(turnSheetHeight(height, floor, .01, .00001) - height) < 1e-7);
+    assert.ok(turnSheetHeight(height, floor, .01, .08) >= floor + .01);
+    assert.ok(turnSheetHeight(height, floor, .01, .92) >= floor + .01 - 1e-12);
+  }
+});
