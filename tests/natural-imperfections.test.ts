@@ -24,7 +24,7 @@ test("backdrop dust is applied after lighting so it also works on an unlit photo
   const shader={uniforms:{},vertexShader:THREE.ShaderLib.standard.vertexShader,fragmentShader:THREE.ShaderLib.standard.fragmentShader};
   material.onBeforeCompile(shader as never,{} as THREE.WebGLRenderer);
   assert.ok(shader.fragmentShader.indexOf("float speck")<shader.fragmentShader.indexOf("#include <opaque_fragment>"));
-  assert.ok(shader.fragmentShader.includes("outgoingLight *= 1.0-speck*.12*naturalAmount"));material.dispose();
+  assert.ok(shader.fragmentShader.includes("outgoingLight *= 1.0-speck*.48*naturalAmount"));material.dispose();
 });
 
 test("intensity smoothly adjusts a compiled material and preserves legacy boolean settings",()=>{
