@@ -58,3 +58,6 @@ Offline capture again encodes every frame at 60 FPS. AVC capability probing is c
 Scroll mode uses normal mouse-wheel scrolling and a right-hand scrollbar. Ctrl-wheel retains cursor-anchored zoom there; page-by-page and flipbook wheel zoom remain unchanged. Background presets can be reduced to 25% size; seamless repeating tiles cover the frame in both live appearances and capture. Uploaded photos retain their existing minimum size.
 
 Natural imperfections now use a 0–100% intensity slider. Legacy enabled/disabled values map to 100%/0%; all four effects scale together. Editor and homepage flipbook page numbers are at the top, above the editing widget.
+
+
+Natural imperfections now sample one shared 512×512 paper bitmap with mipmaps, containing visible fibres, flecks, mottling and edge wear. This replaces procedural fragment noise/trigonometry/derivatives; dark artwork is masked from the tint. Backdrop dust is replaced by one batch of 96 soft, static motes at different heights above the book. The same slider sets paper strength and mote opacity. There is no continuous animation loop, and the dust geometry/material/map are released with the scene. Simple disables the effects. Actual GPU performance and appearance remain unbenchmarked in a graphics-enabled browser.

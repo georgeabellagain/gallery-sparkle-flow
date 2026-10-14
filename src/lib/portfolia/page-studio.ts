@@ -1,4 +1,4 @@
-import { setNaturalImperfections } from "./natural-imperfections";
+import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
 import { averageEnvironment, createEnvironmentDiffuser } from "./environment-diffusion";
 import { readerSlideOffset, READER_SLIDE_MS } from "./reader-slide";
 import { createFrameCommits } from "./frame-commits";
@@ -27,6 +27,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   Object.assign(renderer.domElement.style, { width: "100%", height: "100%", display: "block" });
   host.appendChild(renderer.domElement);
   const scene = new THREE.Scene();
+  const airDust=createAirDust(scene);
   const paperGeometry = new THREE.PlaneGeometry(1, 1);
   const camera = new THREE.PerspectiveCamera(36, 1, .1, 50);
   const ambient = new THREE.HemisphereLight(0xffffff, 0xb7bdca, .65);
@@ -252,7 +253,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       const target = await environment(next.hdri);
       if (disposed || version !== revision) return;
       settings = next;
-      backdrop.setImperfections(next.imperfections ?? 0);
+      airDust.setIntensity(next.imperfections ?? 0);
       const pattern = HDRI_PRESETS.find(p => p.id === next.hdri)?.dapple;
       if (pattern && !masks.has(pattern)) masks.set(pattern, dappleTexture(pattern));
       sun.map = pattern ? masks.get(pattern)! : null; sun.visible = Boolean(pattern);
@@ -290,6 +291,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       observer.disconnect(); resize.disconnect();
       viewport.removeEventListener("scroll", scroll); viewport.removeEventListener("animationstart", animate);
       renderer.domElement.removeEventListener("webglcontextlost", lost);
+      airDust.dispose();
       backdrop.dispose();
       diffuser.dispose();
       pending.clear(); pages.forEach(page => release(page)); pages.clear();
