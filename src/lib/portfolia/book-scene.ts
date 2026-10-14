@@ -1,4 +1,4 @@
-import { setNaturalImperfections } from "./natural-imperfections";
+import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
 import { turnEase, turnClearance, turnSheetHeight, captureFrames, turnRestVisible } from "./turn-motion";
 import { averageEnvironment, createEnvironmentDiffuser } from "./environment-diffusion";
 import { dappleTexture } from "./dapple-light";
@@ -83,6 +83,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const studioTone =
     (THREE as unknown as { NeutralToneMapping?: THREE.ToneMapping }).NeutralToneMapping ?? THREE.ACESFilmicToneMapping;
   const scene = new THREE.Scene();
+  const airDust=createAirDust(scene);
 
   // The lighting environments are real photographs, downloaded the first time one is chosen and
   // prefiltered for paper. They are held as half-floats, which every device can filter.
@@ -706,7 +707,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     const satin = next.material === "satin";
     if (variantChanged) variant = nextVariant;
-    backdrop.setImperfections(next.studio ? next.imperfections ?? 0 : 0);
+    airDust.setIntensity(next.studio ? next.imperfections ?? 0 : 0);
     for (const m of pageMaterials) {
       setNaturalImperfections(m,next.studio ? next.imperfections ?? 0 : 0);
       const stickyMatte = Boolean(m.userData["stickyMatte"]);
@@ -1128,6 +1129,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     dispose() {
       notes.clear();
       tabs.clear();
+      airDust.dispose();
       backdrop.dispose();
       diffuser.dispose();
       disposed = true;
