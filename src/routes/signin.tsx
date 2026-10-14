@@ -58,7 +58,7 @@ function SignIn() {
 
   const done = () => {
     update((d) => ({ ...d, account: { signedIn: true } }));
-    void navigate({ to: next === "create" && getDoc().portfolio?.status === "draft" ? "/create" : "/dashboard" });
+    void navigate({ to: next === "home" ? "/" : next === "create" && getDoc().portfolio?.status === "draft" ? "/create" : "/dashboard" });
   };
 
   const submit = async (e: React.FormEvent) => {

@@ -649,3 +649,14 @@
 .pf-foldout[data-note-style="sticky"][data-scene-rendered="false"] .pf-foldout-flap { box-shadow: 0 5px 8px rgb(0 0 0 / 20%); }
 
 .pf-profile-card .text-sm { font-size: inherit; }
+
+/* Product-first homepage: the book is the canvas, tools open in place. */
+.pf-workspace-demo .pf-book-viewport { height: calc(100dvh - 3.5rem); min-height: 34rem; }
+.pf-workspace-demo > div:not([role="status"]) { height: 100%; }
+.pf-workspace-demo .pf-book-viewport .pf-book-canvas { top: 4rem; bottom: 5.5rem; }
+.pf-home-workspace .pf-editor-stage { min-height: 34rem; }
+@media (max-width: 639px) {
+  .pf-home-toolbar { max-width: calc(100vw - 1rem); gap: 0; }
+  .pf-home-toolbar button { padding-inline: .65rem; font-size: .75rem; }
+  .pf-home-toolbar button svg { display: none; }
+}

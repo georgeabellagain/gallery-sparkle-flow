@@ -22,7 +22,7 @@ export function loadFeaturedPortfolio(refresh = false) {
 
 
 /** Reuse the real reader and saved settings instead of drawing invented sample pages. */
-export function StudioDemo({ className }: { className?: string }) {
+export function StudioDemo({ className, workspace = false }: { className?: string; workspace?: boolean }) {
   const [data, setData] = useState<PublicPortfolio>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [slow, setSlow] = useState(false);
@@ -69,12 +69,12 @@ export function StudioDemo({ className }: { className?: string }) {
   const source = useMemo(() => url ? { url } : null, [url]);
   const stop = () => setInteracted(true);
   return <figure ref={figure} onPointerDownCapture={stop} onKeyDownCapture={stop} onWheelCapture={stop} className={className ?? "mx-auto w-full max-w-5xl"}>
-    <div className="pf-home-demo relative overflow-hidden rounded-3xl border border-border shadow-lift [&_.pf-book-viewport]:h-[28rem] sm:[&_.pf-book-viewport]:h-[36rem] lg:[&_.pf-book-viewport]:h-[40rem]" style={{ background: p?.viewer?.backgroundColor ?? "#02011e" }}>
+    <div className={workspace ? "pf-workspace-demo relative h-full overflow-hidden" : "pf-home-demo relative overflow-hidden rounded-3xl border border-border shadow-lift [&_.pf-book-viewport]:h-[28rem] sm:[&_.pf-book-viewport]:h-[36rem] lg:[&_.pf-book-viewport]:h-[40rem]"} style={{ background: p?.viewer?.backgroundColor ?? "#02011e" }}>
       {state === "ready" && p?.pdf && source && <div style={{ opacity: rendered ? 1 : 0, pointerEvents: rendered ? "auto" : "none" }} aria-hidden={!rendered} inert={!rendered}>
       <PdfViewer
         source={source}
         fileName={p.pdf.name}
-        viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "studio", studioBrightness: Math.min(1, (p.viewer?.studioBrightness ?? 0.5) + 0.14), modes: ["book"], looks: ["clean", "studio"] }}
+        viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "studio", studioBrightness: Math.min(1, (p.viewer?.studioBrightness ?? 0.5) + 0.14), modes: workspace ? ["book", "scroll", "paged"] : ["book"], looks: ["clean", "studio"] }}
         backgroundUrl={p.viewer?.backgroundKey ? data?.urls[p.viewer.backgroundKey] : undefined}
         controls
         lightweight
@@ -91,6 +91,6 @@ export function StudioDemo({ className }: { className?: string }) {
         {(state === "error" || slow) && <button type="button" className="underline underline-offset-4" onClick={() => setAttempt((n) => n + 1)}>Try again</button>}
       </div>}
     </div>
-    <figcaption className="mt-3 text-center text-xs text-muted-foreground">{FEATURED_CREDIT}</figcaption>
+    <figcaption className={workspace ? "pointer-events-none absolute bottom-2 inset-x-0 text-center text-[10px] text-muted-foreground" : "mt-3 text-center text-xs text-muted-foreground"}>{FEATURED_CREDIT}</figcaption>
   </figure>;
 }

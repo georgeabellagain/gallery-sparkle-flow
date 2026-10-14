@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { EditorFullscreenContext, useEditorFullscreen } from "./editor-fullscreen";
 import { openingLook } from "@/lib/portfolia/appearance";
 
-type Tool = "reading" | "look" | "background" | "scrapbook" | "projects" | "publish" | "share" | "statistics";
+type Tool = "customise" | "profile" | "reading" | "look" | "background" | "scrapbook" | "projects" | "publish" | "share" | "statistics";
 const TOOLS: Array<[Tool, string, typeof Sun]> = [
   ["reading", "Reading", BookOpen],
   ["look", "Lighting & look", Sun],
@@ -93,7 +93,13 @@ export function EditorStage({
   onDialog,
   onPublish,
   onUnpublish,
+  home = false,
+  onUpload,
+  profile,
 }: {
+  home?: boolean;
+  onUpload?: () => void;
+  profile?: ReactNode;
   p: Portfolio;
   preview: ReactNode;
   statistics?: ReactNode;
@@ -140,7 +146,7 @@ export function EditorStage({
   const notes = readableFoldouts(pdf.foldouts, pdf.pages).length;
   const tabs = readablePageTags(pdf.tags, pdf.pages).length;
   const links = readablePageLinks(pdf.links, pdf.pages).length;
-  const title = TOOLS.find(([id]) => id === tool)?.[1];
+  const title = tool === "customise" ? "Customise" : tool === "profile" ? "Profile" : TOOLS.find(([id]) => id === tool)?.[1];
   const row = "flex items-center justify-between gap-3";
   return (
     <EditorFullscreenContext.Provider value={fullscreen}>
@@ -148,7 +154,11 @@ export function EditorStage({
       <div className="absolute inset-0 overflow-auto" onPointerDown={() => undefined}>
         {preview}
       </div>
-      <nav
+      {home && <nav aria-label="Portfolio workspace tools" className="pf-home-toolbar absolute bottom-7 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-border bg-background/95 p-2 shadow-lift backdrop-blur">
+        <Button size="sm" onClick={onUpload}><Upload className="size-4" /> <span>Upload PDF</span></Button>
+        {([["customise", "Customise", Sun], ["scrapbook", "Add", StickyNote], ["share", "Share", Share2]] as const).map(([id, label, Icon]) => <Button key={id} size="sm" variant="quiet" aria-pressed={tool === id} onClick={() => setTool(current => current === id ? null : id)}><Icon className="size-4" /><span>{label}</span></Button>)}
+      </nav>}
+      {!home && <nav
         ref={dockRef}
         aria-label="Editing tools"
         style={position ? { left: position.left, top: position.top, bottom: "auto", right: "auto", transform: "none", translate: "none" } : undefined}
@@ -210,7 +220,7 @@ export function EditorStage({
           </button>
         ))}
         </div>
-      </nav>
+      </nav>}
       {tool && (
         <section
           aria-label={title}
@@ -222,6 +232,11 @@ export function EditorStage({
               <X className="size-4" />
             </button>
           </div>
+          {tool === "customise" && <div className="space-y-2">
+            {([["reading", "Reading style"], ["look", "Lighting & paper"], ["background", "Background"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="line" size="sm" onClick={() => setTool(id)}>{label}</Button>)}
+            <details className="pt-3"><summary className="cursor-pointer text-sm">More options</summary><div className="mt-3 grid gap-2">{([["profile", "Profile details"], ["projects", "Named projects"], ["publish", "File & publishing"], ["statistics", "Statistics"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="quiet" size="sm" onClick={() => setTool(id)}>{label}</Button>)}</div></details>
+          </div>}
+          {tool === "profile" && profile}
           {tool === "statistics" && (statistics ?? <p className="text-sm text-muted-foreground">Sign in to see portfolio statistics.</p>)}
           {tool === "reading" && <StyleForm sidebar part="reading" p={p} onSaveError={onSaveError} />}
           {tool === "look" && <StyleForm sidebar part="look" p={p} onSaveError={onSaveError} />}
@@ -252,7 +267,7 @@ export function EditorStage({
               ))}
             </div>
           )}
-          {tool === "share" && <ShareActions p={p} />}
+          {tool === "share" && <>{home && <Button className="mb-4 w-full" onClick={onPublish}>{p.status === "published" ? "Save & view sharing options" : "Publish portfolio"}</Button>}<ShareActions p={p} /></>}
           {tool === "publish" && (
             <div className="space-y-5 text-sm">
               <div>
@@ -282,8 +297,8 @@ export function EditorStage({
                 </label>
               </div>
               <div className="grid gap-2 border-t border-border pt-4">
-                <Button asChild variant="line" size="sm"><Link to="/dashboard">Back to dashboard</Link></Button>
-                <Button asChild variant="quiet" size="sm"><Link to="/create">Edit profile details</Link></Button>
+                {!home && <Button asChild variant="line" size="sm"><Link to="/dashboard">Back to dashboard</Link></Button>}
+                {home ? <Button variant="quiet" size="sm" onClick={() => setTool("profile")}>Edit profile details</Button> : <Button asChild variant="quiet" size="sm"><Link to="/create">Edit profile details</Link></Button>}
               </div>
             </div>
           )}
