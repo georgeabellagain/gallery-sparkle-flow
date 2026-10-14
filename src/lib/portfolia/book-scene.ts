@@ -39,7 +39,7 @@ const smooth = (t: number) => {
 /** Page textures kept on the GPU at once (current, next and previous spreads). */
 const MAX_TEXTURES = 8;
 /** The drawing surface, in pixels. With edge smoothing it costs several times its size in graphics memory. */
-const MAX_SURFACE_PIXELS = 2_600_000;
+const MAX_SURFACE_PIXELS = 5_200_000;
 const MAX_SURFACE_PIXELS_SMALL = 2_500_000;
 /** Gap between a turning sheet and the pages beneath it; larger than any page imperfection. */
 const SHEET_CLEARANCE = 0.01;
@@ -50,7 +50,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const dpr = window.devicePixelRatio || 1;
   // Edges are smoothed by multisampling (always on), so the picture does not need to be drawn at more than
   // twice the screen's own detail. Drawing fewer pixels is what keeps Studio's paper shading quick.
-  let pixelRatio = Math.min(Math.max(dpr, 1), 1.25);
+  let pixelRatio = Math.min(Math.max(dpr, 1), compact ? 1.5 : 2);
   let appliedRatio = pixelRatio;
   const readingRatio = pixelRatio;
   let turning = false;
@@ -69,8 +69,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   renderer.domElement.style.width = "100%";
   renderer.domElement.style.height = "100%";
   host.appendChild(renderer.domElement);
-  // 8x is visually the same as 16x for pages seen almost face-on, and noticeably cheaper to draw.
-  const maxAnisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+  // Preserve oblique page detail using the filtering supported by this GPU.
+  const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
   // Neutral tone mapping keeps artwork colours true; ACES is the fallback.
   const studioTone =
     (THREE as unknown as { NeutralToneMapping?: THREE.ToneMapping }).NeutralToneMapping ?? THREE.ACESFilmicToneMapping;
@@ -728,7 +728,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let slowFrames = 0;
   const watchSpeed = (frameMs: number) => {
     if (fixedQuality) return;
-    slowFrames = frameMs > 30 ? slowFrames + 1 : Math.max(0, slowFrames - 1);
+    slowFrames = frameMs > 18 ? slowFrames + 1 : Math.max(0, slowFrames - 1);
     if (slowFrames < 6 || qualityDrops >= 3 || pixelRatio <= 0.65) return;
     slowFrames = 0;
     // Resizing the drawing surface is itself a hitch, so it waits until the turn is over (see applyPendingQuality).
@@ -743,7 +743,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     resize();
   };
   /** The most a turn advances in one frame, however slow that frame was. */
-  const MAX_FRAME_STEP = 50;
+  const MAX_FRAME_STEP = 1000 / 30;
   const animate = (duration: number, update: (t: number) => void) =>
     new Promise<void>((resolve) => {
       if (disposed) {

@@ -77,7 +77,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
         viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "studio", studioBrightness: Math.min(1, (p.viewer?.studioBrightness ?? 0.5) + 0.14), modes: workspace ? ["book", "scroll", "paged"] : ["book"], looks: ["clean", "studio"] }}
         backgroundUrl={p.viewer?.backgroundKey ? data?.urls[p.viewer.backgroundKey] : undefined}
         controls
-        lightweight
+        lightweight={!workspace}
         initialLook="studio"
         fullSpread
         autoTurnDelay={1600}
