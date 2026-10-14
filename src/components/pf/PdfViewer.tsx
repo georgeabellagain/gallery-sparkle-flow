@@ -411,9 +411,9 @@ export function PdfViewer({
     return () => { cancelled = true; renderer?.dispose(); };
   }, [studioAvailable, mode, !!doc, warmFlatStudio]);
   const pageStudio = useMemo<PageStudioSettings | null>(() => studioAvailable ? {
-    hdri: view.studioLighting ?? "4", brightness: view.studioBrightness ?? .5, topLight: view.studioTopLight ?? 0,
+    hdri: view.studioLighting ?? "4", brightness: view.studioBrightness ?? .5, topLight: view.studioTopLight ?? 0, imperfections: view.studioImperfections ?? false,
     finish: view.finish, strength: view.studioLightingStrength ?? .75, textureStrength: 1,
-  } : null, [studioAvailable, view.studioLighting, view.studioBrightness, view.studioTopLight, view.finish, view.studioLightingStrength]);
+  } : null, [studioAvailable, view.studioLighting, view.studioBrightness, view.studioTopLight, view.studioImperfections, view.finish, view.studioLightingStrength]);
   useEffect(() => {
     if (!pageLighting || !pageStudio) return;
     let cancelled = false;

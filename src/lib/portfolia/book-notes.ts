@@ -1,3 +1,4 @@
+import { setNaturalImperfections } from "./natural-imperfections";
 import * as THREE from "three";
 import { foldoutSurfaces, type Foldout } from "./foldouts";
 import { flapGeometry, flapGrid, flapShape, NOTE_LIFT, FLAP_LIFT, PAPER_GAP, FLAP_SEGMENTS, FLAP_ACROSS } from "./note-flap";
@@ -125,6 +126,7 @@ export function createBookNotes(
           texture.anisotropy = 4;
           resources.push(texture);
           const mat = template().clone();
+          setNaturalImperfections(mat,Boolean(template().userData["naturalEnabled"]));
           if (f.style === "sticky") {
             const grain = new Uint8Array(64 * 64 * 4);
             for (let i = 0; i < 64 * 64; i++) {
