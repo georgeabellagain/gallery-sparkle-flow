@@ -7,9 +7,9 @@ import type { Portfolio } from "../src/lib/portfolia/store";
 
 const portfolio = { code: "book", status: "published", plan: "personal", username: "Designer", searchIndexing: true, profile: { name: "A designer", title: "Illustrator", intro: "My work" }, pdf: { blobKey: "pdf_example", coverKey: "pdf_example_cover.jpg" } } as Portfolio;
 const meta = (head: ReturnType<typeof portfolioHead>, name: string) => head.meta.find(item => "name" in item && item.name === name)?.content;
-test("public portfolio variants share the personal canonical and cover image", () => {
+test("public portfolio variants share the permanent code canonical and cover image", () => {
   const head = portfolioHead({ portfolio, urls: {} }, "Portfolio");
-  assert.equal(head.links[0].href, "https://portfolia.site/designer");
+  assert.equal(head.links[0].href, "https://portfolia.site/p/book");
   assert.equal(meta(head, "robots"), "index, follow");
   assert.match(String(meta(head, "twitter:image")), /portfolio-cover\/book/);
 });
