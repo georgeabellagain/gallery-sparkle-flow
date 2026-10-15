@@ -670,3 +670,9 @@
 .pf-reader-scroll::-webkit-scrollbar-thumb { background: #64748b; border: 3px solid #e2e8f0; border-radius: 999px; }
 
 .pf-editor-stage .pf-book-page-number, .pf-workspace-demo .pf-book-page-number, .pf-home-demo .pf-book-page-number { top: .75rem; bottom: auto; opacity: 1; }
+
+/* The homepage example occupies the right-hand 60% of the desktop hero. */
+.pf-home-split .pf-workspace-demo .pf-book-viewport { height: max(30rem, 70svh); min-height: 0; }
+@media (min-width: 1024px) {
+  .pf-home-split .pf-workspace-demo .pf-book-viewport { height: calc(100dvh - 3.5rem); }
+}

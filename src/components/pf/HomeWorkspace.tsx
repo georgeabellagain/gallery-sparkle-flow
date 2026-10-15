@@ -80,16 +80,24 @@ export function HomeWorkspace() {
         <h1 className="sr-only">Your portfolio workspace</h1>
         <EditorStage key={p.code} home p={p} preview={preview} profile={profile} statistics={doc.account.signedIn ? <AnalyticsPanel data={doc.analytics} title="This portfolio" description={p.pdf.name} /> : undefined} onUpload={() => input.current?.click()} onSaveError={setError} onDialog={d => setDialog(d === "replace" ? "upload" : d)} onPublish={publish} onUnpublish={() => setDialog("unpublish")} />
         <div className="absolute inset-x-0 bottom-1 z-40 text-center text-[10px] text-muted-foreground">{status}</div>
-      </> : <div className="pf-home-example relative h-[calc(100dvh-3.5rem)] min-h-[34rem]">
+      </> : <div className="pf-home-example pf-home-split relative grid lg:grid-cols-[2fr_3fr]">
+        <button type="button" onClick={() => input.current?.click()} disabled={Boolean(phase)} className="group flex min-h-[22rem] w-full flex-col items-center justify-center gap-5 border-b border-dashed border-border-strong bg-background/90 px-8 py-14 text-center transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring lg:min-h-[calc(100dvh-3.5rem)] lg:border-b-0 lg:border-r" aria-label="Drop a PDF here or choose a PDF to upload">
+          <span className="flex size-16 items-center justify-center rounded-2xl border border-border bg-white shadow-soft transition-transform group-hover:-translate-y-1"><Upload className="size-6" aria-hidden /></span>
+          <span className="display-title max-w-xs text-3xl leading-tight sm:text-4xl">Drop your PDF here.</span>
+          <span className="text-sm text-muted-foreground">Or click anywhere in this box to choose a file.</span>
+          <span className="rounded-full bg-foreground px-5 py-2.5 text-sm text-background">Choose PDF</span>
+          <span className="text-xs text-muted-foreground">PDF only · up to {uploadLimitMb(doc)} MB · No sign-up to preview</span>
+        </button>
+        <div className="relative min-w-0 h-[70svh] min-h-[30rem] lg:h-[calc(100dvh-3.5rem)] lg:min-h-0">
         <div className="absolute inset-0"><Suspense fallback={<div className="flex h-full items-center justify-center"><BookLoader tone="light" label="" /></div>}><StudioDemo workspace className="relative h-full w-full" /></Suspense></div>
         <h1 className="sr-only">Portfolia portfolio workspace</h1>
         <span className="pointer-events-none absolute left-4 top-5 z-20 rounded-full bg-background/90 px-3 py-1.5 text-[11px] shadow-soft">Example portfolio</span>
         <nav aria-label="Portfolio workspace tools" className="pf-home-toolbar absolute bottom-7 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-border bg-background/95 p-2 shadow-lift backdrop-blur">
-          <Button size="sm" onClick={() => input.current?.click()}><Upload className="size-4" /><span>Upload PDF</span></Button>
           <Button size="sm" variant="quiet" onClick={() => setDialog("upload")}><SlidersHorizontal className="size-4" /><span>Customise</span></Button>
           <Button size="sm" variant="quiet" onClick={() => setDialog("upload")}><Plus className="size-4" /><span>Add</span></Button>
           <Button size="sm" variant="quiet" onClick={() => setDialog("upload")}><Share2 className="size-4" /><span>Share</span></Button>
         </nav>
+        </div>
       </div>}
       {(over || phase) && <div role="status" className="pointer-events-none absolute inset-0 z-[70] flex items-center justify-center bg-background/90"><p className="display-title text-3xl">{phase ? `${phase}…` : "Drop your PDF here"}</p></div>}
       {error && <p role="alert" className="absolute left-1/2 top-20 z-[80] w-[min(90vw,32rem)] -translate-x-1/2 rounded-xl border border-destructive/20 bg-background p-3 text-sm text-destructive shadow-soft">{error}</p>}
