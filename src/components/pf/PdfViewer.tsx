@@ -1,3 +1,4 @@
+import { HomeScrollContext, releaseHomeScroll } from "./home-scroll";
 import { STUDIO_RENDERING_ENABLED } from "@/lib/portfolia/studio-render-feature";
 import type { StudioExporter, RenderedStudio } from "@/lib/portfolia/rendered-studio";
 import { RenderedBook } from "./RenderedBook";
@@ -262,7 +263,8 @@ export function PdfViewer({
   const modeLive = useRef(mode);
   modeLive.current = mode;
   const [jump, setJump] = useState<{ page: number; t: number } | null>(null);
-  const minimumZoom = mode === "book" && foldouts?.length ? .5 : 1;
+  const homeScroll = useContext(HomeScrollContext);
+  const minimumZoom = mode === "book" && foldouts?.length && (!homeScroll || full) ? .5 : 1;
   const z = (d: number) => setZoom((v) => Math.min(3, Math.max(minimumZoom, Math.round((v + d) * 100) / 100)));
   const zoomStep = mode === "scroll" ? 0.05 : 0.25;
   const total = doc?.numPages ?? 0;
@@ -347,6 +349,7 @@ export function PdfViewer({
     let delta = 0;
     const wheel = (event: WheelEvent) => {
       if (!event.deltaY || mode === "scroll" && !event.ctrlKey) return;
+      if (releaseHomeScroll(homeScroll, full, zoomLive.current, event.deltaY) && !event.ctrlKey) return;
       event.preventDefault();
       const content=panRef.current?.firstElementChild, rect=content?.getBoundingClientRect();
       if(rect)wheelAnchor.current={x:event.clientX,y:event.clientY,u:(event.clientX-rect.left)/rect.width,v:(event.clientY-rect.top)/rect.height};
@@ -362,7 +365,7 @@ export function PdfViewer({
     };
     el.addEventListener("wheel", wheel, { passive: false });
     return () => { el.removeEventListener("wheel", wheel); cancelAnimationFrame(frame); };
-  }, [mode, doc]);
+  }, [mode, doc, homeScroll, full]);
   useTouchGestures(pagedRef, {
     enabled: mode === "paged" && !!doc,
     zoom: () => zoomLive.current,

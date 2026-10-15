@@ -1,3 +1,5 @@
+import { HomeScrollContext } from "./home-scroll";
+import { HomeMarketing } from "./HomeMarketing";
 import { BookLoader } from "./book-loader";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -72,7 +74,7 @@ export function HomeWorkspace() {
         <button onClick={() => setDialog("help")} className="text-muted-foreground">Help</button>
       </div>
     </header>
-    <main id="upload" className="relative flex-1" onDragOver={e => { if (!e.defaultPrevented && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setOver(true); } }} onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(false); }} onDrop={e => { if (e.defaultPrevented || !e.dataTransfer.files.length) return; e.preventDefault(); setOver(false); void upload(e.dataTransfer.files[0]); }}>
+    <HomeScrollContext.Provider value={true}><main id="upload" className="relative flex-1" onDragOver={e => { if (!e.defaultPrevented && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setOver(true); } }} onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(false); }} onDrop={e => { if (e.defaultPrevented || !e.dataTransfer.files.length) return; e.preventDefault(); setOver(false); void upload(e.dataTransfer.files[0]); }}>
       <input ref={input} type="file" accept="application/pdf,.pdf" className="sr-only" aria-label="Upload portfolio PDF" onChange={e => void upload(e.target.files?.[0])} />
       {p?.pdf ? <>
         <h1 className="sr-only">Your portfolio workspace</h1>
@@ -91,7 +93,8 @@ export function HomeWorkspace() {
       </div>}
       {(over || phase) && <div role="status" className="pointer-events-none absolute inset-0 z-[70] flex items-center justify-center bg-background/90"><p className="display-title text-3xl">{phase ? `${phase}…` : "Drop your PDF here"}</p></div>}
       {error && <p role="alert" className="absolute left-1/2 top-20 z-[80] w-[min(90vw,32rem)] -translate-x-1/2 rounded-xl border border-destructive/20 bg-background p-3 text-sm text-destructive shadow-soft">{error}</p>}
-    </main>
+    </main></HomeScrollContext.Provider>
+    <HomeMarketing onUpgrade={() => setUpgrade(true)} />
     <Modal open={dialog === "upload"} onClose={closeUpload} title={pending ? "Replace your PDF?" : p?.pdf ? "Upload a PDF" : "Start with your PDF"}>
       {pending ? <><p className="text-sm">Replace your current PDF with <strong>{pending.pdf.name}</strong>? Your link and profile stay the same. Page-specific projects, notes, tabs and links will reset.</p><div className="mt-5 flex justify-end gap-2"><Button variant="line" onClick={closeUpload}>Cancel</Button><Button onClick={async () => { if (getDoc().portfolio?.code !== pending.target) return setError("Your active portfolio changed. Cancel and upload again."); if (!(await replacePdf(pending.pdf))) return setError("Couldn’t replace the PDF. Your original is unchanged."); setPending(null); setDialog(null); }}>Replace PDF</Button></div></> : <><p className="mb-4 text-sm text-muted-foreground">Upload your PDF to customise its display, add notes and links, and share it from this workspace.</p><DropZone small limitMb={uploadLimitMb(doc)} onAccepted={accepted} /><p className="mt-3 text-xs text-muted-foreground">No sign-up to preview. Your uploaded PDF replaces the example here.</p></>}
     </Modal>
