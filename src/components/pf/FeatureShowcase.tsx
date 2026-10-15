@@ -244,7 +244,7 @@ export function FeatureShowcase({ onAccepted, limitMb }: { onAccepted: (pdf: Pdf
           id="feature-preview"
           role="tabpanel"
           aria-labelledby={`feature-tab-${feature.id}`}
-          className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)] lg:gap-8"
+          className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)] lg:gap-x-8 lg:gap-y-0"
         >
           <div className="min-w-0 lg:contents">
             <div className="pf-feature-live relative isolate overflow-hidden rounded-none border border-border bg-[#10162e] lg:col-start-1 lg:row-start-1">
@@ -307,7 +307,7 @@ export function FeatureShowcase({ onAccepted, limitMb }: { onAccepted: (pdf: Pdf
                 </div>
               )}
             </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 lg:col-start-1 lg:row-start-2 lg:mt-0">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 lg:col-start-1 lg:row-start-2">
               <p className="text-xs text-muted-foreground">{FEATURED_CREDIT}</p>
               <div
                 className="flex items-center gap-2"
