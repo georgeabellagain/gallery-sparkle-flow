@@ -28,7 +28,7 @@ import { isTouchDevice } from "@/lib/portfolia/scan";
 import { useTouchGestures } from "@/components/pf/touch-gestures";
 import { BookLoader } from "@/components/pf/book-loader";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
-import { backgroundColour, fitTransform } from "@/lib/portfolia/background";
+import { backgroundColour, fitTransform, toneOfHex } from "@/lib/portfolia/background";
 import { BackdropLayer, IconButton, LogoMark, Panel, Segmented, iconClass, useDismiss, useTone } from "@/components/pf/viewer-ui";
 
 import type { PageStudioRenderer, PageStudioSettings } from "@/lib/portfolia/page-studio";
@@ -525,7 +525,7 @@ export function PdfViewer({
 
   // Nothing is shown until it has rendered. Another PDF or another reading mode is prepared out of sight first.
   const markReady = useCallback(() => setContentReady(true), []);
-  useEffect(() => {
+  useLayoutEffect(() => {
     setContentReady(false);
   }, [mode, source]);
   useEffect(() => {
@@ -783,9 +783,9 @@ export function PdfViewer({
           style={{ background: colour }}
         >
           {/* Pinned in view, so it is centred on screen even when the (hidden) pages below are very tall. */}
-          <div className="sticky top-0 flex h-[100svh] max-h-full items-center justify-center">
+          <div className="sticky top-0 flex items-center justify-center" style={{ height: "min(100svh, 100%)", minHeight: "22rem", maxHeight: "100%" }}>
             {/* Small covers (the library) show just the little book, without words. */}
-            <BookLoader tone={tone} label="" />
+            <BookLoader tone={toneOfHex(colour)} label="" />
           </div>
         </div>
       )}

@@ -1,3 +1,4 @@
+import { PortfolioLoading } from "@/components/pf/book-loader";
 import { AccessGate } from "@/components/pf/AccessGate";
 import { createFileRoute, useHydrated } from "@tanstack/react-router";
 import { CloudVisitor, LOCAL_MISSING, Missing, OwnVisitor, SampleVisitor, useOwn } from "@/components/pf/Visitor";
@@ -7,6 +8,8 @@ import { SAMPLE } from "@/lib/portfolia/sample";
 
 export const Route = createFileRoute("/p/$slug")({
   staticData: { sitemap: false },
+  pendingMs: 0,
+  pendingComponent: PortfolioLoading,
   validateSearch: (s: Record<string, unknown>): { preview?: string; demo?: "book" } => ({
     ...(typeof s["preview"] === "string" && s["preview"] ? { preview: s["preview"] } : {}),
     ...(s["demo"] === "book" ? { demo: s["demo"] } : {}),
@@ -58,7 +61,7 @@ function Page() {
   const hydrated = useHydrated();
   if (slug === SAMPLE.code) return <SampleVisitor demo={demo} />;
   if (preview) {
-    if (!hydrated) return null;
+    if (!hydrated) return <PortfolioLoading />;
     if (!p || p.code !== slug) return <Missing title="No portfolio here" body="Sign in on this device to preview your draft." />;
     return <OwnVisitor p={p} preview />;
   }

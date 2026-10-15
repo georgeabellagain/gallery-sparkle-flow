@@ -35,3 +35,8 @@ export function BookLoader({ tone, label = "Preparing your portfolio…", detail
     </div>
   );
 }
+
+/** Visible immediately while route data or the viewer bundle is being fetched. */
+export function PortfolioLoading() {
+  return <div className="flex min-h-[100svh] items-center justify-center bg-[#eae6df]" aria-busy="true"><BookLoader tone="light" label="" /></div>;
+}

@@ -1,3 +1,4 @@
+import { PortfolioLoading } from "@/components/pf/book-loader";
 import { AccessGate } from "@/components/pf/AccessGate";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { CloudVisitor, LOCAL_MISSING, Missing } from "@/components/pf/Visitor";
@@ -8,6 +9,8 @@ import { portfolioHead } from "@/lib/portfolia/head";
 /** Legacy personalised address retained for previously shared links. */
 export const Route = createFileRoute("/u/$username")({
   staticData: { sitemap: false },
+  pendingMs: 0,
+  pendingComponent: PortfolioLoading,
   loader: async ({ params }) => {
     const result = await loadPortfolioRoute("username", params.username.toLowerCase());
     if (result.data && !personalActive(result.data.portfolio)) throw notFound();

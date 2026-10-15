@@ -1,3 +1,4 @@
+import { PortfolioLoading } from "@/components/pf/book-loader";
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { softwareSchema } from "@/lib/portfolia/software-schema";
@@ -37,5 +38,5 @@ export const Route = createFileRoute("/")({
 });
 
 function Landing() {
-  return <Suspense fallback={<main className="flex min-h-screen items-center justify-center bg-[#eae6df]"><p role="status" className="text-sm text-muted-foreground">Loading workspace…</p></main>}><HomeWorkspace /></Suspense>;
+  return <Suspense fallback={<PortfolioLoading />}><HomeWorkspace /></Suspense>;
 }

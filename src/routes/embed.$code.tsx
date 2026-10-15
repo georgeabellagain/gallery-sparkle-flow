@@ -1,3 +1,4 @@
+import { PortfolioLoading } from "@/components/pf/book-loader";
 import { AccessGate } from "@/components/pf/AccessGate";
 import { createFileRoute } from "@tanstack/react-router";
 import { EmbeddedVisitor, LOCAL_MISSING, Missing } from "@/components/pf/Visitor";
@@ -5,6 +6,8 @@ import { loadPortfolioRoute } from "@/lib/portfolia/public-route";
 
 export const Route = createFileRoute("/embed/$code")({
   staticData: { sitemap: false },
+  pendingMs: 0,
+  pendingComponent: PortfolioLoading,
   validateSearch: (search: Record<string, unknown>): { page?: number; mode?: "scroll" | "paged" | "book"; background?: "black" | "paper" | "soft" } => {
     const rawPage = typeof search["page"] === "string" ? Number(search["page"]) : search["page"];
     const mode = search["mode"];
