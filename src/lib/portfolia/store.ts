@@ -72,7 +72,11 @@ export interface ViewerSettings {
   backgroundPreset?: string;
   /** Size and position of the background picture. */
   backgroundFit?: { scale: number; x: number; y: number; tile?: boolean };
+  /** Optional per-look / per-reading-style backgrounds; omitted entries use the shared background. */
+  backgrounds?: Partial<Record<BackgroundContext, { backgroundColor?: string; backgroundPreset?: string }>>;
 }
+
+export type BackgroundContext = "studio" | "clean" | "scroll" | "paged";
 
 export const DEFAULT_VIEWER: ViewerSettings = {
   mode: "scroll",
