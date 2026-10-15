@@ -1,9 +1,8 @@
 import { shareImageUrl, SHARE_WIDTH, SHARE_HEIGHT } from "./share-image";
 import type { PublicPortfolio } from "./public.functions";
-import { personalActive } from "./store";
 
 export function portfolioCanonical(p: NonNullable<PublicPortfolio>["portfolio"]) {
-  const path = p.username && personalActive(p) ? `/${encodeURIComponent(p.username.toLowerCase())}` : `/p/${encodeURIComponent(p.code)}`;
+  const path = `/p/${encodeURIComponent(p.code)}`;
   return `https://portfolia.site${path}`;
 }
 

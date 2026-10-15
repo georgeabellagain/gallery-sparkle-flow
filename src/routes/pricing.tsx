@@ -16,7 +16,7 @@ export const Route = createFileRoute("/pricing")({
       {
         name: "description",
         content:
-          `Free PDF portfolio hosting with Simple and Studio flipbooks, QR codes and embedding. Personal is ${PRICE.month}/month or ${PRICE.year}/year for more portfolios and privacy controls.`,
+          `Free PDF portfolio hosting with Simple and Studio flipbooks, QR codes and embedding. Personal is ${PRICE.month}/month or ${PRICE.year}/year for more portfolios and larger PDFs.`,
       },
       { property: "og:title", content: "Pricing — Portfolia PDF Portfolio Hosting" },
       {
@@ -51,8 +51,7 @@ function PricingPage() {
           <h1 className="display-title text-3xl sm:text-4xl">Pricing</h1>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
             Start free with one PDF portfolio and a permanent sharing address. Move to
-            Personal when you need more space, more portfolios and a more personal
-            address.
+            Personal when you need larger PDFs and more portfolios.
           </p>
 
           <div className="mx-auto mt-10 grid max-w-5xl gap-5 sm:grid-cols-2">
@@ -83,14 +82,11 @@ function PricingPage() {
             <Plan
               name="Personal"
               price={PRICE.month} period="/month" alternative={`${PRICE.year} billed yearly`}
-              description="For professionals managing a broader body of work and a more personal presence."
+              description="More room for your work, with larger PDFs and multiple portfolios."
               featured
               items={[
                 "Everything included in Free",
                 "Up to 10 portfolios, each up to 50 MB",
-                "CV displayed with your profile",
-                "Personalised address such as portfolia.site/marksmith",
-                "Password protection and link expiry", "Portfolia credit removed",
               ]}
               action={
                 <Button size="lg" className="w-full" onClick={() => setUpgrade(true)}>
@@ -126,8 +122,7 @@ function PricingPage() {
               <div>
                 <dt className="font-medium">How do people find my portfolio?</dt>
                 <dd className="mt-1 text-muted-foreground">
-                  Every portfolio gets a permanent Portfolia link and a QR code. On
-                  Personal you can also choose a personalised address.
+                  Every portfolio gets a permanent Portfolia link and a QR code, ready to share anywhere.
                 </dd>
               </div>
             </dl>

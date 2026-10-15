@@ -4,7 +4,6 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
 import type { Portfolio } from "./store";
-import { personalActive } from "./store";
 
 function publicClient() {
   const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
@@ -63,7 +62,7 @@ export const listIndexablePortfolios = createServerFn({ method: "GET" }).handler
   if (policyError) throw new Error("Couldn’t check portfolio indexing permissions.");
   const protectedCodes = new Set((policies ?? []).filter(p => p.password_hash || p.expires_at).map(p => p.code));
   return data.filter(r => !protectedCodes.has(r.code)).map((r) => ({
-    path: r.username && personalActive(r.data as unknown as Portfolio) ? `/${encodeURIComponent(r.username.toLowerCase())}` : `/p/${encodeURIComponent(r.code)}`,
+    path: `/p/${encodeURIComponent(r.code)}`,
     lastmod: r.updated_at,
   }));
 });

@@ -83,7 +83,7 @@ export const PUBLISHING_PAGES: Record<string, SeoContent> = {
       },
       {
         q: "What should I check before switching?",
-        a: "Check your PDF size, the number of portfolios you need and your preferred sharing address. Free supports one PDF up to 10 MB; Personal supports up to 10 portfolios, each up to 50 MB, plus a CV and a personalised address. Check the current pricing page for plan details.",
+        a: "Check your PDF size, the number of portfolios you need. Free supports one PDF up to 10 MB; Personal supports up to 10 portfolios, each up to 50 MB. Check the current pricing page for plan details.",
       },
       {
         q: "Can Portfolia import my Issuu publications?",
@@ -126,7 +126,7 @@ export const PUBLISHING_PAGES: Record<string, SeoContent> = {
     faqs: [
       {
         q: "Can I create a professional portfolio for free?",
-        a: "Yes. The Free plan hosts one PDF up to 10 MB with a permanent link, profile and QR code. Personal adds more portfolios, larger files, a CV and a personalised address.",
+        a: "Yes. The Free plan hosts one PDF up to 10 MB with a permanent link, profile and QR code. Personal adds more portfolios and larger files.",
       },
       {
         q: "Who is it for?",

@@ -19,7 +19,7 @@ import { getPaddleEnvironment } from "@/lib/paddle";
 import { submitFeedback } from "@/lib/feedback.functions";
 import {
   allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, switchPortfolio,
-  getDoc, startPortfolio, personalActive, update, uploadLimitMb, useDoc, DEFAULT_VIEWER, type Portfolio,
+  getDoc, startPortfolio, update, uploadLimitMb, useDoc, DEFAULT_VIEWER, type Portfolio,
 } from "@/lib/portfolia/store";
 
 export const Route = createFileRoute("/dashboard")({
@@ -145,7 +145,7 @@ function Dashboard() {
                 </div>
                 <div className="pt-4">
                   <h3 className="truncate text-sm font-medium">{portfolio.name?.trim() || portfolio.pdf?.name?.replace(/\.pdf$/i, "") || portfolio.profile.name || "Untitled portfolio"}</h3>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">{portfolio.username && personalActive(portfolio) ? `portfolia.site/${portfolio.username}` : `/p/${portfolio.code}`}</p>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">{`/p/${portfolio.code}`}</p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Button size="sm" variant="line" onClick={() => openFor(portfolio.code, "share")}><Share2 /> Share</Button>
                     <Button size="sm" variant="line" asChild><Link to="/p/$slug" params={{ slug: portfolio.code }} search={{ preview: "1" }}><Eye /> Preview</Link></Button>
@@ -165,7 +165,6 @@ function Dashboard() {
             {sub?.status === "past_due" && <p role="alert" className="mt-1 text-xs text-destructive">Your last payment didn’t go through. Please update your card.</p>}
             <div className="mt-4 flex flex-wrap gap-2">
               {p.plan === "free" ? <Button size="sm" onClick={() => setDialog("upgrade")}>See Personal plan</Button> : <>
-                <Button size="sm" variant="line" onClick={() => setDialog("upgrade")}>Change address</Button>
                 {sub && sub.status !== "canceled" && <Button size="sm" variant="quiet" onClick={() => setDialog("cancel")}>{sub.status === "past_due" ? "Update card" : "Manage billing"}</Button>}
               </>}
             </div>
