@@ -137,12 +137,9 @@ export function PdfViewer({
   const renderedStudio = STUDIO_RENDERING_ENABLED ? savedRenderedStudio : undefined;
   const [renderFailed, setRenderFailed] = useState(false);
   const view = { ...DEFAULT_VIEWER, ...viewer };
-  const backgroundUrl = backgroundPicture(view, uploadedBackgroundUrl);
   // The creator chooses which reading modes visitors get, and which one opens first.
   const availableModes = view.modes?.length ? view.modes : MODES.map(([m]) => m);
   const startMode = availableModes.includes(view.mode) ? view.mode : availableModes[0] ?? "scroll";
-  const colour = backgroundColour(view, backdrop);
-  const tone = useTone(colour, backgroundUrl);
   const showControls = controls ?? !compact;
   const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
@@ -400,6 +397,13 @@ export function PdfViewer({
   const activeLook = enabledLooks.includes(requestedLook) ? requestedLook : openingLook(view, mode);
   const changeLook = (look: "clean" | "studio") => { setSelectedLook(look); if (compact) pinPreviewLook(look); };
   const studio = activeLook === "studio";
+  // Each look (in Flipbook) and reading style can carry its own background.
+  const backgroundContext = mode === "book" ? (studio ? "studio" : "clean") : mode;
+  const bgOverride = view.backgrounds?.[backgroundContext];
+  const bgView = bgOverride ? { ...view, backgroundColor: bgOverride.backgroundColor ?? view.backgroundColor, backgroundPreset: bgOverride.backgroundPreset, backgroundKey: bgOverride.backgroundPreset ? undefined : view.backgroundKey } : view;
+  const backgroundUrl = backgroundPicture(bgView, uploadedBackgroundUrl);
+  const colour = backgroundColour(bgView, bgOverride?.backgroundColor ? undefined : backdrop);
+  const tone = useTone(colour, backgroundUrl);
   const warmFlatStudio = studio || contentReady;
   const lightingHost = useRef<HTMLDivElement>(null);
   const [pageLighting, setPageLighting] = useState<PageStudioRenderer | null>(null);

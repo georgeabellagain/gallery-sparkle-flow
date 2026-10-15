@@ -28,6 +28,7 @@ import { Route as FreePdfFlipbookRouteImport } from './routes/free-pdf-flipbook'
 import { Route as FreePdfPortfolioRouteImport } from './routes/free-pdf-portfolio'
 import { Route as FreePortfolioWebsiteRouteImport } from './routes/free-portfolio-website'
 import { Route as GraphicDesignPortfolioRouteImport } from './routes/graphic-design-portfolio'
+import { Route as HdriBookVisualisationRouteImport } from './routes/hdri-book-visualisation'
 import { Route as HeyzineAlternativeRouteImport } from './routes/heyzine-alternative'
 import { Route as IllustrationPortfolioRouteImport } from './routes/illustration-portfolio'
 import { Route as InteriorDesignPortfolioRouteImport } from './routes/interior-design-portfolio'
@@ -155,6 +156,11 @@ const FreePortfolioWebsiteRoute = FreePortfolioWebsiteRouteImport.update({
 const GraphicDesignPortfolioRoute = GraphicDesignPortfolioRouteImport.update({
   id: '/graphic-design-portfolio',
   path: '/graphic-design-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HdriBookVisualisationRoute = HdriBookVisualisationRouteImport.update({
+  id: '/hdri-book-visualisation',
+  path: '/hdri-book-visualisation',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HeyzineAlternativeRoute = HeyzineAlternativeRouteImport.update({
@@ -342,6 +348,7 @@ export interface FileRoutesByFullPath {
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
   '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
+  '/hdri-book-visualisation': typeof HdriBookVisualisationRoute
   '/heyzine-alternative': typeof HeyzineAlternativeRoute
   '/illustration-portfolio': typeof IllustrationPortfolioRoute
   '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
@@ -395,6 +402,7 @@ export interface FileRoutesByTo {
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
   '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
+  '/hdri-book-visualisation': typeof HdriBookVisualisationRoute
   '/heyzine-alternative': typeof HeyzineAlternativeRoute
   '/illustration-portfolio': typeof IllustrationPortfolioRoute
   '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
@@ -449,6 +457,7 @@ export interface FileRoutesById {
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
   '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
+  '/hdri-book-visualisation': typeof HdriBookVisualisationRoute
   '/heyzine-alternative': typeof HeyzineAlternativeRoute
   '/illustration-portfolio': typeof IllustrationPortfolioRoute
   '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
@@ -504,6 +513,7 @@ export interface FileRouteTypes {
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
     | '/graphic-design-portfolio'
+    | '/hdri-book-visualisation'
     | '/heyzine-alternative'
     | '/illustration-portfolio'
     | '/interior-design-portfolio'
@@ -557,6 +567,7 @@ export interface FileRouteTypes {
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
     | '/graphic-design-portfolio'
+    | '/hdri-book-visualisation'
     | '/heyzine-alternative'
     | '/illustration-portfolio'
     | '/interior-design-portfolio'
@@ -610,6 +621,7 @@ export interface FileRouteTypes {
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
     | '/graphic-design-portfolio'
+    | '/hdri-book-visualisation'
     | '/heyzine-alternative'
     | '/illustration-portfolio'
     | '/interior-design-portfolio'
@@ -664,6 +676,7 @@ export interface RootRouteChildren {
   FreePdfPortfolioRoute: typeof FreePdfPortfolioRoute
   FreePortfolioWebsiteRoute: typeof FreePortfolioWebsiteRoute
   GraphicDesignPortfolioRoute: typeof GraphicDesignPortfolioRoute
+  HdriBookVisualisationRoute: typeof HdriBookVisualisationRoute
   HeyzineAlternativeRoute: typeof HeyzineAlternativeRoute
   IllustrationPortfolioRoute: typeof IllustrationPortfolioRoute
   InteriorDesignPortfolioRoute: typeof InteriorDesignPortfolioRoute
@@ -831,6 +844,13 @@ declare module '@tanstack/react-router' {
       path: '/graphic-design-portfolio'
       fullPath: '/graphic-design-portfolio'
       preLoaderRoute: typeof GraphicDesignPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hdri-book-visualisation': {
+      id: '/hdri-book-visualisation'
+      path: '/hdri-book-visualisation'
+      fullPath: '/hdri-book-visualisation'
+      preLoaderRoute: typeof HdriBookVisualisationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/heyzine-alternative': {
@@ -1080,6 +1100,7 @@ const rootRouteChildren: RootRouteChildren = {
   FreePdfPortfolioRoute: FreePdfPortfolioRoute,
   FreePortfolioWebsiteRoute: FreePortfolioWebsiteRoute,
   GraphicDesignPortfolioRoute: GraphicDesignPortfolioRoute,
+  HdriBookVisualisationRoute: HdriBookVisualisationRoute,
   HeyzineAlternativeRoute: HeyzineAlternativeRoute,
   IllustrationPortfolioRoute: IllustrationPortfolioRoute,
   InteriorDesignPortfolioRoute: InteriorDesignPortfolioRoute,

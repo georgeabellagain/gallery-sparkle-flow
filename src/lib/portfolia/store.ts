@@ -72,7 +72,11 @@ export interface ViewerSettings {
   backgroundPreset?: string;
   /** Size and position of the background picture. */
   backgroundFit?: { scale: number; x: number; y: number; tile?: boolean };
+  /** Optional per-look / per-reading-style backgrounds; omitted entries use the shared background. */
+  backgrounds?: Partial<Record<BackgroundContext, { backgroundColor?: string; backgroundPreset?: string }>>;
 }
+
+export type BackgroundContext = "studio" | "clean" | "scroll" | "paged";
 
 export const DEFAULT_VIEWER: ViewerSettings = {
   mode: "scroll",
@@ -423,7 +427,7 @@ export function resetAll() {
 
 /* ---------- Addresses ---------- */
 
-export const RESERVED = ["scrapbook-preview", "zine-flipbook", "magazine-flipbook", "admin", "support", "www", "api", "app", "mail", "help", "blog", "login", "signin", "portfolia", "status", "billing", "dashboard", "create", "p", "u", "reset-password", "signup", "account", "pricing", "terms", "privacy", "refund", "portfolio-checker", "embed-flipbook-in-squarespace", "embed-flipbook-in-wix", "embed-flipbook-in-notion", "sitemap.xml", "robots.txt", "sample", "free-pdf-portfolio", "free-portfolio-website", "architecture-portfolio", "fashion-portfolio"];
+export const RESERVED = ["hdri-book-visualisation", "scrapbook-preview", "zine-flipbook", "magazine-flipbook", "admin", "support", "www", "api", "app", "mail", "help", "blog", "login", "signin", "portfolia", "status", "billing", "dashboard", "create", "p", "u", "reset-password", "signup", "account", "pricing", "terms", "privacy", "refund", "portfolio-checker", "embed-flipbook-in-squarespace", "embed-flipbook-in-wix", "embed-flipbook-in-notion", "sitemap.xml", "robots.txt", "sample", "free-pdf-portfolio", "free-portfolio-website", "architecture-portfolio", "fashion-portfolio"];
 
 export function checkUsername(raw: string): { ok: boolean; msg: string } {
   const u = raw.trim().toLowerCase();

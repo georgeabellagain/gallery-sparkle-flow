@@ -340,6 +340,28 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
               </button>)}
             </div>
             <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 shrink-0 accent-foreground" checked={viewer.backgroundLighting ?? false} onChange={e => { setViewer({ backgroundLighting: e.target.checked }); setPreviewLook("studio"); }}/><span>Light background with HDRI <span className="block text-xs text-muted-foreground">Applies to colours and pictures in Studio view.</span></span></label>
+            <div className="space-y-2 rounded-xl border border-border p-3">
+              <p className="font-medium">Different background per view</p>
+              <p className="text-xxs text-muted-foreground">Optional. Views left on "Same as above" use the background chosen above.</p>
+              {([["studio", "Flipbook · Studio"], ["clean", "Flipbook · Simple"], ["scroll", "Scroll"], ["paged", "Page by page"]] as const).map(([ctx, label]) => {
+                const own = viewer.backgrounds?.[ctx];
+                const update = (next?: { backgroundColor?: string; backgroundPreset?: string }) => setViewer({ backgrounds: { ...viewer.backgrounds, [ctx]: next } });
+                return <div key={ctx} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                  <span>{label}</span>
+                  <span className="flex items-center gap-2">
+                    <select aria-label={`${label} background`} className="rounded-lg border border-border bg-background p-1.5" value={!own ? "same" : own.backgroundPreset ?? "colour"} onChange={e => {
+                      const v = e.target.value;
+                      update(v === "same" ? undefined : v === "colour" ? { backgroundColor: own?.backgroundColor ?? wheelColour } : { backgroundPreset: v });
+                    }}>
+                      <option value="same">Same as above</option>
+                      <option value="colour">Colour</option>
+                      {BACKGROUND_PRESETS.map(preset => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
+                    </select>
+                    {own && !own.backgroundPreset && <input type="color" aria-label={`${label} background colour`} value={own.backgroundColor ?? wheelColour} onChange={e => update({ backgroundColor: e.target.value })} className="h-7 w-10 cursor-pointer rounded-full border border-border bg-transparent" />}
+                  </span>
+                </div>;
+              })}
+            </div>
             {hasBackground && (
               <div data-studio-background={viewer.backgroundLighting ? "true" : undefined} onPointerDownCapture={() => { if (viewer.backgroundLighting) setPreviewLook("studio"); }} className="space-y-2 rounded-xl border border-border p-3">
                 {backgroundUrl && <img src={backgroundUrl} alt="Your background picture" className="h-16 w-full rounded-md object-cover" />}
