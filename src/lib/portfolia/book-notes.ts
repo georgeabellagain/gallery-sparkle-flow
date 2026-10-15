@@ -19,8 +19,8 @@ export function stickyTurnClearance(lift: number, u: number, normal: THREE.Vecto
 export function createBookNotes(
   book: THREE.Group,
   ratio: number,
-  materials: THREE.MeshPhysicalMaterial[],
-  template: () => THREE.MeshPhysicalMaterial,
+  materials: THREE.MeshStandardMaterial[],
+  template: () => THREE.MeshStandardMaterial,
   repaint: () => void,
 ) {
   let generation = 0;
@@ -29,7 +29,7 @@ export function createBookNotes(
     { group: THREE.Group; side: number; exterior: boolean; seed: number; incoming: boolean; sticky: boolean; shapeFlap: (p: number) => void }
   >();
   const resources: Array<{ dispose: () => void }> = [];
-  const ownMaterials: THREE.MeshPhysicalMaterial[] = [];
+  const ownMaterials: THREE.MeshStandardMaterial[] = [];
   /** Height of the page at a point of the book (book units): both pages share one arch, measured from the gutter. */
   const reliefAt = (x: number, y: number, seed = 0) => pageRelief(Math.abs(x), y / ratio + 0.5, seed);
   let currentKey = "", settledKey = "";
@@ -139,7 +139,7 @@ export function createBookNotes(
             resources.push(texture);
             mat.userData["stickyMatte"] = true;
             mat.bumpMap = texture; mat.bumpScale = .0015;
-            mat.roughness = .97; mat.clearcoat = 0; mat.specularIntensity = .1;
+            mat.roughness = .97;
           }
           mat.map = texture;
           mat.side = side;
@@ -257,7 +257,7 @@ export function createBookNotes(
             const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
             covered.push({ mesh, rest: Float32Array.from(positions.array), centre: entry.group.position.clone(), seed: entry.seed, revealing: entry.incoming });
             if (entry.incoming) {
-              const gap = (mesh.material as THREE.MeshPhysicalMaterial).side === THREE.BackSide ? -.0002 : .0002;
+              const gap = (mesh.material as THREE.MeshStandardMaterial).side === THREE.BackSide ? -.0002 : .0002;
               for (let i = 0; i < positions.count; i++) positions.setZ(i, reliefAt(positions.getX(i) + entry.group.position.x, positions.getY(i) + entry.group.position.y, entry.seed) + .002 + gap);
               positions.needsUpdate = true;
               mesh.geometry.computeVertexNormals(); mesh.geometry.computeBoundingSphere(); mesh.geometry.computeBoundingBox();
@@ -296,7 +296,7 @@ export function createBookNotes(
       for (const { mesh, rest, centre, seed, revealing } of covered) {
         if(mesh.parent) mesh.parent.visible = revealing ? progress >= .5 : true;
         const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
-        const faceGap = (mesh.material as THREE.MeshPhysicalMaterial).side === THREE.BackSide ? -.0002 : .0002;
+        const faceGap = (mesh.material as THREE.MeshStandardMaterial).side === THREE.BackSide ? -.0002 : .0002;
         for (let i = 0; i < positions.count; i++) {
           const originalZ = rest[i * 3 + 2]!;
           const flatZ = reliefAt(rest[i * 3]! + centre.x, rest[i * 3 + 1]! + centre.y, seed) + .002 + faceGap;

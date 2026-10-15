@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { HDRI_PRESETS, studioLightMix, studioTopLight, presetDirectLight, studioExposure, type HdriId } from "./lighting";
 import { parseRgbe } from "./rgbe";
 import { dappleTexture } from "./dapple-light";
-import { surfaceCanvas, paperRelief, type SurfaceKind } from "./surface";
+import { paperFinish, type SurfaceKind } from "./surface";
 import { createLitBackdrop } from "./lit-backdrop";
 import { bookSurfaceRatio, readerTextureEvictions } from "./render-budget";
 import { pageWorldRect } from "./page-position";
@@ -39,7 +39,6 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   key.shadow.mapSize.set(512,512); key.shadow.camera.left=-2;key.shadow.camera.right=2;key.shadow.camera.top=3;key.shadow.camera.bottom=-3;key.shadow.camera.updateProjectionMatrix();key.shadow.normalBias=.008;key.shadow.bias=-.0001;key.shadow.radius=6;
   sun.shadow.mapSize.set(512,512);sun.shadow.normalBias=.008;sun.shadow.bias=-.0001;sun.shadow.radius=6;
   const masks = new Map<string, THREE.CanvasTexture>();
-  const bumps = new Map<string, THREE.CanvasTexture>();
   const environments = new Map<HdriId, Promise<THREE.WebGLRenderTarget>>();
   const environmentColours = new Map<HdriId, [number, number, number]>();
   const diffuser = createEnvironmentDiffuser(renderer);
@@ -74,15 +73,8 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   };
   const applyMaterial = (material: THREE.MeshStandardMaterial) => {
     setNaturalImperfections(material,settings.imperfections ?? 0);
-    const textured = settings.finish !== "satin";
-    if (textured && !bumps.has(settings.finish)) {
-      const bump = new THREE.CanvasTexture(surfaceCanvas(settings.finish, "soft"));
-      bump.wrapS = bump.wrapT = THREE.RepeatWrapping; bump.repeat.set(5, 5);
-      bumps.set(settings.finish, bump);
-    }
-    material.bumpMap = textured ? bumps.get(settings.finish)! : null;
-    material.bumpScale = paperRelief(settings.finish, settings.textureStrength);
-    material.roughness = textured ? .97 : .42;
+    material.bumpMap = null; material.bumpScale = 0;
+    material.roughness = paperFinish(settings.finish) === "satin" ? .42 : .97;
     // Flat readers keep HDRI/dapple lighting, without the costly clearcoat layer.
     material.needsUpdate = true;
   };
@@ -296,7 +288,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       diffuser.dispose();
       pending.clear(); pages.forEach(page => release(page)); pages.clear();
       environments.forEach(p => { void p.then(t => t.dispose(), () => undefined); });
-      masks.forEach(t => t.dispose()); bumps.forEach(t => t.dispose());
+      masks.forEach(t => t.dispose());
       paperGeometry.dispose();
       renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove();
     },

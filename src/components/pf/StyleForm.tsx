@@ -13,7 +13,7 @@ import { backgroundColour, DEFAULT_FIT } from "@/lib/portfolia/background";
 import { useBlob, useObjectUrl } from "@/components/pf/Chrome";
 import { Segmented } from "@/components/pf/viewer-ui";
 import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS, MAX_STUDIO_BRIGHTNESS } from "@/lib/portfolia/lighting";
-import { PAPER_STYLES, type SurfaceKind } from "@/lib/portfolia/surface";
+import { PAPER_STYLES, paperFinish, type SurfaceKind } from "@/lib/portfolia/surface";
 import { setPreviewLook } from "@/lib/portfolia/preview-look";
 
 /** Shrinks a chosen picture to a size that looks sharp on a large screen but stays light to load. */
@@ -272,7 +272,7 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
                   {NATURAL_IMPERFECTIONS_ENABLED && <label className="block space-y-1 text-xs"><span>Natural imperfections</span><span className="flex items-center gap-2"><input type="range" aria-label="Natural imperfections intensity" min="0" max="100" step="1" className="min-w-0 flex-1 accent-foreground" value={Math.round(naturalIntensity(viewer.studioImperfections)*100)} onChange={e=>setViewer({studioImperfections:Number(e.target.value)/100})} /><span className="w-10 text-right tabular-nums">{Math.round(naturalIntensity(viewer.studioImperfections)*100)}%</span></span><span className="block text-muted-foreground">Visible paper fibres, flecks and edge wear, with soft dust in the air. 0% turns them off.</span></label>}
                   <div className="space-y-1.5">
                     <p>Paper</p>
-                    <select aria-label="Studio paper" className="w-full min-w-0 rounded-lg border border-border bg-background p-2" value={viewer.finish} onChange={e => setViewer({ finish: e.target.value as SurfaceKind })}>
+                    <select aria-label="Studio paper" className="w-full min-w-0 rounded-lg border border-border bg-background p-2" value={paperFinish(viewer.finish)} onChange={e => setViewer({ finish: e.target.value as SurfaceKind })}>
                       {PAPER_STYLES.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
                     </select>
                   </div>

@@ -25,7 +25,7 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
   try {
     for (const hinge of ["left", "right", "top", "bottom", "none", "sticky"] as const) {
       const book = new THREE.Group(),
-        paper = new THREE.MeshPhysicalMaterial({ roughness: 0.42 });
+        paper = new THREE.MeshStandardMaterial({ roughness: 0.42 });
       const mats = [paper];
       const notes = createBookNotes(
         book,
@@ -71,7 +71,7 @@ test("each flap lifts toward the viewer, opens outward, shares paper and release
       const mid = flap();
       assert.ok(mid.maxZ > 0.1, "flap lifts above the book");
       assert.equal(mid.mesh.material.roughness, hinge === "sticky" ? .97 : paper.roughness);
-      if (hinge === "sticky") { assert.equal(mid.mesh.material.clearcoat, 0); assert.ok(mid.mesh.material.bumpMap); }
+      if (hinge === "sticky") { assert.equal(mid.mesh.material.type,"MeshStandardMaterial"); assert.ok(mid.mesh.material.bumpMap); }
       // The flap bends: its points do not all lie in one plane.
       const pos = mid.mesh.geometry.getAttribute("position");
       const sample = new Set<string>();

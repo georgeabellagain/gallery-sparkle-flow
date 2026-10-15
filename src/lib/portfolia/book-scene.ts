@@ -9,7 +9,7 @@ import { createBookTabs } from "./book-tabs";
 import type { TabEdge, TabPlan } from "./tab-geometry";
 import * as THREE from "three";
 import { createLitBackdrop } from "./lit-backdrop";
-import { surfaceCanvas, paperRelief, type SurfaceKind } from "./surface";
+import { paperFinish, type SurfaceKind } from "./surface";
 import { parseRgbe } from "./rgbe";
 import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS, studioLightMix, studioTopLight, presetDirectLight, studioExposure, type HdriId } from "./lighting";
 import { GPU_BYTES, deviceTier, gpuBytesOf } from "./resolution";
@@ -263,14 +263,12 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let frame = 0;
   let paintQueued = 0;
   let finishAnimation: (() => void) | null = null;
-  const bumps = new Map<string, THREE.CanvasTexture>();
-  const pageMaterials: THREE.MeshPhysicalMaterial[] = [];
+  const pageMaterials: THREE.MeshStandardMaterial[] = [];
   const material = (side: THREE.Side = THREE.FrontSide) => {
-    const mat = new THREE.MeshPhysicalMaterial({
+    const mat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       side,
       roughness: 0.95,
-      specularIntensity: 0.12,
       metalness: 0,
     });
     // A single sheet of paper must cast its shadow whichever way it faces the light. By default a
@@ -404,7 +402,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     trimTextures();
     return t;
   };
-  const setMap = (mat: THREE.MeshPhysicalMaterial, canvas: HTMLCanvasElement | null) => {
+  const setMap = (mat: THREE.MeshStandardMaterial, canvas: HTMLCanvasElement | null) => {
     mat.map = canvas ? textureFor(canvas) : placeholder;
     mat.emissiveMap = settings.studio ? null : mat.map;
   };
@@ -643,6 +641,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let variant = "";
   const backdrop = createLitBackdrop(scene, requestPaint);
   const configure = (next: StudioSettings) => {
+    next = {...next, material:paperFinish(next.material)};
     settings = next;
     shadowsDirty = true;
     const mix = studioLightMix(next.strength);
@@ -694,30 +693,16 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     shadowCatcher.material.opacity = .3;
     shadowCatcher.visible = next.studio;
     light.castShadow = next.studio && (!pattern || mix.hdri === 0);
-    let bump: THREE.CanvasTexture | null = null;
-    if (variantChanged && next.studio) {
-      const key = next.material;
-      if (!bumps.has(key)) {
-        const t = new THREE.CanvasTexture(surfaceCanvas(next.material, "soft"));
-        t.wrapS = t.wrapT = THREE.RepeatWrapping;
-        t.repeat.set(5, ratio * 5);
-        bumps.set(key, t);
-      }
-      bump = bumps.get(key)!;
-    }
     const satin = next.material === "satin";
     if (variantChanged) variant = nextVariant;
     airDust.setIntensity(next.studio ? next.imperfections ?? 0 : 0);
     for (const m of pageMaterials) {
       setNaturalImperfections(m,next.studio ? next.imperfections ?? 0 : 0);
       const stickyMatte = Boolean(m.userData["stickyMatte"]);
-      if (variantChanged && !stickyMatte) m.bumpMap = bump;
+      if (!stickyMatte) m.bumpMap = null;
       // Satin is smooth with a visible sheen; textured shows clear paper grain.
-      m.bumpScale = next.studio ? (stickyMatte ? .0015 : paperRelief(next.material, next.textureStrength)) : 0;
+      m.bumpScale = next.studio && stickyMatte ? .0015 : 0;
       m.roughness = stickyMatte ? .97 : next.studio ? (satin ? 0.42 : 0.97) : 0.96;
-      m.clearcoat = next.studio && satin && !stickyMatte ? 0.4 : 0;
-      m.clearcoatRoughness = 0.28;
-      m.specularIntensity = stickyMatte ? .1 : next.studio ? (satin ? 0.7 : 0.1) : 0.12;
       // Simple mode reproduces the source artwork independently of studio light.
       m.emissive.set(next.studio ? 0x000000 : 0xffffff);
       m.emissiveMap = next.studio ? null : m.map;
@@ -898,8 +883,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     if (tabPlan) tabs.turn(tabPlan, progress, dir);
     driveContact(progress);
   };
-  const notes = createBookNotes(book, ratio, pageMaterials, () => right.material as THREE.MeshPhysicalMaterial, requestPaint);
-  const tabs = createBookTabs(book, ratio, pageMaterials, () => right.material as THREE.MeshPhysicalMaterial, requestPaint, (x,y)=>pageRelief(Math.abs(x),y/ratio+.5,(x<0?left:right).userData["seed"] as number));
+  const notes = createBookNotes(book, ratio, pageMaterials, () => right.material as THREE.MeshStandardMaterial, requestPaint);
+  const tabs = createBookTabs(book, ratio, pageMaterials, () => right.material as THREE.MeshStandardMaterial, requestPaint, (x,y)=>pageRelief(Math.abs(x),y/ratio+.5,(x<0?left:right).userData["seed"] as number));
   /** How the tabs move during the turn in progress (set when a turn is prepared). */
   let tabPlan: TabPlan[] | null = null;
   configure(settings);
@@ -1142,7 +1127,6 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       texCache.forEach((t) => t.dispose());
       texCache.clear();
       placeholder.dispose();
-      bumps.forEach((t) => t.dispose());
       cancelAnimationFrame(contactFrame);
       spreadArt.texture.dispose();
       pageArt.texture.dispose();

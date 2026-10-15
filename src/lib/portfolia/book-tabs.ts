@@ -21,8 +21,8 @@ const LIFT = 0.001;
 export function createBookTabs(
   book: THREE.Group,
   ratio: number,
-  materials: THREE.MeshPhysicalMaterial[],
-  template: () => THREE.MeshPhysicalMaterial,
+  materials: THREE.MeshStandardMaterial[],
+  template: () => THREE.MeshStandardMaterial,
   repaint: () => void,
   relief?: (x: number, y: number) => number,
 ) {
@@ -31,7 +31,7 @@ export function createBookTabs(
   let compact = false;
   let rest: Record<string, TabEdge> = {};
   const resources: Array<{ dispose: () => void }> = [];
-  const own: THREE.MeshPhysicalMaterial[] = [];
+  const own: THREE.MeshStandardMaterial[] = [];
   const size = () => (compact ? TAB_SIZE.compact : TAB_SIZE.full);
   const clear = () => {
     entries.forEach((e) => book.remove(e.group));
