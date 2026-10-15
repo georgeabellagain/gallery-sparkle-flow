@@ -4,11 +4,26 @@ import {turnClearance,turnSheetHeight} from "./turn-motion";
 
 export type TurnPose = {positions: Float32Array; normals: Float32Array};
 /** Baked poses retain geometry, never PDF pixels. Exact endpoint poses avoid a handoff jump. */
-export function bakeTurnGeometry(template: THREE.BufferGeometry, write: (progress:number, output:THREE.BufferGeometry)=>void, steps=128): TurnPose[] {
+export function bakeTurnGeometry(template: THREE.BufferGeometry, write: (progress:number, output:THREE.BufferGeometry)=>void, steps=128, endpoints?:readonly [Float32Array,Float32Array]): TurnPose[] {
   const work=template.clone();
   try {
     return Array.from({length:steps+1},(_,i)=>{
-      write(i/steps,work); work.computeVertexNormals();
+      const progress=i/steps;
+      write(progress,work); work.computeVertexNormals();
+      if (endpoints) {
+        const edge = progress < .5 ? 0 : 1;
+        const distance = edge === 0 ? progress : 1-progress;
+        const t = Math.max(0,1-distance/.08), blend=t*t*(3-2*t);
+        if (blend > 0) {
+          const normals=work.getAttribute("normal").array as Float32Array, target=endpoints[edge]!;
+          for(let j=0;j<normals.length;j+=3) {
+            const x=normals[j]!+(target[j]!-normals[j]!)*blend;
+            const y=normals[j+1]!+(target[j+1]!-normals[j+1]!)*blend;
+            const z=normals[j+2]!+(target[j+2]!-normals[j+2]!)*blend;
+            const length=Math.hypot(x,y,z)||1;normals[j]=x/length;normals[j+1]=y/length;normals[j+2]=z/length;
+          }
+        }
+      }
       return {positions:Float32Array.from(work.getAttribute("position").array),normals:Float32Array.from(work.getAttribute("normal").array)};
     });
   } finally {work.dispose();}
@@ -59,4 +74,20 @@ export function turnGeometryWriter(template:THREE.BufferGeometry, ratio:number, 
       positions.setXYZ(i,x,(v-.5)*ratio,turnSheetHeight(z+relief+clearance,floor,gap,progress));
     }
   };
+}
+
+/** Match the resting mesh's triangulation and world-space normals on either side of the spine. */
+export function restingTurnNormals(template:THREE.BufferGeometry,ratio:number,side:1|-1,seed:number,sign:number) {
+ const work=template.clone(),uv=template.getAttribute("uv"),positions=work.getAttribute("position") as THREE.BufferAttribute;
+ const columns=new Set(Array.from({length:uv.count},(_,i)=>uv.getX(i))).size;
+ try {
+  for(let i=0;i<uv.count;i++)positions.setXYZ(i,uv.getX(i)-.5,(uv.getY(i)-.5)*ratio,0);
+  for(let i=0;i<uv.count;i++)positions.setZ(i,pageRelief(.5+side*positions.getX(i),positions.getY(i)/ratio+.5,seed));
+  work.computeVertexNormals();const normals=work.getAttribute("normal"),result=new Float32Array(uv.count*3);
+  for(let i=0;i<uv.count;i++){
+   const source=side===1?i:Math.floor(i/columns)*columns+columns-1-i%columns;
+   result[i*3]=normals.getX(source)*sign;result[i*3+1]=normals.getY(source)*sign;result[i*3+2]=normals.getZ(source)*sign;
+  }
+  return result;
+ } finally {work.dispose();}
 }

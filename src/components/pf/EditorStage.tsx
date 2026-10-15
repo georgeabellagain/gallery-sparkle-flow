@@ -156,7 +156,7 @@ export function EditorStage({
       </div>
       {home && <nav aria-label="Portfolio workspace tools" className="pf-home-toolbar absolute bottom-7 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-border bg-background/95 p-2 shadow-lift backdrop-blur">
         <Button size="sm" onClick={onUpload}><Upload className="size-4" /> <span>Upload PDF</span></Button>
-        {([["customise", "Customise", Sun], ["scrapbook", "Add", StickyNote], ["share", "Share", Share2]] as const).map(([id, label, Icon]) => <Button key={id} size="sm" variant="quiet" aria-pressed={tool === id} onClick={() => setTool(current => current === id ? null : id)}><Icon className="size-4" /><span>{label}</span></Button>)}
+        {([["customise", "Customise", Sun], ["share", "Share", Share2]] as const).map(([id, label, Icon]) => <Button key={id} size="sm" variant="quiet" aria-pressed={tool === id} onClick={() => setTool(current => current === id ? null : id)}><Icon className="size-4" /><span>{label}</span></Button>)}
       </nav>}
       {!home && <nav
         ref={dockRef}
@@ -237,7 +237,7 @@ export function EditorStage({
           </div>
           {tool === "customise" && <div className="space-y-2">
             <label className="mb-3 block text-xs">Portfolio name<input aria-label="Portfolio name" className="mt-1 w-full rounded-lg border bg-background p-2 text-sm" value={p.name ?? ""} maxLength={120} placeholder={p.pdf?.name ?? "My portfolio"} onChange={e=>patchPortfolio({name:e.target.value})} /></label>
-            {([["reading", "Reading style"], ["look", "Lighting & paper"], ["background", "Background"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="line" size="sm" onClick={() => setTool(id)}>{label}</Button>)}
+            {([["reading", "Reading style"], ["look", "Lighting & paper"], ["background", "Background"], ["scrapbook", "Notes, tabs & links"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="line" size="sm" onClick={() => setTool(id)}>{label}</Button>)}
             <details className="pt-3"><summary className="cursor-pointer text-sm">More options</summary><div className="mt-3 grid gap-2">{([["profile", "Profile details"], ["projects", "Named projects"], ["publish", "File & publishing"], ["statistics", "Statistics"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="quiet" size="sm" onClick={() => setTool(id)}>{label}</Button>)}</div></details>
           </div>}
           {tool === "profile" && profile}

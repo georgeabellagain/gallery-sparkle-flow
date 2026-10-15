@@ -54,7 +54,7 @@ export function HomeWorkspace() {
       <Wordmark />
       <div className="flex items-center gap-4 text-xs sm:text-sm">
         <Link to="/pricing">Pricing</Link>
-        {(doc.account.signedIn || allPortfolios(doc).length > 0) && <button onClick={() => setDialog("portfolios")}>My portfolios</button>}
+        {(doc.account.signedIn || allPortfolios(doc).length > 0) && <Link to="/dashboard">My portfolios</Link>}
         {!doc.account.signedIn && <Link to="/signin" search={{ next: "home" }}>Sign in</Link>}
         <button onClick={() => setDialog("help")} className="text-muted-foreground">Help</button>
       </div>
