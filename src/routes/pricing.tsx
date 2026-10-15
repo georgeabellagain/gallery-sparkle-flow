@@ -89,7 +89,7 @@ function PricingPage() {
                 "Up to 10 portfolios, each up to 50 MB",
               ]}
               action={
-                <Button size="lg" className="w-full" onClick={() => setUpgrade(true)}>
+                <Button size="lg" className="w-full bg-black text-white hover:bg-black/80" onClick={() => setUpgrade(true)}>
                   Choose Personal
                 </Button>
               }
