@@ -761,9 +761,22 @@ export function BookView({
       .flatMap((i) => layout.spreads[i] ?? [])
       .filter((n): n is number => n !== null);
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let k = 0;
+    let k = 0, geometryTarget = 0;
     const step = async () => {
-      if (!alive.current || token !== prefetchToken.current || k >= targets.length) return;
+      if (!alive.current || token !== prefetchToken.current) return;
+      if (k >= targets.length) {
+        if (geometryTarget >= 2 || narrow) return;
+        const dir = (geometryTarget++ === 0 ? 1 : -1) as 1 | -1;
+        const destination = layout.spreads[index + dir];
+        if (destination) {
+          try {
+            const [from, to] = await Promise.all([faces(layout.spreads[index]!), faces(destination)]);
+            if (alive.current && token === prefetchToken.current && !lock.current) scene.current?.prefetchTurn(from, to, dir);
+          } catch { /* The actual turn reports any unavailable page. */ }
+        }
+        timer = setTimeout(() => void step(), 45);
+        return;
+      }
       try {
         const canvas = await loader.current?.face(targets[k++]!);
         if (alive.current && token === prefetchToken.current && !lock.current) scene.current?.prefetch(canvas);
@@ -777,7 +790,7 @@ export function BookView({
       prefetchToken.current++;
       if (timer) clearTimeout(timer);
     };
-  }, [index, ready, warm, busy, loading, fallback, layout]);
+  }, [index, ready, warm, busy, loading, fallback, layout, narrow, faces]);
 
   /** Remembers a click that arrives mid-turn, so quick clicking moves quickly through the pages. */
   const queueStep = (direction: 1 | -1) => {
