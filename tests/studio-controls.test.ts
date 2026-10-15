@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { studioLightMix, presetDirectLight, studioExposure } from "../src/lib/portfolia/lighting";
-import { PAPER_STYLES, paperRelief } from "../src/lib/portfolia/surface";
+import { PAPER_STYLES, paperRelief, paperFinish } from "../src/lib/portfolia/surface";
 import { tabSlot } from "../src/lib/portfolia/tab-geometry";
 
 test("diffusion removes HDRI detail without adding top or ambient light", () => {
@@ -45,4 +45,10 @@ test("diffused solid colour keeps the environment's average radiance", async () 
   const { averageEnvironment } = await import("../src/lib/portfolia/environment-diffusion");
   const colour = averageEnvironment(new Float32Array([.2,.4,.8, .4,.6,1]), 2, 1);
   for (const [i, expected] of [.3,.5,.9].entries()) assert.ok(Math.abs(colour[i]! - expected) < 1e-6);
+});
+
+test("only matte and satin are offered and older finishes resolve safely",()=>{
+ assert.deepEqual(PAPER_STYLES.map(([id])=>id),["matte","satin"]);
+ assert.equal(paperFinish("satin"),"satin");
+ for(const kind of ["linen","natural","cotton","recycled","textured","watercolour","laid"] as const)assert.equal(paperFinish(kind),"matte");
 });

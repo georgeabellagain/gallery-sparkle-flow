@@ -8,10 +8,10 @@
 export type SurfaceKind = "matte" | "satin" | "textured" | "natural" | "linen" | "cotton" | "recycled" | "watercolour" | "laid";
 export type Light = "soft" | "bright";
 
-export const PAPER_STYLES: readonly (readonly [SurfaceKind, string])[] = [
-  ["matte", "Matte"], ["satin", "Satin"], ["natural", "Uncoated"], ["textured", "Grained"],
-  ["linen", "Linen"], ["cotton", "Cotton"], ["recycled", "Recycled"], ["watercolour", "Watercolour"], ["laid", "Laid"],
-];
+export type PaperFinish = "matte" | "satin";
+/** Older saved paper varieties safely resolve to the single matte finish. */
+export const paperFinish = (kind: SurfaceKind): PaperFinish => kind === "satin" ? "satin" : "matte";
+export const PAPER_STYLES: readonly (readonly [PaperFinish, string])[] = [["matte","Matte"],["satin","Satin"]];
 export function paperRelief(kind: SurfaceKind, strength = 1) {
   const amount = Math.max(0, Math.min(1, Number.isFinite(strength) ? strength : 1));
   return (kind === "satin" ? 0.0003 : kind === "matte" ? 0.001 : kind === "watercolour" ? 0.008 : 0.006) * amount;
