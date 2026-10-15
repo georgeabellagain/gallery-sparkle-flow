@@ -1,5 +1,4 @@
 import { createTurnShadowCache, turnShadowKey } from "./turn-shadow-cache";
-import { createBookAntialias } from "./book-antialias";
 import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
 import { turnEase, turnClearance, turnSheetHeight, captureFrames, turnRestVisible } from "./turn-motion";
 import { averageEnvironment, createEnvironmentDiffuser } from "./environment-diffusion";
@@ -64,10 +63,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let frameSink: ((canvas: HTMLCanvasElement) => void) | undefined;
   const renderer = new THREE.WebGLRenderer({
     alpha: true,
-    antialias: false,
+    antialias: true,
     powerPreference: "high-performance",
   });
-  const antialias = createBookAntialias(renderer, fixedQuality);
   renderer.setPixelRatio(pixelRatio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NoToneMapping;
@@ -441,7 +439,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const cached = key !== null && shadowCache.restore(key);
     if (!key) shadowCache.detach();
     renderer.shadowMap.needsUpdate = !cached && (turning || shadowsDirty);
-    antialias.render(scene, camera);
+    renderer.render(scene, camera);
     if (key && !cached) shadowCache.save(key);
     frameSink?.(renderer.domElement);
     shadowsDirty = false;
@@ -1131,7 +1129,6 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     },
     dispose() {
       shadowCache.clear();
-      antialias.dispose();
       notes.clear();
       tabs.clear();
       airDust.dispose();
