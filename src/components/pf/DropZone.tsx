@@ -5,7 +5,7 @@ import { acceptPdf } from "@/lib/portfolia/pdf";
 import { FREE_UPLOAD_LIMIT_MB, type PdfFile } from "@/lib/portfolia/store";
 import { cn } from "@/lib/utils";
 
-export function DropZone({ onAccepted, label = "Upload your PDF", small, limitMb = FREE_UPLOAD_LIMIT_MB }: { onAccepted: (pdf: PdfFile) => void; label?: string; small?: boolean; limitMb?: number }) {
+export function DropZone({ onAccepted, label = "Upload your PDF", small, className, buttonClassName, limitMb = FREE_UPLOAD_LIMIT_MB }: { onAccepted: (pdf: PdfFile) => void; label?: string; small?: boolean; className?: string; buttonClassName?: string; limitMb?: number }) {
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [phase, setPhase] = useState<string | null>(null);
@@ -61,6 +61,7 @@ export function DropZone({ onAccepted, label = "Upload your PDF", small, limitMb
           "flex flex-col items-center justify-center rounded-[1.75rem] border border-dashed bg-card text-center transition-colors duration-200",
           small ? "px-5 py-8" : "px-6 py-12",
           over ? "border-foreground bg-accent" : "border-border-strong hover:border-border-strong hover:bg-accent/40",
+          className,
         )}
       >
         <span className="flex size-11 items-center justify-center rounded-full bg-leaf-soft text-leaf" aria-hidden>
@@ -69,7 +70,7 @@ export function DropZone({ onAccepted, label = "Upload your PDF", small, limitMb
         <p role="status" aria-live="polite" className="mt-3 text-sm">{phase ? `${phase}…` : "Drag your PDF here"}</p>
         <p className="mt-1 text-xs text-muted-foreground">PDF only · up to {limitMb} MB on your current plan</p>
         <input ref={input} type="file" accept="application/pdf,.pdf" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => void handle(e.target.files?.[0])} />
-        <Button className="mt-5" onClick={() => input.current?.click()} disabled={Boolean(phase)}>
+        <Button className={cn("mt-5", buttonClassName)} onClick={() => input.current?.click()} disabled={Boolean(phase)}>
           {label}
         </Button>
       </div>

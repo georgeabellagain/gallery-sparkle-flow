@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Pause, Play } from "lucide-react";
+import { DropZone } from "./DropZone";
+import type { PdfFile } from "@/lib/portfolia/store";
 import { FeatureAnimation } from "./FeatureAnimation";
 import {
   FEATURED_CREDIT,
@@ -56,7 +58,7 @@ const FEATURES = [
 ] as const;
 const SLIDE_MS = 10000;
 
-export function FeatureShowcase() {
+export function FeatureShowcase({ onAccepted, limitMb }: { onAccepted: (pdf: PdfFile) => void; limitMb: number }) {
   const ref = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false);
   const [near, setNear] = useState(false);
@@ -232,7 +234,7 @@ export function FeatureShowcase() {
                     ?.focus();
                 }
               }}
-              className={`rounded-full border px-4 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 ${selected === i ? "border-leaf bg-leaf-soft" : "border-border hover:bg-muted"}`}
+              className={`rounded-full border px-4 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 ${selected === i ? "border-black bg-black text-white ring-2 ring-black/30 ring-offset-2" : "border-black bg-black text-white hover:bg-black/80"}`}
             >
               {f.label}
             </button>
@@ -361,12 +363,9 @@ export function FeatureShowcase() {
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
               {feature.text}
             </p>
-            <a
-              href="#upload"
-              className="mt-7 inline-block text-sm font-medium text-leaf underline underline-offset-4"
-            >
-              Try your PDF →
-            </a>
+            <div className="mt-7">
+              <DropZone small label="Choose PDF" className="rounded-none" buttonClassName="bg-black text-white hover:bg-black/80" onAccepted={onAccepted} limitMb={limitMb} />
+            </div>
             <p className="mt-5 text-xs leading-relaxed text-muted-foreground">
               Artwork from Scarlett Bushell’s lookbook. Feature demonstrations
               loop automatically.
