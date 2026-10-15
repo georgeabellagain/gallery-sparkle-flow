@@ -245,7 +245,7 @@ export function FeatureShowcase() {
           className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)] lg:gap-8"
         >
           <div className="min-w-0">
-            <div className="pf-feature-live relative isolate overflow-hidden rounded-xl border border-border bg-[#10162e]">
+            <div className="pf-feature-live relative isolate overflow-hidden rounded-none border border-border bg-[#10162e]">
               {near &&
                 url &&
                 p?.pdf &&
