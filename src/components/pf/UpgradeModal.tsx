@@ -2,29 +2,19 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Modal } from "./Chrome";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { checkUsername, getDoc, GRACE_DAYS, MAX_PORTFOLIOS, PERSONAL_UPLOAD_LIMIT_MB, patchPortfolio, PRICE } from "@/lib/portfolia/store";
+import { getDoc, MAX_PORTFOLIOS, PERSONAL_UPLOAD_LIMIT_MB, PRICE } from "@/lib/portfolia/store";
 import { supabase } from "@/integrations/supabase/client";
 import { getPaddleEnvironment, openCheckout } from "@/lib/paddle";
 
-/** Upgrade flow: saves the chosen address, then opens secure checkout. The plan unlocks once payment is confirmed. */
+/** Secure checkout for larger PDFs and multiple portfolios. */
 export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const p = getDoc().portfolio;
-  const [name, setName] = useState(p?.username ?? "");
   const [billing, setBilling] = useState<"month" | "year">("year");
   const [err, setErr] = useState<string | null>(null);
-  const check = checkUsername(name);
-  const u = name.trim().toLowerCase();
 
   const [busy, setBusy] = useState(false);
   const paid = p?.plan === "personal";
   const confirm = async () => {
-    if (!check.ok || !p) return;
-    const { data: free, error: availErr } = await supabase.rpc("name_available", { _username: u, _code: p.code });
-    if (availErr) return setErr("Couldn’t check that name. Please try again.");
-    if (!free) return setErr("That address is already taken. Try a variation.");
-    if (!patchPortfolio({ username: u })) return setErr("Couldn’t save your address. Please try again.");
     if (paid) return onClose();
     const { data } = await supabase.auth.getUser();
     if (!data.user) return setErr("Please sign in first so your plan is linked to your account.");
@@ -35,7 +25,7 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
       .order("created_at", { ascending: false }).limit(1).maybeSingle();
     if (existing && (["active", "trialing", "past_due"].includes(existing.status) || (existing.status === "canceled" && existing.current_period_end && Date.parse(existing.current_period_end) > Date.now()))) {
       setBusy(false);
-      return setErr("You already have the Personal plan — it will switch on here in a few seconds. Your address has been saved.");
+      return setErr("You already have the Personal plan — it will switch on here in a few seconds.");
     }
     try {
       await openCheckout({
@@ -53,23 +43,15 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
   };
 
   return (
-    <Modal open={open} onClose={onClose} title={paid ? "Personalised address" : "Upgrade to Personal"}>
-      <p className="text-muted-foreground">{paid ? "Change your personalised address." : "Pay securely by card. Personal features unlock as soon as payment is confirmed."}</p>
+    <Modal open={open} onClose={onClose} title={paid ? "Personal plan" : "Upgrade to Personal"}>
+      <p className="text-muted-foreground">{paid ? "Your plan includes larger PDFs and multiple portfolios." : "Pay securely by card. Personal features unlock as soon as payment is confirmed."}</p>
       {!p ? (
         <div className="mt-4">
-          <p>Upload a PDF first — you can choose a personalised address from your dashboard.</p>
+          <p>Upload your first PDF to start creating your portfolio.</p>
           <Button asChild className="mt-4"><Link to="/" hash="upload" onClick={onClose}>Upload your PDF</Link></Button>
         </div>
       ) : (
         <>
-          <Label htmlFor="uname" className="mt-5 block text-xs">Personalised Portfolia address</Label>
-          <div className="mt-1.5 flex items-center rounded-full border border-input focus-within:ring-1 focus-within:ring-ring">
-            <span className="pl-4 text-sm text-muted-foreground">portfolia.site/</span>
-            <Input id="uname" value={name} onChange={(e) => setName(e.target.value)} className="rounded-full border-0 shadow-none focus-visible:ring-0" placeholder="marksmith" autoComplete="off" aria-describedby="uname-msg" />
-          </div>
-          <p id="uname-msg" className={`mt-1.5 text-xs ${check.ok ? "text-foreground" : "text-muted-foreground"}`}>{name ? check.msg : "Lowercase letters, numbers and hyphens, 3–30 characters."}</p>
-          {check.ok && <p className="mt-2 font-mono text-xs">portfolia.site/{u}</p>}
-
           {!paid && <fieldset className="mt-5 flex gap-2 text-sm">
             <legend className="sr-only">Billing period</legend>
             {(["month", "year"] as const).map((b) => (
@@ -83,17 +65,16 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
           <ul className="mt-5 space-y-1.5 text-sm">
             <li>✓ Up to {MAX_PORTFOLIOS} portfolios</li>
             <li>✓ PDFs up to {PERSONAL_UPLOAD_LIMIT_MB} MB each</li>
-            <li>✓ Upload a CV in your details</li>
           </ul>
           <ul className="mt-4 space-y-1.5 text-xs text-muted-foreground">
             <li>Your free link /p/{p.code} keeps working, so links you’ve already shared stay useful.</li>
-            <li>If you cancel, your portfolios stay at their free addresses, nothing is deleted, and the personalised address stays active for {GRACE_DAYS} days. The name isn’t reassigned straight away.</li>
+            <li>If you cancel, access continues until the end of your paid period. Your portfolio links keep working and nothing is deleted when you cancel.</li>
             <li>Switching between monthly and yearly takes effect straight away; the difference is charged or credited.</li>
           </ul>
           {err && <p role="alert" className="mt-3 text-sm text-destructive">{err}</p>}
           <div className="mt-6 flex justify-end gap-2">
             <Button variant="line" onClick={onClose}>Cancel</Button>
-            <Button onClick={() => void confirm()} disabled={!check.ok || busy}>{paid ? "Save address" : busy ? "Opening checkout…" : "Continue to payment"}</Button>
+            <Button onClick={() => void confirm()} disabled={busy}>{paid ? "Done" : busy ? "Opening checkout…" : "Continue to payment"}</Button>
           </div>
           {!getDoc().account.signedIn && <p className="mt-3 text-xs text-muted-foreground">You’ll need to <Link to="/signin" className="underline">sign in</Link> before paying.</p>}
         </>

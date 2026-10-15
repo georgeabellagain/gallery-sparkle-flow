@@ -49,9 +49,7 @@ function RefundPage() {
       <p>
         You can cancel your subscription at any time from your dashboard. Cancelling
         stops future charges: your access continues until the end of the period you’ve
-        already paid for, your portfolios keep their existing links, and your
-        personalised address is kept for a further 30 days. Nothing is deleted when you
-        cancel.
+        already paid for, your portfolios keep their existing links. Nothing is deleted when you cancel.
       </p>
 
       <h2>Refund timing</h2>

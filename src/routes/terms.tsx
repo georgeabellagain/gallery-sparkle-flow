@@ -86,8 +86,7 @@ function TermsPage() {
         The Personal plan costs £3 per month or £25 per year, billed in advance. Your
         subscription renews automatically until cancelled. You can cancel at any time
         from your dashboard: access continues until the end of the paid period, your
-        portfolios keep their existing links, and your personalised address is kept for
-        a further 30 days. Nothing is deleted when you cancel.
+        portfolios keep their existing links. Nothing is deleted when you cancel.
       </p>
       <p>
         Payments, billing, tax, cancellation and refund mechanics are handled by our

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { EmbedModal } from "@/components/pf/EmbedModal";
 import { PortfolioQrCode } from "@/components/pf/PortfolioQrCode";
 import { retrySync, useSyncStatus } from "@/lib/portfolia/cloud";
-import { personalActive, useDoc, type Portfolio } from "@/lib/portfolia/store";
+import { useDoc, type Portfolio } from "@/lib/portfolia/store";
 
 /** Share a portfolio by link, QR code or embed. The same three ways the dashboard offers. */
 export function ShareActions({ p }: { p: Portfolio }) {
@@ -15,8 +15,7 @@ export function ShareActions({ p }: { p: Portfolio }) {
   const [dialog, setDialog] = useState<null | "qr" | "embed">(null);
   const [copied, setCopied] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const personalPath = p.username && personalActive(p) ? `/${p.username}` : null;
-  const sharePath = personalPath ?? `/p/${p.code}`;
+  const sharePath = `/p/${p.code}`;
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const published = p.status === "published";
   const copy = async () => {

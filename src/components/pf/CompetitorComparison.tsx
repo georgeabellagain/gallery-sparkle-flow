@@ -18,7 +18,7 @@ export function CompetitorComparison({ competitor: c }: { competitor: Competitor
       <p className="mt-5 text-sm leading-7 text-muted-foreground">{c.price}</p>
       <h2 className="mt-9 display-title text-2xl">Which fits your next project?</h2>
       <p className="mt-4 max-w-3xl text-sm leading-7 text-muted-foreground">{c.choose}</p>
-      <p className="mt-4 text-sm leading-7 text-muted-foreground">Portfolia currently has no public discovery gallery, in-page video/audio player, lead forms, custom domains or team approval workflow. Its visit statistics are basic. A personalised Portfolia address and a link to your store are different from own-domain hosting and an integrated checkout.</p>
+      <p className="mt-4 text-sm leading-7 text-muted-foreground">Portfolia currently has no public discovery gallery, in-page video/audio player, lead forms, custom domains or team approval workflow. Its visit statistics are basic. A link to your store does not provide an integrated checkout.</p>
       <div className="mt-8"><IndustryUpload /></div>
       <aside className="mt-8 rounded-xl bg-muted/50 p-5 text-xs leading-6 text-muted-foreground">
         <p>Independent comparison by Portfolia, not affiliated with {c.name}. Selected capabilities, not an exhaustive audit. Prices are quoted in the provider’s currency and billing cycle; features and checkout totals can change.</p>

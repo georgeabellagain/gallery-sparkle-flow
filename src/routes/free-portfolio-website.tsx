@@ -11,7 +11,7 @@ const c: SeoContent = {
   points: [
     { title: "Link and QR code included", body: "Share your portfolio online or download its personal QR code for business cards, exhibitions and applications." },
     { title: "Made for creatives", body: "A quiet, full-screen viewer puts your work first — no ads or distracting menus." },
-    { title: "Grow when you need to", body: "Personal adds up to 10 portfolios, a CV and a personalised address like portfolia.site/marksmith." },
+    { title: "Grow when you need to", body: "Personal adds up to 10 portfolios, each with PDFs up to 50 MB." },
   ],
   steps: ["Export your portfolio as a PDF.", "Upload it and add your profile.", "Publish your free portfolio website and share its link or QR code."],
   faqs: [
