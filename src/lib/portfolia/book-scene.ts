@@ -1072,7 +1072,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const start = turn.progress;
       const startFocus = focus;
       const end = complete ? 1 : 0;
-      await animate(Math.max(120 * speed, 700 * speed * Math.abs(end - start)), (t) => {
+      await animate(Math.max(138 * speed, 805 * speed * Math.abs(end - start)), (t) => {
         const progress = THREE.MathUtils.lerp(start, end, t);
         turn.progress = progress;
         shape(progress, dir);
