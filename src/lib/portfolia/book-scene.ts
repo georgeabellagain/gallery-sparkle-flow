@@ -1,6 +1,7 @@
+import { applyTurnPose, bakeTurnGeometry, createTurnGeometryCache, turnGeometryWriter, type TurnPose } from "./turn-geometry-cache";
 import { createTurnShadowCache, turnShadowKey } from "./turn-shadow-cache";
 import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
-import { turnEase, turnClearance, turnSheetHeight, captureFrames, turnRestVisible } from "./turn-motion";
+import { turnEase, captureFrames, turnRestVisible } from "./turn-motion";
 import { averageEnvironment, createEnvironmentDiffuser } from "./environment-diffusion";
 import { dappleTexture } from "./dapple-light";
 import { bookSurfaceRatio, bookMotionBudget } from "./render-budget";
@@ -360,13 +361,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   for (const m of pageMaterials) m.map = placeholder;
   (geometry.getAttribute("position") as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
   (geometry.getAttribute("normal") as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
-  let sheetSeeds: [number, number] = [0, 0];
-  let reliefKey = "";
+  const turnGeometryCache = createTurnGeometryCache(compact ? 4 : 8);
+  let bakedTurn: TurnPose[] | null = null;
   let turnRestPages: [boolean, boolean] | null = null;
-  const uvSheet = geometry.getAttribute("uv");
-  const reliefFrom = new Float32Array(uvSheet.count);
-  const reliefTo = new Float32Array(uvSheet.count);
-  const curlProfile = Float32Array.from({ length: uvSheet.count }, (_, i) => .30 * Math.sin(Math.PI * uvSheet.getX(i)) * (1 + .35 * (.5 - uvSheet.getY(i))));
   let draggedTurn: { from: BookFaces; to: BookFaces; dir: 1 | -1; destinationFocus: number; originalFocus: number; progress: number; speed: number } | null = null;
 
   // Pages kept on the graphics card are limited by count and by memory, so the browser never has a reason to take the context away.
@@ -825,6 +822,12 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     });
   };
   const stickyPosition = new THREE.Vector3(), stickyNormal = new THREE.Vector3();
+  const posesForTurn = (from: BookFaces, to: BookFaces, dir: 1 | -1) => {
+    const seeds = [seedFor(from[dir === 1 ? 1 : 0]), seedFor(to[dir === 1 ? 0 : 1])];
+    const restingSeeds = [seedFor(dir === 1 ? from[0] : to[0]), seedFor(dir === 1 ? to[1] : from[1])];
+    const key = `${dir}|${seeds.join(":")}|${restingSeeds.join(":")}`;
+    return turnGeometryCache.get(key, () => bakeTurnGeometry(geometry, turnGeometryWriter(geometry, ratio, dir, seeds, restingSeeds, SHEET_CLEARANCE)));
+  };
   const shape = (progress: number, dir: 1 | -1) => {
     shadowProgress = progress; shadowDirection = dir;
     if (turnRestPages) {
@@ -833,34 +836,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         if (mesh.visible !== visible) { mesh.visible = visible; shadowsDirty = true; }
       });
     }
+    if (bakedTurn) applyTurnPose(bakedTurn, progress, geometry);
+    else return;
     const attr = geometry.getAttribute("position") as THREE.BufferAttribute;
-    const uv = geometry.getAttribute("uv");
-    // Halfway through, the face the viewer sees changes from one page to the
-    // other, so the sheet's relief blends from the first page's to the second's.
-    const blend = smooth((progress - 0.3) / 0.4);
-    const key = sheetSeeds.join(":");
-    if (key !== reliefKey) {
-      for (let i = 0; i < attr.count; i++) {
-        reliefFrom[i] = pageRelief(uv.getX(i), uv.getY(i), sheetSeeds[0]);
-        reliefTo[i] = pageRelief(uv.getX(i), uv.getY(i), sheetSeeds[1]);
-      }
-      reliefKey = key;
-    }
-    const angle = Math.PI * progress, sin = Math.sin(angle), cos = Math.cos(angle);
-    const clearance = turnClearance(progress, SHEET_CLEARANCE);
-    for (let i = 0; i < attr.count; i++) {
-      const u = uv.getX(i),
-        v = uv.getY(i);
-      // The free edge trails the corner being pulled, so the sheet bows like real paper in the hand.
-      const curl = sin * curlProfile[i]!;
-      const x = dir * (u * cos + curl * sin);
-      const z = u * sin - curl * cos;
-      // At rest the sheet matches the curved, imperfect page it came from or lands on.
-      const relief = reliefFrom[i]! * (1 - blend) + reliefTo[i]! * blend;
-      const resting = x < 0 ? left : right;
-      const floor = pageRelief(Math.min(1, Math.abs(x)), v, resting.userData["seed"] as number);
-      attr.setXYZ(i, x, (v - 0.5) * ratio, turnSheetHeight(z + relief + clearance, floor, SHEET_CLEARANCE, progress));
-    }
     // Reversing travel reverses winding; preserve the physical front face.
     // The side is part of the shader, so refresh it only when it changes.
     const frontSide = dir === 1 ? THREE.FrontSide : THREE.BackSide;
@@ -877,7 +855,6 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       back.geometry = (dir === 1 ? reverseGeometry : geometry) as THREE.PlaneGeometry;
     }
     attr.needsUpdate = true;
-    geometry.computeVertexNormals();
     const stickySample = { position: stickyPosition, normal: stickyNormal, floorZ: 0 };
     notes.turn(progress, dir, (u, v) => {
       const x = Math.min(32, Math.max(0, u * 32)), y = Math.min(16, Math.max(0, (1 - v) * 16));
@@ -942,6 +919,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     },
     configure,
     show,
+    prefetchTurn(from: BookFaces, to: BookFaces, dir: 1 | -1) { if (!disposed && !turning) posesForTurn(from, to, dir); },
     /** Uploads a page to the GPU ahead of time so a later turn does not stall. */
     /**
      * Gets everything the first turn and the Simple/Studio switch will need: with `bothLooks` the shaders for
@@ -1052,7 +1030,6 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const landing = dir === 1 ? 0 : 1;
       setMap(frontMat, from[moving]);
       setMap(backMat, to[landing]);
-      sheetSeeds = [seedFor(from[moving]), seedFor(to[landing])];
       // Prepare resting textures now, but reveal the page below only after
       // 5% travel. Hide the receiving page over the last 5% as well.
       contactTurn = { from: kindOf(from), to: kindOf(to), landing: (to[0] ? 1 : 0) + (to[1] ? 1 : 0) > (from[0] ? 1 : 0) + (from[1] ? 1 : 0) };
@@ -1062,6 +1039,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       // Everything this turn needs reaches the graphics card now (the pictures, the sheet in mid-turn), and the card
       // is waited for, so the first frames of the animation have nothing left to stall on.
       for (const canvas of [...from, ...to]) if (canvas) renderer.initTexture(textureFor(canvas));
+      bakedTurn = posesForTurn(from, to, dir);
       shape(0, dir);
       paint();
       try {
@@ -1113,6 +1091,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       }
       show(complete ? to : from, false);
       draggedTurn = null;
+      bakedTurn = null;
       paint();
       await pan(complete ? destinationFocus : originalFocus, narrow ? 0 : 260 * speed);
       if (!disposed) {
@@ -1128,6 +1107,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       await this.settleTurn(true);
     },
     dispose() {
+      turnGeometryCache.clear();
+      bakedTurn = null;
       shadowCache.clear();
       notes.clear();
       tabs.clear();
