@@ -1,3 +1,5 @@
+import { ProfileForm } from "@/components/pf/ProfileForm";
+import { StyleForm } from "@/components/pf/StyleForm";
 import { AnalyticsPanel } from "@/components/pf/AnalyticsPanel";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
@@ -57,6 +59,7 @@ function EditPortfolio() {
         <EditorStage
           key={p.code}
           p={p}
+          profile={<><ProfileForm key={p.code} p={p} onSaveError={setSaveErr} /><details className="mt-5"><summary className="cursor-pointer text-sm">Profile appearance</summary><StyleForm sidebar part="appearance" p={p} onSaveError={setSaveErr} /></details></>}
           statistics={doc.account.signedIn ? <AnalyticsPanel data={doc.analytics} title="This portfolio" description={p.pdf.name} /> : undefined}
           onSaveError={setSaveErr}
           onDialog={setDialog}

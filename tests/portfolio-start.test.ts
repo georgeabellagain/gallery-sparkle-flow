@@ -107,3 +107,31 @@ test("Edit on another owned portfolio selects it and preserves the previous port
   assert.equal(switchPortfolio(other.code), true);
   assert.equal(getDoc().others.length, 1, "reopening the active editor does not duplicate portfolios");
 });
+
+test("a new homepage upload creates an independent editor and preserves the prior portfolio",()=>{
+  replaceDoc(empty());startPortfolio(pdf);
+  const before=structuredClone(getDoc());before.portfolio!.plan="personal";before.portfolio!.status="published";
+  before.portfolio!.name="Existing work";before.portfolio!.profile.name="Designer";
+  before.analytics.visits=[{t:1,v:"existing-visitor"}];replaceDoc(before);
+  assert.equal(startPortfolio({...pdf,blobKey:"new-home-upload"},{newPortfolio:true}),true);
+  const after=getDoc();
+  assert.notEqual(after.portfolio!.code,before.portfolio!.code);
+  assert.equal(after.portfolio!.pdf!.blobKey,"new-home-upload");
+  assert.equal(after.portfolio!.status,"draft");
+  assert.equal(after.portfolio!.profile.name,"Designer");
+  assert.deepEqual(after.others[0]!.portfolio,before.portfolio);
+  assert.deepEqual(after.others[0]!.analytics,before.analytics);
+  assert.deepEqual(after.analytics,{visits:[],downloads:[]});
+});
+
+test("new homepage uploads cannot overwrite free portfolios or partially save a failed upload",()=>{
+  replaceDoc(empty());startPortfolio(pdf);const free=structuredClone(getDoc());
+  assert.equal(startPortfolio({...pdf,blobKey:"blocked"},{newPortfolio:true}),false);
+  assert.deepEqual(getDoc(),free);
+  const paid=structuredClone(free);paid.portfolio!.plan="personal";replaceDoc(paid);
+  blocked=true;
+  try {
+    assert.equal(startPortfolio({...pdf,blobKey:"failed"},{newPortfolio:true}),false);
+    assert.deepEqual(getDoc(),paid,"archiving and creating commit together or leave the old editor untouched");
+  } finally {blocked=false;}
+});
