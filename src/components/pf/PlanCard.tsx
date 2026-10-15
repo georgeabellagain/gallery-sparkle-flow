@@ -8,7 +8,7 @@ export function PlanCard({ name, price, period, alternative, description, items,
   description: string; items: string[]; action?: ReactNode; featured?: boolean;
 }) {
   return (
-    <div className={cn("flex h-full flex-col rounded-3xl border bg-card p-6 sm:p-7", featured ? "border-leaf shadow-soft" : "border-border")}>
+    <div className={cn("flex h-full flex-col rounded-none border bg-card p-6 sm:p-7", featured ? "border-leaf shadow-soft" : "border-border")}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-base font-medium">{name}</h3>
         {featured && <span className="rounded-full bg-leaf-soft px-3 py-1 text-xxs font-medium uppercase text-leaf">Recommended</span>}
