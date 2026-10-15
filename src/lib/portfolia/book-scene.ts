@@ -454,10 +454,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const FRAME_PAD = 0.12 + 0.08 * ratio;
   /** Extra room around the book (the editor uses it to keep the book clear of its tools). */
   let inset = 0;
-  const cameraHeight = (scale: number) => {
+  const cameraHeight = (scale: number, atFocus = focus) => {
     const aspect = Math.max(1, host.clientWidth) / Math.max(1, host.clientHeight);
     // Frame a lone cover as a page, but leave room for both pages once open.
-    const width = narrow ? 1.08 : THREE.MathUtils.lerp(2.32, 1.32, Math.min(1, Math.abs(focus) * 2));
+    const width = narrow ? 1.08 : THREE.MathUtils.lerp(2.32, 1.32, Math.min(1, Math.abs(atFocus) * 2));
     return (Math.max(ratio * 1.1 + FRAME_PAD, width / aspect) / scale) * (1 + inset);
   };
   /** Dragging may never move the view outside the initial framing. */
@@ -474,12 +474,12 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     panY = THREE.MathUtils.clamp(panY, Math.min(0, bottom + height / 2), Math.max(0, top - height / 2));
     panX = THREE.MathUtils.clamp(panX, Math.min(0, leftEdge + height * aspect / 2 - focus), Math.max(0, rightEdge - height * aspect / 2 - focus));
   };
-  const frameCamera = () => {
+  const frameCamera = (height?: number) => {
     const w = Math.max(1, host.clientWidth),
       h = Math.max(1, host.clientHeight);
     camera.aspect = w / h;
     clampPan();
-    const visibleHeight = cameraHeight(zoom);
+    const visibleHeight = height ?? cameraHeight(zoom);
     const distance = visibleHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
     camera.position.set(focus + panX, panY, distance);
     camera.lookAt(focus + panX, panY, 0);
@@ -816,9 +816,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const from = focus;
     // Nothing to move: finish at once so the next page can be turned immediately.
     if (Math.abs(from - to) < 1e-6) return;
+    const fromHeight = cameraHeight(zoom, from), toHeight = cameraHeight(zoom, to);
     await animate(duration, (t) => {
       focus = THREE.MathUtils.lerp(from, to, t);
-      frameCamera();
+      frameCamera(THREE.MathUtils.lerp(fromHeight, toHeight, t));
     });
   };
   const stickyPosition = new THREE.Vector3(), stickyNormal = new THREE.Vector3();
@@ -1017,6 +1018,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     /** `speed` 1 is the normal pace; smaller is quicker (used when pages are turned in quick succession). */
     async prepareTurn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number, speed = 1, plan: TabPlan[] | null = null, dragging = false) {
       if (disposed) return;
+      const openingCover = dir === 1 && !from[0] && Boolean(from[1] && to[0] && to[1]);
+      if (openingCover && !dragging) speed *= 1.2;
+      bakedTurn = posesForTurn(from, to, dir);
+      for (const canvas of [...from, ...to]) if (canvas) renderer.initTexture(textureFor(canvas));
       turning = true;
       applyPendingQuality();
       resize();
@@ -1038,8 +1043,6 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       sheet.visible = true;
       // Everything this turn needs reaches the graphics card now (the pictures, the sheet in mid-turn), and the card
       // is waited for, so the first frames of the animation have nothing left to stall on.
-      for (const canvas of [...from, ...to]) if (canvas) renderer.initTexture(textureFor(canvas));
-      bakedTurn = posesForTurn(from, to, dir);
       shape(0, dir);
       paint();
       try {

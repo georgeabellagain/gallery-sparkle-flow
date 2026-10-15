@@ -1,3 +1,4 @@
+import { HomeScrollContext, releaseHomeScroll } from "./home-scroll";
 import { captureFrames } from "@/lib/portfolia/turn-motion";
 import { canvasStill, recordStudioClip } from "@/lib/portfolia/studio-recorder";
 import type { StudioExporter, RenderedState, RenderHotspot } from "@/lib/portfolia/rendered-studio";
@@ -12,7 +13,7 @@ import { PageTabButtons } from "./PageTabs";
 import { planTabs, tabEdge } from "@/lib/portfolia/tab-geometry";
 import { linksForLeaf, readablePageLinks, readablePageTags, tabSlots, type PageLink, type PageTag } from "@/lib/portfolia/page-extras";
 import { foldoutsForLeaf, readableFoldouts, type Foldout, type PageBounds } from "@/lib/portfolia/foldouts";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import type { ViewerSettings } from "@/lib/portfolia/store";
@@ -291,6 +292,7 @@ export function BookView({
   foldouts,
   tags,
   links,
+  showPageNumber = true,
 }: {
   doc: PDFDocumentProxy;
   sizes: { w: number; h: number }[];
@@ -298,6 +300,7 @@ export function BookView({
   onZoomChange: (zoom: number) => void;
   jump: { page: number; t: number } | null;
   onPage: (page: number) => void;
+  showPageNumber?: boolean;
   viewer: ViewerSettings;
   /** The colour behind the book. */
   colour: string;
@@ -355,6 +358,7 @@ export function BookView({
   const zoomFrame = useRef(0);
   const scene = useRef<BookScene | null>(null);
   const loader = useRef<ReturnType<typeof pageLoader> | null>(null);
+  const homeScroll = useContext(HomeScrollContext);
   const lock = useRef(false);
   const queued = useRef(0);
   const epoch = useRef(0);
@@ -656,11 +660,12 @@ export function BookView({
 
   // On a touch screen: tap the left or right of the book to turn that way, and pinch to zoom the book itself
   // (not the whole web page). While two fingers are down nothing else (a pan, a swipe) happens.
+  const minimumBookZoom = homeScroll && !fullscreen ? 1 : additions.length ? .5 : 1;
   const pinching = useRef(false);
   const applyPinch = (asked: number, x: number, y: number) => {
     if (busy || wait || !scene.current) return;
     pinching.current = true;
-    const next = Math.min(3, Math.max(additions.length ? .5 : 1, asked));
+    const next = Math.min(3, Math.max(minimumBookZoom, asked));
     if (Math.abs(next - wheelZoom.current) < 0.001) return;
     scene.current.zoomAt(next, x, y);
     wheelZoom.current = next;
@@ -692,9 +697,10 @@ export function BookView({
     if (!element || fallback) return;
     const onWheel = (event: WheelEvent) => {
       if (busy || wait || !scene.current) return;
+      if (releaseHomeScroll(homeScroll, Boolean(fullscreen), wheelZoom.current, event.deltaY) && !event.ctrlKey) return;
       event.preventDefault();
       const dy = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 100 : 1);
-      const next = Math.min(3, Math.max(additions.length ? .5 : 1, wheelZoom.current * Math.exp(-dy * 0.0015)));
+      const next = Math.min(3, Math.max(minimumBookZoom, wheelZoom.current * Math.exp(-dy * 0.0015)));
       if (Math.abs(next - wheelZoom.current) < 0.001) return;
       const rect = element.getBoundingClientRect();
       scene.current.zoomAt(next, (event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height);
@@ -714,7 +720,7 @@ export function BookView({
       if (zoomFrame.current) cancelAnimationFrame(zoomFrame.current);
       zoomFrame.current = 0;
     };
-  }, [busy, wait, fallback, onZoomChange]);
+  }, [busy, wait, fallback, onZoomChange, homeScroll, fullscreen, minimumBookZoom]);
 
   useEffect(() => {
     if (!ready && !fallback) return;
@@ -1259,13 +1265,13 @@ export function BookView({
             <ChevronRight className="size-6" />
           </IconButton>
         </div>
-        <p aria-live="polite" className={cn("pf-book-page-number pointer-events-none absolute inset-x-0 bottom-5 z-10 text-center text-[11px] tabular-nums transition-opacity duration-300", awake ? "opacity-100" : "opacity-0", tone === "dark" ? "text-white/45" : "text-black/40")}>
+        {showPageNumber && <p aria-live="polite" className={cn("pf-book-page-number pointer-events-none absolute inset-x-0 top-3 z-10 text-center text-[11px] tabular-nums transition-opacity duration-300", awake ? "opacity-100" : "opacity-0", tone === "dark" ? "text-white/45" : "text-black/40")}>
           <span className={cn("inline-flex rounded-full px-3 py-2 ring-1 backdrop-blur-sm", tone === "dark" ? "bg-slate-950/75 text-white ring-white/20" : "bg-white/90 text-slate-700 ring-black/15")}>{label}</span>
-        </p>
+        </p>}
         {/* Simple / Studio: only offered when the creator has enabled both. Everything else is set in the editor. */}
         {enabledLooks.length > 1 && !frameAspect && (
           <div className={cn("absolute bottom-1.5 left-1.5 z-20 flex w-fit transition-opacity duration-300", awake ? "opacity-100" : "pointer-events-none opacity-0")}>
-            <Segmented label="Book appearance" value={settings.studio ? "studio" : "clean"} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={updateLook} />
+            <Segmented className="bg-white text-black [&_[role=radio]]:text-black [&_[aria-checked=true]]:bg-slate-900 [&_[aria-checked=true]]:text-white" label="Book appearance" value={settings.studio ? "studio" : "clean"} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={updateLook} />
           </div>
         )}
       </div>

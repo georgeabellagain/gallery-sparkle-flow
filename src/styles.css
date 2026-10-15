@@ -669,4 +669,4 @@
 .pf-reader-scroll::-webkit-scrollbar-track { background: #e2e8f0; }
 .pf-reader-scroll::-webkit-scrollbar-thumb { background: #64748b; border: 3px solid #e2e8f0; border-radius: 999px; }
 
-.pf-editor-stage .pf-book-page-number, .pf-workspace-demo .pf-book-page-number, .pf-home-demo .pf-book-page-number { top: 3.25rem; bottom: auto; opacity: 1; }
+.pf-editor-stage .pf-book-page-number, .pf-workspace-demo .pf-book-page-number, .pf-home-demo .pf-book-page-number { top: .75rem; bottom: auto; opacity: 1; }
