@@ -1,3 +1,5 @@
+import { registerPublicUrls } from "@/lib/portfolia/assets";
+import { chooseHomeExample } from "@/lib/portfolia/homepage-examples";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PdfViewer } from "./PdfViewer";
 import { BookLoader } from "./book-loader";
@@ -9,20 +11,25 @@ import { DEFAULT_VIEWER } from "@/lib/portfolia/store";
 // Explicitly selected by the site owner. Never select an arbitrary account or draft.
 export const FEATURED_PORTFOLIO_CODE = "adu2v";
 export const FEATURED_CREDIT = "Property of Scarlett Bushell 2026";
-let featuredRequest: { at: number; promise: Promise<PublicPortfolio> } | undefined;
-export function loadFeaturedPortfolio(refresh = false) {
+const demoRequests = new Map<string, { at: number; promise: Promise<PublicPortfolio> }>();
+function loadDemoPortfolio(code: string, refresh = false) {
   void loadPdfjs().catch(() => {});
-  if (refresh || !featuredRequest || Date.now() - featuredRequest.at > 60000) {
-    const promise = getPublicPortfolio({ data: { by: "code", value: FEATURED_PORTFOLIO_CODE } });
-    featuredRequest = { at: Date.now(), promise };
-    void promise.catch(() => { if (featuredRequest?.promise === promise) featuredRequest = undefined; });
+  let request = demoRequests.get(code);
+  if (refresh || !request || Date.now() - request.at > 60000) {
+    const promise = getPublicPortfolio({ data: { by: "code", value: code } });
+    request = { at: Date.now(), promise }; demoRequests.set(code, request);
+    void promise.catch(() => { if (demoRequests.get(code)?.promise === promise) demoRequests.delete(code); });
   }
-  return featuredRequest.promise;
+  return request.promise;
 }
+export function loadFeaturedPortfolio(refresh = false) { return loadDemoPortfolio(FEATURED_PORTFOLIO_CODE, refresh); }
 
 
 /** Reuse the real reader and saved settings instead of drawing invented sample pages. */
 export function StudioDemo({ className, workspace = false }: { className?: string; workspace?: boolean }) {
+  const [exampleCode, setExampleCode] = useState<string | null>(workspace ? null : FEATURED_PORTFOLIO_CODE);
+  const chosen = useRef<string | null>(null);
+  useEffect(() => { if (workspace) { chosen.current ??= chooseHomeExample(); setExampleCode(chosen.current); } else setExampleCode(FEATURED_PORTFOLIO_CODE); }, [workspace]);
   const [data, setData] = useState<PublicPortfolio>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [slow, setSlow] = useState(false);
@@ -45,20 +52,22 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
   }, []);
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    if (!exampleCode) return;
     let cancelled = false;
     setState("loading");
     setRendered(false);
     setSlow(false);
     setData(null);
     const timeout = setTimeout(() => { cancelled = true; setState("error"); }, 30000);
-    void loadFeaturedPortfolio(attempt > 0).then((result) => {
+    void loadDemoPortfolio(exampleCode, attempt > 0).then((result) => {
       if (cancelled) return;
       clearTimeout(timeout);
+      if (result) registerPublicUrls(result.urls);
       setData(result);
       setState((result?.portfolio.pdf && result.urls[result.portfolio.pdf.blobKey]) ? "ready" : "error");
     }).catch(() => { clearTimeout(timeout); if (!cancelled) setState("error"); });
     return () => { cancelled = true; clearTimeout(timeout); };
-  }, [attempt]);
+  }, [attempt, exampleCode]);
   useEffect(() => {
     if (state !== "ready" || rendered) { setSlow(false); return; }
     const timeout = setTimeout(() => setSlow(true), 60000);
@@ -77,6 +86,9 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
         viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "studio", studioBrightness: Math.min(1, (p.viewer?.studioBrightness ?? 0.5) + 0.14), modes: workspace ? ["book", "scroll", "paged"] : ["book"], looks: ["clean", "studio"] }}
         backgroundUrl={p.viewer?.backgroundKey ? data?.urls[p.viewer.backgroundKey] : undefined}
         controls
+        homepageExample={workspace}
+        allowDownload={p.allowDownload}
+        projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} projectCode={p.code}
         lightweight={!workspace}
         initialLook="studio"
         fullSpread
@@ -91,6 +103,6 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
         {(state === "error" || slow) && <button type="button" className="underline underline-offset-4" onClick={() => setAttempt((n) => n + 1)}>Try again</button>}
       </div>}
     </div>
-    <figcaption className={workspace ? "pointer-events-none absolute bottom-2 inset-x-0 text-center text-[10px] text-muted-foreground" : "mt-3 text-center text-xs text-muted-foreground"}>{FEATURED_CREDIT}</figcaption>
+    {!workspace && <figcaption className="mt-3 text-center text-xs text-muted-foreground">{FEATURED_CREDIT}</figcaption>}
   </figure>;
 }

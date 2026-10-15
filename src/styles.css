@@ -671,7 +671,7 @@
 
 .pf-editor-stage .pf-book-page-number, .pf-workspace-demo .pf-book-page-number, .pf-home-demo .pf-book-page-number { top: .75rem; bottom: auto; opacity: 1; }
 
-/* The homepage example occupies the right-hand 60% of the desktop hero. */
+/* The homepage example occupies the right-hand 75% of the desktop hero. */
 .pf-home-split .pf-workspace-demo .pf-book-viewport { height: max(30rem, 70svh); min-height: 0; }
 @media (min-width: 1024px) {
   .pf-home-split .pf-workspace-demo .pf-book-viewport { height: calc(100dvh - 3.5rem); }

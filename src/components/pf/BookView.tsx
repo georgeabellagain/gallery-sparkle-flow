@@ -293,6 +293,7 @@ export function BookView({
   tags,
   links,
   showPageNumber = true,
+  showNavigation = true,
 }: {
   doc: PDFDocumentProxy;
   sizes: { w: number; h: number }[];
@@ -301,6 +302,7 @@ export function BookView({
   jump: { page: number; t: number } | null;
   onPage: (page: number) => void;
   showPageNumber?: boolean;
+  showNavigation?: boolean;
   viewer: ViewerSettings;
   /** The colour behind the book. */
   colour: string;
@@ -1255,6 +1257,7 @@ export function BookView({
             {error}
           </p>
         )}
+        {showNavigation && <>
         <div className={cn("pointer-events-none absolute inset-y-0 left-0 z-20 flex items-center pl-1.5 transition-opacity duration-300", awake ? "opacity-100" : "opacity-0")}>
           <IconButton label="Previous page" tone={tone} large className={cn(awake ? "pointer-events-auto" : "pointer-events-none")} disabled={wait || atStart} onClick={() => void move(-1)}>
             <ChevronLeft className="size-6" />
@@ -1265,6 +1268,7 @@ export function BookView({
             <ChevronRight className="size-6" />
           </IconButton>
         </div>
+        </>}
         {showPageNumber && <p aria-live="polite" className={cn("pf-book-page-number pointer-events-none absolute inset-x-0 top-3 z-10 text-center text-[11px] tabular-nums transition-opacity duration-300", awake ? "opacity-100" : "opacity-0", tone === "dark" ? "text-white/45" : "text-black/40")}>
           <span className={cn("inline-flex rounded-full px-3 py-2 ring-1 backdrop-blur-sm", tone === "dark" ? "bg-slate-950/75 text-white ring-white/20" : "bg-white/90 text-slate-700 ring-black/15")}>{label}</span>
         </p>}

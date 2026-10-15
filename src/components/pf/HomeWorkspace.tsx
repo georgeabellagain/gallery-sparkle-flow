@@ -3,7 +3,7 @@ import { HomeMarketing } from "./HomeMarketing";
 import { BookLoader } from "./book-loader";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Plus, Share2, SlidersHorizontal, Upload } from "lucide-react";
+import { Upload } from "lucide-react";
 import { Wordmark, Modal } from "./Chrome";
 import { Button } from "@/components/ui/button";
 import { DropZone } from "./DropZone";
@@ -61,7 +61,7 @@ export function HomeWorkspace() {
     </header>
     <HomeScrollContext.Provider value={true}><main id="upload" className="relative flex-1" onDragOver={e => { if (!e.defaultPrevented && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setOver(true); } }} onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(false); }} onDrop={e => { if (e.defaultPrevented || !e.dataTransfer.files.length) return; e.preventDefault(); setOver(false); void upload(e.dataTransfer.files[0]); }}>
       <input ref={input} type="file" accept="application/pdf,.pdf" className="sr-only" aria-label="Upload portfolio PDF" onChange={e => void upload(e.target.files?.[0])} />
-      <div className="pf-home-example pf-home-split relative grid lg:grid-cols-[2fr_3fr]">
+      <div className="pf-home-example pf-home-split relative grid lg:grid-cols-[1fr_3fr]">
         <button type="button" onClick={() => input.current?.click()} disabled={Boolean(phase)} className="group flex min-h-[22rem] w-full flex-col items-center justify-center gap-5 border-b border-dashed border-border-strong bg-background/90 px-8 py-14 text-center transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring lg:min-h-[calc(100dvh-3.5rem)] lg:border-b-0 lg:border-r" aria-label="Drop a PDF here or choose a PDF to upload">
           <span className="flex size-16 items-center justify-center rounded-2xl border border-border bg-white shadow-soft transition-transform group-hover:-translate-y-1"><Upload className="size-6" aria-hidden /></span>
           <span className="display-title max-w-xs text-3xl leading-tight sm:text-4xl">Drop your PDF here.</span>
@@ -73,11 +73,7 @@ export function HomeWorkspace() {
         <div className="absolute inset-0"><Suspense fallback={<div className="flex h-full items-center justify-center"><BookLoader tone="light" label="" /></div>}><StudioDemo workspace className="relative h-full w-full" /></Suspense></div>
         <h1 className="sr-only">Portfolia portfolio workspace</h1>
         <span className="pointer-events-none absolute left-4 top-5 z-20 rounded-full bg-background/90 px-3 py-1.5 text-[11px] shadow-soft">Example portfolio</span>
-        <nav aria-label="Portfolio workspace tools" className="pf-home-toolbar absolute bottom-7 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-border bg-background/95 p-2 shadow-lift backdrop-blur">
-          <Button size="sm" variant="quiet" onClick={() => setDialog("upload")}><SlidersHorizontal className="size-4" /><span>Customise</span></Button>
-          <Button size="sm" variant="quiet" onClick={() => setDialog("upload")}><Plus className="size-4" /><span>Add</span></Button>
-          <Button size="sm" variant="quiet" onClick={() => setDialog("upload")}><Share2 className="size-4" /><span>Share</span></Button>
-        </nav>
+
         </div>
       </div>
       {(over || phase) && <div role="status" className="pointer-events-none absolute inset-0 z-[70] flex items-center justify-center bg-background/90"><p className="display-title text-3xl">{phase ? `${phase}…` : "Drop your PDF here"}</p></div>}
