@@ -432,9 +432,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     frameSink?.(renderer.domElement);
     shadowsDirty = false;
   };
-  /** Coalesces rapid pointer input into at most one render per frame. */
-  const requestPaint = () => {
-    shadowsDirty = true;
+  /** Camera/backdrop changes reuse live shadows; geometry/light changes invalidate them. */
+  const requestPaint = (shadowChanged = true) => {
+    shadowsDirty ||= shadowChanged;
     if (paintQueued || disposed) return;
     paintQueued = requestAnimationFrame(() => {
       paintQueued = 0;
@@ -482,7 +482,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // A big window gets a slightly lower pixel density rather than a surface too large for the graphics card.
     // CSS pixels are not a minimum: a 4K fullscreen canvas must still obey
     // the GPU budget. Preserve HD page textures independently of this surface.
-    const budget = fixedQuality ? 8_294_400 : bookMotionBudget(compact ? MAX_SURFACE_PIXELS_SMALL : MAX_SURFACE_PIXELS, turning);
+    const budget = fixedQuality ? 8_294_400 : bookMotionBudget(compact ? MAX_SURFACE_PIXELS_SMALL : MAX_SURFACE_PIXELS, turning, pixelRatio / readingRatio);
     const next = bookSurfaceRatio(w, h, turning ? pixelRatio : readingRatio, budget);
     if (Math.abs(next - appliedRatio) > 1e-6) {
       appliedRatio = next;
@@ -641,7 +641,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   // The paper's look depends on the look (Simple/Studio) and the paper, not on brightness or the shadow settings,
   // so dragging a slider only changes the exposure or the shadow and never rebuilds the materials.
   let variant = "";
-  const backdrop = createLitBackdrop(scene, requestPaint);
+  const backdrop = createLitBackdrop(scene, () => requestPaint(false));
   const configure = (next: StudioSettings) => {
     next = {...next, material:paperFinish(next.material)};
     settings = next;
@@ -892,7 +892,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     setInset(value: number) {
       inset = Math.max(0, value);
       frameCamera();
-      requestPaint();
+      requestPaint(false);
     },
     setTabs: tabs.set,
     setTabRest(edges: Record<string, TabEdge>) {
@@ -960,14 +960,14 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       panY += (0.5 - y) * delta;
       zoom = THREE.MathUtils.clamp(scale, .5, 3);
       frameCamera();
-      requestPaint();
+      requestPaint(false);
     },
     dragPan(dx: number, dy: number) {
       const height = cameraHeight(zoom);
       panX -= (dx / Math.max(1, host.clientHeight)) * height;
       panY += (dy / Math.max(1, host.clientHeight)) * height;
       frameCamera();
-      requestPaint();
+      requestPaint(false);
     },
     async resetZoom() {
       if (zoom === 1 && panX === 0 && panY === 0) return;
