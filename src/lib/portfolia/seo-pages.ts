@@ -6,6 +6,30 @@ const qrFaq = { q: "Can I share it with a QR code?", a: "Yes. Every published po
 const sizeFaq = { q: "How large can my PDF be?", a: "Up to 10 MB on Free, or up to 50 MB per portfolio on Personal." };
 
 export const DISCIPLINE_PAGES: Record<string, Page> = {
+  "hdri-book-visualisation": {
+    label: "HDRI book visualisation",
+    title: "HDRI Book Visualisation — See Your Book in Realistic 3D Light | Portfolia",
+    description: "Upload your book, zine or lookbook PDF and see it as a realistic 3D flipbook lit by HDRI studio lighting. Share a link or QR code. Free to start.",
+    h1: "Visualise your book", h1Accent: "in real HDRI studio light.",
+    intro: "Skip the 3D software. Upload the PDF of your book and Portfolia turns it into a turning, physically shaded flipbook lit by real photographic HDRI environments — ready to share with publishers, clients and readers.",
+    points: [
+      { title: "Real HDRI lighting", body: "Choose from photographic studio light environments that shade the paper, pages and backdrop naturally." },
+      { title: "Pages that actually turn", body: "Readers drag or click to turn curved pages in a two-page spread, on desktop and on phones." },
+      { title: "Your backdrop, your mood", body: "Pick a colour, a photographic surface such as wood or marble, or upload your own background picture." },
+    ],
+    sections: [
+      { title: "What is HDRI book visualisation?", body: "HDRI (high dynamic range imaging) environments capture real-world light. Used in 3D rendering, they make objects look as though they were photographed in a real room. Portfolia lights your book with these environments in the browser, so your printed design can be previewed as a believable physical object before or instead of a photo shoot. It shows your PDF exactly as designed; it does not create a 3D model of a printed binding or produce downloadable renders." },
+      { title: "Who it is for", body: "Self-published authors previewing a novel or photo book, designers presenting editorial layouts, students showing a printed portfolio, and brands sharing a lookbook or catalogue. Anyone with a book PDF can present it as an object rather than a flat document." },
+    ],
+    checklist: ["Export your book as a PDF with single pages or two-page spreads.", "Keep files under 10 MB on Free or 50 MB on Personal.", "Choose a lighting environment and brightness in the editor.", "Check the result on a phone before sharing."],
+    steps: ["Upload your book PDF.", "Turn on Studio and choose your HDRI lighting and backdrop.", "Publish and share your link or QR code."],
+    faqs: [
+      { q: "Do I need 3D software?", a: "No. Upload a PDF and the lighting and page turns run in the visitor's browser." },
+      { q: "Can I choose the lighting?", a: "Yes. You choose the HDRI environment, brightness and paper finish; visitors see exactly what you picked." },
+      { q: "Can visitors switch to a flat view?", a: "Only if you allow it. You decide which reading styles and looks are offered on your link." },
+      sizeFaq, qrFaq,
+    ],
+  },
   "marketing-portfolio": {
     label: "Marketing portfolio",
     title: "Marketing Portfolio — Share Your Campaigns as a Free PDF Flipbook | Portfolia",
