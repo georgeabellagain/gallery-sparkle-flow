@@ -77,6 +77,7 @@ export function PdfViewer({
   home,
   backgroundUrl: uploadedBackgroundUrl,
   controls,
+  homepageExample = false,
   autoTurn = false,
   demoNotes = false,
   onContentReadyChange,
@@ -121,6 +122,7 @@ export function PdfViewer({
   backgroundUrl?: string;
   /** Whether to show the icons. Defaults to on, except for small thumbnails. */
   controls?: boolean;
+  homepageExample?: boolean;
   autoTurn?: boolean;
   /** Only enabled by the homepage showcase; uses the actual flap animation. */
   demoNotes?: boolean;
@@ -155,6 +157,7 @@ export function PdfViewer({
   const [pseudoFull, setPseudoFull] = useState(false);
   const editorFullscreen = useContext(EditorFullscreenContext);
   const full = nativeFull || pseudoFull || Boolean(editorFullscreen?.full);
+  const minimalControls = homepageExample && !full;
   const [panel, setPanel] = useState<"profile" | "pages" | "projects" | null>(null);
   const [projectMessage, setProjectMessage] = useState("");
   const [manualProjectLink, setManualProjectLink] = useState("");
@@ -602,7 +605,7 @@ export function PdfViewer({
 
       {showControls && (
         <div className="pointer-events-none sticky top-0 z-50 h-0">
-          {(home || profile) && (
+          {!minimalControls && (home || profile) && (
             <div ref={profileRef} className={cn("pointer-events-auto absolute left-3 top-3 transition-opacity duration-300", fade)}>
               <div className="flex items-center gap-2">
                 {home && <LogoMark tone={tone} />}
@@ -613,9 +616,9 @@ export function PdfViewer({
               {panel === "profile" && profile && <Panel label="Profile" style={{ maxHeight: "calc(100dvh - 5rem)" }} className="mt-3 w-[min(24rem,calc(100vw-1.5rem))] overflow-y-auto overflow-x-hidden [overflow-wrap:anywhere] overscroll-contain">{profile}</Panel>}
             </div>
           )}
-          <div ref={clusterRef} style={home || profile ? { maxWidth: "calc(100% - 7rem)" } : undefined} className={cn("pointer-events-auto absolute right-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] flex-col items-end gap-2 transition-opacity duration-300", fade)}>
+          <div ref={clusterRef} style={!minimalControls && (home || profile) ? { maxWidth: "calc(100% - 7rem)" } : undefined} className={cn("pointer-events-auto absolute right-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] flex-col items-end gap-2 transition-opacity duration-300", fade)}>
             <div ref={toolbarRef} role="toolbar" aria-label="Viewer controls" className={cn("flex flex-wrap items-center justify-end gap-0.5 rounded-full p-1 shadow-sm backdrop-blur-md", tone === "dark" ? "bg-slate-950/80 text-white" : "bg-white/90 text-slate-700")}>
-              {doc && availableModes.length > 1 && (
+              {!minimalControls && doc && availableModes.length > 1 && (
                 <div role="radiogroup" aria-label="Reading mode" className="flex items-center">
                   {MODES.filter(([m]) => availableModes.includes(m)).map(([m, label, Icon]) => (
                     <IconButton key={m} label={label} tone={tone} checked={mode === m} onClick={() => setMode(m)}>
@@ -624,33 +627,33 @@ export function PdfViewer({
                   ))}
                 </div>
               )}
-              {doc && (
+              {!minimalControls && doc && (
                 <IconButton label="Pages" tone={tone} pressed={panel === "pages"} onClick={() => togglePanel("pages")}>
                   <LayoutGrid className="size-[17px]" />
                 </IconButton>
               )}
-              {sections.length > 0 && (
+              {!minimalControls && sections.length > 0 && (
                 <IconButton label="Projects" tone={tone} pressed={panel === "projects"} onClick={() => togglePanel("projects")}>
                   <List className="size-[17px]" />
                 </IconButton>
               )}
               {/* Page numbers share the controls row in every reading mode. */}
-              {doc && (
+              {!minimalControls && doc && (
                 <span className={cn("inline-flex rounded-full px-2.5 py-2 text-[11px] tabular-nums ring-1 backdrop-blur-sm", tone === "dark" ? "bg-slate-950/75 text-white ring-white/20" : "bg-white/90 text-slate-700 ring-black/15")} aria-live="polite">
                   {current} / {doc.numPages}
                 </span>
               )}
-              {doc && (
+              {!minimalControls && doc && (
                 <IconButton label="Zoom out" tone={tone} onClick={() => z(-zoomStep)} disabled={zoom <= minimumZoom}>
                   <ZoomOut className="size-[17px]" />
                 </IconButton>
               )}
-              {doc && (
+              {!minimalControls && doc && (
                 <button type="button" onClick={() => setZoom(1)} aria-label="Reset zoom" className={cn("hidden w-10 rounded-full py-1 text-center text-[11px] tabular-nums transition-colors sm:inline", quiet, tone === "dark" ? "hover:text-white" : "hover:text-black")}>
                   {Math.round(zoom * 100)}%
                 </button>
               )}
-              {doc && (
+              {!minimalControls && doc && (
                 <IconButton label="Zoom in" tone={tone} onClick={() => z(zoomStep)} disabled={zoom >= 3}>
                   <ZoomIn className="size-[17px]" />
                 </IconButton>
@@ -658,13 +661,13 @@ export function PdfViewer({
               <IconButton label={full ? "Exit full screen" : "Full screen"} tone={tone} onClick={() => void toggleFull()}>
                 {full ? <Minimize2 className="size-[17px]" /> : <Maximize2 className="size-[17px]" />}
               </IconButton>
-              {allowDownload && downloadUrl && (
+              {!minimalControls && allowDownload && downloadUrl && (
                 <a href={downloadUrl} download={fileName} onClick={onDownload} aria-label="Download PDF" title="Download PDF" className={iconClass(tone)}>
                   <Download className="size-[17px]" />
                 </a>
               )}
             </div>
-            {panel === "projects" && doc && (
+            {!minimalControls && panel === "projects" && doc && (
               <Panel label="Projects" style={panelFit} className="w-[min(24rem,calc(100vw-1.5rem))] max-w-full overflow-auto overscroll-contain">
                 <h2 className="mb-3 text-sm font-medium">Projects</h2>
                 <ol className="space-y-2">
@@ -684,7 +687,7 @@ export function PdfViewer({
                 {manualProjectLink && <input aria-label="Project link" readOnly value={manualProjectLink} onFocus={(e) => e.target.select()} className="mt-2 w-full rounded border p-2 text-xs" />}
               </Panel>
             )}
-            {panel === "pages" && doc && (
+            {!minimalControls && panel === "pages" && doc && (
               <Panel label="Pages" style={panelFit} className="w-[min(24rem,calc(100vw-1.5rem))] max-w-full overflow-auto overscroll-contain">
                 <div className="grid grid-cols-4 gap-2">
                   {sizes.map((s, i) => (
@@ -729,7 +732,7 @@ export function PdfViewer({
       {mode === "book" && activeLook === "studio" && renderedStudio && !renderFailed && !compact ? (
         <RenderedBook fill={full || immersive} pack={renderedStudio} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} onReady={bookReadyChanged} onFallback={() => setRenderFailed(true)} />
       ) : mode === "book" ? (
-        <Suspense fallback={null}><BookView showPageNumber={!showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...view, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
+        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={!showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...view, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>
@@ -744,7 +747,7 @@ export function PdfViewer({
               )}
             </div>
           </div>
-          {showControls && (
+          {showControls && !minimalControls && (
             <>
               {pageArrow("left")}
               {pageArrow("right")}
