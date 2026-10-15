@@ -1019,7 +1019,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     async prepareTurn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number, speed = 1, plan: TabPlan[] | null = null, dragging = false) {
       if (disposed) return;
       const openingCover = dir === 1 && !from[0] && Boolean(from[1] && to[0] && to[1]);
-      if (openingCover && !dragging) speed *= 1.2;
+      if (openingCover && !dragging) speed *= 1.8;
       bakedTurn = posesForTurn(from, to, dir);
       for (const canvas of [...from, ...to]) if (canvas) renderer.initTexture(textureFor(canvas));
       turning = true;

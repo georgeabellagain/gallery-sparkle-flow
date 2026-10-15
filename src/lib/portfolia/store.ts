@@ -241,8 +241,14 @@ function randomCode() {
   return Array.from({ length: 5 }, () => a[Math.floor(Math.random() * a.length)]).join("");
 }
 
-export function startPortfolio(pdf: PdfFile): boolean {
+export function startPortfolio(pdf: PdfFile, options: { newPortfolio?: boolean } = {}): boolean {
+  if (options.newPortfolio && allPortfolios(getDoc()).length > 0 && !canAddPortfolio(getDoc())) return false;
   return update((d) => {
+    if (options.newPortfolio && d.portfolio) {
+      d.others.unshift({ portfolio: d.portfolio, analytics: d.analytics });
+      d.portfolio = null;
+      d.analytics = { visits: [], downloads: [] };
+    }
     if (d.portfolio) {
       // Only one active portfolio: a new upload on the landing page becomes the draft's PDF.
       if (d.portfolio.status === "draft") d.portfolio.pdf = pdf;
