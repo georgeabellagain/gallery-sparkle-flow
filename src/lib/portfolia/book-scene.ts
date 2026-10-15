@@ -1,3 +1,5 @@
+import { createTurnShadowCache, turnShadowKey } from "./turn-shadow-cache";
+import { createBookAntialias } from "./book-antialias";
 import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
 import { turnEase, turnClearance, turnSheetHeight, captureFrames, turnRestVisible } from "./turn-motion";
 import { averageEnvironment, createEnvironmentDiffuser } from "./environment-diffusion";
@@ -52,7 +54,7 @@ const SHEET_CLEARANCE = 0.01;
 export function createBookScene(host: HTMLElement, ratio: number, onLost: () => void, onRestored?: () => void, initialSettings?: StudioSettings, fixedQuality = false) {
   const compact = window.innerWidth < 720;
   const dpr = window.devicePixelRatio || 1;
-  // Edges are smoothed by multisampling (always on), so the picture does not need to be drawn at more than
+  // Edges are smoothed by explicit multisampling, so the picture does not need to be drawn at more than
   // twice the screen's own detail. Drawing fewer pixels is what keeps Studio's paper shading quick.
   let pixelRatio = fixedQuality ? 2 : Math.min(Math.max(dpr, 1), compact ? 1.5 : 2);
   let appliedRatio = pixelRatio;
@@ -62,9 +64,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let frameSink: ((canvas: HTMLCanvasElement) => void) | undefined;
   const renderer = new THREE.WebGLRenderer({
     alpha: true,
-    antialias: true,
+    antialias: false,
     powerPreference: "high-performance",
   });
+  const antialias = createBookAntialias(renderer, fixedQuality);
   renderer.setPixelRatio(pixelRatio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NoToneMapping;
@@ -185,6 +188,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   sunPatch.shadow.camera.far = 12;
   const dapples = new Map<string, THREE.CanvasTexture>();
   scene.add(sunPatch, sunPatch.target);
+  const shadowCache = createTurnShadowCache([light, sunPatch], compact ? 64 : 128);
+  let shadowProgress = 0, shadowDirection = 1;
 
   // The book floats this far above the background, which is what makes its shadow show.
   const BOOK_LIFT = 0.07;
@@ -425,8 +430,19 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     pendingDragShape = null;
     update?.();
     backdrop.frame(camera, w, h, Math.max(ratio * 1.1 + FRAME_PAD, 2.32 / camera.aspect) * (1 + inset));
-    renderer.shadowMap.needsUpdate = turning || shadowsDirty;
-    renderer.render(scene, camera);
+    // Decorations have their own moving geometry and must never borrow a bare-page shadow.
+    let decorated = false;
+    book.traverse(o => { if (o instanceof THREE.Mesh && o.castShadow && o !== left && o !== right && o !== front) decorated = true; });
+    const key = settings.studio && sheet.visible && !decorated && !fixedQuality
+      ? turnShadowKey(shadowProgress, shadowDirection, left.visible, right.visible) : null;
+    // A soft moving shadow needs less resolution than the stationary reading view.
+    // Keeping turn targets at 256 also bounds the 128-frame desktop cache to ~64 MiB.
+    for (const source of [light, sunPatch]) source.shadow.mapSize.set(key ? 256 : 512, key ? 256 : 512);
+    const cached = key !== null && shadowCache.restore(key);
+    if (!key) shadowCache.detach();
+    renderer.shadowMap.needsUpdate = !cached && (turning || shadowsDirty);
+    antialias.render(scene, camera);
+    if (key && !cached) shadowCache.save(key);
     frameSink?.(renderer.domElement);
     shadowsDirty = false;
   };
@@ -642,6 +658,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const backdrop = createLitBackdrop(scene, requestPaint);
   const configure = (next: StudioSettings) => {
     next = {...next, material:paperFinish(next.material)};
+    shadowCache.clear();
     settings = next;
     shadowsDirty = true;
     const mix = studioLightMix(next.strength);
@@ -811,6 +828,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   };
   const stickyPosition = new THREE.Vector3(), stickyNormal = new THREE.Vector3();
   const shape = (progress: number, dir: 1 | -1) => {
+    shadowProgress = progress; shadowDirection = dir;
     if (turnRestPages) {
       [left, right].forEach((mesh, i) => {
         const visible = !!turnRestPages![i] && turnRestVisible(progress, i === (dir === 1 ? 1 : 0));
@@ -1112,6 +1130,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       await this.settleTurn(true);
     },
     dispose() {
+      shadowCache.clear();
+      antialias.dispose();
       notes.clear();
       tabs.clear();
       airDust.dispose();
