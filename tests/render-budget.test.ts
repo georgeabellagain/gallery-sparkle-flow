@@ -26,3 +26,18 @@ test("slow-device adjustment still reduces work when fullscreen is already below
   assert.ok(reduced < normal);
   assert.equal(bookSurfaceRatio(390, 844, 1.25, 2_600_000), 1.25);
 });
+
+
+test("each adaptive step reduces capped fullscreen fragment work while preserving reading detail", () => {
+  for (const [w, h] of [[1920,1080], [3840,2160], [7680,4320]]) {
+    let previous = w * h * bookSurfaceRatio(w,h,2,bookMotionBudget(5_200_000,true)) ** 2;
+    for (let step=1; step<=3; step++) {
+      const scale=.9 ** step;
+      const budget=bookMotionBudget(5_200_000,true,scale);
+      const pixels=w*h*bookSurfaceRatio(w,h,2*scale,budget) ** 2;
+      assert.ok(pixels <= previous*.810001);
+      assert.equal(bookMotionBudget(5_200_000,false,scale),5_200_000);
+      previous=pixels;
+    }
+  }
+});

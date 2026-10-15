@@ -4,9 +4,10 @@ export function bookSurfaceRatio(width: number, height: number, quality: number,
   return Math.min(quality, fit * Math.min(1, quality));
 }
 
-/** Keep turns at reading resolution; adaptive quality still protects slower GPUs. */
-export function bookMotionBudget(restBudget: number, moving: boolean) {
-  return moving ? Math.min(restBudget, 5_200_000) : restBudget;
+/** Apply adaptation to the pixel budget too: fullscreen may already be budget-limited. */
+export function bookMotionBudget(restBudget: number, moving: boolean, qualityScale = 1) {
+  const scale = Math.max(.1, Math.min(1, qualityScale));
+  return moving ? Math.min(restBudget, 5_200_000) * scale * scale : restBudget;
 }
 
 /** Keep recently used reader textures warm without evicting visible artwork. */
