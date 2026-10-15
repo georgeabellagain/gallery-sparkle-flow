@@ -1,5 +1,5 @@
 import { applyTurnPose, bakeTurnGeometry, createTurnGeometryCache, turnGeometryWriter, restingTurnNormals, type TurnPose } from "./turn-geometry-cache";
-import { createTurnShadowCache, turnShadowKey } from "./turn-shadow-cache";
+import { createRestingPageShadows } from "./resting-page-shadows";
 import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
 import { turnEase, captureFrames, turnRestVisible } from "./turn-motion";
 import { averageEnvironment, createEnvironmentDiffuser } from "./environment-diffusion";
@@ -187,8 +187,6 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   sunPatch.shadow.camera.far = 12;
   const dapples = new Map<string, THREE.CanvasTexture>();
   scene.add(sunPatch, sunPatch.target);
-  const shadowCache = createTurnShadowCache([light, sunPatch], compact ? 64 : 128);
-  let shadowProgress = 0, shadowDirection = 1;
 
   // The book floats this far above the background, which is what makes its shadow show.
   const BOOK_LIFT = 0.07;
@@ -327,8 +325,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   left.position.set(-0.5, 0, 0);
   right.position.set(0.5, 0, 0);
   left.receiveShadow = right.receiveShadow = true;
-  left.castShadow = right.castShadow = true;
   book.add(left, right);
+  const restingShadows = createRestingPageShadows(book, [left, right]);
 
   // The turning sheet shows its two faces through two views of one geometry.
   // The reverse view has mirrored texture coordinates, so the same texture
@@ -425,19 +423,12 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     pendingDragShape = null;
     update?.();
     backdrop.frame(camera, w, h, Math.max(ratio * 1.1 + FRAME_PAD, 2.32 / camera.aspect) * (1 + inset));
-    // Decorations have their own moving geometry and must never borrow a bare-page shadow.
-    let decorated = false;
-    book.traverse(o => { if (o instanceof THREE.Mesh && o.castShadow && o !== left && o !== right && o !== front) decorated = true; });
-    const key = settings.studio && sheet.visible && shadowProgress > .08 && shadowProgress < .92 && !decorated && !fixedQuality
-      ? turnShadowKey(shadowProgress, shadowDirection, left.visible, right.visible) : null;
-    // A soft moving shadow needs less resolution than the stationary reading view.
-    // Keeping turn targets at 256 also bounds the 128-frame desktop cache to ~64 MiB.
-    for (const source of [light, sunPatch]) source.shadow.mapSize.set(key ? 256 : 512, key ? 256 : 512);
-    const cached = key !== null && shadowCache.restore(key);
-    if (!key) shadowCache.detach();
-    renderer.shadowMap.needsUpdate = !cached && (turning || shadowsDirty);
+    // Fixed 512px maps remain attached to the lights. Moving sheets and notes
+    // update once per displayed frame; idle scenes only refresh when dirtied.
+    // Keep hidden receiving/covered pages in the shadow pass throughout a turn.
+    restingShadows.sync(turnRestPages ?? [left.visible, right.visible]);
+    renderer.shadowMap.needsUpdate = turning || shadowsDirty;
     renderer.render(scene, camera);
-    if (key && !cached) shadowCache.save(key);
     frameSink?.(renderer.domElement);
     shadowsDirty = false;
   };
@@ -653,7 +644,6 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const backdrop = createLitBackdrop(scene, requestPaint);
   const configure = (next: StudioSettings) => {
     next = {...next, material:paperFinish(next.material)};
-    shadowCache.clear();
     settings = next;
     shadowsDirty = true;
     const mix = studioLightMix(next.strength);
@@ -830,7 +820,6 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     return turnGeometryCache.get(key, () => bakeTurnGeometry(geometry, turnGeometryWriter(geometry, ratio, dir, seeds, restingSeeds, SHEET_CLEARANCE), 128, [restingTurnNormals(geometry, ratio, dir, seeds[0]!, dir), restingTurnNormals(geometry, ratio, -dir as 1 | -1, seeds[1]!, -dir)]));
   };
   const shape = (progress: number, dir: 1 | -1) => {
-    shadowProgress = progress; shadowDirection = dir;
     if (turnRestPages) {
       [left, right].forEach((mesh, i) => {
         const visible = !!turnRestPages![i] && turnRestVisible(progress, i === (dir === 1 ? 1 : 0));
@@ -1112,7 +1101,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     dispose() {
       turnGeometryCache.clear();
       bakedTurn = null;
-      shadowCache.clear();
+      restingShadows.dispose();
       notes.clear();
       tabs.clear();
       airDust.dispose();
