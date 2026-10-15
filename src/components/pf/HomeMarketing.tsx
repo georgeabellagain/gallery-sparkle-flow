@@ -9,7 +9,7 @@ const FeatureShowcase=lazy(()=>import("./FeatureShowcase").then(m=>({default:m.F
 export function HomeMarketing({onUpgrade,onAccepted,limitMb}:{onUpgrade:()=>void;onAccepted:(pdf:PdfFile)=>void;limitMb:number}) {
  return <div className="bg-background">
    <Suspense fallback={<div className="min-h-[32rem]" aria-label="Loading portfolio features" />}><FeatureShowcase onAccepted={onAccepted} limitMb={limitMb} /></Suspense>
-   <section id="pricing" aria-labelledby="home-pricing-title" className="shell border-t border-border py-16 sm:py-24">
+   <section id="pricing" aria-labelledby="home-pricing-title" className="shell border-t border-border pt-7 pb-16 sm:pt-10 sm:pb-24">
     <h2 id="home-pricing-title" className="display-title text-3xl sm:text-4xl">Start free. Make it yours.</h2>
     <p className="mt-3 text-sm text-muted-foreground">Create and share your portfolio for free, or choose Personal for larger PDFs and more portfolios.</p>
     <div className="mx-auto mt-10 grid max-w-5xl gap-5 sm:grid-cols-2">

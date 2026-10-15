@@ -246,8 +246,8 @@ export function FeatureShowcase({ onAccepted, limitMb }: { onAccepted: (pdf: Pdf
           aria-labelledby={`feature-tab-${feature.id}`}
           className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)] lg:gap-8"
         >
-          <div className="min-w-0">
-            <div className="pf-feature-live relative isolate overflow-hidden rounded-none border border-border bg-[#10162e]">
+          <div className="min-w-0 lg:contents">
+            <div className="pf-feature-live relative isolate overflow-hidden rounded-none border border-border bg-[#10162e] lg:col-start-1 lg:row-start-1">
               {near &&
                 url &&
                 p?.pdf &&
@@ -307,7 +307,7 @@ export function FeatureShowcase({ onAccepted, limitMb }: { onAccepted: (pdf: Pdf
                 </div>
               )}
             </div>
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 lg:col-start-1 lg:row-start-2 lg:mt-0">
               <p className="text-xs text-muted-foreground">{FEATURED_CREDIT}</p>
               <div
                 className="flex items-center gap-2"
@@ -355,7 +355,7 @@ export function FeatureShowcase({ onAccepted, limitMb }: { onAccepted: (pdf: Pdf
               </div>
             </div>
           </div>
-          <div className="self-center py-3 lg:px-2">
+          <div className="flex min-w-0 flex-col lg:col-start-2 lg:row-start-1 lg:px-2">
             <p className="text-xs uppercase tracking-widest text-muted-foreground">
               {feature.label}
             </p>
@@ -363,13 +363,9 @@ export function FeatureShowcase({ onAccepted, limitMb }: { onAccepted: (pdf: Pdf
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
               {feature.text}
             </p>
-            <div className="mt-7">
+            <div className="mt-7 [&>div]:relative lg:mt-auto lg:pt-7 lg:[&_details]:absolute lg:[&_details]:inset-x-0 lg:[&_details]:top-full">
               <DropZone small label="Choose PDF" className="rounded-none" buttonClassName="bg-black text-white hover:bg-black/80" onAccepted={onAccepted} limitMb={limitMb} />
             </div>
-            <p className="mt-5 text-xs leading-relaxed text-muted-foreground">
-              Artwork from Scarlett Bushell’s lookbook. Feature demonstrations
-              loop automatically.
-            </p>
           </div>
         </div>
       </div>
