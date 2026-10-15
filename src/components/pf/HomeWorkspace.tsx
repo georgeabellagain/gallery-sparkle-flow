@@ -1,3 +1,4 @@
+import { BookLoader } from "./book-loader";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Plus, Share2, SlidersHorizontal, Upload } from "lucide-react";
@@ -78,7 +79,7 @@ export function HomeWorkspace() {
         <EditorStage key={p.code} home p={p} preview={preview} profile={profile} statistics={doc.account.signedIn ? <AnalyticsPanel data={doc.analytics} title="This portfolio" description={p.pdf.name} /> : undefined} onUpload={() => input.current?.click()} onSaveError={setError} onDialog={d => setDialog(d === "replace" ? "upload" : d)} onPublish={publish} onUnpublish={() => setDialog("unpublish")} />
         <div className="absolute inset-x-0 bottom-1 z-40 text-center text-[10px] text-muted-foreground">{status}</div>
       </> : <div className="pf-home-example relative h-[calc(100dvh-3.5rem)] min-h-[34rem]">
-        <div className="absolute inset-0"><Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted-foreground">Preparing the example…</div>}><StudioDemo workspace className="relative h-full w-full" /></Suspense></div>
+        <div className="absolute inset-0"><Suspense fallback={<div className="flex h-full items-center justify-center"><BookLoader tone="light" label="" /></div>}><StudioDemo workspace className="relative h-full w-full" /></Suspense></div>
         <h1 className="sr-only">Portfolia portfolio workspace</h1>
         <span className="pointer-events-none absolute left-4 top-5 z-20 rounded-full bg-background/90 px-3 py-1.5 text-[11px] shadow-soft">Example portfolio</span>
         <nav aria-label="Portfolio workspace tools" className="pf-home-toolbar absolute bottom-7 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-border bg-background/95 p-2 shadow-lift backdrop-blur">
@@ -98,7 +99,7 @@ export function HomeWorkspace() {
       {profile}<Button className="mt-5 w-full" disabled={!p?.profile.name.trim()} onClick={() => { setDialog(null); publish(); }}>Continue to publish</Button>
     </Modal>
     <Modal open={dialog === "portfolios"} onClose={() => setDialog(null)} title="My portfolios">
-      <div className="grid gap-2">{allPortfolios(doc).map(item => <Button key={item.code} variant="line" className="justify-start" onClick={() => { if (item.code !== p?.code) switchPortfolio(item.code); setDialog(null); }}>{item.profile.name || item.pdf?.name || "Untitled portfolio"}{item.code === p?.code ? " · Current" : ""}</Button>)}</div>
+      <div className="grid gap-2">{allPortfolios(doc).map(item => <Button key={item.code} variant="line" className="justify-start" onClick={() => { if (item.code !== p?.code) switchPortfolio(item.code); setDialog(null); }}>{item.name?.trim() || item.pdf?.name?.replace(/\.pdf$/i, "") || item.profile.name || "Untitled portfolio"}{item.code === p?.code ? " · Current" : ""}</Button>)}</div>
       <Button className="mt-5" onClick={() => { if (!p || canAddPortfolio(doc)) { if (p) beginNewPortfolio(); setDialog("upload"); } else { setDialog(null); setUpgrade(true); } }}>New portfolio</Button>
     </Modal>
     <Modal open={dialog === "unpublish"} onClose={() => setDialog(null)} title="Unpublish portfolio?">

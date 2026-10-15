@@ -257,6 +257,7 @@ export function createBookNotes(
             const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
             covered.push({ mesh, rest: Float32Array.from(positions.array), centre: entry.group.position.clone(), seed: entry.seed, revealing: entry.incoming });
             if (entry.incoming) {
+              entry.group.visible = true;
               const gap = (mesh.material as THREE.MeshStandardMaterial).side === THREE.BackSide ? -.0002 : .0002;
               for (let i = 0; i < positions.count; i++) positions.setZ(i, reliefAt(positions.getX(i) + entry.group.position.x, positions.getY(i) + entry.group.position.y, entry.seed) + .002 + gap);
               positions.needsUpdate = true;
@@ -291,16 +292,24 @@ export function createBookNotes(
       // Compress the note under the approaching sheet, fully flat at 75% of the turn.
       const t = Math.min(1, Math.max(0, (progress - .6) / .15));
       const flatten = t * t * (3 - 2 * t);
-      const reveal = Math.min(1, Math.max(0, (progress - .55) / .2));
+      const reveal = Math.min(1, Math.max(0, (progress - .2) / .35));
       const revealFlatten = 1 - reveal * reveal * (3 - 2 * reveal);
       for (const { mesh, rest, centre, seed, revealing } of covered) {
-        if(mesh.parent) mesh.parent.visible = revealing ? progress >= .5 : true;
+        if(mesh.parent) mesh.parent.visible = true;
         const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
         const faceGap = (mesh.material as THREE.MeshStandardMaterial).side === THREE.BackSide ? -.0002 : .0002;
         for (let i = 0; i < positions.count; i++) {
           const originalZ = rest[i * 3 + 2]!;
           const flatZ = reliefAt(rest[i * 3]! + centre.x, rest[i * 3 + 1]! + centre.y, seed) + .002 + faceGap;
           let height = THREE.MathUtils.lerp(originalZ, flatZ, revealing ? revealFlatten : flatten);
+          if(revealing && sheetPoint && progress < .4) {
+            const x = rest[i*3]! + centre.x, y = rest[i*3+1]! + centre.y;
+            const cover = sheetPoint(Math.min(1,Math.abs(x)), y/ratio+.5);
+            if (cover.position.x * x >= 0) {
+              const clearance = Math.min(1, Math.max(0, (progress - .15) / .25));
+              height = THREE.MathUtils.lerp(Math.min(height, cover.position.z - .001), height, clearance);
+            }
+          }
           if(!revealing && sheetPoint && progress>.75){
             const x=rest[i*3]!+centre.x,y=rest[i*3+1]!+centre.y;
             const cover=sheetPoint(Math.min(1,Math.abs(x)),y/ratio+.5);

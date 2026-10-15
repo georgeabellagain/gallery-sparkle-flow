@@ -1,3 +1,4 @@
+import { PortfolioLoading } from "@/components/pf/book-loader";
 import { AccessGate } from "@/components/pf/AccessGate";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { CloudVisitor, LOCAL_MISSING, Missing } from "@/components/pf/Visitor";
@@ -7,6 +8,8 @@ import { portfolioHead } from "@/lib/portfolia/head";
 
 export const Route = createFileRoute("/$username")({
   staticData: { sitemap: false },
+  pendingMs: 0,
+  pendingComponent: PortfolioLoading,
   loader: async ({ params }) => {
     const u = params.username.toLowerCase();
     if (RESERVED.includes(u)) throw notFound();
