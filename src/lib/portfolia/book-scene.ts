@@ -1,4 +1,4 @@
-import { applyTurnPose, bakeTurnGeometry, createTurnGeometryCache, turnGeometryWriter, type TurnPose } from "./turn-geometry-cache";
+import { applyTurnPose, bakeTurnGeometry, createTurnGeometryCache, turnGeometryWriter, restingTurnNormals, type TurnPose } from "./turn-geometry-cache";
 import { createTurnShadowCache, turnShadowKey } from "./turn-shadow-cache";
 import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
 import { turnEase, captureFrames, turnRestVisible } from "./turn-motion";
@@ -428,7 +428,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // Decorations have their own moving geometry and must never borrow a bare-page shadow.
     let decorated = false;
     book.traverse(o => { if (o instanceof THREE.Mesh && o.castShadow && o !== left && o !== right && o !== front) decorated = true; });
-    const key = settings.studio && sheet.visible && !decorated && !fixedQuality
+    const key = settings.studio && sheet.visible && shadowProgress > .08 && shadowProgress < .92 && !decorated && !fixedQuality
       ? turnShadowKey(shadowProgress, shadowDirection, left.visible, right.visible) : null;
     // A soft moving shadow needs less resolution than the stationary reading view.
     // Keeping turn targets at 256 also bounds the 128-frame desktop cache to ~64 MiB.
@@ -827,7 +827,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const seeds = [seedFor(from[dir === 1 ? 1 : 0]), seedFor(to[dir === 1 ? 0 : 1])];
     const restingSeeds = [seedFor(dir === 1 ? from[0] : to[0]), seedFor(dir === 1 ? to[1] : from[1])];
     const key = `${dir}|${seeds.join(":")}|${restingSeeds.join(":")}`;
-    return turnGeometryCache.get(key, () => bakeTurnGeometry(geometry, turnGeometryWriter(geometry, ratio, dir, seeds, restingSeeds, SHEET_CLEARANCE)));
+    return turnGeometryCache.get(key, () => bakeTurnGeometry(geometry, turnGeometryWriter(geometry, ratio, dir, seeds, restingSeeds, SHEET_CLEARANCE), 128, [restingTurnNormals(geometry, ratio, dir, seeds[0]!, dir), restingTurnNormals(geometry, ratio, -dir as 1 | -1, seeds[1]!, -dir)]));
   };
   const shape = (progress: number, dir: 1 | -1) => {
     shadowProgress = progress; shadowDirection = dir;
