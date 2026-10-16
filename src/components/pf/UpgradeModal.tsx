@@ -44,7 +44,7 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
 
   return (
     <Modal open={open} onClose={onClose} title={paid ? "Personal plan" : "Upgrade to Personal"}>
-      <p className="text-muted-foreground">{paid ? "Your plan includes larger PDFs and multiple portfolios." : "Pay securely by card. Personal features unlock as soon as payment is confirmed."}</p>
+      <p className="text-muted-foreground">{paid ? "Your plan includes larger PDFs, multiple portfolios and HD flipbook video downloads." : "Pay securely by card. Personal features unlock as soon as payment is confirmed."}</p>
       {!p ? (
         <div className="mt-4">
           <p>Upload your first PDF to start creating your portfolio.</p>
@@ -65,6 +65,7 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
           <ul className="mt-5 space-y-1.5 text-sm">
             <li>✓ Up to {MAX_PORTFOLIOS} portfolios</li>
             <li>✓ PDFs up to {PERSONAL_UPLOAD_LIMIT_MB} MB each</li>
+            <li>✓ Download your flipbook as a 1080p HD video</li>
           </ul>
           <ul className="mt-4 space-y-1.5 text-xs text-muted-foreground">
             <li>Your free link /p/{p.code} keeps working, so links you’ve already shared stay useful.</li>

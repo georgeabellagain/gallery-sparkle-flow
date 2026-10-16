@@ -16,7 +16,7 @@ export const Route = createFileRoute("/pricing")({
       {
         name: "description",
         content:
-          `Free PDF portfolio hosting with Simple and Studio flipbooks, QR codes and embedding. Personal is ${PRICE.month}/month or ${PRICE.year}/year for more portfolios and larger PDFs.`,
+          `Free PDF portfolio hosting with Simple and Studio flipbooks, QR codes and embedding. Personal is ${PRICE.month}/month or ${PRICE.year}/year for more portfolios, larger PDFs and HD flipbook video downloads.`,
       },
       { property: "og:title", content: "Pricing — Portfolia PDF Portfolio Hosting" },
       {
@@ -51,7 +51,7 @@ function PricingPage() {
           <h1 className="display-title text-3xl sm:text-4xl">Pricing</h1>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
             Start free with one PDF portfolio and a permanent sharing address. Move to
-            Personal when you need larger PDFs and more portfolios.
+            Personal for larger PDFs, more portfolios and HD flipbook video downloads.
           </p>
 
           <div className="mx-auto mt-10 grid max-w-5xl gap-5 sm:grid-cols-2">
@@ -87,6 +87,7 @@ function PricingPage() {
               items={[
                 "Everything included in Free",
                 "Up to 10 portfolios, each up to 50 MB",
+                "Download your flipbook as a 1080p HD video",
               ]}
               action={
                 <Button size="lg" className="w-full bg-black text-white hover:bg-black/80" onClick={() => setUpgrade(true)}>
