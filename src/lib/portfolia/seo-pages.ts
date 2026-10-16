@@ -18,7 +18,7 @@ export const DISCIPLINE_PAGES: Record<string, Page> = {
       { title: "Your backdrop, your mood", body: "Pick a colour, a photographic surface such as wood or marble, or upload your own background picture." },
     ],
     sections: [
-      { title: "What is HDRI book visualisation?", body: "HDRI (high dynamic range imaging) environments capture real-world light. Used in 3D rendering, they make objects look as though they were photographed in a real room. Portfolia lights your book with these environments in the browser, so your printed design can be previewed as a believable physical object before or instead of a photo shoot. It shows your PDF exactly as designed; it does not create a 3D model of a printed binding or produce downloadable renders." },
+      { title: "What is HDRI book visualisation?", body: "HDRI (high dynamic range imaging) environments capture real-world light. Used in 3D rendering, they make objects look as though they were photographed in a real room. Portfolia lights your book with these environments in the browser, so your printed design can be previewed as a believable physical object before or instead of a photo shoot. It shows your PDF exactly as designed; it does not create a 3D model of a printed binding or validate print-ready files. Personal includes downloadable HD flip-through videos." },
       { title: "Who it is for", body: "Self-published authors previewing a novel or photo book, designers presenting editorial layouts, students showing a printed portfolio, and brands sharing a lookbook or catalogue. Anyone with a book PDF can present it as an object rather than a flat document." },
     ],
     checklist: ["Export your book as a PDF with single pages or two-page spreads.", "Keep files under 10 MB on Free or 50 MB on Personal.", "Choose a lighting environment and brightness in the editor.", "Check the result on a phone before sharing."],
@@ -200,6 +200,7 @@ export const DISCIPLINE_PAGES: Record<string, Page> = {
 };
 
 export const SEO_LINKS: { to: string; label: string }[] = [
+  { to: "/book-marketing", label: "Book marketing & video previews" },
   { to: "/flipbook-alternatives", label: "Compare flipbook tools" },
   { to: "/zine-flipbook", label: "Zine flipbooks" },
   { to: "/magazine-flipbook", label: "Digital magazines" },

@@ -1,3 +1,4 @@
+import { isPortfolioDraft } from "@/lib/portfolia/store";
 import { useEffect, useRef, useState } from "react";
 import { Minus, Plus, RotateCcw, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -11,11 +12,13 @@ import { CvIcon } from "./CvIcon";
 
 export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (msg: string | null) => void }) {
   const pr = p.profile;
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const [photoErr, setPhotoErr] = useState<string | null>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const [cvErr, setCvErr] = useState<string | null>(null);
   const cvInput = useRef<HTMLInputElement>(null);
-  const paid = p.plan === "personal";
+  const paid = (p.plan === "personal" || isPortfolioDraft(p.code));
 
   const onCv = async (f?: File) => {
     setCvErr(null);
@@ -33,6 +36,7 @@ export function ProfileForm({ p, onSaveError }: { p: Portfolio; onSaveError: (ms
     if (old) void deleteBlob(old);
   };
   const set = (patch: Parameters<typeof patchProfile>[0]) => {
+    if (!mounted.current) return false;
     const saved = patchProfile(patch);
     onSaveError(saved ? null : "Couldn’t save — this browser’s storage is full or blocked. Your last change wasn’t kept.");
     return saved;

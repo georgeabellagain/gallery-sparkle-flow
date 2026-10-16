@@ -40,6 +40,7 @@ export function OwnVisitor({ p, preview, trackActivity = true }: { p: Portfolio;
         </div>
       )}
       <PortfolioPage renderedStudio={currentRender(p)}
+        bookMarketing={p.bookMarketing}
         profile={p.profile}
         pdf={pdf}
         photoUrl={photoUrl}

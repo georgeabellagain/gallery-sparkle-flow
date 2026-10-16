@@ -65,6 +65,7 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
           <ul className="mt-5 space-y-1.5 text-sm">
             <li>✓ Up to {MAX_PORTFOLIOS} portfolios</li>
             <li>✓ PDFs up to {PERSONAL_UPLOAD_LIMIT_MB} MB each</li>
+            <li>✓ All 15 HDRIs, all backgrounds and uploaded pictures</li>
             <li>✓ Download your flipbook as a 1080p HD video</li>
           </ul>
           <ul className="mt-4 space-y-1.5 text-xs text-muted-foreground">

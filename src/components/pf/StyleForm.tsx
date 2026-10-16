@@ -1,3 +1,5 @@
+import { personalHdri } from "@/lib/portfolia/premium-appearance";
+import { isPortfolioDraft } from "@/lib/portfolia/store";
 import { ChoiceTile } from "./ChoiceTile";
 import { BackgroundSettings } from "./BackgroundSettings";
 import { ScrollText, File, BookOpen, Square, Sun, Layers, Origami, Newspaper } from "lucide-react";
@@ -46,17 +48,21 @@ export function StyleForm({
   const titled = part === "all" || part === "experience";
   const style = p.style ?? DEFAULT_STYLE;
   usePortfolioFont(style.font);
-  const paid = p.plan === "personal";
+  const paid = p.plan === "personal" || isPortfolioDraft(p.code);
   const input = useRef<HTMLInputElement>(null);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const [err, setErr] = useState<string | null>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const set = (patch: Partial<PageStyle>) => {
+    if (!mounted.current) return false;
     const saved = patchPortfolioAppearance(p.code, { style: patch });
     onSaveError(saved ? null : "Couldn’t save that style change.");
     return saved;
   };
   const viewer = { ...DEFAULT_VIEWER, ...p.viewer };
   const setViewer = (patch: Partial<ViewerSettings>) => {
+    if (!mounted.current) return false;
     const saved = patchPortfolioAppearance(p.code, { viewer: patch });
     onSaveError(saved ? null : "Couldn’t save that viewer change.");
     return saved;
@@ -401,7 +407,7 @@ export function StyleForm({
                         className="space-y-3 border-t border-border pt-3"
                         onPointerDownCapture={() => setPreviewLook("studio")}
                       >
-                        <p>Studio HDRI</p>
+                        <p>Studio HDRI</p><p className="text-xs text-muted-foreground">Preview any light. Free includes 1–4; Personal unlocks all 15 when saving.</p>
                         <div className="grid grid-cols-3 gap-2" aria-label="Studio lighting">
                           {HDRI_PRESETS.map((light) => (
                             <button
@@ -413,7 +419,7 @@ export function StyleForm({
                               className={`h-16 rounded-lg border bg-cover text-white ${studioLighting === light.id ? "ring-2 ring-blue-600 border-blue-600" : "border-border"}`}
                               style={{ background: light.preview }}
                             >
-                              <span className="rounded bg-black/60 px-2 py-1">{light.label}</span>
+                              <span className="rounded bg-black/60 px-2 py-1">{light.label}{personalHdri(light.id) ? " · Personal" : ""}</span>
                             </button>
                           ))}
                         </div>

@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as UsernameRouteImport } from './routes/$username'
 import { Route as ArchitecturePortfolioRouteImport } from './routes/architecture-portfolio'
 import { Route as ArtPortfolioRouteImport } from './routes/art-portfolio'
+import { Route as BookMarketingRouteImport } from './routes/book-marketing'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EditRouteImport } from './routes/edit'
@@ -80,6 +81,11 @@ const ArchitecturePortfolioRoute = ArchitecturePortfolioRouteImport.update({
 const ArtPortfolioRoute = ArtPortfolioRouteImport.update({
   id: '/art-portfolio',
   path: '/art-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookMarketingRoute = BookMarketingRouteImport.update({
+  id: '/book-marketing',
+  path: '/book-marketing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CreateRoute = CreateRouteImport.update({
@@ -333,6 +339,7 @@ export interface FileRoutesByFullPath {
   '/$username': typeof UsernameRoute
   '/architecture-portfolio': typeof ArchitecturePortfolioRoute
   '/art-portfolio': typeof ArtPortfolioRoute
+  '/book-marketing': typeof BookMarketingRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
@@ -387,6 +394,7 @@ export interface FileRoutesByTo {
   '/$username': typeof UsernameRoute
   '/architecture-portfolio': typeof ArchitecturePortfolioRoute
   '/art-portfolio': typeof ArtPortfolioRoute
+  '/book-marketing': typeof BookMarketingRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
@@ -442,6 +450,7 @@ export interface FileRoutesById {
   '/$username': typeof UsernameRoute
   '/architecture-portfolio': typeof ArchitecturePortfolioRoute
   '/art-portfolio': typeof ArtPortfolioRoute
+  '/book-marketing': typeof BookMarketingRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
@@ -498,6 +507,7 @@ export interface FileRouteTypes {
     | '/$username'
     | '/architecture-portfolio'
     | '/art-portfolio'
+    | '/book-marketing'
     | '/create'
     | '/dashboard'
     | '/edit'
@@ -552,6 +562,7 @@ export interface FileRouteTypes {
     | '/$username'
     | '/architecture-portfolio'
     | '/art-portfolio'
+    | '/book-marketing'
     | '/create'
     | '/dashboard'
     | '/edit'
@@ -606,6 +617,7 @@ export interface FileRouteTypes {
     | '/$username'
     | '/architecture-portfolio'
     | '/art-portfolio'
+    | '/book-marketing'
     | '/create'
     | '/dashboard'
     | '/edit'
@@ -661,6 +673,7 @@ export interface RootRouteChildren {
   UsernameRoute: typeof UsernameRoute
   ArchitecturePortfolioRoute: typeof ArchitecturePortfolioRoute
   ArtPortfolioRoute: typeof ArtPortfolioRoute
+  BookMarketingRoute: typeof BookMarketingRoute
   CreateRoute: typeof CreateRoute
   DashboardRoute: typeof DashboardRoute
   EditRoute: typeof EditRoute
@@ -739,6 +752,13 @@ declare module '@tanstack/react-router' {
       path: '/art-portfolio'
       fullPath: '/art-portfolio'
       preLoaderRoute: typeof ArtPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/book-marketing': {
+      id: '/book-marketing'
+      path: '/book-marketing'
+      fullPath: '/book-marketing'
+      preLoaderRoute: typeof BookMarketingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/create': {
@@ -1085,6 +1105,7 @@ const rootRouteChildren: RootRouteChildren = {
   UsernameRoute: UsernameRoute,
   ArchitecturePortfolioRoute: ArchitecturePortfolioRoute,
   ArtPortfolioRoute: ArtPortfolioRoute,
+  BookMarketingRoute: BookMarketingRoute,
   CreateRoute: CreateRoute,
   DashboardRoute: DashboardRoute,
   EditRoute: EditRoute,

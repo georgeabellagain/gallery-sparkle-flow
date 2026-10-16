@@ -1,3 +1,5 @@
+import { bookPurchaseUrl } from "@/lib/portfolia/book-marketing";
+import type { Portfolio } from "@/lib/portfolia/store";
 import type { RenderedStudio } from "@/lib/portfolia/rendered-studio";
 import type { Foldout } from "@/lib/portfolia/foldouts";
 import type { PageLink, PageTag } from "@/lib/portfolia/page-extras";
@@ -16,6 +18,7 @@ import { useBlob, useObjectUrl } from "./Chrome";
  */
 export function PortfolioPage({
   profile,
+  bookMarketing,
   renderedStudio,
   pdf,
   photoUrl,
@@ -36,6 +39,7 @@ export function PortfolioPage({
   projectCode,
   startFullscreen,
 }: {
+  bookMarketing?: Portfolio["bookMarketing"];
   profile: Profile;
   renderedStudio?: RenderedStudio;
   pdf: { blob: Blob } | { url: string } | null;
@@ -74,6 +78,10 @@ export function PortfolioPage({
 
   return (
     <div className="flex min-h-full flex-col bg-background" style={pageStyle ? { background: pageStyle.background, color: pageStyle.text } : undefined}>
+      {bookMarketing && (bookMarketing.description || bookPurchaseUrl(bookMarketing.buyUrl)) && <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background px-5 py-3">
+        {bookMarketing.description && <p className="max-w-3xl text-sm text-muted-foreground">{bookMarketing.description.slice(0,600)}</p>}
+        {bookPurchaseUrl(bookMarketing.buyUrl) && <a className="rounded-full bg-foreground px-5 py-2 text-sm text-background" href={bookPurchaseUrl(bookMarketing.buyUrl)} target="_blank" rel="noopener noreferrer">{bookMarketing.label?.slice(0,60) || "Buy the book"}</a>}
+      </div>}
       <h1 className="sr-only">{profile.name || "Portfolio"}</h1>
       <div className="flex-1">
         <PdfViewer

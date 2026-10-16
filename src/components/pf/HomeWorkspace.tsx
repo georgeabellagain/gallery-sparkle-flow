@@ -53,6 +53,7 @@ export function HomeWorkspace() {
     <header className="relative z-50 flex h-14 shrink-0 items-center justify-between gap-3 bg-background/95 px-5 sm:px-8">
       <Wordmark />
       <div className="flex items-center gap-4 text-xs sm:text-sm">
+        <Link to="/book-marketing">For authors</Link>
         <Link to="/pricing">Pricing</Link>
         {(doc.account.signedIn || allPortfolios(doc).length > 0) && <Link to="/dashboard">My portfolios</Link>}
         {!doc.account.signedIn && <Link to="/signin" search={{ next: "home" }}>Sign in</Link>}
