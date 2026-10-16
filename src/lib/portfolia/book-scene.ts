@@ -838,7 +838,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     if (bakedTurn) applyTurnPose(bakedTurn, progress, geometry);
     else return;
-    if (settings.material === "paper_0027") {
+    if (settings.material === "paper_0027" || settings.material === "paper_0022") {
       updatePaperTangents(geometry);
       updatePaperTangents(reverseGeometry, true);
     }

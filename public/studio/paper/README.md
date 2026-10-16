@@ -36,3 +36,13 @@ text protection. Crumbled loads only this one bitmap, with constant matte
 roughness and no live normal map, so mirrored faces and lighting-normal handoffs
 cannot reverse or change its fine grain. The page geometry still catches scene
 lighting and shadows normally. Newspaper retains dynamic normal/roughness maps.
+
+## Restored physical surface response
+
+Crumbled once again loads its original colour, OpenGL normal and roughness maps,
+shared between stationary and moving pages with the same 2× UV scale and normal
+strength. It no longer uses the baked bitmap. Both custom stocks now leave normal
+mapping independent of PDF luminance and screen-space text edges. Roughness is
+remapped to a matte 0.80–0.98 range; dark ink attenuates white specular reflection
+instead of switching normals/roughness at letter and image boundaries. This avoids
+bright edge halos while retaining real HDRI surface response and text protection.
