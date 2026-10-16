@@ -339,7 +339,8 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
                 <span className="block px-2 py-1.5 text-xs">{preset.label}</span>
               </button>)}
             </div>
-            <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 shrink-0 accent-foreground" checked={viewer.backgroundLighting ?? false} onChange={e => { setViewer({ backgroundLighting: e.target.checked }); setPreviewLook("studio"); }}/><span>Light background with HDRI <span className="block text-xs text-muted-foreground">Applies to colours and pictures in Studio view.</span></span></label>
+            <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 shrink-0 accent-foreground" checked={viewer.backgroundLighting ?? false} onChange={e => { setViewer({ backgroundLighting: e.target.checked, ...(!e.target.checked ? { background3D: false } : {}) }); setPreviewLook("studio"); }}/><span>Light background with HDRI <span className="block text-xs text-muted-foreground">Applies to colours and pictures in Studio view.</span></span></label>
+            <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 shrink-0 accent-foreground" checked={viewer.background3D ?? false} onChange={e => { setViewer({ background3D: e.target.checked, ...(e.target.checked ? { backgroundLighting: true } : {}) }); setPreviewLook("studio"); }}/><span>3D background <span className="block text-xs text-muted-foreground">Studio uses surface detail and roughness for realistic HDRI lighting. Presets use supplied maps; uploaded pictures use estimated relief.</span></span></label>
             <div className="space-y-2 rounded-xl border border-border p-3">
               <p className="font-medium">Different background per view</p>
               <p className="text-xxs text-muted-foreground">Optional. Views left on "Same as above" use the background chosen above.</p>

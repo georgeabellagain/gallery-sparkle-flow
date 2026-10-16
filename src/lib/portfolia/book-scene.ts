@@ -877,8 +877,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     async captureReady() { await backdrop.ready(); if (!await loadEnvironment(settings.hdri)) throw new Error("Studio lighting could not be prepared."); },
     setFrameSink(sink?: (canvas: HTMLCanvasElement) => void) { frameSink = sink; paint(); },
     renderFrame: paint,
-    setBackdrop(url: string | undefined, fit: Parameters<typeof backdrop.set>[1], lit: boolean, colour: string) {
-      backdrop.set(url, fit, true, colour, lit);
+    setBackdrop(url: string | undefined, fit: Parameters<typeof backdrop.set>[1], lit: boolean, colour: string, surface = false) {
+      backdrop.set(url, fit, true, colour, lit, surface);
     },
     setNotes: notes.set,
     notesReady: notes.has,

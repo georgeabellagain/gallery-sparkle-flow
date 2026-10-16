@@ -6,3 +6,9 @@ export const BACKGROUND_PRESETS = [{"id": "wood_floor", "label": "Warm wood", "u
 export function backgroundPicture(view: Pick<ViewerSettings, "backgroundKey" | "backgroundPreset">, uploaded?: string) {
   return view.backgroundKey ? uploaded : BACKGROUND_PRESETS.find(p => p.id === view.backgroundPreset)?.url ?? uploaded;
 }
+
+/** Preset surface maps are linear data, aligned with the bundled albedo. */
+export function backgroundSurfaceMaps(url?: string) {
+  const preset = BACKGROUND_PRESETS.find(p => url?.split("?")[0]?.endsWith(p.url));
+  return preset ? { normal: `/studio/backgrounds/${preset.id}-nor_gl.webp`, roughness: `/studio/backgrounds/${preset.id}-rough.webp` } : undefined;
+}

@@ -265,7 +265,9 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   };
   return {
     configure,
-    setBackdrop: backdrop.set,
+    setBackdrop(url: string | undefined, fit: Parameters<typeof backdrop.set>[1], lit: boolean, colour: string, surface = false) {
+      backdrop.set(url, fit, lit, colour, lit, surface);
+    },
     present(element: HTMLElement, source: HTMLCanvasElement, commit: (live: boolean) => Presentation | void, current = () => true) {
       if (disposed || failed) { if (current()) commit(false); return; }
       pending.stage(element, { source, commit, current });
