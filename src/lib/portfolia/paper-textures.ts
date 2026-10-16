@@ -11,7 +11,7 @@ export function applyPaperMaps(material: THREE.MeshStandardMaterial, kind: Surfa
   const active = Boolean(paperTextureId(kind) && maps);
   const changed = Boolean(material.normalMap) !== active || Boolean(material.roughnessMap) !== active;
   material.normalMap = active ? maps!.normal : null;
-  const strength = kind === "paper_0022" ? .16 : .22;
+  const strength = kind === "paper_0022" ? -.16 : .29;
   material.normalScale.set(strength, strength);
   material.roughnessMap = active ? maps!.roughness : null;
   material.roughness = active ? 1 : paperFinish(kind) === "satin" ? .42 : .97;

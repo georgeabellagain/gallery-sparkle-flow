@@ -22,3 +22,7 @@ normal-map orientation consistent across resting pages and mirrored turn faces.
 Both stocks suppress normal, roughness and colour variation over dark ink and
 high-contrast PDF edges to protect small text. Colour modulation is reduced to
 30%; Paper 27 normal strength is 0.22. The mask reuses the existing PDF sample.
+
+The editor labels these stocks Crumbled (Paper 22) and Newspaper (Paper 27).
+Crumbled uses negative XY normal strength (-0.16) for its corrected relief
+direction; Newspaper uses slightly stronger relief (0.29). Text protection stays enabled.

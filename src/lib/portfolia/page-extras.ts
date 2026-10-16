@@ -11,6 +11,8 @@ export interface PageTag {
   fontSize?: number;
   /** Centre along the page edge: 0 is top, 1 is bottom. Omitted keeps automatic spacing. */
   position?: number;
+  /** Live editor tab height multiplier. */
+  scale?: number;
 }
 export interface PageLink {
   id: string;
@@ -72,6 +74,7 @@ export function validatePageTag(t: PageTag, pages: number): string | null {
   if (!Number.isInteger(t.page) || t.page < 1 || t.page > pages) return "Choose a page in this PDF.";
   if (typeof t.label !== "string" || t.label.length > TAG_LABEL_LIMIT) return `Keep tag text to ${TAG_LABEL_LIMIT} characters.`;
   if (!hex.test(t.colour)) return "Choose a tag colour.";
+  if (t.scale !== undefined && (!Number.isFinite(t.scale) || t.scale < .5 || t.scale > 2)) return "Choose a tab scale from 50% to 200%.";
   if (t.fontSize !== undefined && (!Number.isFinite(t.fontSize) || t.fontSize < 25 || t.fontSize > 300)) return "Choose a tab font size from 25% to 300%.";
   if (t.font !== undefined && !(NOTE_FONT_IDS as readonly unknown[]).includes(t.font)) return "Choose a tab font.";
   if (t.position !== undefined && (!Number.isFinite(t.position) || t.position < 0 || t.position > 1)) return "Keep the tab on the page edge.";

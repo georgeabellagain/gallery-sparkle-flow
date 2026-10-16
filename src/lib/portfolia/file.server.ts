@@ -1,3 +1,4 @@
+import { backgroundKeys } from "./background-settings";
 import { foldoutKeys } from "./foldouts";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requestAccess } from "./access.server";
@@ -11,7 +12,7 @@ export async function servePortfolioFile(code: string, url: string, db: any = su
   if (!row || (await check(code)).state !== "open") return missing();
   const p = row.data as Portfolio;
   const key = new URL(url).searchParams.get("asset");
-  const allowed = [p.pdf?.blobKey, p.profile?.photoKey, p.plan === "personal" ? p.profile?.cv?.blobKey : undefined, p.plan === "personal" ? p.style?.bannerKey : undefined, p.viewer?.backgroundKey, ...foldoutKeys(p.pdf)];
+  const allowed = [p.pdf?.blobKey, p.profile?.photoKey, p.plan === "personal" ? p.profile?.cv?.blobKey : undefined, p.plan === "personal" ? p.style?.bannerKey : undefined, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf)];
   if (!key || !/^[a-zA-Z0-9_.-]+$/.test(key) || !allowed.includes(key)) return missing();
   const { data: blob, error: storageError } = await db.storage.from("portfolio-files").download(`${row.owner_id}/${key}`);
   if (storageError || !blob) return missing();

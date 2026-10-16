@@ -1,3 +1,7 @@
+import { validateFoldout } from "./foldouts";
+import { validatePageTag, validatePageLink } from "./page-extras";
+import type { ExtraKind, Extra } from "./scrapbook-transform";
+import { backgroundKeys } from "./background-settings";
 import { foldoutKeys } from "./foldouts";
 import { useSyncExternalStore } from "react";
 import { deleteBlob, uid } from "./assets";
@@ -52,7 +56,7 @@ export interface ViewerSettings {
   backgroundLighting?: boolean;
   /** Opt-in surface normal/roughness lighting for Studio backgrounds. */
   background3D?: boolean;
-  studioLighting?: "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8";
+  studioLighting?: import("./lighting").HdriId;
   /** Simple look: the soft shadow under the book. On unless switched off. */
   simpleShadow?: boolean;
   /** How dark that shadow is, 0 to 1. Starts at 0.2. */
@@ -70,12 +74,14 @@ export interface ViewerSettings {
   backgroundColor?: string;
   /** Uploaded picture behind the PDF (a stored file key). Shown instead of the colour. */
   backgroundKey?: string;
+  /** Uploaded pictures available to every visual style. */
+  backgroundUploads?: string[];
   /** Bundled CC0 background; uploaded pictures take precedence. */
   backgroundPreset?: string;
   /** Size and position of the background picture. */
   backgroundFit?: { scale: number; x: number; y: number; tile?: boolean };
   /** Optional per-look / per-reading-style backgrounds; omitted entries use the shared background. */
-  backgrounds?: Partial<Record<BackgroundContext, { backgroundColor?: string; backgroundPreset?: string }>>;
+  backgrounds?: Partial<Record<BackgroundContext, { backgroundColor?: string; backgroundPreset?: string; backgroundKey?: string; backgroundFit?: import("./background").BackgroundFit }>>;
 }
 
 export type BackgroundContext = "studio" | "clean" | "scroll" | "paged";
@@ -285,6 +291,19 @@ export function patchPortfolio(patch: Partial<Portfolio>): boolean {
   });
 }
 
+/** Live pointer edits are scoped to the original portfolio and PDF. */
+export function patchPortfolioExtra(code:string,blobKey:string,kind:ExtraKind,id:string,next:Extra):boolean {
+  const portfolio=allPortfolios(getDoc()).find(p=>p.code===code);
+  if(next.id!==id || !portfolio?.pdf || portfolio.pdf.blobKey!==blobKey || !portfolio.pdf[kind]?.some(item=>item.id===id))return false;
+  const error=kind==='foldouts'?validateFoldout(next as import('./foldouts').Foldout,portfolio.pdf.pages):kind==='tags'?validatePageTag(next as import('./page-extras').PageTag,portfolio.pdf.pages):validatePageLink(next as import('./page-extras').PageLink,portfolio.pdf.pages);
+  if(error)return false;
+  return update(d=>{
+    const p=allPortfolios(d).find(p=>p.code===code)!;
+    p.pdf={...p.pdf!,[kind]:p.pdf![kind]!.map(item=>item.id===id?next:item)};
+    return d;
+  });
+}
+
 /** Appearance saves belong to their editor, even if an upload finishes after switching portfolios. */
 export function patchPortfolioAppearance(code: string, patch: { viewer?: Partial<ViewerSettings>; style?: Partial<PageStyle> }): boolean {
   if (!allPortfolios(getDoc()).some(p => p.code === code)) return false;
@@ -299,7 +318,7 @@ export function patchPortfolioAppearance(code: string, patch: { viewer?: Partial
 /** Older portfolios can share an asset key; changing one must not erase another's picture. */
 export function portfolioUsesAsset(key: string): boolean {
   return allPortfolios(getDoc()).some(p => [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey,
-    p.style?.bannerKey, p.viewer?.backgroundKey, ...foldoutKeys(p.pdf)].includes(key));
+    p.style?.bannerKey, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf)].includes(key));
 }
 export async function deleteUnusedPortfolioAsset(key?: string) {
   if (key && !portfolioUsesAsset(key)) await deleteBlob(key);
