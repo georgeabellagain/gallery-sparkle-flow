@@ -1,3 +1,4 @@
+import { createPaperTextures } from "./paper-textures";
 import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
 import { averageEnvironment, createEnvironmentDiffuser } from "./environment-diffusion";
 import { readerSlideOffset, READER_SLIDE_MS } from "./reader-slide";
@@ -6,7 +7,7 @@ import * as THREE from "three";
 import { HDRI_PRESETS, studioLightMix, studioTopLight, presetDirectLight, studioExposure, type HdriId } from "./lighting";
 import { parseRgbe } from "./rgbe";
 import { dappleTexture } from "./dapple-light";
-import { paperFinish, type SurfaceKind } from "./surface";
+import { type SurfaceKind } from "./surface";
 import { createLitBackdrop } from "./lit-backdrop";
 import { bookSurfaceRatio, readerTextureEvictions } from "./render-budget";
 import { pageWorldRect } from "./page-position";
@@ -68,13 +69,14 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
     else conceal(page);
     if (!page.mesh) return;
     scene.remove(page.mesh);
+    paperTextures.release(page.mesh.material);
     page.mesh.material.map?.dispose();
     page.mesh.material.dispose(); page.mesh = null;
   };
   const applyMaterial = (material: THREE.MeshStandardMaterial) => {
     setNaturalImperfections(material,settings.imperfections ?? 0);
     material.bumpMap = null; material.bumpScale = 0;
-    material.roughness = paperFinish(settings.finish) === "satin" ? .42 : .97;
+    paperTextures.apply(material, settings.finish);
     // Flat readers keep HDRI/dapple lighting, without the costly clearcoat layer.
     material.needsUpdate = true;
   };
@@ -195,6 +197,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
     if (disposed) return;
     if (!frame) frame = requestAnimationFrame(paint);
   };
+  const paperTextures = createPaperTextures(requestPaint);
   const backdrop = createLitBackdrop(scene, requestPaint, true);
   const observer = new IntersectionObserver(entries => {
     for (const entry of entries) { const page = pages.get(entry.target as HTMLElement); if (page) page.near = entry.isIntersecting; }
@@ -287,6 +290,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       renderer.domElement.removeEventListener("webglcontextlost", lost);
       airDust.dispose();
       backdrop.dispose();
+      paperTextures.dispose();
       diffuser.dispose();
       pending.clear(); pages.forEach(page => release(page)); pages.clear();
       environments.forEach(p => { void p.then(t => t.dispose(), () => undefined); });

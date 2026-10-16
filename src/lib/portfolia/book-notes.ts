@@ -140,6 +140,7 @@ export function createBookNotes(
             mat.userData["stickyMatte"] = true;
             mat.bumpMap = texture; mat.bumpScale = .0015;
             mat.roughness = .97;
+            mat.normalMap = null; mat.roughnessMap = null;
           }
           mat.map = texture;
           mat.side = side;
