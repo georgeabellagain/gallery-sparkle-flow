@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
-import QRCode from "qrcode";
 import { Download } from "lucide-react";
 import { Modal } from "./Chrome";
 import { Button } from "@/components/ui/button";
 import { scanUrl } from "@/lib/portfolia/scan";
+
+// The qrcode package pulls in node-only modules that break server rendering,
+// so it is loaded on demand in the browser only.
+type QrModule = typeof import("qrcode");
+let qrPromise: Promise<QrModule> | undefined;
+const loadQr = () => (qrPromise ??= import("qrcode"));
 
 export function PortfolioQrCode({ open, onClose, url, name }: { open: boolean; onClose: () => void; url: string; name: string }) {
   const [image, setImage] = useState("");
@@ -13,13 +18,15 @@ export function PortfolioQrCode({ open, onClose, url, name }: { open: boolean; o
     if (!open || !url) return;
     setImage("");
     setError("");
-    void QRCode.toDataURL(scanUrl(url), { width: 480, margin: 3, errorCorrectionLevel: "H" })
+    void loadQr()
+      .then((QRCode) => QRCode.toDataURL(scanUrl(url), { width: 480, margin: 3, errorCorrectionLevel: "H" }))
       .then(setImage)
       .catch(() => setError("Couldn’t create the QR code. Please close this window and try again."));
   }, [open, url]);
 
   const download = async () => {
     try {
+      const QRCode = await loadQr();
       const png = await QRCode.toDataURL(scanUrl(url), { width: 1200, margin: 4, errorCorrectionLevel: "H" });
       const safeName = (name || "portfolio").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const link = document.createElement("a");
