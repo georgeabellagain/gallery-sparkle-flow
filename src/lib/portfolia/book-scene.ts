@@ -1,5 +1,6 @@
+import { presetShadow } from "./lighting";
 import { updatePaperTangents } from "./paper-tangents";
-import { createPaperTextures, paperTextureId } from "./paper-textures";
+import { createPaperTextures } from "./paper-textures";
 import { applyTurnPose, bakeTurnGeometry, createTurnGeometryCache, turnGeometryWriter, restingTurnNormals, type TurnPose } from "./turn-geometry-cache";
 import { createRestingPageShadows } from "./resting-page-shadows";
 import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
@@ -675,22 +676,25 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       }
     }
     const pattern = next.studio ? HDRI_PRESETS.find(p => p.id === next.hdri)?.dapple : undefined;
-    if (pattern && !dapples.has(pattern)) dapples.set(pattern, dappleTexture(pattern));
-    sunPatch.map = pattern ? dapples.get(pattern)! : null;
+    const shadow = presetShadow(next.hdri);
+    if (pattern && !dapples.has(next.hdri)) dapples.set(next.hdri, dappleTexture(pattern, shadow));
+    sunPatch.map = pattern ? dapples.get(next.hdri)! : null;
+    sunPatch.position.set(...shadow.position);
+    sunPatch.target.position.set(shadow.offset[0]/40,shadow.offset[1]/40,0);
     sunPatch.intensity = next.studio ? presetDirectLight(next.hdri, next.strength) : 0;
-    sunPatch.penumbra = pattern === "window" || pattern === "blinds" ? .12 : .35;
+    sunPatch.penumbra = shadow.penumbra;
     // The patterned light casts the moving sheet onto the backdrop; a shadow-only
     // directional source covers even environments without adding illumination.
     sunPatch.castShadow = next.studio && Boolean(pattern) && mix.hdri > 0;
-    sunPatch.shadow.radius = 6;
+    sunPatch.shadow.radius = shadow.radius;
     sunPatch.visible = Boolean(pattern);
     scene.environmentIntensity = next.studio ? (pattern ? 1 - .3 * mix.hdri : 1) : 0;
     // Studio illumination comes only from the diffused environment and preset pattern.
-    light.position.set(-1.8, 2.8, 5.5);
+    light.position.set(...shadow.position);
     light.color.set(0xffffff);
     light.intensity = next.studio ? mix.top : 0;
     topLight.intensity = next.studio ? studioTopLight(next.topLight) : 0;
-    light.shadow.radius = 6;
+    light.shadow.radius = shadow.radius;
     ambient.intensity = next.studio ? mix.ambient : Math.PI;
     ambient.color.set(0xffffff);
     ambient.groundColor.set(next.studio ? 0xb7bdca : 0xffffff);
@@ -834,7 +838,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     if (bakedTurn) applyTurnPose(bakedTurn, progress, geometry);
     else return;
-    if (paperTextureId(settings.material)) {
+    if (settings.material === "paper_0027") {
       updatePaperTangents(geometry);
       updatePaperTangents(reverseGeometry, true);
     }

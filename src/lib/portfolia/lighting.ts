@@ -48,3 +48,30 @@ export function presetDirectLight(id: HdriId, strength = .75) {
 
 /** Optional neutral fill, independent of HDRI detail and exposure. */
 export function studioTopLight(value = 0) { return Math.PI * Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0)); }
+
+/** Deliberate art-directed shadows; HDRI pixels alone cannot cast local shadows. */
+const SHADOWS = [
+  [-3.2, 1.2, 5.2, 3, -.35, .92],
+  [2.8, 2.1, 5.6, 7, .2, 1.15],
+  [-.7, -3.3, 5.8, 5, -.12, 1.05],
+  [1.4, 3.5, 6, 6, .08, 1.2],
+  [-3.8, 2.4, 5.1, 2, -.28, .9],
+  [3.1, -.9, 5.4, 4, .42, 1.1],
+  [-2.9, .8, 5.5, 1.5, -.5, .95],
+  [1.1, 3.1, 5.6, 2, .18, 1.05],
+  [-3.5, -1.2, 5.2, 2.5, -.4, .88],
+  [3.7, 1.3, 5, 1.8, .6, 1.12],
+  [-1.2, 3.7, 5.8, 3.5, -.2, .8],
+  [2.3, -3.2, 5.3, 2, .8, 1.2],
+  [-3.1, -2.4, 6, 5, -.75, 1.08],
+  [3.8, 2.8, 4.8, 4, .35, .85],
+  [-2.1, 3.9, 5, 1.5, -.6, 1.18],
+] as const;
+export function presetShadow(id: HdriId) {
+  const index = Number(id)-1;
+  const [x,y,z,radius,rotation,scale] = SHADOWS[index] ?? SHADOWS[3]!;
+  return { position:[x,y,z] as const, radius, rotation, scale,
+    offset:[((index%3)-1)*18,(Math.floor(index/3)%3-1)*14] as const,
+    seed: index*977+419, penumbra: .08+radius*.035,
+  };
+}

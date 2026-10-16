@@ -16,14 +16,15 @@ test("both uploaded stocks preserve their saved selection and have complete surf
 test("paper maps preserve artwork, share GPU maps and clear on switching to matte", () => {
   const artwork = new THREE.Texture(), material = new THREE.MeshStandardMaterial({map:artwork});
   const maps = {colour:new THREE.Texture(),normal:new THREE.Texture(),roughness:new THREE.Texture()};
-  applyPaperMaps(material,"paper_0022",maps);
-  assert.equal(material.normalScale.x,-.16);
+  applyPaperMaps(material,"paper_0027",maps);
+  assert.equal(material.normalScale.x,.29);
   assert.equal(material.map,artwork);
   assert.equal(material.normalMap,maps.normal); assert.equal(material.roughnessMap,maps.roughness);
   const hook = material.onBeforeCompile;
-  const other = new THREE.MeshStandardMaterial();applyPaperMaps(other,"paper_0022",maps);
+  const other = new THREE.MeshStandardMaterial();applyPaperMaps(other,"paper_0027",maps);
   assert.equal(other.normalMap,material.normalMap);
-  applyPaperMaps(material,"paper_0027",maps);
+  applyPaperMaps(material,"paper_0022",maps);
+  assert.equal(material.normalMap,null); assert.equal(material.roughnessMap,null);
   assert.equal(material.onBeforeCompile,hook,"switching stock reuses the shader");
   applyPaperMaps(material,"matte");
   assert.equal(material.normalMap,null);assert.equal(material.roughnessMap,null);
@@ -41,15 +42,15 @@ test("paper loading is deduplicated and cannot reapply a stale selection", async
   const cache = createPaperTextures(() => {});
   try {
     const a = new THREE.MeshStandardMaterial(), b = new THREE.MeshStandardMaterial();
-    cache.apply(a,"paper_0022");cache.apply(b,"paper_0022");cache.apply(a,"matte");
+    cache.apply(a,"paper_0027");cache.apply(b,"paper_0027");cache.apply(a,"matte");
     await cache.ready();
     assert.equal(loaded.length,3);
     assert.equal(a.normalMap,null,"finishing an old load does not change the current stock");
     assert.equal(b.normalMap,loaded[1]);
-    for (const t of loaded) { assert.equal(t.repeat.x,.5); assert.equal(t.repeat.y,.5); assert.equal(t.offset.x,.25); }
+    for (const t of loaded) { assert.equal(t.repeat.x,1); assert.equal(t.repeat.y,1); }
     assert.equal(loaded[0]!.colorSpace,THREE.SRGBColorSpace);
     assert.equal(loaded[1]!.colorSpace,THREE.NoColorSpace);
-    cache.apply(a,"paper_0022");assert.equal(a.normalMap,b.normalMap);assert.equal(loaded.length,3);
+    cache.apply(a,"paper_0027");assert.equal(a.normalMap,b.normalMap);assert.equal(loaded.length,3);
     let released=0;loaded.forEach(t=>t.addEventListener("dispose",()=>released++));
     cache.dispose();assert.equal(released,3);
   } finally { THREE.TextureLoader.prototype.loadAsync=original;cache.dispose(); }
@@ -69,4 +70,24 @@ test("paper shader protects text across colour, roughness and surface lighting",
   assert.ok(shader.fragmentShader.includes("mix(.97,roughnessFactor,paperStockMask)"));
   assert.ok(shader.fragmentShader.includes("mix(nonPerturbedNormal,normal,paperStockMask)"));
   assert.equal(material.normalScale.x,.29);
+});
+
+
+test("Crumbled shares one baked relief texture and never enables state-dependent normals",async()=>{
+ const {createPaperTextures}=await import('../src/lib/portfolia/paper-textures');
+ const original=THREE.TextureLoader.prototype.loadAsync;const urls:string[]=[];let disposed=0;
+ const texture=new THREE.Texture() as THREE.Texture<HTMLImageElement>;texture.addEventListener('dispose',()=>disposed++);
+ THREE.TextureLoader.prototype.loadAsync=async url=>{urls.push(url);return texture;};
+ const cache=createPaperTextures(()=>{});
+ try {
+  const resting=new THREE.MeshStandardMaterial(),turning=new THREE.MeshStandardMaterial({side:THREE.BackSide});
+  cache.apply(resting,'paper_0022');cache.apply(turning,'paper_0022');await cache.ready();
+  assert.deepEqual(urls,['/studio/paper/paper_0022-baked.webp']);
+  for(const material of [resting,turning]){
+   assert.equal(material.normalMap,null);assert.equal(material.roughnessMap,null);assert.equal(material.normalScale.x,0);assert.equal(material.roughness,.97);
+  }
+  assert.equal(texture.repeat.x,.5);assert.equal(texture.offset.x,.25);
+  for(const side of [THREE.FrontSide,THREE.BackSide]){turning.side=side;cache.apply(turning,'paper_0022');assert.equal(turning.normalMap,null);}
+  cache.dispose();assert.equal(disposed,1,'aliased cached references release the bitmap once');
+ }finally{cache.dispose();THREE.TextureLoader.prototype.loadAsync=original;}
 });

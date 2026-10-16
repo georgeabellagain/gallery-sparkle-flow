@@ -26,3 +26,13 @@ high-contrast PDF edges to protect small text. Colour modulation is reduced to
 The editor labels these stocks Crumbled (Paper 22) and Newspaper (Paper 27).
 Crumbled uses negative XY normal strength (-0.16) for its corrected relief
 direction; Newspaper uses slightly stronger relief (0.29). Text protection stays enabled.
+
+## Stable Crumbled relief
+
+Crumbled now uses `paper_0022-baked.webp`: its supplied OpenGL normal XY relief
+is shaded once into the original colour map using a fixed broad light, then
+compressed as quality-92 WebP. The shader keeps the existing 2× grain scale and
+text protection. Crumbled loads only this one bitmap, with constant matte
+roughness and no live normal map, so mirrored faces and lighting-normal handoffs
+cannot reverse or change its fine grain. The page geometry still catches scene
+lighting and shadows normally. Newspaper retains dynamic normal/roughness maps.

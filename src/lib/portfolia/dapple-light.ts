@@ -1,12 +1,13 @@
 import * as THREE from "three";
 
 /** A projected light mask, rather than a flat overlay: moving sheets and notes receive the same light. */
-export function dappleTexture(kind: "pine" | "leaves" | "blinds" | "window") {
+export function dappleTexture(kind: "pine" | "leaves" | "blinds" | "window", variant?: {rotation:number;scale:number;offset:readonly [number,number];seed:number}) {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 256;
   const ctx = canvas.getContext("2d")!;
   ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, 256, 256);
-  let seed = kind === "pine" ? 429 : 871;
+  if (variant) { ctx.translate(128+variant.offset[0],128+variant.offset[1]);ctx.rotate(variant.rotation);ctx.scale(variant.scale,variant.scale);ctx.translate(-128,-128); }
+  let seed = variant?.seed ?? (kind === "pine" ? 429 : 871);
   const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
   ctx.filter = kind === "pine" ? "blur(1.5px)" : "blur(3px)";
   if (kind === "blinds" || kind === "window") {
