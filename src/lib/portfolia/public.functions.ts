@@ -1,5 +1,4 @@
-import { backgroundKeys } from "./background-settings";
-import { foldoutKeys } from "./foldouts";
+import { publicAssetKeys, publicPortfolioPlan } from "./public-assets";
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -37,15 +36,20 @@ export const getPublicPortfolio = createServerFn({ method: "GET" })
     if (!row) return null;
     const access = await requestAccess(row.code);
     if (access.state !== "open") return null;
-    const p = row.data as unknown as Portfolio;
-    const keys = [p.pdf?.blobKey, p.profile?.photoKey, p.plan === "personal" ? p.profile?.cv?.blobKey : undefined, p.plan === "personal" ? p.style?.bannerKey : undefined, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf)].filter(Boolean) as string[];
+    const { ownerHasPersonal } = await import("./entitlements.server");
+    const personal = await ownerHasPersonal(row.owner_id);
+    const p = publicPortfolioPlan(row.data as unknown as Portfolio, personal);
+    const keys = publicAssetKeys(row.data as unknown as Portfolio, personal);
     const urls: Record<string, string> = {};
-    if (keys.length) {
+    const cvKey = personal ? p.profile?.cv?.blobKey : undefined;
+    const signedKeys = keys.filter(key => key !== cvKey);
+    if (cvKey) urls[cvKey] = `/api/public/portfolio-file/${encodeURIComponent(row.code)}?asset=${encodeURIComponent(cvKey)}`;
+    if (signedKeys.length) {
       // Signing needs privileged access; only files referenced by this published portfolio are signed.
       if (access.policy?.password_hash || access.policy?.expires_at) {
-        for (const key of keys) urls[key] = `/api/public/portfolio-file/${encodeURIComponent(row.code)}?asset=${encodeURIComponent(key)}`;
+        for (const key of signedKeys) urls[key] = `/api/public/portfolio-file/${encodeURIComponent(row.code)}?asset=${encodeURIComponent(key)}`;
       } else {
-      const { data: signed, error: signingError } = await supabaseAdmin.storage.from("portfolio-files").createSignedUrls(keys.map((k) => `${row.owner_id}/${k}`), 3600);
+      const { data: signed, error: signingError } = await supabaseAdmin.storage.from("portfolio-files").createSignedUrls(signedKeys.map((k) => `${row.owner_id}/${k}`), 3600);
       if (signingError) throw new Error("Couldn’t load the portfolio files. Please try again.");
       for (const s of signed ?? []) if (s.signedUrl && s.path) urls[s.path.split("/").slice(1).join("/")] = s.signedUrl;
       }
