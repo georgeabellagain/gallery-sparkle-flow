@@ -89,3 +89,14 @@ channel ceiling 40. Previews derive from those pixels via Reinhard compression.
 As with 5–8, lightweight procedural window/foliage light projections supplement
 the environment; they are approximations rather than captured room geometry.
 These assets load on selection, not as part of the initial page bundle.
+
+## Distinct local shadows
+
+Each of the fifteen preset IDs now has its own key/projector position and shadow
+softness. Projected masks also vary in rotation, scale, placement and foliage
+seed, and are cached by preset ID rather than shared solely by pattern type.
+The same profile is used for Flipbook, Scroll and Page by page. Switching presets
+invalidates the book shadow cache; stationary frames and turns reuse the prepared
+mask. This remains one active shadow-casting light, not fifteen light passes.
+Profiles are art-directed approximations; the environment image alone does not
+supply occluder geometry for physically reconstructed window/tree shadows.

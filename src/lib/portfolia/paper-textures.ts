@@ -9,12 +9,13 @@ const effects = new WeakMap<THREE.MeshStandardMaterial, { enabled: {value:number
 /** Keep the PDF as the primary map: paper tint affects pale stock, not dark ink. */
 export function applyPaperMaps(material: THREE.MeshStandardMaterial, kind: SurfaceKind, maps?: PaperMaps) {
   const active = Boolean(paperTextureId(kind) && maps);
-  const changed = Boolean(material.normalMap) !== active || Boolean(material.roughnessMap) !== active;
-  material.normalMap = active ? maps!.normal : null;
-  const strength = kind === "paper_0022" ? -.16 : .29;
+  const dynamic = active && kind !== "paper_0022";
+  const changed = Boolean(material.normalMap) !== dynamic || Boolean(material.roughnessMap) !== dynamic;
+  material.normalMap = dynamic ? maps!.normal : null;
+  const strength = kind === "paper_0022" ? 0 : .29;
   material.normalScale.set(strength, strength);
-  material.roughnessMap = active ? maps!.roughness : null;
-  material.roughness = active ? 1 : paperFinish(kind) === "satin" ? .42 : .97;
+  material.roughnessMap = dynamic ? maps!.roughness : null;
+  material.roughness = dynamic ? 1 : paperFinish(kind) === "satin" ? .42 : .97;
   let effect = effects.get(material);
   if (active && !effect) {
     effect = {enabled:{value:1},colour:{value:maps!.colour},transform:{value:maps!.colour.matrix}};
@@ -63,8 +64,8 @@ export function createPaperTextures(repaint: () => void) {
     if (!id || cache.has(id) || pending.has(id)) return;
     const textures: THREE.Texture[] = [];
     let failed = false;
-    const job = Promise.all(["colour", "normal", "roughness"].map(async name => {
-      const t = await loader.loadAsync(`/studio/paper/${id}-${name}.webp`);
+    const job = Promise.all((id === "paper_0022" ? ["colour"] : ["colour", "normal", "roughness"]).map(async name => {
+      const t = await loader.loadAsync(`/studio/paper/${id}-${id === "paper_0022" ? "baked" : name}.webp`);
       if (disposed || failed) { t.dispose(); throw new Error("Paper texture preparation cancelled"); }
       textures.push(t);
       t.colorSpace = name === "colour" ? THREE.SRGBColorSpace : THREE.NoColorSpace;
@@ -73,7 +74,7 @@ export function createPaperTextures(repaint: () => void) {
       return t;
     })).then(([colour,normal,roughness]) => {
       if (disposed) { textures.forEach(t=>t.dispose()); return; }
-      const maps: PaperMaps = {colour:colour!,normal:normal!,roughness:roughness!}; cache.set(id,maps);
+      const maps: PaperMaps = {colour:colour!,normal:normal??colour!,roughness:roughness??colour!}; cache.set(id,maps);
       for (const [m,k] of materials) if (k===id) applyPaperMaps(m,k,maps);
       repaint();
     }).catch(() => { failed = true; textures.forEach(t=>t.dispose()); });
@@ -81,6 +82,6 @@ export function createPaperTextures(repaint: () => void) {
   };
   return { apply, release(material: THREE.MeshStandardMaterial) { materials.delete(material); },
     async ready() { await Promise.all(pending.values()); },
-    dispose() { disposed=true;materials.clear();cache.forEach(m=>Object.values(m).forEach(t=>t.dispose()));cache.clear(); },
+    dispose() { disposed=true;materials.clear();cache.forEach(m=>new Set(Object.values(m)).forEach(t=>t.dispose()));cache.clear(); },
   };
 }

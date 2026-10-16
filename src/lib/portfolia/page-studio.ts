@@ -1,3 +1,4 @@
+import { presetShadow } from "./lighting";
 import { createPaperTextures } from "./paper-textures";
 import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
 import { averageEnvironment, createEnvironmentDiffuser } from "./environment-diffusion";
@@ -250,16 +251,19 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       settings = next;
       airDust.setIntensity(next.imperfections ?? 0);
       const pattern = HDRI_PRESETS.find(p => p.id === next.hdri)?.dapple;
-      if (pattern && !masks.has(pattern)) masks.set(pattern, dappleTexture(pattern));
-      sun.map = pattern ? masks.get(pattern)! : null; sun.visible = Boolean(pattern);
+      const shadow = presetShadow(next.hdri);
+      if (pattern && !masks.has(next.hdri)) masks.set(next.hdri, dappleTexture(pattern, shadow));
+      sun.position.set(...shadow.position);sun.target.position.set(shadow.offset[0]/40,shadow.offset[1]/40,0);
+      sun.shadow.radius = shadow.radius;key.shadow.radius = shadow.radius;
+      sun.map = pattern ? masks.get(next.hdri)! : null; sun.visible = Boolean(pattern);
       sun.intensity = presetDirectLight(next.hdri, next.strength);
-      sun.penumbra = pattern === "window" || pattern === "blinds" ? .12 : .35;
+      sun.penumbra = shadow.penumbra;
       const mix = studioLightMix(next.strength);
       scene.environment = diffuser.apply(target, mix.hdri, environmentColours.get(next.hdri));
       scene.environmentIntensity = pattern ? 1 - .3 * mix.hdri : 1;
       ambient.intensity = mix.ambient;
       topLight.intensity = studioTopLight(next.topLight);
-      key.position.set(-1.8, 2.8, 5.5); key.intensity = mix.top;
+      key.position.set(...shadow.position); key.intensity = mix.top;
       key.castShadow = !pattern || mix.hdri === 0; sun.castShadow = Boolean(pattern) && mix.hdri > 0;
       renderer.toneMappingExposure = studioExposure(next.brightness);
       pages.forEach(page => { if (page.mesh) applyMaterial(page.mesh.material); });
