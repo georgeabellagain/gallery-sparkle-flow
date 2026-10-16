@@ -32,3 +32,10 @@ The originals are 4096 x 2048 EXR files of 80-100 MB each. For the web each was:
 
 A lighting file is only downloaded when it is first used. They are read by
 `src/lib/portfolia/rgbe.ts`.
+
+Studio asset optimisation: paper edges are rectangular again. Normal and roughness
+maps are 512px (colour maps remain full resolution), reducing their combined
+transfer from 3,157,780 to 740,704 bytes and GPU allocation by 75%. HDRIs are
+losslessly scanline-repacked; decoded lighting values are unchanged. A four-entry
+LRU shares HDR decoding, colour averaging and half-float preparation across reader
+modes; renderer-owned environment targets and preserved settled normals remain separate.

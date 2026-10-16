@@ -1,7 +1,8 @@
 import { AccessSettings } from "./AccessSettings";
 import { ShareCover } from "./ShareCover";
+import { VideoExportPanel } from "./VideoExportPanel";
 import { useState } from "react";
-import { Code2, Copy, QrCode } from "lucide-react";
+import { Code2, Copy, QrCode, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmbedModal } from "@/components/pf/EmbedModal";
 import { PortfolioQrCode } from "@/components/pf/PortfolioQrCode";
@@ -12,7 +13,7 @@ import { useDoc, type Portfolio } from "@/lib/portfolia/store";
 export function ShareActions({ p }: { p: Portfolio }) {
   const signedIn = useDoc().account.signedIn;
   const sync = useSyncStatus();
-  const [dialog, setDialog] = useState<null | "qr" | "embed">(null);
+  const [dialog, setDialog] = useState<null | "qr" | "embed" | "video">(null);
   const [copied, setCopied] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const sharePath = `/p/${p.code}`;
@@ -40,6 +41,11 @@ export function ShareActions({ p }: { p: Portfolio }) {
         <Button size="sm" variant="line" disabled={!published} onClick={() => setDialog("qr")}><QrCode /> QR code</Button>
         {published && <Button size="sm" variant="line" onClick={() => setDialog("embed")}><Code2 /> Embed</Button>}
       </div>
+      {p.pdf && <div className="mt-4 border-t border-border pt-4">
+        <Button size="sm" variant="line" disabled={!signedIn || p.plan !== "personal"} onClick={() => setDialog("video")}><Video /> Export HD video</Button>
+        <p className="mt-2 text-xs text-muted-foreground">Personal includes a downloadable HD video of your flipbook turning through every page.</p>
+      </div>}
+      {dialog === "video" && <VideoExportPanel p={p} onClose={() => setDialog(null)} />}
       <span role="status" className="sr-only">{copied ? "Portfolio link copied" : ""}</span>
       {!published && <p className="mt-3 text-xs text-muted-foreground">Publish this portfolio before sharing it with visitors.</p>}
       {signedIn && published && <p className="mt-3 text-xs text-muted-foreground" role={sync.status === "error" ? "alert" : "status"}>
