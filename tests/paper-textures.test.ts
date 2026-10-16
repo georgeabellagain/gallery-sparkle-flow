@@ -24,7 +24,8 @@ test("paper maps preserve artwork, share GPU maps and clear on switching to matt
   const other = new THREE.MeshStandardMaterial();applyPaperMaps(other,"paper_0027",maps);
   assert.equal(other.normalMap,material.normalMap);
   applyPaperMaps(material,"paper_0022",maps);
-  assert.equal(material.normalMap,null); assert.equal(material.roughnessMap,null);
+  assert.equal(material.normalMap,maps.normal); assert.equal(material.roughnessMap,maps.roughness);
+  assert.equal(material.normalScale.x,-.16);
   assert.equal(material.onBeforeCompile,hook,"switching stock reuses the shader");
   applyPaperMaps(material,"matte");
   assert.equal(material.normalMap,null);assert.equal(material.roughnessMap,null);
@@ -62,32 +63,34 @@ test("paper shader protects text across colour, roughness and surface lighting",
   applyPaperMaps(material,"paper_0027",maps);
   const shader = {
     uniforms:{}, vertexShader:"#include <uv_vertex>",
-    fragmentShader:"#include <color_fragment>\n#include <roughnessmap_fragment>\n#include <normal_fragment_maps>",
+    fragmentShader:"#include <color_fragment>\n#include <roughnessmap_fragment>\n#include <normal_fragment_maps>\n#include <lights_physical_fragment>",
   };
   material.onBeforeCompile(shader as unknown as Parameters<typeof material.onBeforeCompile>[0], {} as THREE.WebGLRenderer);
   assert.ok(shader.fragmentShader.includes("fwidth(paperInkLuma)"),"screen-space text edges suppress relief");
   assert.ok(shader.fragmentShader.includes("smoothstep(.6,.95,paperInkLuma)"),"dark ink keeps smooth lighting");
-  assert.ok(shader.fragmentShader.includes("mix(.97,roughnessFactor,paperStockMask)"));
-  assert.ok(shader.fragmentShader.includes("mix(nonPerturbedNormal,normal,paperStockMask)"));
+  assert.ok(shader.fragmentShader.includes("mix(.8,.98,clamp(roughnessFactor,0.0,1.0))"));
+  assert.ok(!shader.fragmentShader.includes("mix(nonPerturbedNormal,normal,paperStockMask)"),"PDF edges never change the surface normal");
+  assert.ok(shader.fragmentShader.includes("material.specularColor *= paperInkSpecular"),"dark artwork suppresses white specular glare");
+  assert.ok(shader.fragmentShader.includes("material.specularF90 *= paperInkSpecular"),"grazing-angle highlights cannot turn dark edges white");
   assert.equal(material.normalScale.x,.29);
 });
 
 
-test("Crumbled shares one baked relief texture and never enables state-dependent normals",async()=>{
+test("Crumbled shares real normal/roughness maps across resting and turning faces",async()=>{
  const {createPaperTextures}=await import('../src/lib/portfolia/paper-textures');
- const original=THREE.TextureLoader.prototype.loadAsync;const urls:string[]=[];let disposed=0;
- const texture=new THREE.Texture() as THREE.Texture<HTMLImageElement>;texture.addEventListener('dispose',()=>disposed++);
- THREE.TextureLoader.prototype.loadAsync=async url=>{urls.push(url);return texture;};
+ const original=THREE.TextureLoader.prototype.loadAsync;const urls:string[]=[];const loaded:THREE.Texture[]=[];let disposed=0;
+ THREE.TextureLoader.prototype.loadAsync=async url=>{urls.push(url);const t=new THREE.Texture() as THREE.Texture<HTMLImageElement>;t.addEventListener('dispose',()=>disposed++);loaded.push(t);return t;};
  const cache=createPaperTextures(()=>{});
  try {
   const resting=new THREE.MeshStandardMaterial(),turning=new THREE.MeshStandardMaterial({side:THREE.BackSide});
   cache.apply(resting,'paper_0022');cache.apply(turning,'paper_0022');await cache.ready();
-  assert.deepEqual(urls,['/studio/paper/paper_0022-baked.webp']);
+  assert.deepEqual(urls,['/studio/paper/paper_0022-colour.webp','/studio/paper/paper_0022-normal.webp','/studio/paper/paper_0022-roughness.webp']);
   for(const material of [resting,turning]){
-   assert.equal(material.normalMap,null);assert.equal(material.roughnessMap,null);assert.equal(material.normalScale.x,0);assert.equal(material.roughness,.97);
+   assert.equal(material.normalMap,loaded[1]);assert.equal(material.roughnessMap,loaded[2]);assert.equal(material.normalScale.x,-.16);
   }
-  assert.equal(texture.repeat.x,.5);assert.equal(texture.offset.x,.25);
-  for(const side of [THREE.FrontSide,THREE.BackSide]){turning.side=side;cache.apply(turning,'paper_0022');assert.equal(turning.normalMap,null);}
-  cache.dispose();assert.equal(disposed,1,'aliased cached references release the bitmap once');
+  for(const texture of loaded){assert.equal(texture.repeat.x,.5);assert.equal(texture.offset.x,.25);}
+  assert.equal(loaded[1]!.colorSpace,THREE.NoColorSpace);assert.equal(loaded[2]!.colorSpace,THREE.NoColorSpace);
+  for(const side of [THREE.FrontSide,THREE.BackSide]){turning.side=side;cache.apply(turning,'paper_0022');assert.equal(turning.normalMap,resting.normalMap);assert.equal(turning.roughnessMap,resting.roughnessMap);assert.deepEqual(turning.normalScale.toArray(),resting.normalScale.toArray());}
+  cache.dispose();assert.equal(disposed,3);
  }finally{cache.dispose();THREE.TextureLoader.prototype.loadAsync=original;}
 });
