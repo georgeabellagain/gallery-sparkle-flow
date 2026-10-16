@@ -17,6 +17,7 @@ test("paper maps preserve artwork, share GPU maps and clear on switching to matt
   const artwork = new THREE.Texture(), material = new THREE.MeshStandardMaterial({map:artwork});
   const maps = {colour:new THREE.Texture(),normal:new THREE.Texture(),roughness:new THREE.Texture()};
   applyPaperMaps(material,"paper_0022",maps);
+  assert.equal(material.normalScale.x,.16);
   assert.equal(material.map,artwork);
   assert.equal(material.normalMap,maps.normal); assert.equal(material.roughnessMap,maps.roughness);
   const hook = material.onBeforeCompile;
@@ -45,10 +46,27 @@ test("paper loading is deduplicated and cannot reapply a stale selection", async
     assert.equal(loaded.length,3);
     assert.equal(a.normalMap,null,"finishing an old load does not change the current stock");
     assert.equal(b.normalMap,loaded[1]);
+    for (const t of loaded) { assert.equal(t.repeat.x,.5); assert.equal(t.repeat.y,.5); assert.equal(t.offset.x,.25); }
     assert.equal(loaded[0]!.colorSpace,THREE.SRGBColorSpace);
     assert.equal(loaded[1]!.colorSpace,THREE.NoColorSpace);
     cache.apply(a,"paper_0022");assert.equal(a.normalMap,b.normalMap);assert.equal(loaded.length,3);
     let released=0;loaded.forEach(t=>t.addEventListener("dispose",()=>released++));
     cache.dispose();assert.equal(released,3);
   } finally { THREE.TextureLoader.prototype.loadAsync=original;cache.dispose(); }
+});
+
+test("paper shader protects text across colour, roughness and surface lighting", () => {
+  const material = new THREE.MeshStandardMaterial();
+  const maps = {colour:new THREE.Texture(),normal:new THREE.Texture(),roughness:new THREE.Texture()};
+  applyPaperMaps(material,"paper_0027",maps);
+  const shader = {
+    uniforms:{}, vertexShader:"#include <uv_vertex>",
+    fragmentShader:"#include <color_fragment>\n#include <roughnessmap_fragment>\n#include <normal_fragment_maps>",
+  };
+  material.onBeforeCompile(shader as unknown as Parameters<typeof material.onBeforeCompile>[0], {} as THREE.WebGLRenderer);
+  assert.ok(shader.fragmentShader.includes("fwidth(paperInkLuma)"),"screen-space text edges suppress relief");
+  assert.ok(shader.fragmentShader.includes("smoothstep(.6,.95,paperInkLuma)"),"dark ink keeps smooth lighting");
+  assert.ok(shader.fragmentShader.includes("mix(.97,roughnessFactor,paperStockMask)"));
+  assert.ok(shader.fragmentShader.includes("mix(nonPerturbedNormal,normal,paperStockMask)"));
+  assert.equal(material.normalScale.x,.22);
 });

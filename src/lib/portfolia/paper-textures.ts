@@ -5,35 +5,45 @@ export type PaperMaps = { colour: THREE.Texture; normal: THREE.Texture; roughnes
 export function paperTextureId(kind: SurfaceKind) {
   return kind === "paper_0022" || kind === "paper_0027" ? kind : undefined;
 }
-const effects = new WeakMap<THREE.MeshStandardMaterial, { enabled: {value:number}; colour: {value:THREE.Texture} }>();
+const effects = new WeakMap<THREE.MeshStandardMaterial, { enabled: {value:number}; colour: {value:THREE.Texture}; transform: {value:THREE.Matrix3} }>();
 /** Keep the PDF as the primary map: paper tint affects pale stock, not dark ink. */
 export function applyPaperMaps(material: THREE.MeshStandardMaterial, kind: SurfaceKind, maps?: PaperMaps) {
   const active = Boolean(paperTextureId(kind) && maps);
   const changed = Boolean(material.normalMap) !== active || Boolean(material.roughnessMap) !== active;
   material.normalMap = active ? maps!.normal : null;
-  material.normalScale.set(.45, .45);
+  const strength = kind === "paper_0022" ? .16 : .22;
+  material.normalScale.set(strength, strength);
   material.roughnessMap = active ? maps!.roughness : null;
   material.roughness = active ? 1 : paperFinish(kind) === "satin" ? .42 : .97;
   let effect = effects.get(material);
   if (active && !effect) {
-    effect = {enabled:{value:1},colour:{value:maps!.colour}};
+    effect = {enabled:{value:1},colour:{value:maps!.colour},transform:{value:maps!.colour.matrix}};
     effects.set(material,effect);
     const uniforms = effect, previous = material.onBeforeCompile, key = material.customProgramCacheKey.bind(material);
     material.onBeforeCompile = (shader, renderer) => {
       previous.call(material, shader, renderer);
       shader.uniforms["paperTextureEnabled"] = uniforms.enabled;
       shader.uniforms["paperStockColour"] = uniforms.colour;
-      shader.vertexShader = "varying vec2 paperStockUv;\n" + shader.vertexShader.replace("#include <uv_vertex>","#include <uv_vertex>\npaperStockUv = uv;");
+      shader.uniforms["paperStockTransform"] = uniforms.transform;
+      shader.vertexShader = "uniform mat3 paperStockTransform;\nvarying vec2 paperStockUv;\n" + shader.vertexShader.replace("#include <uv_vertex>","#include <uv_vertex>\npaperStockUv = (paperStockTransform * vec3(uv, 1.0)).xy;");
       shader.fragmentShader = "uniform float paperTextureEnabled;\nuniform sampler2D paperStockColour;\nvarying vec2 paperStockUv;\n" + shader.fragmentShader.replace("#include <color_fragment>",`#include <color_fragment>
+        float paperInkLuma = dot(diffuseColor.rgb,vec3(.2126,.7152,.0722));
+        // Dark ink and high-contrast edges need clean lighting, especially
+        // when small text approaches a screen pixel. Reuse the PDF sample.
+        float paperStockMask = paperTextureEnabled * smoothstep(.6,.95,paperInkLuma)
+          * (1.0-smoothstep(.015,.12,fwidth(paperInkLuma)));
         if (paperTextureEnabled > 0.0) {
-          float pale = smoothstep(.45,.95,dot(diffuseColor.rgb,vec3(.2126,.7152,.0722)));
-          diffuseColor.rgb *= mix(vec3(1.0),texture2D(paperStockColour,paperStockUv).rgb,pale*.65);
-        }`);
+          diffuseColor.rgb *= mix(vec3(1.0),texture2D(paperStockColour,paperStockUv).rgb,paperStockMask*.3);
+        }`)
+        .replace("#include <roughnessmap_fragment>", `#include <roughnessmap_fragment>
+          if (paperTextureEnabled > 0.0) roughnessFactor = mix(.97,roughnessFactor,paperStockMask);`)
+        .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+          if (paperTextureEnabled > 0.0) normal = normalize(mix(nonPerturbedNormal,normal,paperStockMask));`);
     };
     material.customProgramCacheKey = () => key() + "_paper_stock";
     material.needsUpdate = true;
   }
-  if (effect) { effect.enabled.value = active ? 1 : 0; if (active) effect.colour.value = maps!.colour; }
+  if (effect) { effect.enabled.value = active ? 1 : 0; if (active) { effect.colour.value = maps!.colour; effect.transform.value = maps!.colour.matrix; } }
   if (changed) material.needsUpdate = true;
 }
 
@@ -59,6 +69,7 @@ export function createPaperTextures(repaint: () => void) {
       textures.push(t);
       t.colorSpace = name === "colour" ? THREE.SRGBColorSpace : THREE.NoColorSpace;
       t.anisotropy = 4;
+      if (id === "paper_0022") { t.repeat.set(.5,.5); t.offset.set(.25,.25); t.updateMatrix(); }
       return t;
     })).then(([colour,normal,roughness]) => {
       if (disposed) { textures.forEach(t=>t.dispose()); return; }
