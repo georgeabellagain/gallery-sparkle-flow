@@ -50,6 +50,8 @@ export interface ViewerSettings {
   studioLightingStrength?: number;
   /** Illuminate uploaded backgrounds with the same Studio scene. */
   backgroundLighting?: boolean;
+  /** Opt-in surface normal/roughness lighting for Studio backgrounds. */
+  background3D?: boolean;
   studioLighting?: "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8";
   /** Simple look: the soft shadow under the book. On unless switched off. */
   simpleShadow?: boolean;
