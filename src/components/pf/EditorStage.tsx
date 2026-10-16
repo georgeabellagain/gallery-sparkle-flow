@@ -1,3 +1,4 @@
+import { LiveScrapbookContext } from "./live-scrapbook-context";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ChartNoAxesColumn, BookOpen, GripHorizontal, FolderOpen, Image as ImageIcon, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
@@ -18,10 +19,11 @@ import { cn } from "@/lib/utils";
 import { EditorFullscreenContext, useEditorFullscreen } from "./editor-fullscreen";
 import { openingLook } from "@/lib/portfolia/appearance";
 
-type Tool = "customise" | "profile" | "reading" | "look" | "background" | "scrapbook" | "projects" | "publish" | "share" | "statistics";
+type Tool = "customise" | "profile" | "reading" | "look" | "paper" | "background" | "scrapbook" | "projects" | "publish" | "share" | "statistics";
 const TOOLS: Array<[Tool, string, typeof Sun]> = [
-  ["reading", "Reading", BookOpen],
-  ["look", "Lighting & look", Sun],
+  ["reading", "Visual style", BookOpen],
+  ["look", "Lighting", Sun],
+  ["paper", "Paper", BookOpen],
   ["background", "Background", ImageIcon],
   ["scrapbook", "Scrapbook", StickyNote],
   ["projects", "Projects", FolderOpen],
@@ -150,6 +152,7 @@ export function EditorStage({
   const row = "flex items-center justify-between gap-3";
   return (
     <EditorFullscreenContext.Provider value={fullscreen}>
+    <LiveScrapbookContext.Provider value={{portfolio:p,enabled:tool==="scrapbook"&&!scrapbook,onError:onSaveError}}>
     <div ref={stageRef} data-fullscreen={fullscreen.full || undefined} style={fullscreen.full ? { height: "100dvh" } : undefined} className={cn("pf-editor-stage overflow-hidden bg-muted/50", fullscreen.fallback ? "fixed inset-0 z-[200]" : "relative h-[calc(100dvh-3.5rem)]")}>
       <div className="absolute inset-0 overflow-auto" onPointerDown={() => undefined}>
         {preview}
@@ -237,19 +240,20 @@ export function EditorStage({
           </div>
           {tool === "customise" && <div className="space-y-2">
             <label className="mb-3 block text-xs">Portfolio name<input aria-label="Portfolio name" className="mt-1 w-full rounded-lg border bg-background p-2 text-sm" value={p.name ?? ""} maxLength={120} placeholder={p.pdf?.name ?? "My portfolio"} onChange={e=>patchPortfolio({name:e.target.value})} /></label>
-            {([["reading", "Reading style"], ["look", "Lighting & paper"], ["background", "Background"], ["scrapbook", "Notes, tabs & links"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="line" size="sm" onClick={() => setTool(id)}>{label}</Button>)}
+            {([["reading", "Visual style"], ["look", "Lighting"], ["paper", "Paper"], ["background", "Background"], ["scrapbook", "Notes, tabs & links"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="line" size="sm" onClick={() => setTool(id)}>{label}</Button>)}
             <details className="pt-3"><summary className="cursor-pointer text-sm">More options</summary><div className="mt-3 grid gap-2">{([["profile", "Profile details"], ["projects", "Named projects"], ["publish", "File & publishing"], ["statistics", "Statistics"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="quiet" size="sm" onClick={() => setTool(id)}>{label}</Button>)}</div></details>
           </div>}
           {tool === "profile" && profile}
           {tool === "statistics" && (statistics ?? <p className="text-sm text-muted-foreground">Sign in to see portfolio statistics.</p>)}
           {tool === "reading" && <StyleForm sidebar part="reading" p={p} onSaveError={onSaveError} />}
           {tool === "look" && <StyleForm sidebar part="look" p={p} onSaveError={onSaveError} />}
+          {tool === "paper" && <StyleForm sidebar part="paper" p={p} onSaveError={onSaveError} />}
           {tool === "background" && <StyleForm sidebar part="background" p={p} onSaveError={onSaveError} />}
           {tool === "projects" && <ProjectSettings key={`${p.code}:${pdf.blobKey}`} p={p} />}
           {tool === "scrapbook" && (
             <div className="space-y-3 text-sm">
               <p className="text-xs leading-relaxed text-muted-foreground">
-                Make the book feel handmade. Open the scrapbook to place everything on the real pages.
+                Drag notes, tabs and links on the portfolio. Pull the corner handles to resize. Changes save when you release. Use the options below to add items or change their content.
               </p>
               {([
                 ["notes", "Fold-out notes", "Text or pictures that unfold from a page", notes],
@@ -310,6 +314,7 @@ export function EditorStage({
       )}
       <ScrapbookDialog p={p} open={scrapbook !== null} onOpenChange={(open) => !open && setScrapbook(null)} panel={scrapbook ?? "notes"} />
     </div>
+    </LiveScrapbookContext.Provider>
     </EditorFullscreenContext.Provider>
   );
 }

@@ -844,7 +844,7 @@ function ScrapbookWorkspace({
                 ),
               )}
             {!rendering && leaf && tags.map(t => {
-              const slot = tabSlot(ratio, tags.findIndex(tag => tag.id === t.id), tags.length, t.position);
+              const slot = tabSlot(ratio, tags.findIndex(tag => tag.id === t.id), tags.length, t.position, t.scale);
               const centre = .5 - slot.y / ratio;
               return <EditablePageTab key={t.id} tag={t} centre={centre} height={slot.height / ratio} left={t.page < leaf.page || (t.page === leaf.page && (leaf.half === "left" || (!leaf.half && t.page % 2 === 0)))} selected={selectedTag === t.id && panel === "tabs"} disabled={preview} page={page} onSelect={() => { setPanel("tabs"); setSelectedTag(t.id); }} onMove={position => editTag(t.id, { position })}/>;
             })}

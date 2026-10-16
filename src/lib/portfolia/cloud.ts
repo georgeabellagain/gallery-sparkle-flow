@@ -1,3 +1,4 @@
+import { backgroundKeys } from "./background-settings";
 import { foldoutKeys } from "./foldouts";
 import { allAnalyticsEvents } from "./analytics";
 import { migrateDraftFiles } from "./sync-files";
@@ -44,7 +45,7 @@ export function markPortfolioDeleted(code: string) {
 }
 
 function fileKeys(p: Portfolio): string[] {
-  return [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey, p.style?.bannerKey, p.viewer?.backgroundKey, ...foldoutKeys(p.pdf)].filter(Boolean) as string[];
+  return [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey, p.style?.bannerKey, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf)].filter(Boolean) as string[];
 }
 
 function schedulePush() {

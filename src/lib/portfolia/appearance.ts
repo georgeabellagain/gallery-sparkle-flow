@@ -6,5 +6,5 @@ export function looksForMode(view: ViewerSettings, mode: ViewerSettings["mode"])
 }
 export function openingLook(view: ViewerSettings, mode: ViewerSettings["mode"]) {
   const looks = looksForMode(view, mode);
-  return looks.includes("clean") ? "clean" : looks[0]!;
+  return looks.includes(view.look) ? view.look : looks[0]!;
 }

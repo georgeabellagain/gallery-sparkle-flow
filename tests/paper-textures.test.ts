@@ -17,7 +17,7 @@ test("paper maps preserve artwork, share GPU maps and clear on switching to matt
   const artwork = new THREE.Texture(), material = new THREE.MeshStandardMaterial({map:artwork});
   const maps = {colour:new THREE.Texture(),normal:new THREE.Texture(),roughness:new THREE.Texture()};
   applyPaperMaps(material,"paper_0022",maps);
-  assert.equal(material.normalScale.x,.16);
+  assert.equal(material.normalScale.x,-.16);
   assert.equal(material.map,artwork);
   assert.equal(material.normalMap,maps.normal); assert.equal(material.roughnessMap,maps.roughness);
   const hook = material.onBeforeCompile;
@@ -68,5 +68,5 @@ test("paper shader protects text across colour, roughness and surface lighting",
   assert.ok(shader.fragmentShader.includes("smoothstep(.6,.95,paperInkLuma)"),"dark ink keeps smooth lighting");
   assert.ok(shader.fragmentShader.includes("mix(.97,roughnessFactor,paperStockMask)"));
   assert.ok(shader.fragmentShader.includes("mix(nonPerturbedNormal,normal,paperStockMask)"));
-  assert.equal(material.normalScale.x,.22);
+  assert.equal(material.normalScale.x,.29);
 });

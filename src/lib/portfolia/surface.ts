@@ -11,7 +11,7 @@ export type Light = "soft" | "bright";
 export type PaperFinish = "matte" | "satin" | "paper_0022" | "paper_0027";
 /** Keep the available stocks; older removed varieties resolve to matte. */
 export const paperFinish = (kind: SurfaceKind): PaperFinish => kind === "satin" || kind === "paper_0022" || kind === "paper_0027" ? kind : "matte";
-export const PAPER_STYLES: readonly (readonly [PaperFinish, string])[] = [["matte","Matte"],["satin","Satin"],["paper_0022","Paper 22"],["paper_0027","Paper 27 — aged newsprint"]];
+export const PAPER_STYLES: readonly (readonly [PaperFinish, string])[] = [["matte","Matte"],["satin","Satin"],["paper_0022","Crumbled"],["paper_0027","Newspaper"]];
 export function paperRelief(kind: SurfaceKind, strength = 1) {
   const amount = Math.max(0, Math.min(1, Number.isFinite(strength) ? strength : 1));
   return (kind === "satin" ? 0.0003 : kind === "matte" ? 0.001 : kind === "watercolour" ? 0.008 : 0.006) * amount;

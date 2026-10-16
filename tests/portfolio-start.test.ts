@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getDoc, replaceDoc, startPortfolio, switchPortfolio, beginNewPortfolio, patchPortfolioAppearance, portfolioUsesAsset, DEFAULT_VIEWER, type Doc, type PdfFile } from "../src/lib/portfolia/store";
+import { getDoc, replaceDoc, startPortfolio, switchPortfolio, beginNewPortfolio, patchPortfolioAppearance, patchPortfolioExtra, patchPortfolio, allPortfolios, portfolioUsesAsset, DEFAULT_VIEWER, type Doc, type PdfFile } from "../src/lib/portfolia/store";
 
 const storage = new Map<string, string>();
 let blocked = false;
@@ -134,4 +134,25 @@ test("new homepage uploads cannot overwrite free portfolios or partially save a 
     assert.equal(startPortfolio({...pdf,blobKey:"failed"},{newPortfolio:true}),false);
     assert.deepEqual(getDoc(),paid,"archiving and creating commit together or leave the old editor untouched");
   } finally {blocked=false;}
+});
+
+
+test("live scrapbook saves stay with their original portfolio and PDF",()=>{
+  replaceDoc(empty());startPortfolio(pdf);
+  const note={id:"live-note",page:1,half:"right" as const,title:"Note",colour:"#ffffff",hinge:"top" as const,x:.2,y:.2,width:.3,height:.3};
+  patchPortfolio({pdf:{...pdf,foldouts:[note]}});
+  const firstCode=getDoc().portfolio!.code;
+  const d=structuredClone(getDoc());d.portfolio!.plan="personal";replaceDoc(d);
+  beginNewPortfolio();startPortfolio({...pdf,blobKey:"other-pdf"});
+  const second=structuredClone(getDoc().portfolio!);
+  assert.equal(patchPortfolioExtra(firstCode,pdf.blobKey,"foldouts",note.id,{...note,x:.4}),true);
+  assert.deepEqual(getDoc().portfolio,second,"a delayed drag cannot edit the portfolio opened next");
+  assert.equal(allPortfolios(getDoc()).find(p=>p.code===firstCode)!.pdf!.foldouts![0]!.x,.4);
+  assert.equal(patchPortfolioExtra(firstCode,"replaced-pdf","foldouts",note.id,{...note,x:.5}),false);
+  assert.equal(patchPortfolioExtra(firstCode,pdf.blobKey,"foldouts",note.id,{...note,id:"wrong"}),false);
+});
+test("per-view pictures remain referenced assets even when not the main background",()=>{
+  replaceDoc(empty());startPortfolio(pdf);
+  patchPortfolioAppearance(getDoc().portfolio!.code,{viewer:{backgrounds:{studio:{backgroundKey:"view-only-image"}},backgroundUploads:["saved-upload"]}});
+  assert.equal(portfolioUsesAsset("view-only-image"),true);assert.equal(portfolioUsesAsset("saved-upload"),true);
 });

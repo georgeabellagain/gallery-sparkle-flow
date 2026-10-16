@@ -1,3 +1,5 @@
+import { LiveScrapbookContext } from "./live-scrapbook-context";
+import { LiveScrapbookPage } from "./LiveScrapbookPage";
 import { HomeScrollContext, releaseHomeScroll } from "./home-scroll";
 import { captureFrames } from "@/lib/portfolia/turn-motion";
 import { canvasStill, recordStudioClip } from "@/lib/portfolia/studio-recorder";
@@ -385,10 +387,12 @@ export function BookView({
     setPageBounds(keep(s.pageBounds()));
     setTabRects(keep(s.tabRects()));
   };
-  const notesSignature = JSON.stringify(foldouts ?? []);
+  const liveScrapbook = useContext(LiveScrapbookContext);
+  const editingExtras = Boolean(liveScrapbook?.enabled);
+  const notesSignature = JSON.stringify(editingExtras ? [] : foldouts ?? []);
   const additions = useMemo(() => readableFoldouts(JSON.parse(notesSignature), doc.numPages), [notesSignature, doc.numPages]);
-  const tagsSignature = JSON.stringify(tags ?? []);
-  const linksSignature = JSON.stringify(links ?? []);
+  const tagsSignature = JSON.stringify(editingExtras ? [] : tags ?? []);
+  const linksSignature = JSON.stringify(editingExtras ? [] : links ?? []);
   const pageTags = useMemo(() => readablePageTags(JSON.parse(tagsSignature), doc.numPages), [tagsSignature, doc.numPages]);
   const pageLinks = useMemo(() => readablePageLinks(JSON.parse(linksSignature), doc.numPages), [linksSignature, doc.numPages]);
   const noteClosers = useRef(new Map<string, () => Promise<void> | null>());
@@ -435,6 +439,7 @@ export function BookView({
   const offered = viewer.looks?.length ? viewer.looks : [viewer.look];
   const lookFor = (): Look => {
     const base = lookFrom(viewer);
+    if (editingExtras) return {...base,studio:false};
     return previewLook && offered.includes(previewLook) ? { ...base, studio: previewLook === "studio" } : base;
   };
   const [settings, setSettings] = useState<Look>(lookFor);
@@ -445,7 +450,7 @@ export function BookView({
   useEffect(() => {
     setSettings(lookFor());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioTopLight, viewer.studioImperfections, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.studioLightingStrength, previewLook]);
+  }, [viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioTopLight, viewer.studioImperfections, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.studioLightingStrength, previewLook, editingExtras]);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; from: number; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
   const [openNote, setOpenNote] = useState(false);
@@ -489,7 +494,7 @@ export function BookView({
     let cancelled = false;
     void loadNoteFonts(tabEntries).then(() => {
       if (cancelled || scene.current !== activeScene) return;
-      activeScene.setTabs(tabEntries.map((t) => ({ id: t.id, text: t.label || String(t.page), colour: t.colour, position: t.position, font: t.font, fontSize: t.fontSize })), narrow);
+      activeScene.setTabs(tabEntries.map((t) => ({ id: t.id, text: t.label || String(t.page), colour: t.colour, position: t.position, scale:t.scale, font: t.font, fontSize: t.fontSize })), narrow);
       activeScene.setTabRest(Object.fromEntries(tabEntries.map((t) => [t.id, tabEdge(t.leaf, spread, narrow)])));
       syncBounds();
     });
@@ -1184,6 +1189,7 @@ export function BookView({
           const visible = foldoutsForLeaf(additions, layout.leaves[n]!);
           const onLeaf = linksForLeaf(pageLinks, layout.leaves[n]!);
           return <div key={`${n}:${settings.studio}`} className="pointer-events-none absolute z-30" style={{ left: `${bounds.x}%`, top: `${bounds.y}%`, width: `${bounds.width}%`, height: `${bounds.height}%` }}>
+            {editingExtras && <LiveScrapbookPage leaf={layout.leaves[n]!} side={side===0?'left':'right'} ratio={ratio}/>}
             {onLeaf.map(link => <PageLinkAnchor key={link.id} link={link} />)}
             {visible.map(item => <StoredFoldout key={`${item.id}:${(preparedNotesReady || litNotesKey === notesKey)}:${JSON.stringify(item)}`} item={item} demoAnimate={demoNotes} baked={item.style !== "sticky"} sceneRendered={(preparedNotesReady || litNotesKey === notesKey)} onProgress={p => {
               noteProgresses.current.set(item.id, p);

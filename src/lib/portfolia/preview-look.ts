@@ -36,3 +36,15 @@ export function subscribePreviewLook(listener: (look: PreviewLook | null) => voi
     listeners.delete(listener);
   };
 }
+
+export type PreviewMode = "book" | "scroll" | "paged";
+let mode: PreviewMode | null = null;
+const modeListeners = new Set<(mode: PreviewMode | null) => void>();
+export function setPreviewMode(next: PreviewMode | null) {
+  if (mode === next) return;
+  mode = next; modeListeners.forEach(listener => listener(next));
+}
+export function getPreviewMode() { return mode; }
+export function subscribePreviewMode(listener: (mode: PreviewMode | null) => void) {
+  modeListeners.add(listener); return () => { modeListeners.delete(listener); };
+}

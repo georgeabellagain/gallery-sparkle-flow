@@ -1,3 +1,7 @@
+import { getPreviewMode, subscribePreviewMode } from "@/lib/portfolia/preview-look";
+import { LiveScrapbookContext } from "./live-scrapbook-context";
+import { backgroundFor } from "@/lib/portfolia/background-settings";
+import { useBlob as useBackgroundBlob, useObjectUrl as useBackgroundUrl } from "./Chrome";
 import { HomeScrollContext, releaseHomeScroll } from "./home-scroll";
 import { STUDIO_RENDERING_ENABLED } from "@/lib/portfolia/studio-render-feature";
 import type { StudioExporter, RenderedStudio } from "@/lib/portfolia/rendered-studio";
@@ -393,15 +397,25 @@ export function PdfViewer({
     setPreviewLook(getPreviewLook());
     return subscribePreviewLook(setPreviewLook);
   }, [compact]);
-  const requestedLook = previewLook ?? selectedLook;
-  const activeLook = enabledLooks.includes(requestedLook) ? requestedLook : openingLook(view, mode);
+  useEffect(() => {
+    if (!compact) return;
+    const show = (mode: ReturnType<typeof getPreviewMode>) => setMode(mode ?? startMode);
+    show(getPreviewMode());
+    return subscribePreviewMode(show);
+  }, [compact,startMode]);
+  const liveScrapbook = useContext(LiveScrapbookContext);
+  useEffect(()=>{if(liveScrapbook?.enabled)setMode("book");},[liveScrapbook?.enabled]);
+  const requestedLook = liveScrapbook?.enabled ? "clean" : previewLook ?? selectedLook;
+  const activeLook = liveScrapbook?.enabled ? "clean" : enabledLooks.includes(requestedLook) ? requestedLook : openingLook(view, mode);
   const changeLook = (look: "clean" | "studio") => { setSelectedLook(look); if (compact) pinPreviewLook(look); };
   const studio = activeLook === "studio";
   // Each look (in Flipbook) and reading style can carry its own background.
   const backgroundContext = mode === "book" ? (studio ? "studio" : "clean") : mode;
   const bgOverride = view.backgrounds?.[backgroundContext];
-  const bgView = bgOverride ? { ...view, backgroundColor: bgOverride.backgroundColor ?? view.backgroundColor, backgroundPreset: bgOverride.backgroundPreset, backgroundKey: bgOverride.backgroundPreset || bgOverride.backgroundColor ? undefined : view.backgroundKey } : view;
-  const backgroundUrl = backgroundPicture(bgView, uploadedBackgroundUrl);
+  const bgView = backgroundFor(view, backgroundContext);
+  const modeBackgroundBlob = useBackgroundBlob(bgView.backgroundKey);
+  const modeBackgroundUrl = useBackgroundUrl(modeBackgroundBlob);
+  const backgroundUrl = backgroundPicture(bgView, modeBackgroundUrl ?? (bgView.backgroundKey === view.backgroundKey ? uploadedBackgroundUrl : undefined));
   const colour = backgroundColour(bgView, bgOverride?.backgroundColor ? undefined : backdrop);
   const tone = useTone(colour, backgroundUrl);
   const warmFlatStudio = studio || contentReady;
@@ -439,8 +453,8 @@ export function PdfViewer({
     return () => { cancelled = true; cancelAnimationFrame(frame); };
   }, [pageLighting, pageStudio]);
   useEffect(() => {
-    pageLighting?.setBackdrop(backgroundUrl, view.backgroundFit, studio && Boolean(view.backgroundLighting || view.background3D), colour, Boolean(view.background3D));
-  }, [pageLighting, backgroundUrl, view.backgroundFit, view.backgroundLighting, view.background3D, studio, colour]);
+    pageLighting?.setBackdrop(backgroundUrl, bgView.backgroundFit, studio && Boolean(view.backgroundLighting), colour, false);
+  }, [pageLighting, backgroundUrl, bgView.backgroundFit, view.backgroundLighting, view.background3D, studio, colour]);
   useEffect(() => {
     setZoom(1);
   }, [mode]);
@@ -603,7 +617,7 @@ export function PdfViewer({
     >
       {backgroundUrl && mode !== "book" && (
         <div aria-hidden className="pointer-events-none sticky top-0 -z-10 -mb-[100svh] h-[100svh] w-full overflow-hidden">
-          <BackdropLayer colour={colour} imageUrl={backgroundUrl} fit={view.backgroundFit} />
+          <BackdropLayer colour={colour} imageUrl={backgroundUrl} fit={bgView.backgroundFit} />
         </div>
       )}
 
@@ -736,7 +750,7 @@ export function PdfViewer({
       {mode === "book" && activeLook === "studio" && renderedStudio && !renderFailed && !compact ? (
         <RenderedBook fill={full || immersive} pack={renderedStudio} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} onReady={bookReadyChanged} onFallback={() => setRenderFailed(true)} />
       ) : mode === "book" ? (
-        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={!showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...view, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
+        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={!showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>

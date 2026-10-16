@@ -1,55 +1,53 @@
-import { NATURAL_IMPERFECTIONS_ENABLED, naturalIntensity } from "@/lib/portfolia/natural-imperfections";
-import { STUDIO_RENDERING_ENABLED } from "@/lib/portfolia/studio-render-feature";
-import { RenderStudioPanel, RenderedStudioPreview } from "./RenderStudioPanel";
-import { currentRender } from "@/lib/portfolia/rendered-studio";
-import { BACKGROUND_PRESETS, backgroundPicture } from "@/lib/portfolia/background-presets";
+import { ChoiceTile } from "./ChoiceTile";
+import { BackgroundSettings } from "./BackgroundSettings";
+import { ScrollText, File, BookOpen, Square, Sun, Layers, Origami, Newspaper } from "lucide-react";
 import { usePortfolioFont } from "@/lib/portfolia/fonts";
 import { useEffect, useRef, useState } from "react";
 import { Minus, Palette, Plus, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { putBlob, uid } from "@/lib/portfolia/assets";
-import { DEFAULT_STYLE, DEFAULT_VIEWER, FONT_OPTIONS, patchPortfolioAppearance, deleteUnusedPortfolioAsset, type PageStyle, type Portfolio, type ViewerSettings } from "@/lib/portfolia/store";
-import { backgroundColour, DEFAULT_FIT } from "@/lib/portfolia/background";
-import { useBlob, useObjectUrl } from "@/components/pf/Chrome";
+import {
+  DEFAULT_STYLE,
+  DEFAULT_VIEWER,
+  FONT_OPTIONS,
+  patchPortfolioAppearance,
+  deleteUnusedPortfolioAsset,
+  type PageStyle,
+  type Portfolio,
+  type ViewerSettings,
+} from "@/lib/portfolia/store";
+import { backgroundColour } from "@/lib/portfolia/background";
 import { Segmented } from "@/components/pf/viewer-ui";
-import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS, MAX_STUDIO_BRIGHTNESS } from "@/lib/portfolia/lighting";
-import { PAPER_STYLES, paperFinish, type SurfaceKind } from "@/lib/portfolia/surface";
+import {
+  DEFAULT_SIMPLE_SHADOW_OPACITY,
+  HDRI_PRESETS,
+  MAX_STUDIO_BRIGHTNESS,
+} from "@/lib/portfolia/lighting";
+import { PAPER_STYLES, paperFinish } from "@/lib/portfolia/surface";
 import { setPreviewLook } from "@/lib/portfolia/preview-look";
 
-/** Shrinks a chosen picture to a size that looks sharp on a large screen but stays light to load. */
-async function prepareBackground(file: File): Promise<Blob> {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    const scale = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
-    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
-    canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
-    if (!blob) throw new Error("Could not prepare the picture");
-    return blob;
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
-/** Paid-plan page styling: heading font, colours and an optional banner. */
-export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p: Portfolio; onSaveError: (msg: string | null) => void; sidebar?: boolean; part?: "all" | "appearance" | "experience" | "reading" | "look" | "background" }) {
+export function StyleForm({
+  p,
+  onSaveError,
+  sidebar = false,
+  part = "all",
+}: {
+  p: Portfolio;
+  onSaveError: (msg: string | null) => void;
+  sidebar?: boolean;
+  part?: "all" | "appearance" | "experience" | "reading" | "look" | "paper" | "background";
+}) {
   const showAppearance = part === "all" || part === "appearance";
   const showReading = part === "all" || part === "experience" || part === "reading";
   const showLook = part === "all" || part === "experience" || part === "look";
+  const showPaper = part === "all" || part === "experience" || part === "paper";
   const showBackground = part === "all" || part === "experience" || part === "background";
-  const showExperience = showReading || showLook || showBackground;
+  const showExperience = showReading || showLook || showPaper || showBackground;
   const titled = part === "all" || part === "experience";
   const style = p.style ?? DEFAULT_STYLE;
   usePortfolioFont(style.font);
   const paid = p.plan === "personal";
   const input = useRef<HTMLInputElement>(null);
-  const [renderDialog, setRenderDialog] = useState(false);
-  const [renderPreview, setRenderPreview] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [cropFile, setCropFile] = useState<File | null>(null);
   const set = (patch: Partial<PageStyle>) => {
@@ -63,13 +61,16 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
     onSaveError(saved ? null : "Couldn’t save that viewer change.");
     return saved;
   };
-  const backgroundInput = useRef<HTMLInputElement>(null);
   // While one look's options are being edited, the preview shows that look. Clicking anywhere else (or leaving) puts
   // the preview back to how the portfolio opens. Nothing here is saved.
   const flipbookBox = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const away = (e: PointerEvent) => {
-      if ((!flipbookBox.current || !flipbookBox.current.contains(e.target as Node)) && !(e.target as Element)?.closest?.("[data-studio-background]")) setPreviewLook(null);
+      if (
+        (!flipbookBox.current || !flipbookBox.current.contains(e.target as Node)) &&
+        !(e.target as Element)?.closest?.("[data-studio-background]")
+      )
+        setPreviewLook(null);
     };
     document.addEventListener("pointerdown", away);
     return () => {
@@ -77,26 +78,22 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
       setPreviewLook(null);
     };
   }, []);
-  const [backgroundErr, setBackgroundErr] = useState<string | null>(null);
-  const backgroundBlob = useBlob(viewer.backgroundKey);
-  const uploadedBackgroundUrl = useObjectUrl(backgroundBlob);
-  const backgroundUrl = backgroundPicture(viewer, uploadedBackgroundUrl);
-  const hasBackground = !!(viewer.backgroundKey || viewer.backgroundPreset);
-  /** The colour behind the PDF as it shows now, so the colour wheel starts on the right colour. */
   const wheelColour = backgroundColour(viewer, paid ? style.backdrop : undefined);
-  const fit = { ...DEFAULT_FIT, ...viewer.backgroundFit };
-  const setFit = (patch: Partial<typeof fit>) => setViewer({ backgroundFit: { ...fit, ...patch, tile: Boolean(viewer.backgroundPreset && !viewer.backgroundKey) } });
   // The creator chooses which reading modes and which flipbook appearances visitors get (always at least one of each).
   const enabledModes = viewer.modes?.length ? viewer.modes : (["scroll", "paged", "book"] as const);
   const enabledLooks = viewer.looks?.length ? viewer.looks : ([viewer.look] as const);
   const modeLabel = { scroll: "Scroll", paged: "Page by page", book: "Flipbook" } as const;
   const toggleMode = (mode: ViewerSettings["mode"], checked: boolean) => {
-    const modes = checked ? [...new Set([...enabledModes, mode])] : enabledModes.filter((item) => item !== mode);
+    const modes = checked
+      ? [...new Set([...enabledModes, mode])]
+      : enabledModes.filter((item) => item !== mode);
     if (!modes.length) return;
     setViewer({ modes, mode: modes.includes(viewer.mode) ? viewer.mode : modes[0]! });
   };
   const toggleLook = (look: ViewerSettings["look"], checked: boolean) => {
-    const looks = checked ? [...new Set([...enabledLooks, look])] : enabledLooks.filter((item) => item !== look);
+    const looks = checked
+      ? [...new Set([...enabledLooks, look])]
+      : enabledLooks.filter((item) => item !== look);
     if (!looks.length) return;
     setViewer({ looks, look: looks.includes(viewer.look) ? viewer.look : looks[0]! });
   };
@@ -104,27 +101,6 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
   const shadowOpacity = viewer.simpleShadowOpacity ?? DEFAULT_SIMPLE_SHADOW_OPACITY;
   const studioBrightness = viewer.studioBrightness ?? 0.5;
   const studioLighting = viewer.studioLighting ?? "4";
-
-  const onBackgroundImage = async (f?: File) => {
-    setBackgroundErr(null);
-    if (!f) return;
-    if (!f.type.startsWith("image/")) return setBackgroundErr("Choose a JPG, PNG or WebP image.");
-    if (f.size > 15 * 1048576) return setBackgroundErr("Background pictures can be up to 15 MB.");
-    try {
-      const blob = await prepareBackground(f);
-      const key = uid("bg");
-      await putBlob(key, blob);
-      const old = viewer.backgroundKey;
-      if (!setViewer({ backgroundKey: key, backgroundPreset: undefined, backgroundFit: DEFAULT_FIT })) { void deleteUnusedPortfolioAsset(key); return; }
-      void deleteUnusedPortfolioAsset(old);
-    } catch {
-      setBackgroundErr("That picture couldn’t be saved. Try a JPG or PNG, or check your connection.");
-    }
-  };
-  const removeBackgroundImage = () => {
-    const old = viewer.backgroundKey;
-    if (setViewer({ backgroundKey: undefined, backgroundPreset: undefined, backgroundFit: undefined })) void deleteUnusedPortfolioAsset(old);
-  };
 
   const onBanner = (f?: File) => {
     setErr(null);
@@ -136,250 +112,427 @@ export function StyleForm({ p, onSaveError, sidebar = false, part = "all" }: { p
 
   const saveBanner = async (blob: Blob) => {
     const key = uid("banner");
-    try { await putBlob(key, blob); } catch { return setErr("Browser storage is full, so the banner wasn’t saved."); }
+    try {
+      await putBlob(key, blob);
+    } catch {
+      return setErr("Browser storage is full, so the banner wasn’t saved.");
+    }
     const old = style.bannerKey;
-    if (!set({ bannerKey: key })) { void deleteUnusedPortfolioAsset(key); return; }
+    if (!set({ bannerKey: key })) {
+      void deleteUnusedPortfolioAsset(key);
+      return;
+    }
     setCropFile(null);
     void deleteUnusedPortfolioAsset(old);
   };
 
   return (
-    <div className={`grid min-w-0 [&_*]:min-w-0 items-start gap-x-10 gap-y-6 ${sidebar || part !== "all" ? "" : "lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]"}`}>
-      {showAppearance && <div>
-      <p className="flex items-center gap-2 text-xs font-medium">
-        <Palette className="size-4 text-leaf" aria-hidden /> Page style
-        {!paid && <span className="rounded-full bg-leaf-soft px-2 py-0.5 text-xxs text-leaf">Personal plan</span>}
-      </p>
-      {!paid ? (
-        <p className="mt-1 text-xs text-muted-foreground">Personal adds custom colours, typography and a cover image.</p>
-      ) : (
-        <div className="mt-3 space-y-3 text-xs">
-          <label className="flex items-center justify-between gap-3">
-            <span>Name font</span>
-            <select value={style.font} onChange={(e) => set({ font: e.target.value })} className="rounded-full border border-input bg-background px-3 py-1.5" style={{ fontFamily: style.font }}>
-              {FONT_OPTIONS.map((f) => <option key={f.label} value={f.css}>{f.label}</option>)}
-            </select>
-          </label>
-          {([["nameFontSize", "Name font size"], ["detailsFontSize", "Details font size"]] as const).map(([key, label]) => <label key={key} className="flex items-center gap-2">
-            <span>{label}</span><input aria-label={label} type="range" min="25" max="300" step="5" value={style[key] ?? 100} onChange={e => set({ [key]: Number(e.target.value) })} /><span>{style[key] ?? 100}%</span>
-          </label>)}
-          {([["text", "Details text"], ["background", "Page background"]] as const).map(([k, l]) => (
-            <label key={k} className="flex items-center justify-between gap-3">
-              <span>{l}</span>
-              <input type="color" value={style[k]} onChange={(e) => set({ [k]: e.target.value })} className="h-8 w-12 cursor-pointer rounded-full border border-border bg-transparent" />
-            </label>
-          ))}
-          <div className="flex items-center justify-between gap-3">
-            <span><span className="block">Cover image</span><span className="block text-xxs text-muted-foreground">Shown above your profile</span></span>
-            <span className="flex gap-2">
-               <input ref={input} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => { onBanner(e.target.files?.[0]); e.currentTarget.value = ""; }} />
-               <Button size="xs" variant="line" onClick={() => input.current?.click()}>{style.bannerKey ? "Replace" : "Upload image"}</Button>
-              {style.bannerKey && <Button size="xs" variant="quiet" onClick={() => { const k = style.bannerKey; if (set({ bannerKey: undefined })) void deleteUnusedPortfolioAsset(k); }}>Remove</Button>}
-            </span>
-          </div>
-          {err && <p role="alert" className="text-destructive">{err}</p>}
-          <Button size="xs" variant="quiet" onClick={() => set({ ...DEFAULT_STYLE, bannerKey: style.bannerKey })}>Reset colours and font</Button>
-        </div>
-      )}
-      {cropFile && <BannerCropper file={cropFile} onCancel={() => setCropFile(null)} onSave={saveBanner} />}
-      </div>}
-      {showExperience && <div className={part !== "all" ? "" : `rule-t pt-4 ${sidebar ? "" : "lg:border-t-0 lg:pt-0"}`}>
-        {titled && <p className="text-xs font-medium">Portfolio experience</p>}
-        <div className={`${titled ? "mt-3" : ""} grid items-start gap-x-10 gap-y-4 text-xs ${sidebar || !titled ? "" : "lg:grid-cols-2"}`}>
-          {showReading && <div className="space-y-3">
-          <div className="space-y-2">
-            <p>Reading modes visitors can use</p>
-            <div className="grid gap-2">
-              {(["scroll", "paged", "book"] as const).map((mode) => (
-                <label key={mode} className="flex items-center gap-2">
-                  <input type="checkbox" checked={enabledModes.includes(mode)} disabled={enabledModes.length === 1 && enabledModes.includes(mode)} onChange={(e) => toggleMode(mode, e.target.checked)} />
-                  <span>{modeLabel[mode]}</span>
-                  {enabledModes.length > 1 && viewer.mode === mode && <span className="text-xxs text-muted-foreground">Opens first</span>}
+    <div
+      className={`grid min-w-0 [&_*]:min-w-0 items-start gap-x-10 gap-y-6 ${sidebar || part !== "all" ? "" : "lg:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]"}`}
+    >
+      {showAppearance && (
+        <div>
+          <p className="flex items-center gap-2 text-xs font-medium">
+            <Palette className="size-4 text-leaf" aria-hidden /> Page style
+            {!paid && (
+              <span className="rounded-full bg-leaf-soft px-2 py-0.5 text-xxs text-leaf">
+                Personal plan
+              </span>
+            )}
+          </p>
+          {!paid ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Personal adds custom colours, typography and a cover image.
+            </p>
+          ) : (
+            <div className="mt-3 space-y-3 text-xs">
+              <label className="flex items-center justify-between gap-3">
+                <span>Name font</span>
+                <select
+                  value={style.font}
+                  onChange={(e) => set({ font: e.target.value })}
+                  className="rounded-full border border-input bg-background px-3 py-1.5"
+                  style={{ fontFamily: style.font }}
+                >
+                  {FONT_OPTIONS.map((f) => (
+                    <option key={f.label} value={f.css}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {(
+                [
+                  ["nameFontSize", "Name font size"],
+                  ["detailsFontSize", "Details font size"],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key} className="flex items-center gap-2">
+                  <span>{label}</span>
+                  <input
+                    aria-label={label}
+                    type="range"
+                    min="25"
+                    max="300"
+                    step="5"
+                    value={style[key] ?? 100}
+                    onChange={(e) => set({ [key]: Number(e.target.value) })}
+                  />
+                  <span>{style[key] ?? 100}%</span>
                 </label>
               ))}
+              {(
+                [
+                  ["text", "Details text"],
+                  ["background", "Page background"],
+                ] as const
+              ).map(([k, l]) => (
+                <label key={k} className="flex items-center justify-between gap-3">
+                  <span>{l}</span>
+                  <input
+                    type="color"
+                    value={style[k]}
+                    onChange={(e) => set({ [k]: e.target.value })}
+                    className="h-8 w-12 cursor-pointer rounded-full border border-border bg-transparent"
+                  />
+                </label>
+              ))}
+              <div className="flex items-center justify-between gap-3">
+                <span>
+                  <span className="block">Cover image</span>
+                  <span className="block text-xxs text-muted-foreground">
+                    Shown above your profile
+                  </span>
+                </span>
+                <span className="flex gap-2">
+                  <input
+                    ref={input}
+                    type="file"
+                    accept="image/*"
+                    className="sr-only"
+                    tabIndex={-1}
+                    aria-hidden
+                    onChange={(e) => {
+                      onBanner(e.target.files?.[0]);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                  <Button size="xs" variant="line" onClick={() => input.current?.click()}>
+                    {style.bannerKey ? "Replace" : "Upload image"}
+                  </Button>
+                  {style.bannerKey && (
+                    <Button
+                      size="xs"
+                      variant="quiet"
+                      onClick={() => {
+                        const k = style.bannerKey;
+                        if (set({ bannerKey: undefined })) void deleteUnusedPortfolioAsset(k);
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  )}
+                </span>
+              </div>
+              {err && (
+                <p role="alert" className="text-destructive">
+                  {err}
+                </p>
+              )}
+              <Button
+                size="xs"
+                variant="quiet"
+                onClick={() => set({ ...DEFAULT_STYLE, bannerKey: style.bannerKey })}
+              >
+                Reset colours and font
+              </Button>
             </div>
-            {enabledModes.length > 1 && (
-              <div className="space-y-1.5 pt-1">
-                <p>Opens with</p>
-                <Segmented label="Opens with" value={viewer.mode} options={enabledModes.map((mode) => [mode, modeLabel[mode]] as const)} onChange={(mode) => setViewer({ mode })} />
+          )}
+          {cropFile && (
+            <BannerCropper file={cropFile} onCancel={() => setCropFile(null)} onSave={saveBanner} />
+          )}
+        </div>
+      )}
+      {showExperience && (
+        <div
+          className={part !== "all" ? "" : `rule-t pt-4 ${sidebar ? "" : "lg:border-t-0 lg:pt-0"}`}
+        >
+          {titled && <p className="text-xs font-medium">Portfolio experience</p>}
+          <div
+            className={`${titled ? "mt-3" : ""} grid items-start gap-x-10 gap-y-4 text-xs ${sidebar || !titled ? "" : "lg:grid-cols-2"}`}
+          >
+            {showReading && (
+              <div className="space-y-3">
+                <div className="space-y-2">
+                  <p>Visual styles visitors can use</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(
+                      [
+                        ["scroll", ScrollText],
+                        ["paged", File],
+                        ["book", BookOpen],
+                      ] as const
+                    ).map(([mode, Icon]) => (
+                      <ChoiceTile
+                        key={mode}
+                        label={modeLabel[mode]}
+                        icon={Icon}
+                        selected={enabledModes.includes(mode)}
+                        onClick={() => toggleMode(mode, !enabledModes.includes(mode))}
+                        disabled={enabledModes.length === 1 && enabledModes.includes(mode)}
+                      />
+                    ))}
+                  </div>
+                  <p>Shows first</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(
+                      [
+                        ["scroll", ScrollText],
+                        ["paged", File],
+                        ["book", BookOpen],
+                      ] as const
+                    )
+                      .filter(([mode]) => enabledModes.includes(mode))
+                      .map(([mode, Icon]) => (
+                        <ChoiceTile
+                          key={mode}
+                          label={modeLabel[mode]}
+                          icon={Icon}
+                          selected={viewer.mode === mode}
+                          onClick={() => setViewer({ mode })}
+                        />
+                      ))}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <p>My PDF contains</p>
+                  <Segmented
+                    label="My PDF contains"
+                    value={viewer.spreads}
+                    options={
+                      [
+                        ["single", "Single pages"],
+                        ["ready", "Two-page spreads"],
+                      ] as const
+                    }
+                    onChange={(spreads) => setViewer({ spreads })}
+                  />
+                </div>
+                <label className="flex items-center justify-between gap-3">
+                  <span>Show profile icon</span>
+                  <input
+                    type="checkbox"
+                    checked={viewer.showHeader}
+                    onChange={(e) => setViewer({ showHeader: e.target.checked })}
+                  />
+                </label>
               </div>
             )}
-          </div>
-          <div className="space-y-1.5">
-            <p>My PDF contains</p>
-            <Segmented label="My PDF contains" value={viewer.spreads} options={[["single", "Single pages"], ["ready", "Two-page spreads"]] as const} onChange={(spreads) => setViewer({ spreads })} />
-          </div>
-          <label className="flex items-center justify-between gap-3"><span>Show profile icon</span><input type="checkbox" checked={viewer.showHeader} onChange={(e) => setViewer({ showHeader: e.target.checked })} /></label>
-          </div>}
-          {(showLook || showBackground) && <div className="space-y-3">
-          
-          {showLook && (
-            <div
-              ref={flipbookBox}
-              className="space-y-3 rounded-xl border border-border p-3"
-              onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setPreviewLook(null);
-              }}
-            >
-              <p className="font-medium">Page appearance</p>
-              <div className="flex flex-wrap gap-x-5 gap-y-2" onPointerDownCapture={() => setPreviewLook(null)}>
-                {([["clean", "Simple"], ["studio", "Studio"]] as const).map(([look, label]) => (
-                  <label key={look} className="flex items-center gap-2">
-                    <input type="checkbox" checked={enabledLooks.includes(look)} disabled={enabledLooks.length === 1 && enabledLooks.includes(look)} onChange={(e) => toggleLook(look, e.target.checked)} />
-                    <span>{label}</span>
-                  </label>
-                ))}
-              </div>
-              <p className="text-xxs text-muted-foreground">Opens in Simple when enabled. Studio prepares in the background.</p>
-              {enabledLooks.includes("studio") && <div className="space-y-2">
-                <p className="text-xs">Offer Studio in</p>
-                <p className="text-xxs text-muted-foreground">Unchecked reading styles use Simple.</p>
-                {([["scroll", "Scroll"], ["paged", "Page by page"]] as const).map(([mode, label]) => (
-                  <label key={mode} className="flex items-center gap-2 text-xs">
-                    <input type="checkbox" checked={!viewer.studioModes || viewer.studioModes.includes(mode)} onChange={e => {
-                      const modes = viewer.studioModes ?? ["book", "scroll", "paged"];
-                      setViewer({ studioModes: e.target.checked ? [...new Set([...modes, mode])] : modes.filter(item => item !== mode) });
-                    }} />{label}
-                  </label>
-                ))}
-              </div>}
-              {enabledLooks.includes("clean") && (
-                <div className="space-y-2 border-t border-border pt-3" onPointerDownCapture={() => setPreviewLook("clean")} onFocusCapture={() => setPreviewLook("clean")}>
-                  <p className="font-medium">Simple</p>
-                  <div className="space-y-1.5">
-                    <p>Shadow under the book</p>
-                    <Segmented label="Shadow under the book" value={shadowOn ? "on" : "off"} options={[["on", "On"], ["off", "Off"]] as const} onChange={(v) => setViewer({ simpleShadow: v === "on" })} />
+            {(showLook || showPaper || showBackground) && (
+              <div className="space-y-3">
+                {showLook && (
+                  <div ref={flipbookBox} className="space-y-4">
+                    <p className="font-medium">Lighting</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(
+                        [
+                          ["clean", "Simple", Square],
+                          ["studio", "Studio", Sun],
+                        ] as const
+                      ).map(([look, label, Icon]) => (
+                        <ChoiceTile
+                          key={look}
+                          label={label}
+                          icon={Icon}
+                          selected={enabledLooks.includes(look)}
+                          disabled={enabledLooks.length === 1 && enabledLooks.includes(look)}
+                          onClick={() => toggleLook(look, !enabledLooks.includes(look))}
+                        />
+                      ))}
+                    </div>
+                    <p>Shows first</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(
+                        [
+                          ["clean", "Simple", Square],
+                          ["studio", "Studio", Sun],
+                        ] as const
+                      )
+                        .filter(([look]) => enabledLooks.includes(look))
+                        .map(([look, label, Icon]) => (
+                          <ChoiceTile
+                            key={look}
+                            label={label}
+                            icon={Icon}
+                            selected={viewer.look === look}
+                            onClick={() => {
+                              setViewer({ look });
+                              setPreviewLook(look);
+                            }}
+                          />
+                        ))}
+                    </div>
+                    {enabledLooks.includes("clean") && (
+                      <label
+                        className="block space-y-2"
+                        onPointerDownCapture={() => setPreviewLook("clean")}
+                      >
+                        <span>
+                          Simple shadow · {Math.round((shadowOn ? shadowOpacity : 0) * 100)}%
+                        </span>
+                        <input
+                          type="range"
+                          aria-label="Simple shadow"
+                          min="0"
+                          max="100"
+                          value={Math.round((shadowOn ? shadowOpacity : 0) * 100)}
+                          className="w-full accent-blue-600"
+                          onChange={(e) =>
+                            setViewer({
+                              simpleShadow: Number(e.target.value) > 0,
+                              simpleShadowOpacity: Number(e.target.value) / 100,
+                            })
+                          }
+                        />
+                      </label>
+                    )}
+                    {enabledLooks.includes("studio") && (
+                      <div
+                        className="space-y-3 border-t border-border pt-3"
+                        onPointerDownCapture={() => setPreviewLook("studio")}
+                      >
+                        <p>Studio HDRI</p>
+                        <div className="grid grid-cols-3 gap-2" aria-label="Studio lighting">
+                          {HDRI_PRESETS.map((light) => (
+                            <button
+                              key={light.id}
+                              type="button"
+                              aria-pressed={studioLighting === light.id}
+                              aria-label={`Lighting ${light.label}`}
+                              onClick={() => setViewer({ studioLighting: light.id })}
+                              className={`h-16 rounded-lg border bg-cover text-white ${studioLighting === light.id ? "ring-2 ring-blue-600 border-blue-600" : "border-border"}`}
+                              style={{ background: light.preview }}
+                            >
+                              <span className="rounded bg-black/60 px-2 py-1">{light.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                        <label className="block space-y-1">
+                          <span>Brightness · {Math.round(studioBrightness * 100)}%</span>
+                          <input
+                            className="w-full accent-blue-600"
+                            type="range"
+                            aria-label="Studio brightness"
+                            min="0"
+                            max={MAX_STUDIO_BRIGHTNESS * 100}
+                            value={Math.round(studioBrightness * 100)}
+                            onChange={(e) =>
+                              setViewer({ studioBrightness: Number(e.target.value) / 100 })
+                            }
+                          />
+                        </label>
+                        <label className="block space-y-1">
+                          <span>
+                            Diffusion ·{" "}
+                            {Math.round((1 - (viewer.studioLightingStrength ?? 0.75)) * 100)}%
+                          </span>
+                          <input
+                            className="w-full accent-blue-600"
+                            type="range"
+                            aria-label="Studio lighting diffusion"
+                            min="0"
+                            max="100"
+                            value={Math.round((1 - (viewer.studioLightingStrength ?? 0.75)) * 100)}
+                            onChange={(e) =>
+                              setViewer({
+                                studioLightingStrength: 1 - Number(e.target.value) / 100,
+                              })
+                            }
+                          />
+                        </label>
+                        <label className="block space-y-1">
+                          <span>
+                            White top light · {Math.round((viewer.studioTopLight ?? 0) * 100)}%
+                          </span>
+                          <input
+                            className="w-full accent-blue-600"
+                            type="range"
+                            aria-label="Studio white top light"
+                            min="0"
+                            max="100"
+                            value={Math.round((viewer.studioTopLight ?? 0) * 100)}
+                            onChange={(e) =>
+                              setViewer({ studioTopLight: Number(e.target.value) / 100 })
+                            }
+                          />
+                        </label>
+                        <p>Offer Studio in</p>
+                        {(
+                          [
+                            ["scroll", "Scroll"],
+                            ["paged", "Page by page"],
+                          ] as const
+                        ).map(([mode, label]) => (
+                          <label key={mode} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={!viewer.studioModes || viewer.studioModes.includes(mode)}
+                              onChange={(e) => {
+                                const modes = viewer.studioModes ?? ["book", "scroll", "paged"];
+                                setViewer({
+                                  studioModes: e.target.checked
+                                    ? [...new Set([...modes, mode])]
+                                    : modes.filter((v) => v !== mode),
+                                });
+                              }}
+                            />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  {shadowOn && (
-                    <label className="flex items-center gap-3">
-                      <span className="w-20 shrink-0">Opacity</span>
-                      <input type="range" aria-label="Shadow opacity" min="0" max="100" step="1" value={Math.round(shadowOpacity * 100)} onChange={(e) => setViewer({ simpleShadowOpacity: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground" />
-                      <span className="w-9 text-right tabular-nums">{Math.round(shadowOpacity * 100)}%</span>
-                    </label>
-                  )}
-                </div>
-              )}
-              {enabledLooks.includes("studio") && (
-                <div className="space-y-3 border-t border-border pt-3" onPointerDownCapture={() => setPreviewLook("studio")} onFocusCapture={() => setPreviewLook("studio")}>
-                  <p className="font-medium">Studio</p>
-                  {STUDIO_RENDERING_ENABLED && <div className="space-y-2 rounded-xl border border-border p-3">
-                    <p className="text-xs text-muted-foreground">Rendered Studio plays HD page turns and note animations on your shared portfolio.</p>
-                    <Button size="xs" variant="line" onClick={() => setRenderDialog(true)}>{currentRender(p) ? "Render again" : "Render Studio in HD"}</Button>
-                    {currentRender(p) && <Button size="xs" variant="line" onClick={() => setRenderPreview(true)}>View rendered version</Button>}
-                    {p.pdf?.renderedStudio && !currentRender(p) && <p className="text-xs">The render is out of date. Live Studio is used until you render again.</p>}
-                    <label className="flex items-center gap-2"><input type="checkbox" checked={viewer.studioPlayback === "rendered"} disabled={!currentRender(p)} onChange={e=>setViewer({studioPlayback:e.target.checked?"rendered":"live"})}/><span>Use rendered Studio on shared links</span></label>
-                  </div>}
-                  {NATURAL_IMPERFECTIONS_ENABLED && <label className="block space-y-1 text-xs"><span>Natural imperfections</span><span className="flex items-center gap-2"><input type="range" aria-label="Natural imperfections intensity" min="0" max="100" step="1" className="min-w-0 flex-1 accent-foreground" value={Math.round(naturalIntensity(viewer.studioImperfections)*100)} onChange={e=>setViewer({studioImperfections:Number(e.target.value)/100})} /><span className="w-10 text-right tabular-nums">{Math.round(naturalIntensity(viewer.studioImperfections)*100)}%</span></span><span className="block text-muted-foreground">Visible paper fibres, flecks and edge wear, with soft dust in the air. 0% turns them off.</span></label>}
-                  <div className="space-y-1.5">
-                    <p>Paper</p>
-                    <select aria-label="Studio paper" className="w-full min-w-0 rounded-lg border border-border bg-background p-2" value={paperFinish(viewer.finish)} onChange={e => setViewer({ finish: e.target.value as SurfaceKind })}>
-                      {PAPER_STYLES.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-                    </select>
-                  </div>
-                  <label className="flex items-center gap-3">
-                    <span className="w-20 shrink-0">Brightness</span>
-                    <input type="range" aria-label="Studio brightness" min="0" max={MAX_STUDIO_BRIGHTNESS * 100} step="1" value={Math.round(studioBrightness * 100)} onChange={(e) => setViewer({ studioBrightness: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground" />
-                    <span className="w-9 text-right tabular-nums">{Math.round(studioBrightness * 100)}%</span>
-                  </label>
-                  <label className="flex items-center gap-3">
-                    <span className="w-20 shrink-0">Top light</span>
-                    <input type="range" aria-label="Studio white top light" min="0" max="100" step="1" value={Math.round((viewer.studioTopLight ?? 0) * 100)} onChange={e => setViewer({ studioTopLight: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground" />
-                    <span className="w-9 text-right tabular-nums">{Math.round((viewer.studioTopLight ?? 0) * 100)}%</span>
-                  </label>
-                  <div className="space-y-1.5">
-                    <p>Lighting</p>
-                    <label className="flex items-center gap-2"><span className="shrink-0">Diffusion</span><input type="range" aria-label="Studio lighting diffusion" min="0" max="100" value={Math.round((1 - (viewer.studioLightingStrength ?? .75)) * 100)} onChange={e => setViewer({ studioLightingStrength: 1 - Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground"/><span className="w-9 text-right tabular-nums">{Math.round((1 - (viewer.studioLightingStrength ?? .75)) * 100)}%</span></label>
-                    <p className="text-xs text-muted-foreground">0% retains the HDRI and direct-light pattern. 100% diffuses them into an even, solid colour.</p>
-                    <div role="radiogroup" aria-label="Studio lighting" className="grid grid-cols-4 gap-1.5">
-                      {HDRI_PRESETS.map((light) => (
-                        <button
-                          key={light.id}
-                          type="button"
-                          role="radio"
-                          aria-checked={studioLighting === light.id}
-                          aria-label={light.label}
-                          title={light.label}
-                          onClick={() => setViewer({ studioLighting: light.id })}
-                          className={`relative h-12 overflow-hidden rounded-lg border text-sm font-medium text-white transition-opacity ${studioLighting === light.id ? "border-foreground opacity-100 ring-2 ring-foreground/30" : "border-border opacity-75 hover:opacity-100"}`}
-                          style={{ background: light.preview }}
-                        >
-                          <span className="absolute inset-0 flex items-center justify-center bg-black/25 [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">{light.id}</span>
-                        </button>
+                )}
+                {showPaper && (
+                  <div
+                    data-studio-background
+                    className="space-y-3"
+                    onPointerDownCapture={() => setPreviewLook("studio")}
+                  >
+                    <p className="font-medium">Paper</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {PAPER_STYLES.map(([id, label]) => (
+                        <ChoiceTile
+                          key={id}
+                          label={label}
+                          icon={
+                            id === "matte"
+                              ? Square
+                              : id === "satin"
+                                ? Layers
+                                : id === "paper_0022"
+                                  ? Origami
+                                  : Newspaper
+                          }
+                          selected={paperFinish(viewer.finish) === id}
+                          onClick={() => setViewer({ finish: id })}
+                        />
                       ))}
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
-          {showBackground && <div className="space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span>Viewer background</span>
-              <span className="flex min-w-0 flex-wrap items-center gap-2">
-                <input
-                  type="color"
-                  aria-label="Viewer background colour"
-                  title={hasBackground ? "Remove the picture to use a colour" : "Choose a colour"}
-                  value={wheelColour}
-                  disabled={hasBackground}
-                  onChange={(e) => setViewer({ backgroundColor: e.target.value })}
-                  className="h-8 w-12 cursor-pointer rounded-full border border-border bg-transparent disabled:cursor-default disabled:opacity-40"
-                />
-                <input ref={backgroundInput} type="file" accept="image/*" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => { void onBackgroundImage(e.target.files?.[0]); e.currentTarget.value = ""; }} />
-                <Button size="xs" variant="line" onClick={() => backgroundInput.current?.click()}>{hasBackground ? "Replace picture" : "Upload picture"}</Button>
-                {hasBackground && <Button size="xs" variant="quiet" onClick={removeBackgroundImage}>Remove</Button>}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2" aria-label="Background pictures">
-              {BACKGROUND_PRESETS.map(preset => <button key={preset.id} type="button" aria-pressed={viewer.backgroundPreset === preset.id && !viewer.backgroundKey} className="overflow-hidden rounded-xl border border-border text-left aria-pressed:ring-2 aria-pressed:ring-foreground" onClick={() => {
-                const old = viewer.backgroundKey;
-                if (setViewer({ backgroundPreset: preset.id, backgroundKey: undefined, backgroundFit: DEFAULT_FIT })) void deleteUnusedPortfolioAsset(old);
-              }}>
-                <img src={preset.url.replace(".webp", "-thumb.webp")} alt="" loading="lazy" className="h-16 w-full object-cover" />
-                <span className="block px-2 py-1.5 text-xs">{preset.label}</span>
-              </button>)}
-            </div>
-            <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 shrink-0 accent-foreground" checked={viewer.backgroundLighting ?? false} onChange={e => { setViewer({ backgroundLighting: e.target.checked, ...(!e.target.checked ? { background3D: false } : {}) }); setPreviewLook("studio"); }}/><span>Light background with HDRI <span className="block text-xs text-muted-foreground">Applies to colours and pictures in Studio view.</span></span></label>
-            <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 shrink-0 accent-foreground" checked={viewer.background3D ?? false} onChange={e => { setViewer({ background3D: e.target.checked, ...(e.target.checked ? { backgroundLighting: true } : {}) }); setPreviewLook("studio"); }}/><span>3D background <span className="block text-xs text-muted-foreground">Studio uses surface detail and roughness for realistic HDRI lighting. Presets use supplied maps; uploaded pictures use estimated relief.</span></span></label>
-            <div className="space-y-2 rounded-xl border border-border p-3">
-              <p className="font-medium">Different background per view</p>
-              <p className="text-xxs text-muted-foreground">Optional. Views left on "Same as above" use the background chosen above.</p>
-              {([["studio", "Flipbook · Studio"], ["clean", "Flipbook · Simple"], ["scroll", "Scroll"], ["paged", "Page by page"]] as const).map(([ctx, label]) => {
-                const own = viewer.backgrounds?.[ctx];
-                const update = (next?: { backgroundColor?: string; backgroundPreset?: string }) => setViewer({ backgrounds: { ...viewer.backgrounds, [ctx]: next } });
-                return <div key={ctx} className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                  <span>{label}</span>
-                  <span className="flex items-center gap-2">
-                    <select aria-label={`${label} background`} className="rounded-lg border border-border bg-background p-1.5" value={!own ? "same" : own.backgroundPreset ?? "colour"} onChange={e => {
-                      const v = e.target.value;
-                      update(v === "same" ? undefined : v === "colour" ? { backgroundColor: own?.backgroundColor ?? wheelColour } : { backgroundPreset: v });
-                    }}>
-                      <option value="same">Same as above</option>
-                      <option value="colour">Colour</option>
-                      {BACKGROUND_PRESETS.map(preset => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
-                    </select>
-                    {own && !own.backgroundPreset && <input type="color" aria-label={`${label} background colour`} value={own.backgroundColor ?? wheelColour} onChange={e => update({ backgroundColor: e.target.value })} className="h-7 w-10 cursor-pointer rounded-full border border-border bg-transparent" />}
-                  </span>
-                </div>;
-              })}
-            </div>
-            {hasBackground && (
-              <div data-studio-background={viewer.backgroundLighting ? "true" : undefined} onPointerDownCapture={() => { if (viewer.backgroundLighting) setPreviewLook("studio"); }} className="space-y-2 rounded-xl border border-border p-3">
-                {backgroundUrl && <img src={backgroundUrl} alt="Your background picture" className="h-16 w-full rounded-md object-cover" />}
-                <label className="flex items-center gap-3"><span className="w-16 shrink-0">Size</span><input type="range" aria-label="Background picture size" min={viewer.backgroundPreset && !viewer.backgroundKey ? "25" : "100"} max="300" step="5" value={Math.round(fit.scale * 100)} onChange={(e) => setFit({ scale: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground" /><span className="w-10 text-right tabular-nums">{Math.round(fit.scale * 100)}%</span></label>
-                <label className="flex items-center gap-3"><span className="w-16 shrink-0">Left / right</span><input type="range" aria-label="Move background picture left or right" min="-100" max="100" step="2" value={Math.round(fit.x * 100)} disabled={fit.scale <= 1} onChange={(e) => setFit({ x: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground disabled:opacity-40" /></label>
-                <label className="flex items-center gap-3"><span className="w-16 shrink-0">Up / down</span><input type="range" aria-label="Move background picture up or down" min="-100" max="100" step="2" value={Math.round(fit.y * 100)} disabled={fit.scale <= 1} onChange={(e) => setFit({ y: Number(e.target.value) / 100 })} className="min-w-0 flex-1 accent-foreground disabled:opacity-40" /></label>
-                <p className="text-xxs text-muted-foreground">Make the picture larger to move it.</p>
-                <Button size="xs" variant="quiet" onClick={() => setFit(DEFAULT_FIT)}>Reset size and position</Button>
+                )}
+                {showBackground && (
+                  <BackgroundSettings
+                    viewer={viewer}
+                    setViewer={setViewer}
+                    defaultColour={wheelColour}
+                  />
+                )}
               </div>
             )}
-            {backgroundErr && <p role="alert" className="text-destructive">{backgroundErr}</p>}
-          </div>}
-          </div>}
+          </div>
         </div>
-      </div>}
-      {STUDIO_RENDERING_ENABLED && renderPreview && <RenderedStudioPreview p={p} onClose={() => setRenderPreview(false)} />}
-      {STUDIO_RENDERING_ENABLED && renderDialog && <RenderStudioPanel p={p} onClose={() => setRenderDialog(false)} />}
+      )}
     </div>
   );
 }

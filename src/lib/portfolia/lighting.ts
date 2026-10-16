@@ -1,5 +1,5 @@
 /** Lighting choices retain stable IDs so saved portfolios keep their original lighting. */
-export type HdriId = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8";
+export type HdriId = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "11" | "12" | "13" | "14" | "15";
 
 /**
  * Real photographic lighting (see public/studio/hdri). Each is a 512 x 256 or 1024 x 512 Radiance picture,
@@ -17,6 +17,13 @@ export const HDRI_PRESETS: readonly { id: HdriId; label: string; file: string; p
   { id: "6", label: "6", file: "/studio/hdri/lighting-6.hdr", preview: "url(/studio/hdri/lighting-6.jpg) center / cover", dapple: "leaves" },
   { id: "7", label: "7", file: "/studio/hdri/lighting-7.hdr", preview: "url(/studio/hdri/lighting-7.jpg) center / cover", dapple: "blinds" },
   { id: "8", label: "8", file: "/studio/hdri/lighting-8.hdr", preview: "url(/studio/hdri/lighting-8.jpg) center / cover", dapple: "window" },
+  { id: "9", label: "9", file: "/studio/hdri/lighting-9.hdr", preview: "url(/studio/hdri/lighting-9.jpg) center / cover", dapple: "window" },
+  { id: "10", label: "10", file: "/studio/hdri/lighting-10.hdr", preview: "url(/studio/hdri/lighting-10.jpg) center / cover", dapple: "blinds" },
+  { id: "11", label: "11", file: "/studio/hdri/lighting-11.hdr", preview: "url(/studio/hdri/lighting-11.jpg) center / cover", dapple: "window" },
+  { id: "12", label: "12", file: "/studio/hdri/lighting-12.hdr", preview: "url(/studio/hdri/lighting-12.jpg) center / cover", dapple: "window" },
+  { id: "13", label: "13", file: "/studio/hdri/lighting-13.hdr", preview: "url(/studio/hdri/lighting-13.jpg) center / cover", dapple: "blinds" },
+  { id: "14", label: "14", file: "/studio/hdri/lighting-14.hdr", preview: "url(/studio/hdri/lighting-14.jpg) center / cover", dapple: "leaves" },
+  { id: "15", label: "15", file: "/studio/hdri/lighting-15.hdr", preview: "url(/studio/hdri/lighting-15.jpg) center / cover", dapple: "pine" },
 ];
 
 /** The shadow the Simple look starts with: light, so it is there without being heavy. */
