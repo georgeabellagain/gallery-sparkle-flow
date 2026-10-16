@@ -1042,7 +1042,7 @@ export function BookView({
   useEffect(() => {
     const renderer = scene.current;
     if (!onExporter || !bookReady || fallback || !renderer || !settings.studio) { onExporter?.(null); return; }
-    onExporter({render: async (signature, save, progress, signal) => {
+    const render = async (signature: string, save: (blob: Blob) => Promise<string>, progress: (value: string, fraction?: number) => void, signal: AbortSignal, video?: (blob: Blob) => void): Promise<import("@/lib/portfolia/rendered-studio").RenderedStudio> => {
       if (lock.current) throw new Error("The book is still moving. Please try again.");
       lock.current = true;
       const output = document.createElement("canvas"); output.width=Math.round(viewportRef.current!.clientWidth*2); output.height=Math.round(viewportRef.current!.clientHeight*2);
@@ -1079,6 +1079,34 @@ export function BookView({
         await renderer.captureReady();
         renderer.setFrameSink(draw);
         renderer.setInset(0);
+        if (video) {
+          // One continuous timeline: retain the cover and each spread long enough to read.
+          const hold = async () => {
+            if (stepFrame) await captureFrames(1600, () => { signal.throwIfAborted(); renderer.renderFrame(); }, stepFrame);
+            else {
+              const start = performance.now();
+              while (performance.now() - start < 1600) {
+                signal.throwIfAborted(); renderer.renderFrame();
+                await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+              }
+            }
+          };
+          let from = await show(0);
+          const blob = await record(async () => {
+            await hold();
+            for (let i = 1; i < layout.spreads.length; i++) {
+              signal.throwIfAborted();
+              progress(`Exporting spread ${i + 1} of ${layout.spreads.length}`, i / layout.spreads.length);
+              const next = layout.spreads[i]!, to = await faces(next);
+              await renderer.prepareNotes(specs(i - 1), specs(i));
+              await renderer.turn(from, to, 1, bookFocus(next, next.find(n => n !== null)!, false), 1, tabPlanFor(layout.spreads[i - 1]!, next, 1));
+              from = await show(i);
+              await hold();
+            }
+          });
+          signal.throwIfAborted(); video(blob); progress("Video ready to download.", 1);
+          return { version: 1, signature, createdAt: Date.now(), width: output.width, height: output.height, states: [], bytes: blob.size };
+        }
         for(let i=0;i<layout.spreads.length;i++) {
           report(`Rendering page ${i+1} of ${layout.spreads.length}`);
           await show(i);
@@ -1110,6 +1138,12 @@ export function BookView({
         signal.throwIfAborted();if(scene.current!==renderer)throw new Error("The graphics renderer changed. Please try again.");
         return {version:1,signature,createdAt:Date.now(),width:output.width,height:output.height,states,bytes};
       } finally { renderer.setCaptureClock(); renderer.setFrameSink(); lock.current=false; if(alive.current) { await renderer.setNotes(currentNoteSpecs); renderer.show(await faces(spread)); renderer.viewport(narrow,zoom,bookFocus(spread,leafRef.current,narrow)); } }
+    };
+    onExporter({ render, video: async (progress, signal) => {
+      let result: Blob | undefined;
+      await render("", async () => "", progress, signal, blob => { result = blob; });
+      if (!result) throw new Error("The video could not be created.");
+      return result;
     }});
     return () => onExporter(null);
   }, [onExporter, bookReady, fallback, ready, settings.studio, layout, faces, additions, pageLinks, pageTags]);

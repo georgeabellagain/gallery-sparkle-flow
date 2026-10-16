@@ -1,4 +1,3 @@
-import { paperEdge } from "./paper-edge";
 import * as THREE from "three";
 import {pageRelief} from "./page-relief";
 import {turnClearance,turnSheetHeight} from "./turn-motion";
@@ -58,12 +57,10 @@ export function createTurnGeometryCache(capacity=8) {
 }
 
 /** Original turn deformation, evaluated only while baking a new page combination. */
-export function turnGeometryWriter(template:THREE.BufferGeometry, ratio:number, dir:1|-1, seeds:readonly number[], restingSeeds:readonly number[], gap:number, crumpled=false) {
+export function turnGeometryWriter(template:THREE.BufferGeometry, ratio:number, dir:1|-1, seeds:readonly number[], restingSeeds:readonly number[], gap:number) {
   const uv=template.getAttribute("uv");
   const from=Float32Array.from({length:uv.count},(_,i)=>pageRelief(uv.getX(i),uv.getY(i),seeds[0]!));
   const to=Float32Array.from({length:uv.count},(_,i)=>pageRelief(uv.getX(i),uv.getY(i),seeds[1]!));
-  const edgesFrom=Array.from({length:uv.count},(_,i)=>paperEdge(uv.getX(i),uv.getY(i),seeds[0]!,crumpled));
-  const edgesTo=Array.from({length:uv.count},(_,i)=>paperEdge(uv.getX(i),uv.getY(i),seeds[1]!,crumpled));
   const curl=Float32Array.from({length:uv.count},(_,i)=>.30*Math.sin(Math.PI*uv.getX(i))*(1+.35*(.5-uv.getY(i))));
   return (progress:number, output:THREE.BufferGeometry)=>{
     const positions=output.getAttribute("position") as THREE.BufferAttribute;
@@ -71,26 +68,21 @@ export function turnGeometryWriter(template:THREE.BufferGeometry, ratio:number, 
     const sin=Math.sin(Math.PI*progress),cos=Math.cos(Math.PI*progress),clearance=turnClearance(progress,gap);
     for(let i=0;i<uv.count;i++) {
       const u=uv.getX(i),v=uv.getY(i),bow=sin*curl[i]!;
-      const edgeD=edgesFrom[i]!.d*(1-blend)+edgesTo[i]!.d*blend;
-      const edgeV=edgesFrom[i]!.v*(1-blend)+edgesTo[i]!.v*blend;
-      const x=dir*(edgeD*cos+bow*sin),z=edgeD*sin-bow*cos;
+      const x=dir*(u*cos+bow*sin),z=u*sin-bow*cos;
       const relief=from[i]!*(1-blend)+to[i]!*blend;
       const floor=pageRelief(Math.min(1,Math.abs(x)),v,restingSeeds[x<0?0:1]!);
-      positions.setXYZ(i,x,(edgeV-.5)*ratio,turnSheetHeight(z+relief+clearance,floor,gap,progress));
+      positions.setXYZ(i,x,(v-.5)*ratio,turnSheetHeight(z+relief+clearance,floor,gap,progress));
     }
   };
 }
 
 /** Match the resting mesh's triangulation and world-space normals on either side of the spine. */
-export function restingTurnNormals(template:THREE.BufferGeometry,ratio:number,side:1|-1,seed:number,sign:number,crumpled=false) {
+export function restingTurnNormals(template:THREE.BufferGeometry,ratio:number,side:1|-1,seed:number,sign:number) {
  const work=template.clone(),uv=template.getAttribute("uv"),positions=work.getAttribute("position") as THREE.BufferAttribute;
  const columns=new Set(Array.from({length:uv.count},(_,i)=>uv.getX(i))).size;
  try {
   for(let i=0;i<uv.count;i++)positions.setXYZ(i,uv.getX(i)-.5,(uv.getY(i)-.5)*ratio,0);
-  for(let i=0;i<uv.count;i++) {
-   const u=uv.getX(i),v=uv.getY(i),d=side===1?u:1-u,edge=paperEdge(d,v,seed,crumpled);
-   positions.setXYZ(i,side*(edge.d-.5),(edge.v-.5)*ratio,pageRelief(d,v,seed));
-  }
+  for(let i=0;i<uv.count;i++)positions.setZ(i,pageRelief(.5+side*positions.getX(i),positions.getY(i)/ratio+.5,seed));
   work.computeVertexNormals();const normals=work.getAttribute("normal"),result=new Float32Array(uv.count*3);
   for(let i=0;i<uv.count;i++){
    const source=side===1?i:Math.floor(i/columns)*columns+columns-1-i%columns;

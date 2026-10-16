@@ -1,12 +1,12 @@
 import { presetShadow } from "./lighting";
 import { createPaperTextures } from "./paper-textures";
 import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
-import { averageEnvironment, createEnvironmentDiffuser } from "./environment-diffusion";
+import { createEnvironmentDiffuser } from "./environment-diffusion";
 import { readerSlideOffset, READER_SLIDE_MS } from "./reader-slide";
 import { createFrameCommits } from "./frame-commits";
 import * as THREE from "three";
 import { HDRI_PRESETS, studioLightMix, studioTopLight, presetDirectLight, studioExposure, type HdriId } from "./lighting";
-import { parseRgbe } from "./rgbe";
+import { loadPreparedEnvironment } from "./prepared-environment";
 import { dappleTexture } from "./dapple-light";
 import { type SurfaceKind } from "./surface";
 import { createLitBackdrop } from "./lit-backdrop";
@@ -219,17 +219,9 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
     let pending = environments.get(id);
     if (!pending) {
       pending = (async () => {
-        const response = await fetch(HDRI_PRESETS.find(p => p.id === id)!.file);
-        if (!response.ok) throw new Error("Lighting could not load");
-        const { width, height, rgb } = parseRgbe(await response.arrayBuffer());
+        const { width, height, pixels, colour } = await loadPreparedEnvironment(id);
         if (disposed) throw new Error("Reader closed");
-        environmentColours.set(id, averageEnvironment(rgb, width, height));
-        const pixels = new Uint16Array(width * height * 4);
-        for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-          const from = ((height - 1 - y) * width + x) * 3, to = (y * width + x) * 4;
-          for (let c = 0; c < 3; c++) pixels[to + c] = THREE.DataUtils.toHalfFloat(Math.min(rgb[from + c]!, 60000));
-          pixels[to + 3] = THREE.DataUtils.toHalfFloat(1);
-        }
+        environmentColours.set(id, colour);
         const hdr = new THREE.DataTexture(pixels, width, height, THREE.RGBAFormat, THREE.HalfFloatType);
         hdr.mapping = THREE.EquirectangularReflectionMapping;
         hdr.minFilter = hdr.magFilter = THREE.LinearFilter; hdr.needsUpdate = true;
