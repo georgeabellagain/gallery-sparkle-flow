@@ -400,7 +400,7 @@ export function PdfViewer({
   // Each look (in Flipbook) and reading style can carry its own background.
   const backgroundContext = mode === "book" ? (studio ? "studio" : "clean") : mode;
   const bgOverride = view.backgrounds?.[backgroundContext];
-  const bgView = bgOverride ? { ...view, backgroundColor: bgOverride.backgroundColor ?? view.backgroundColor, backgroundPreset: bgOverride.backgroundPreset, backgroundKey: bgOverride.backgroundPreset ? undefined : view.backgroundKey } : view;
+  const bgView = bgOverride ? { ...view, backgroundColor: bgOverride.backgroundColor ?? view.backgroundColor, backgroundPreset: bgOverride.backgroundPreset, backgroundKey: bgOverride.backgroundPreset || bgOverride.backgroundColor ? undefined : view.backgroundKey } : view;
   const backgroundUrl = backgroundPicture(bgView, uploadedBackgroundUrl);
   const colour = backgroundColour(bgView, bgOverride?.backgroundColor ? undefined : backdrop);
   const tone = useTone(colour, backgroundUrl);
