@@ -65,6 +65,7 @@ function PricingPage() {
                 "Downloadable personal QR code",
                 "Profile and contact links",
                 "Simple and 3D Studio flipbooks",
+                "4 HDRIs and 2 backgrounds; preview the full collection",
                 "Scroll and page-by-page viewing",
                 "Embed your portfolio on another website",
                 "Basic visit statistics",
@@ -87,6 +88,7 @@ function PricingPage() {
               items={[
                 "Everything included in Free",
                 "Up to 10 portfolios, each up to 50 MB",
+                "All 15 HDRIs, all backgrounds and uploaded pictures",
                 "Download your flipbook as a 1080p HD video",
               ]}
               action={

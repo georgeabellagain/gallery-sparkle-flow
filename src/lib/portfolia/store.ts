@@ -4,7 +4,7 @@ import type { ExtraKind, Extra } from "./scrapbook-transform";
 import { backgroundKeys } from "./background-settings";
 import { foldoutKeys } from "./foldouts";
 import { useSyncExternalStore } from "react";
-import { deleteBlob, uid } from "./assets";
+import { deleteBlob, setAssetRetention, uid } from "./assets";
 
 /**
  * Portfolio store. A localStorage copy keeps the UI instant; once signed in,
@@ -147,6 +147,7 @@ export interface Profile {
 
 export interface Portfolio {
   name?: string;
+  bookMarketing?: { description: string; buyUrl: string; label: string };
   code: string; // free address: /p/<code>
   status: "draft" | "published";
   profile: Profile;
@@ -185,6 +186,32 @@ const KEY = "portfolia.simple.v1";
 const empty = (): Doc => ({ v: 1, account: { signedIn: false }, portfolio: null, analytics: { visits: [], downloads: [] }, others: [] });
 
 let state: Doc = empty();
+let portfolioDraft: Portfolio | null = null;
+let draftView: Doc | null = null;
+const assetKeys = (p: Portfolio | null) => p ? [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey, p.style?.bannerKey, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf)].filter((key): key is string => Boolean(key)) : [];
+const notify = () => { draftView = null; listeners.forEach(l => l()); };
+export function getSavedDoc(): Doc { load(); return state; }
+export function beginPortfolioDraft(code: string) {
+  if (portfolioDraft?.code === code || state.portfolio?.code !== code) return;
+  portfolioDraft = structuredClone(state.portfolio);
+  setAssetRetention(key => allPortfolios(state).some(p => assetKeys(p).includes(key)));
+  notify();
+}
+export function portfolioDraftDirty() { return Boolean(portfolioDraft && JSON.stringify(portfolioDraft) !== JSON.stringify(state.portfolio)); }
+export function isPortfolioDraft(code: string) { return portfolioDraft?.code === code; }
+export function savePortfolioDraft(): boolean {
+  if (!portfolioDraft || state.portfolio?.code !== portfolioDraft.code) return false;
+  const oldKeys = assetKeys(state.portfolio);
+  const next = { ...state, portfolio: structuredClone(portfolioDraft) };
+  if (!commit(next)) return false;
+  oldKeys.filter(key => !assetKeys(portfolioDraft).includes(key)).forEach(key => void deleteBlob(key).catch(() => {}));
+  return true;
+}
+export function discardPortfolioDraft() {
+  const staged = assetKeys(portfolioDraft), saved = assetKeys(state.portfolio);
+  portfolioDraft = null; setAssetRetention(null); notify();
+  staged.filter(key => !saved.includes(key)).forEach(key => void deleteUnusedPortfolioAsset(key).catch(() => {}));
+}
 let commitHook: ((d: Doc) => void) | null = null;
 /** Called after every successful save (used to sync to the cloud). */
 export function setCommitHook(fn: ((d: Doc) => void) | null) {
@@ -195,7 +222,11 @@ export function replaceDoc(next: Doc) {
   load();
   try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* cache only */ }
   state = next;
-  listeners.forEach((l) => l());
+  if (portfolioDraft && next.portfolio?.code !== portfolioDraft.code) { portfolioDraft = null; setAssetRetention(null); }
+  if (portfolioDraft && next.portfolio) {
+    portfolioDraft = { ...portfolioDraft, plan: next.portfolio.plan, billing: next.portfolio.billing, cancelledAt: next.portfolio.cancelledAt, synced: next.portfolio.synced };
+  }
+  notify();
 }
 let loaded = false;
 const listeners = new Set<() => void>();
@@ -222,19 +253,35 @@ function commit(next: Doc): boolean {
     return false;
   }
   state = next;
-  listeners.forEach((l) => l());
+  if (portfolioDraft && next.portfolio?.code !== portfolioDraft.code) { portfolioDraft = null; setAssetRetention(null); }
+  if (portfolioDraft && next.portfolio) {
+    portfolioDraft = { ...portfolioDraft, plan: next.portfolio.plan, billing: next.portfolio.billing, cancelledAt: next.portfolio.cancelledAt, synced: next.portfolio.synced };
+  }
+  notify();
   commitHook?.(next);
   return true;
 }
 
 export function getDoc(): Doc {
   load();
-  return state;
+  if (!portfolioDraft) return state;
+  return draftView ??= { ...state, portfolio: portfolioDraft };
 }
 
 export function update(fn: (d: Doc) => Doc): boolean {
   load();
-  return commit(fn(structuredClone(state)));
+  const next = fn(structuredClone(getDoc()));
+  if (portfolioDraft && next.portfolio?.code === portfolioDraft.code) {
+    portfolioDraft = next.portfolio;
+    const saved = state.portfolio!;
+    next.portfolio = { ...saved, plan: portfolioDraft.plan, billing: portfolioDraft.billing, cancelledAt: portfolioDraft.cancelledAt };
+    if (JSON.stringify(next) === JSON.stringify(state)) { notify(); return true; }
+  } else if (portfolioDraft) {
+    // Switching books must park the saved version, never the preview overlay.
+    next.others = next.others.map(item => item.portfolio.code === state.portfolio?.code ? { ...item, portfolio: state.portfolio! } : item);
+    portfolioDraft = null; setAssetRetention(null);
+  }
+  return commit(next);
 }
 
 function subscribe(l: () => void) {
@@ -317,7 +364,7 @@ export function patchPortfolioAppearance(code: string, patch: { viewer?: Partial
 
 /** Older portfolios can share an asset key; changing one must not erase another's picture. */
 export function portfolioUsesAsset(key: string): boolean {
-  return allPortfolios(getDoc()).some(p => [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey,
+  return [...allPortfolios(getDoc()), ...allPortfolios(getSavedDoc())].some(p => [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey,
     p.style?.bannerKey, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf)].includes(key));
 }
 export async function deleteUnusedPortfolioAsset(key?: string) {

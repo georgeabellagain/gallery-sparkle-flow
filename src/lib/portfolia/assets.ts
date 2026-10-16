@@ -99,7 +99,10 @@ export async function getBlob(key: string): Promise<Blob | undefined> {
 /** Local-only read, used when moving browser files into an account. */
 export const getLocalBlob = (key: string) => getLocal(key).catch(() => undefined);
 
+let retainAsset: ((key: string) => boolean) | null = null;
+export function setAssetRetention(check: ((key: string) => boolean) | null) { retainAsset = check; }
 export async function deleteBlob(key: string): Promise<void> {
+  if (retainAsset?.(key)) return;
   if (cloudUser) await supabase.storage.from(BUCKET).remove([`${cloudUser}/${key}`]).catch(() => {});
   const db = await openDb();
   await new Promise<void>((resolve) => {

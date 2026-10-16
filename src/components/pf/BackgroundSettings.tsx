@@ -1,3 +1,4 @@
+import { personalBackground } from "@/lib/portfolia/premium-appearance";
 import { useEffect, useRef, useState } from "react";
 import { useBlob, useObjectUrl } from "./Chrome";
 import { Button } from "@/components/ui/button";
@@ -208,7 +209,7 @@ export function BackgroundSettings({
             </div>
           </>
         )}
-        <p className="font-medium">Presets</p>
+        <p className="font-medium">Presets</p><p className="text-xs text-muted-foreground">Preview every background. Warm wood and Soft concrete are included on Free. Other presets and uploaded backgrounds require Personal to save.</p>
         <div className="grid grid-cols-2 gap-2">
           {BACKGROUND_PRESETS.map((preset) => (
             <button
@@ -229,7 +230,7 @@ export function BackgroundSettings({
                 loading="lazy"
                 className="h-14 w-full object-cover"
               />
-              <span className="block p-2">{preset.label}</span>
+              <span className="block p-2">{preset.label}{personalBackground(preset.id) ? " · Personal" : ""}</span>
             </button>
           ))}
         </div>

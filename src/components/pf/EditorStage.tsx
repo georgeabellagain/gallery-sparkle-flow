@@ -1,3 +1,4 @@
+import { BookMarketingSettings } from "./BookMarketingSettings";
 import { LiveScrapbookContext } from "./live-scrapbook-context";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
@@ -19,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { EditorFullscreenContext, useEditorFullscreen } from "./editor-fullscreen";
 import { openingLook } from "@/lib/portfolia/appearance";
 
-type Tool = "customise" | "profile" | "reading" | "look" | "paper" | "background" | "scrapbook" | "projects" | "publish" | "share" | "statistics";
+type Tool = "book" | "customise" | "profile" | "reading" | "look" | "paper" | "background" | "scrapbook" | "projects" | "publish" | "share" | "statistics";
 const TOOLS: Array<[Tool, string, typeof Sun]> = [
   ["reading", "Visual style", BookOpen],
   ["look", "Lighting", Sun],
@@ -27,6 +28,7 @@ const TOOLS: Array<[Tool, string, typeof Sun]> = [
   ["background", "Background", ImageIcon],
   ["scrapbook", "Scrapbook", StickyNote],
   ["projects", "Projects", FolderOpen],
+  ["book", "Book marketing", BookOpen],
   ["share", "Share", Share2],
   ["statistics", "Statistics", ChartNoAxesColumn],
   ["publish", "File & publishing", Upload],
@@ -38,9 +40,13 @@ export function EditorBar({
   status,
   onPublish,
   onUnpublish,
+  onSave,
+  saving,
 }: {
   p: Portfolio;
   status: ReactNode;
+  onSave?: () => void;
+  saving?: boolean;
   onPublish: () => void;
   onUnpublish: () => void;
 }) {
@@ -71,6 +77,7 @@ export function EditorBar({
           </div>
         )}
       </div>
+      {onSave && <Button size="sm" onClick={onSave} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>}
       <Button asChild size="sm" variant="line">
         <Link to="/p/$slug" params={{ slug: p.code }} search={{ preview: "1" }}>Preview</Link>
       </Button>
@@ -248,12 +255,13 @@ export function EditorStage({
           {tool === "reading" && <StyleForm sidebar part="reading" p={p} onSaveError={onSaveError} />}
           {tool === "look" && <StyleForm sidebar part="look" p={p} onSaveError={onSaveError} />}
           {tool === "paper" && <StyleForm sidebar part="paper" p={p} onSaveError={onSaveError} />}
+          {tool === "book" && <BookMarketingSettings p={p} />}
           {tool === "background" && <StyleForm sidebar part="background" p={p} onSaveError={onSaveError} />}
           {tool === "projects" && <ProjectSettings key={`${p.code}:${pdf.blobKey}`} p={p} />}
           {tool === "scrapbook" && (
             <div className="space-y-3 text-sm">
               <p className="text-xs leading-relaxed text-muted-foreground">
-                Drag notes, tabs and links on the portfolio. Pull the corner handles to resize. Changes save when you release. Use the options below to add items or change their content.
+                Drag notes, tabs and links on the portfolio. Pull the corner handles to resize. Changes preview when you release. Use Save above to keep them. Use the options below to add items or change their content.
               </p>
               {([
                 ["notes", "Fold-out notes", "Text or pictures that unfold from a page", notes],

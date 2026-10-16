@@ -6,7 +6,7 @@ import { useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { getBlob, setCloudUser, uploadToCloud } from "./assets";
-import { allPortfolios, getDoc, replaceDoc, resetAll, setCommitHook, type Analytics, type Doc, type Portfolio } from "./store";
+import { allPortfolios, getDoc, getSavedDoc, replaceDoc, resetAll, setCommitHook, type Analytics, type Doc, type Portfolio } from "./store";
 
 /**
  * Keeps the browser copy of portfolios in step with the signed-in account.
@@ -72,7 +72,7 @@ async function push() {
 async function pushOnce() {
   const uid = userId;
   if (!uid) return;
-  const list = allPortfolios(getDoc());
+  const list = allPortfolios(getSavedDoc());
   const codes = new Set(list.map((p) => p.code));
   try {
     for (const p of list) {
@@ -107,7 +107,7 @@ async function pushOnce() {
       if (!p.synced) {
         // Only update this flag after the files and metadata have reached the
         // account. Preserve edits made while the request was in flight.
-        const current = structuredClone(getDoc());
+        const current = structuredClone(getSavedDoc());
         const saved = allPortfolios(current).find(item => item.code === p.code);
         if (saved) { saved.synced = true; replaceDoc(current); }
       }
@@ -149,7 +149,7 @@ async function pull(uid: string) {
   const cloud = new Map((data ?? []).map((r) => [r.code, r.data as unknown as Portfolio]));
   pushed = new Map([...cloud].map(([c, p]) => [c, JSON.stringify(p)]));
 
-  const local = getDoc();
+  const local = getSavedDoc();
   // Browser-only portfolios (never synced) are moved into the account.
   const toMove = allPortfolios(local).filter((p) => !cloud.has(p.code) && !p.synced);
   const list: Portfolio[] = [...toMove, ...cloud.values()];

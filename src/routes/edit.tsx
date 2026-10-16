@@ -1,7 +1,12 @@
+import { UpgradeModal } from "@/components/pf/UpgradeModal";
+import { personalSaveEntitlement } from "@/lib/portfolia/entitlements.functions";
+import { premiumAppearance } from "@/lib/portfolia/premium-appearance";
+import { bookPurchaseUrl } from "@/lib/portfolia/book-marketing";
+import { beginPortfolioDraft, discardPortfolioDraft, savePortfolioDraft, portfolioDraftDirty, getDoc } from "@/lib/portfolia/store";
 import { ProfileForm } from "@/components/pf/ProfileForm";
 import { StyleForm } from "@/components/pf/StyleForm";
 import { AnalyticsPanel } from "@/components/pf/AnalyticsPanel";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useBlocker } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Modal, useBlob } from "@/components/pf/Chrome";
 import { EditorBar, EditorStage } from "@/components/pf/EditorStage";
@@ -36,6 +41,27 @@ function EditPortfolio() {
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const [dialog, setDialog] = useState<null | "replace" | "unpublish" | "delete">(null);
   const sync = useSyncStatus();
+  const [saving, setSaving] = useState(false), [upgrade, setUpgrade] = useState(false);
+  const dirty = portfolioDraftDirty();
+  useEffect(() => { if (p?.code) beginPortfolioDraft(p.code); return () => discardPortfolioDraft(); }, [p?.code]);
+  const blocker = useBlocker({ shouldBlockFn: () => portfolioDraftDirty(), enableBeforeUnload: dirty, withResolver: true });
+  const save = async (): Promise<boolean> => {
+    if (saving) return false;
+    setSaving(true); setSaveErr(null);
+    try {
+      const current = getDoc().portfolio;
+      if (!current) return false;
+      if (current.bookMarketing?.buyUrl && !bookPurchaseUrl(current.bookMarketing.buyUrl)) throw new Error("Enter a valid purchase link before saving.");
+      const premium = premiumAppearance(current);
+      if (premium.length) {
+        const entitlement = doc.account.signedIn ? await personalSaveEntitlement() : { personal: false };
+        if (!entitlement.personal) { setUpgrade(true); throw new Error(`Choose Free options or upgrade to save: ${premium.join(", ")}. Your preview is still available.`); }
+      }
+      if (!savePortfolioDraft()) throw new Error("Couldn’t save your changes. Your previous version is unchanged.");
+      return true;
+    } catch (error) { setSaveErr(error instanceof Error ? error.message : "Couldn’t save. Please try again."); return false; }
+    finally { setSaving(false); }
+  };
   const { pdf, photoUrl } = useStoredMedia(p?.pdf?.blobKey, p?.profile.photoKey);
 
   useEffect(() => {
@@ -46,15 +72,16 @@ function EditPortfolio() {
 
   if (!p || !p.pdf) return null;
 
-  const publish = () => {
+  const publish = async () => {
     if (!p.profile.name.trim()) return void navigate({ to: "/create" });
     if (!doc.account.signedIn) return void navigate({ to: "/signin", search: { next: "create" } });
-    setSaveErr(patchPortfolio({ status: "published", publishedAt: Date.now() }) ? null : "Publishing failed — nothing changed.");
+    if (!await save()) return;
+    setSaveErr(patchPortfolio({ status: "published", publishedAt: Date.now() }) && savePortfolioDraft() ? null : "Publishing failed — nothing changed.");
   };
-  const status = saveErr || sync.status === "error" ? <>Couldn’t save · <button className="underline" onClick={retrySync}>Retry</button></> : !doc.account.signedIn ? "Draft — sign in to save" : sync.status === "saving" ? "Saving…" : "Saved";
+  const status = saveErr ? "Changes not saved" : dirty ? "Unsaved preview" : sync.status === "error" ? <>Couldn’t sync · <button className="underline" onClick={retrySync}>Retry</button></> : !doc.account.signedIn ? "Saved on this device" : sync.status === "saving" ? "Syncing…" : "Saved";
   return (
     <div className="flex min-h-screen flex-col">
-      <EditorBar p={p} status={status} onPublish={publish} onUnpublish={() => setDialog("unpublish")} />
+      <EditorBar p={p} status={status} onSave={() => void save()} saving={saving} onPublish={publish} onUnpublish={() => setDialog("unpublish")} />
       <main className="flex-1">
         <EditorStage
           key={p.code}
@@ -67,18 +94,27 @@ function EditPortfolio() {
           onDialog={setDialog}
           onPublish={publish}
           onUnpublish={() => setDialog("unpublish")}
-          preview={<PortfolioPage showCredit={p.plan === "free"} profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.plan === "personal" ? p.style : undefined} viewer={p.viewer} projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined} compact />}
+          preview={<PortfolioPage bookMarketing={p.bookMarketing} showCredit={p.plan === "free"} profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.style} viewer={p.viewer} projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} cvBlobKey={p.profile.cv?.blobKey} compact />}
         />
         {saveErr && <p role="alert" className="fixed bottom-4 left-1/2 z-50 w-[min(90vw,32rem)] -translate-x-1/2 rounded-xl border border-destructive/20 bg-background p-3 text-sm text-destructive shadow-soft">{saveErr}</p>}
       </main>
+      <UpgradeModal open={upgrade} onClose={() => setUpgrade(false)} />
+      <Modal open={blocker.status === "blocked"} onClose={() => blocker.reset?.()} title="Save changes before leaving?">
+        <p>Your preview has unsaved changes. Discarding restores the last saved version.</p>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Button disabled={saving} onClick={() => void save().then(ok => { if (ok) blocker.proceed?.(); })}>Save & leave</Button>
+          <Button variant="line" disabled={saving} onClick={() => { discardPortfolioDraft(); blocker.proceed?.(); }}>Discard & leave</Button>
+          <Button variant="quiet" onClick={() => blocker.reset?.()}>Keep editing</Button>
+        </div>
+      </Modal>
       <EditReplaceModal open={dialog === "replace"} onClose={() => setDialog(null)} current={p.pdf} limitMb={uploadLimitMb(doc)} />
       <Modal open={dialog === "unpublish"} onClose={() => setDialog(null)} title="Unpublish portfolio?">
         <p className="text-muted-foreground">Its public link will stop working, but your PDF, details and address will be kept.</p>
-        <div className="mt-6 flex justify-end gap-2"><Button variant="line" onClick={() => setDialog(null)}>Cancel</Button><Button variant="destructive" onClick={() => { setSaveErr(patchPortfolio({ status: "draft" }) ? null : "Couldn’t unpublish — nothing changed."); setDialog(null); }}>Unpublish</Button></div>
+        <div className="mt-6 flex justify-end gap-2"><Button variant="line" onClick={() => setDialog(null)}>Cancel</Button><Button variant="destructive" onClick={() => void save().then(ok => { if (!ok) return; setSaveErr(patchPortfolio({ status: "draft" }) && savePortfolioDraft() ? null : "Couldn’t unpublish — nothing changed."); setDialog(null); })}>Unpublish</Button></div>
       </Modal>
       <Modal open={dialog === "delete"} onClose={() => setDialog(null)} title="Delete portfolio?">
         <p className="text-muted-foreground">This permanently removes the PDF, details and statistics. It cannot be undone.</p>
-        <div className="mt-6 flex justify-end gap-2"><Button variant="line" onClick={() => setDialog(null)}>Cancel</Button><Button variant="destructive" onClick={() => { if (p) markPortfolioDeleted(p.code); void deletePortfolio().then(() => navigate({ to: "/dashboard" })); }}>Delete permanently</Button></div>
+        <div className="mt-6 flex justify-end gap-2"><Button variant="line" onClick={() => setDialog(null)}>Cancel</Button><Button variant="destructive" onClick={() => { discardPortfolioDraft(); if (p) markPortfolioDeleted(p.code); void deletePortfolio().then(() => navigate({ to: "/dashboard" })); }}>Delete permanently</Button></div>
       </Modal>
     </div>
   );
