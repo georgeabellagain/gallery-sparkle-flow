@@ -247,7 +247,7 @@ export function EditorStage({
           </div>
           {tool === "customise" && <div className="space-y-2">
             <label className="mb-3 block text-xs">Portfolio name<input aria-label="Portfolio name" className="mt-1 w-full rounded-lg border bg-background p-2 text-sm" value={p.name ?? ""} maxLength={120} placeholder={p.pdf?.name ?? "My portfolio"} onChange={e=>patchPortfolio({name:e.target.value})} /></label>
-            {([["reading", "Visual style"], ["look", "Lighting"], ["paper", "Paper"], ["background", "Background"], ["scrapbook", "Notes, tabs & links"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="line" size="sm" onClick={() => setTool(id)}>{label}</Button>)}
+            {([["reading", "Visual style"], ["look", "Lighting"], ["paper", "Paper"], ["background", "Background"], ["scrapbook", "Notes, tabs & links"], ["book", "Book marketing"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="line" size="sm" onClick={() => setTool(id)}>{label}</Button>)}
             <details className="pt-3"><summary className="cursor-pointer text-sm">More options</summary><div className="mt-3 grid gap-2">{([["profile", "Profile details"], ["projects", "Named projects"], ["publish", "File & publishing"], ["statistics", "Statistics"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="quiet" size="sm" onClick={() => setTool(id)}>{label}</Button>)}</div></details>
           </div>}
           {tool === "profile" && profile}
