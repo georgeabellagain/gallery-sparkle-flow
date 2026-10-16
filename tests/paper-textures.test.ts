@@ -17,7 +17,7 @@ test("paper maps preserve artwork, share GPU maps and clear on switching to matt
   const artwork = new THREE.Texture(), material = new THREE.MeshStandardMaterial({map:artwork});
   const maps = {colour:new THREE.Texture(),normal:new THREE.Texture(),roughness:new THREE.Texture()};
   applyPaperMaps(material,"paper_0027",maps);
-  assert.equal(material.normalScale.x,.29);
+  assert.equal(material.normalScale.x,.45);
   assert.equal(material.map,artwork);
   assert.equal(material.normalMap,maps.normal); assert.equal(material.roughnessMap,maps.roughness);
   const hook = material.onBeforeCompile;
@@ -69,10 +69,12 @@ test("paper shader protects text across colour, roughness and surface lighting",
   assert.ok(shader.fragmentShader.includes("fwidth(paperInkLuma)"),"screen-space text edges suppress relief");
   assert.ok(shader.fragmentShader.includes("smoothstep(.6,.95,paperInkLuma)"),"dark ink keeps smooth lighting");
   assert.ok(shader.fragmentShader.includes("mix(.8,.98,clamp(roughnessFactor,0.0,1.0))"));
-  assert.ok(!shader.fragmentShader.includes("mix(nonPerturbedNormal,normal,paperStockMask)"),"PDF edges never change the surface normal");
+  assert.ok(!shader.fragmentShader.includes("mix(nonPerturbedNormal,normal,paperStockMask)"),"screen-space noise never controls the surface normal");
+  assert.ok(shader.fragmentShader.includes("newspaperStock=smoothstep(.65,.98,paperInkLuma)"));
+  assert.ok(shader.fragmentShader.includes("paperSurfaceAmount=mix(1.0,newspaperStock,paperNewspaper)"),"Crumbled keeps its full physical response while Newspaper protects printed artwork");
   assert.ok(shader.fragmentShader.includes("material.specularColor *= paperInkSpecular"),"dark artwork suppresses white specular glare");
   assert.ok(shader.fragmentShader.includes("material.specularF90 *= paperInkSpecular"),"grazing-angle highlights cannot turn dark edges white");
-  assert.equal(material.normalScale.x,.29);
+  assert.equal(material.normalScale.x,.45);
 });
 
 

@@ -1,3 +1,4 @@
+import { createSettledPaperCache } from "./settled-paper";
 import { presetShadow } from "./lighting";
 import { updatePaperTangents } from "./paper-tangents";
 import { createPaperTextures } from "./paper-textures";
@@ -309,15 +310,22 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     return seed;
   };
 
+  const settledPaper = createSettledPaperCache();
+
   /** Shapes a resting page: curved, with its own small imperfections. */
   const shapePage = (mesh: THREE.Mesh, side: -1 | 1, seed: number) => {
     const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
     for (let i = 0; i < positions.count; i++) {
-      const d = 0.5 + side * positions.getX(i);
-      const v = positions.getY(i) / ratio + 0.5;
-      positions.setZ(i, pageRelief(d, v, seed));
+      // Reset the canonical order when a different page replaces a saved back face.
+      const u=(i%33)/32, v=1-Math.floor(i/33)/16;
+      const x=u-.5;
+      positions.setXYZ(i,x,(v-.5)*ratio,pageRelief(.5+side*x,v,seed));
+      (mesh.geometry.getAttribute("uv") as THREE.BufferAttribute).setXY(i,u,v);
     }
     positions.needsUpdate = true;
+    (mesh.geometry.getAttribute("uv") as THREE.BufferAttribute).needsUpdate=true;
+    const material=mesh.material as THREE.MeshStandardMaterial;
+    if(material.side!==THREE.FrontSide){material.side=THREE.FrontSide;material.needsUpdate=true;}
     mesh.geometry.computeVertexNormals();
     updatePaperTangents(mesh.geometry);
     mesh.userData["seed"] = seed;
@@ -735,7 +743,12 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       mesh.visible = !!next[i];
       setMap(mesh.material, next[i] ?? null);
       const seed = seedFor(next[i]);
-      if (mesh.userData["seed"] !== seed) shapePage(mesh, i === 0 ? -1 : 1, seed);
+      const page=next[i];
+      if(settings.material === "paper_0022" && page && settledPaper.apply(page,mesh)) {
+        mesh.userData["settledPaper"]=true;mesh.userData["seed"]=seed;
+      } else if(mesh.userData["seed"] !== seed || mesh.userData["settledPaper"]) {
+        shapePage(mesh,i===0?-1:1,seed);mesh.userData["settledPaper"]=false;
+      }
     });
     setContact(next);
     if (render) paint();
@@ -1087,6 +1100,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       if (disposed) return;
       // At the end the sheet lies exactly over the covered page, so swapping
       // the textures in the same frame as hiding it is invisible.
+      if(settings.material === "paper_0022") {
+        const restingSide=complete?(dir===1?0:1):(dir===1?1:0);
+        const page=(complete?to:from)[restingSide];
+        if(page)settledPaper.remember(page,complete?back:front,(restingSide===0?left:right).position);
+      }
       sheet.visible = false;
       turnRestPages = null;
       notes.endTurn(complete);
