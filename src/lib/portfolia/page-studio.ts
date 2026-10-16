@@ -215,6 +215,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   viewport.addEventListener("animationstart", animate);
   const lost = (event: Event) => { event.preventDefault(); fallback(); };
   renderer.domElement.addEventListener("webglcontextlost", lost);
+  let environmentGenerator: THREE.PMREMGenerator | undefined;
   const environment = (id: HdriId) => {
     let pending = environments.get(id);
     if (!pending) {
@@ -225,9 +226,9 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
         const hdr = new THREE.DataTexture(pixels, width, height, THREE.RGBAFormat, THREE.HalfFloatType);
         hdr.mapping = THREE.EquirectangularReflectionMapping;
         hdr.minFilter = hdr.magFilter = THREE.LinearFilter; hdr.needsUpdate = true;
-        const pmrem = new THREE.PMREMGenerator(renderer);
+        const pmrem = environmentGenerator ??= new THREE.PMREMGenerator(renderer);
         try { return pmrem.fromEquirectangular(hdr); }
-        finally { hdr.dispose(); pmrem.dispose(); }
+        finally { hdr.dispose(); }
       })();
       environments.set(id, pending);
       pending.catch(() => { if (environments.get(id) === pending) environments.delete(id); });
@@ -290,6 +291,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       pending.clear(); pages.forEach(page => release(page)); pages.clear();
       environments.forEach(p => { void p.then(t => t.dispose(), () => undefined); });
       masks.forEach(t => t.dispose());
+      environmentGenerator?.dispose();
       paperGeometry.dispose();
       renderer.dispose(); renderer.forceContextLoss(); renderer.domElement.remove();
     },

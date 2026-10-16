@@ -1,3 +1,4 @@
+import { createPreparationGate } from "@/lib/portfolia/preparation-gate";
 import { LiveScrapbookContext } from "./live-scrapbook-context";
 import { LiveScrapbookPage } from "./LiveScrapbookPage";
 import { HomeScrollContext, releaseHomeScroll } from "./home-scroll";
@@ -84,6 +85,7 @@ function pageLoader(
   const tasks = new Set<RenderTask>();
   let closed = false;
   let paused = false;
+  const preparation = createPreparationGate<number>();
   let resumeWaiters: (() => void)[] = [];
   const resume = () => {
     const waiting = resumeWaiters;
@@ -179,6 +181,9 @@ function pageLoader(
       raw.width = Math.ceil(viewport.width);
       raw.height = Math.ceil(viewport.height);
       const task = pdfPage.render({ canvasContext: raw.getContext("2d")!, viewport });
+      // PDF.js yields between chunks. Hold speculative chunks during motion;
+      // a face explicitly requested by navigation bypasses the hold.
+      task.onContinue = (continuation: () => void) => preparation.schedule(page, () => { if (!closed) continuation(); });
       tasks.add(task);
       try {
         await task.promise;
@@ -192,6 +197,7 @@ function pageLoader(
         loadNoteImages(notes.filter(f => f.page === page).flatMap(f => { const key = foldoutSurfaces(f).outside.imageKey; return key ? [key] : []; })),
       ]);
       try {
+        await new Promise<void>(resolve => preparation.schedule(page, resolve));
         if (closed) throw new Error("Viewer closed");
         for (const index of leavesOf.get(page) ?? []) faces.set(index, compose(raw, layout.leaves[index]!, index, images));
       } finally { images.forEach(image => image.close()); }
@@ -239,13 +245,16 @@ function pageLoader(
     /** Holds the background preparation while a page turns, and lets it carry on afterwards. */
     setPaused(value: boolean) {
       paused = value;
+      preparation.setPaused(value);
       if (!value) resume();
     },
     async face(index: number | null): Promise<HTMLCanvasElement | null> {
       if (index === null) return null;
       let hit = faces.get(index);
       if (!hit) {
-        await render(layout.leaves[index]!.page);
+        const page = layout.leaves[index]!.page;
+        const release = preparation.prioritize(page);
+        try { await render(page); } finally { release(); }
         hit = faces.get(index);
         if (!hit) throw new Error("Page unavailable");
       }
@@ -257,6 +266,7 @@ function pageLoader(
       closed = true;
       resume();
       tasks.forEach((task) => task.cancel());
+      preparation.close();
       faces.clear();
     },
   };

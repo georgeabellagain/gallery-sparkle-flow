@@ -77,6 +77,7 @@ export function PdfViewer({
   links,
   projectCode,
   profile,
+  bookMarketing,
   profileImageUrl,
   home,
   backgroundUrl: uploadedBackgroundUrl,
@@ -119,6 +120,7 @@ export function PdfViewer({
   projectCode?: string;
   /** The person's details, shown from a small profile icon. */
   profile?: ReactNode;
+  bookMarketing?: ReactNode;
   profileImageUrl?: string;
   /** Shows the small logo that links to the home page. */
   home?: boolean;
@@ -159,7 +161,7 @@ export function PdfViewer({
   const editorFullscreen = useContext(EditorFullscreenContext);
   const full = nativeFull || pseudoFull || Boolean(editorFullscreen?.full);
   const minimalControls = homepageExample && !full;
-  const [panel, setPanel] = useState<"profile" | "pages" | "projects" | null>(null);
+  const [panel, setPanel] = useState<"profile" | "book" | "pages" | "projects" | null>(null);
   const [projectMessage, setProjectMessage] = useState("");
   const [manualProjectLink, setManualProjectLink] = useState("");
   const [contentReady, setContentReady] = useState(false);
@@ -178,9 +180,9 @@ export function PdfViewer({
   const profileRef = useRef<HTMLDivElement>(null);
   const [profileImageFailed, setProfileImageFailed] = useState(false);
   useEffect(() => setProfileImageFailed(false), [profileImageUrl]);
-  useDismiss(profileRef, panel === "profile", () => setPanel(null));
+  useDismiss(profileRef, panel === "profile" || panel === "book", () => setPanel(null));
   const [downloadUrl, setDownloadUrl] = useState<string>();
-  useDismiss(clusterRef, panel !== null && panel !== "profile", () => setPanel(null));
+  useDismiss(clusterRef, panel !== null && panel !== "profile" && panel !== "book", () => setPanel(null));
 
   useEffect(() => {
     if (!source) return;
@@ -580,7 +582,7 @@ export function PdfViewer({
   const panelFit = { maxHeight: `calc(100svh - ${(toolbarHeight || 36) + 6 + 8 + 12}px)` };
 
   const quiet = tone === "dark" ? "text-white/90" : "text-slate-700";
-  const togglePanel = (name: "profile" | "pages" | "projects") => setPanel((p) => (p === name ? null : name));
+  const togglePanel = (name: "profile" | "book" | "pages" | "projects") => setPanel((p) => (p === name ? null : name));
   const copyProject = async (id: string) => {
     if (!projectCode) return;
     const url = window.location.origin + projectPath(projectCode, id);
@@ -623,18 +625,20 @@ export function PdfViewer({
 
       {showControls && (
         <div className="pointer-events-none sticky top-0 z-50 h-0">
-          {!minimalControls && (home || profile) && (
+          {!minimalControls && (home || profile || bookMarketing) && (
             <div ref={profileRef} className={cn("pointer-events-auto absolute left-3 top-3 transition-opacity duration-300", fade)}>
               <div className="flex items-center gap-2">
                 {home && <LogoMark tone={tone} />}
+                {bookMarketing && <IconButton label="About this book" tone={tone} pressed={panel === "book"} onClick={() => togglePanel("book")}><BookOpen className="size-[17px]" /></IconButton>}
                 {profile && <IconButton label="Profile" tone={tone} pressed={panel === "profile"} onClick={() => togglePanel("profile")}>
                   {profileImageUrl && !profileImageFailed ? <img src={profileImageUrl} alt="" className="size-8 rounded-full object-cover" onError={() => setProfileImageFailed(true)} /> : <User className="size-[17px]" />}
                 </IconButton>}
               </div>
+              {panel === "book" && bookMarketing && <Panel label="About this book" style={{ maxHeight: "calc(100dvh - 5rem)" }} className="mt-3 w-[min(24rem,calc(100vw-1.5rem))] overflow-y-auto overflow-x-hidden [overflow-wrap:anywhere] overscroll-contain">{bookMarketing}</Panel>}
               {panel === "profile" && profile && <Panel label="Profile" style={{ maxHeight: "calc(100dvh - 5rem)" }} className="mt-3 w-[min(24rem,calc(100vw-1.5rem))] overflow-y-auto overflow-x-hidden [overflow-wrap:anywhere] overscroll-contain">{profile}</Panel>}
             </div>
           )}
-          <div ref={clusterRef} style={!minimalControls && (home || profile) ? { maxWidth: "calc(100% - 7rem)" } : undefined} className={cn("pointer-events-auto absolute right-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] flex-col items-end gap-2 transition-opacity duration-300", fade)}>
+          <div ref={clusterRef} style={!minimalControls && (home || profile || bookMarketing) ? { maxWidth: bookMarketing ? "calc(100% - 10rem)" : "calc(100% - 7rem)" } : undefined} className={cn("pointer-events-auto absolute right-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] flex-col items-end gap-2 transition-opacity duration-300", fade)}>
             <div ref={toolbarRef} role="toolbar" aria-label="Viewer controls" className={cn("flex flex-wrap items-center justify-end gap-0.5 rounded-full p-1 shadow-sm backdrop-blur-md", tone === "dark" ? "bg-slate-950/80 text-white" : "bg-white/90 text-slate-700")}>
               {!minimalControls && doc && availableModes.length > 1 && (
                 <div role="radiogroup" aria-label="Reading mode" className="flex items-center">
