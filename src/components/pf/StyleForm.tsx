@@ -408,21 +408,26 @@ export function StyleForm({
                         onPointerDownCapture={() => setPreviewLook("studio")}
                       >
                         <p>Studio HDRI</p><p className="text-xs text-muted-foreground">Preview any light. Free includes 1–4; Personal unlocks all 15 when saving.</p>
-                        <div className="grid grid-cols-3 gap-2" aria-label="Studio lighting">
-                          {HDRI_PRESETS.map((light) => (
-                            <button
-                              key={light.id}
-                              type="button"
-                              aria-pressed={studioLighting === light.id}
-                              aria-label={`Lighting ${light.label}`}
-                              onClick={() => setViewer({ studioLighting: light.id })}
-                              className={`h-16 rounded-lg border bg-cover text-white ${studioLighting === light.id ? "ring-2 ring-blue-600 border-blue-600" : "border-border"}`}
-                              style={{ background: light.preview }}
-                            >
-                              <span className="rounded bg-black/60 px-2 py-1">{light.label}{personalHdri(light.id) ? " · Personal" : ""}</span>
-                            </button>
-                          ))}
-                        </div>
+                        {([false, true] as const).map(personal => (
+                          <section key={String(personal)} aria-label={personal ? "Personal HDRIs" : "Free HDRIs"} className="space-y-2">
+                            <h3 className="text-xs font-medium">{personal ? "Personal" : "Free"}</h3>
+                            <div className="grid grid-cols-3 gap-2">
+                              {HDRI_PRESETS.filter(light => personalHdri(light.id) === personal).map(light => (
+                                <button
+                                  key={light.id}
+                                  type="button"
+                                  aria-pressed={studioLighting === light.id}
+                                  aria-label={`Lighting ${light.label}`}
+                                  onClick={() => setViewer({ studioLighting: light.id })}
+                                  className={`h-16 rounded-lg border bg-cover text-white ${studioLighting === light.id ? "ring-2 ring-blue-600 border-blue-600" : "border-border"}`}
+                                  style={{ background: light.preview }}
+                                >
+                                  <span className="rounded bg-black/60 px-2 py-1">{light.label}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </section>
+                        ))}
                         <label className="block space-y-1">
                           <span>Brightness · {Math.round(studioBrightness * 100)}%</span>
                           <input
