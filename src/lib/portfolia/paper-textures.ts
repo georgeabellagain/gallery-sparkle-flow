@@ -5,20 +5,20 @@ export type PaperMaps = { colour: THREE.Texture; normal: THREE.Texture; roughnes
 export function paperTextureId(kind: SurfaceKind) {
   return kind === "paper_0022" || kind === "paper_0027" ? kind : undefined;
 }
-const effects = new WeakMap<THREE.MeshStandardMaterial, { enabled: {value:number}; colour: {value:THREE.Texture}; transform: {value:THREE.Matrix3} }>();
+const effects = new WeakMap<THREE.MeshStandardMaterial, { enabled: {value:number}; colour: {value:THREE.Texture}; transform: {value:THREE.Matrix3}; newspaper:{value:number} }>();
 /** Keep the PDF as the primary map: paper tint affects pale stock, not dark ink. */
 export function applyPaperMaps(material: THREE.MeshStandardMaterial, kind: SurfaceKind, maps?: PaperMaps) {
   const active = Boolean(paperTextureId(kind) && maps);
   const dynamic = active;
   const changed = Boolean(material.normalMap) !== dynamic || Boolean(material.roughnessMap) !== dynamic;
   material.normalMap = dynamic ? maps!.normal : null;
-  const strength = kind === "paper_0022" ? -.16 : .29;
+  const strength = kind === "paper_0022" ? -.16 : .45;
   material.normalScale.set(strength, strength);
   material.roughnessMap = dynamic ? maps!.roughness : null;
   material.roughness = dynamic ? 1 : paperFinish(kind) === "satin" ? .42 : .97;
   let effect = effects.get(material);
   if (active && !effect) {
-    effect = {enabled:{value:1},colour:{value:maps!.colour},transform:{value:maps!.colour.matrix}};
+    effect = {enabled:{value:1},colour:{value:maps!.colour},transform:{value:maps!.colour.matrix},newspaper:{value:kind === "paper_0027" ? 1 : 0}};
     effects.set(material,effect);
     const uniforms = effect, previous = material.onBeforeCompile, key = material.customProgramCacheKey.bind(material);
     material.onBeforeCompile = (shader, renderer) => {
@@ -26,25 +26,36 @@ export function applyPaperMaps(material: THREE.MeshStandardMaterial, kind: Surfa
       shader.uniforms["paperTextureEnabled"] = uniforms.enabled;
       shader.uniforms["paperStockColour"] = uniforms.colour;
       shader.uniforms["paperStockTransform"] = uniforms.transform;
+      shader.uniforms["paperNewspaper"] = uniforms.newspaper;
       shader.vertexShader = "uniform mat3 paperStockTransform;\nvarying vec2 paperStockUv;\n" + shader.vertexShader.replace("#include <uv_vertex>","#include <uv_vertex>\npaperStockUv = (paperStockTransform * vec3(uv, 1.0)).xy;");
-      shader.fragmentShader = "uniform float paperTextureEnabled;\nuniform sampler2D paperStockColour;\nvarying vec2 paperStockUv;\n" + shader.fragmentShader.replace("#include <color_fragment>",`#include <color_fragment>
+      shader.fragmentShader = "uniform float paperNewspaper;\nuniform float paperTextureEnabled;\nuniform sampler2D paperStockColour;\nvarying vec2 paperStockUv;\n" + shader.fragmentShader.replace("#include <color_fragment>",`#include <color_fragment>
         float paperInkLuma = dot(diffuseColor.rgb,vec3(.2126,.7152,.0722));
         // Keep printed colour clear of decorative tint, especially
         // when small text approaches a screen pixel. Reuse the PDF sample.
         float paperStockMask = paperTextureEnabled * smoothstep(.6,.95,paperInkLuma)
           * (1.0-smoothstep(.015,.12,fwidth(paperInkLuma)));
+        float paperChroma=max(diffuseColor.r,max(diffuseColor.g,diffuseColor.b))-min(diffuseColor.r,min(diffuseColor.g,diffuseColor.b));
+        float newspaperStock=smoothstep(.65,.98,paperInkLuma)*(1.0-smoothstep(.04,.2,paperChroma));
+        float paperSurfaceAmount=mix(1.0,newspaperStock,paperNewspaper);
         if (paperTextureEnabled > 0.0) {
-          diffuseColor.rgb *= mix(vec3(1.0),texture2D(paperStockColour,paperStockUv).rgb,paperStockMask*.3);
+          float tint=mix(paperStockMask*.3,newspaperStock*.25,paperNewspaper);
+          diffuseColor.rgb *= mix(vec3(1.0),texture2D(paperStockColour,paperStockUv).rgb,tint);
         }`)
         .replace("#include <roughnessmap_fragment>", `#include <roughnessmap_fragment>
           // Uncoated stock stays rough. Ink edges must not switch surface
           // roughness or create a narrow glossy halo.
-          if (paperTextureEnabled > 0.0) roughnessFactor = mix(.8,.98,clamp(roughnessFactor,0.0,1.0));`)
+          if (paperTextureEnabled > 0.0) {
+            float matteStock=mix(.8,.98,clamp(roughnessFactor,0.0,1.0));
+            float newspaperRoughness=mix(.97,max(.65,roughnessFactor),paperSurfaceAmount);
+            roughnessFactor=mix(matteStock,newspaperRoughness,paperNewspaper);
+          }`)
+        .replace("#include <normal_fragment_maps>", `#include <normal_fragment_maps>
+          if (paperTextureEnabled > 0.0 && paperNewspaper > 0.0) normal=normalize(mix(nonPerturbedNormal,normal,paperSurfaceAmount));`)
         .replace("#include <lights_physical_fragment>", `#include <lights_physical_fragment>
           // Dark printed ink should not acquire white dielectric highlights.
           // Keep normals independent of PDF pixels and screen-space edges.
           if (paperTextureEnabled > 0.0) {
-            float paperInkSpecular = mix(.04,.5,smoothstep(.08,.6,paperInkLuma));
+            float paperInkSpecular = mix(.04,mix(.5,1.0,paperNewspaper),smoothstep(.08,.6,paperInkLuma));
             material.specularColor *= paperInkSpecular;
             material.specularF90 *= paperInkSpecular;
           }`);
@@ -52,7 +63,7 @@ export function applyPaperMaps(material: THREE.MeshStandardMaterial, kind: Surfa
     material.customProgramCacheKey = () => key() + "_paper_stock";
     material.needsUpdate = true;
   }
-  if (effect) { effect.enabled.value = active ? 1 : 0; if (active) { effect.colour.value = maps!.colour; effect.transform.value = maps!.colour.matrix; } }
+  if (effect) { effect.newspaper.value=kind === "paper_0027" ? 1 : 0; effect.enabled.value = active ? 1 : 0; if (active) { effect.colour.value = maps!.colour; effect.transform.value = maps!.colour.matrix; } }
   if (changed) material.needsUpdate = true;
 }
 

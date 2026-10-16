@@ -46,3 +46,19 @@ mapping independent of PDF luminance and screen-space text edges. Roughness is
 remapped to a matte 0.80–0.98 range; dark ink attenuates white specular reflection
 instead of switching normals/roughness at letter and image boundaries. This avoids
 bright edge halos while retaining real HDRI surface response and text protection.
+
+## Retain landed face orientation
+
+Crumbled now retains the actual completed (or cancelled) turn face as a CPU-only
+snapshot per cached PDF canvas. Resting pages reuse its exact normals, tangents,
+UVs, vertex order and material side, including inverted back-face normals, rather
+than recomputing a front-facing rest normal frame. Returning to that page reuses
+the saved frame. Attribute buffers are updated in place, and snapshots are weakly
+held so they leave memory with the PDF canvas cache. Real normal and roughness
+maps remain enabled.
+
+Newspaper returns to its original 0.45 normal strength and stronger surface-map
+response on pale neutral stock. Photos, colour artwork and dark ink receive less
+surface noise through a broad luminance/chroma mask, with no screen-space edge
+mask on the normals. Tint is limited to stock areas and dark-ink highlight
+protection remains. Crumbled is excluded from this artwork response mask.
