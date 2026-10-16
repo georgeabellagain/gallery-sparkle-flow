@@ -20,6 +20,8 @@ test("paper maps preserve artwork, share GPU maps and clear on switching to matt
   assert.equal(material.normalScale.x,.45);
   assert.equal(material.map,artwork);
   assert.equal(material.normalMap,maps.normal); assert.equal(material.roughnessMap,maps.roughness);
+  const version=material.version;
+  applyPaperMaps(material,"paper_0027",maps);assert.equal(material.version,version,"reapplying a prepared material reuses its compiled shader");
   const hook = material.onBeforeCompile;
   const other = new THREE.MeshStandardMaterial();applyPaperMaps(other,"paper_0027",maps);
   assert.equal(other.normalMap,material.normalMap);

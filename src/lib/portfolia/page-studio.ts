@@ -78,8 +78,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
     setNaturalImperfections(material,settings.imperfections ?? 0);
     material.bumpMap = null; material.bumpScale = 0;
     paperTextures.apply(material, settings.finish);
-    // Flat readers keep HDRI/dapple lighting, without the costly clearcoat layer.
-    material.needsUpdate = true;
+    // Surface-map bindings own shader invalidation; exposure-only changes reuse the program.
   };
   const fallback = () => {
     failed = true;

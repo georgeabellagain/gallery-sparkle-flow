@@ -19,7 +19,11 @@ test('landed paper retains the exact inverted turn-face normal frame when revisi
    updatePaperTangents(resting.geometry);
    const existingBuffer=resting.geometry.getAttribute('position');
    const cache=createSettledPaperCache(),page={};cache.remember(page,face,resting.position);
-   assert.equal(cache.apply(page,resting),true);assert.equal(resting.geometry.getAttribute('position'),existingBuffer,'reuse the GPU attribute buffers');
+   assert.equal(cache.apply(page,resting),true);
+   const version=(resting.geometry.getAttribute("position") as THREE.BufferAttribute).version;const bounds=resting.geometry.boundingSphere;
+   cache.apply(page,resting);assert.equal((resting.geometry.getAttribute("position") as THREE.BufferAttribute).version,version,"unchanged pages do not upload vertex buffers again");assert.equal(resting.geometry.boundingSphere,bounds);
+   cache.invalidate(resting);cache.apply(page,resting);assert.ok((resting.geometry.getAttribute("position") as THREE.BufferAttribute).version>version);
+   assert.equal(resting.geometry.getAttribute('position'),existingBuffer,'reuse the GPU attribute buffers');
    assert.equal(resting.material.side,face.material.side);
    for(const name of ['normal','uv','tangent'])assert.deepEqual(Array.from(resting.geometry.getAttribute(name).array),Array.from(faceGeometry.getAttribute(name).array));
    if(side===-1)assert.ok(resting.geometry.getAttribute('normal').getZ(0)<0,'the raw normal remains inverted after landing');

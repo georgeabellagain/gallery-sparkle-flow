@@ -1,3 +1,4 @@
+import { paperEdge } from "./paper-edge";
 import { createSettledPaperCache } from "./settled-paper";
 import { presetShadow } from "./lighting";
 import { updatePaperTangents } from "./paper-tangents";
@@ -311,15 +312,18 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   };
 
   const settledPaper = createSettledPaperCache();
+  let crumpledGeometry=false;
 
   /** Shapes a resting page: curved, with its own small imperfections. */
   const shapePage = (mesh: THREE.Mesh, side: -1 | 1, seed: number) => {
+    settledPaper.invalidate(mesh);
     const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
     for (let i = 0; i < positions.count; i++) {
       // Reset the canonical order when a different page replaces a saved back face.
       const u=(i%33)/32, v=1-Math.floor(i/33)/16;
       const x=u-.5;
-      positions.setXYZ(i,x,(v-.5)*ratio,pageRelief(.5+side*x,v,seed));
+      const d=.5+side*x,edge=paperEdge(d,v,seed,crumpledGeometry);
+      positions.setXYZ(i,side*(edge.d-.5),(edge.v-.5)*ratio,pageRelief(d,v,seed));
       (mesh.geometry.getAttribute("uv") as THREE.BufferAttribute).setXY(i,u,v);
     }
     positions.needsUpdate = true;
@@ -328,6 +332,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     if(material.side!==THREE.FrontSide){material.side=THREE.FrontSide;material.needsUpdate=true;}
     mesh.geometry.computeVertexNormals();
     updatePaperTangents(mesh.geometry);
+    mesh.geometry.computeBoundingSphere();
     mesh.userData["seed"] = seed;
   };
   const left = new THREE.Mesh(new THREE.PlaneGeometry(1, ratio, 32, 16), material());
@@ -415,6 +420,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     return t;
   };
   const setMap = (mat: THREE.MeshStandardMaterial, canvas: HTMLCanvasElement | null) => {
+    mat.userData["pageCanvas"]=canvas;
     mat.map = canvas ? textureFor(canvas) : placeholder;
     mat.emissiveMap = settings.studio ? null : mat.map;
   };
@@ -660,6 +666,15 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const configure = (next: StudioSettings) => {
     next = {...next, material:paperFinish(next.material)};
     settings = next;
+    const nextCrumpled=next.studio && next.material==="paper_0022";
+    if(crumpledGeometry!==nextCrumpled){
+      crumpledGeometry=nextCrumpled;
+      [left,right].forEach((mesh,i)=>{
+        const page=mesh.material.userData["pageCanvas"] as HTMLCanvasElement|undefined;
+        if(crumpledGeometry && page && settledPaper.apply(page,mesh))mesh.userData["settledPaper"]=true;
+        else {shapePage(mesh,i===0?-1:1,mesh.userData["seed"] as number ?? 0);mesh.userData["settledPaper"]=false;}
+      });
+    }
     shadowsDirty = true;
     const mix = studioLightMix(next.strength);
     const nextVariant = `${next.studio ? 1 : 0}|${next.material}`;
@@ -744,7 +759,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       setMap(mesh.material, next[i] ?? null);
       const seed = seedFor(next[i]);
       const page=next[i];
-      if(settings.material === "paper_0022" && page && settledPaper.apply(page,mesh)) {
+      if(crumpledGeometry && page && settledPaper.apply(page,mesh)) {
         mesh.userData["settledPaper"]=true;mesh.userData["seed"]=seed;
       } else if(mesh.userData["seed"] !== seed || mesh.userData["settledPaper"]) {
         shapePage(mesh,i===0?-1:1,seed);mesh.userData["settledPaper"]=false;
@@ -839,8 +854,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const posesForTurn = (from: BookFaces, to: BookFaces, dir: 1 | -1) => {
     const seeds = [seedFor(from[dir === 1 ? 1 : 0]), seedFor(to[dir === 1 ? 0 : 1])];
     const restingSeeds = [seedFor(dir === 1 ? from[0] : to[0]), seedFor(dir === 1 ? to[1] : from[1])];
-    const key = `${dir}|${seeds.join(":")}|${restingSeeds.join(":")}`;
-    return turnGeometryCache.get(key, () => bakeTurnGeometry(geometry, turnGeometryWriter(geometry, ratio, dir, seeds, restingSeeds, SHEET_CLEARANCE), 128, [restingTurnNormals(geometry, ratio, dir, seeds[0]!, dir), restingTurnNormals(geometry, ratio, -dir as 1 | -1, seeds[1]!, -dir)]));
+    const key = `${dir}|${crumpledGeometry}|${seeds.join(":")}|${restingSeeds.join(":")}`;
+    return turnGeometryCache.get(key, () => bakeTurnGeometry(geometry, turnGeometryWriter(geometry, ratio, dir, seeds, restingSeeds, SHEET_CLEARANCE, crumpledGeometry), 128, [restingTurnNormals(geometry, ratio, dir, seeds[0]!, dir, crumpledGeometry), restingTurnNormals(geometry, ratio, -dir as 1 | -1, seeds[1]!, -dir, crumpledGeometry)]));
   };
   const shape = (progress: number, dir: 1 | -1) => {
     if (turnRestPages) {
@@ -1100,7 +1115,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       if (disposed) return;
       // At the end the sheet lies exactly over the covered page, so swapping
       // the textures in the same frame as hiding it is invisible.
-      if(settings.material === "paper_0022") {
+      if(crumpledGeometry) {
         const restingSide=complete?(dir===1?0:1):(dir===1?1:0);
         const page=(complete?to:from)[restingSide];
         if(page)settledPaper.remember(page,complete?back:front,(restingSide===0?left:right).position);
