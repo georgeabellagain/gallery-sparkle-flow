@@ -1,3 +1,4 @@
+import { createPaperTextures } from "./paper-textures";
 import { applyTurnPose, bakeTurnGeometry, createTurnGeometryCache, turnGeometryWriter, restingTurnNormals, type TurnPose } from "./turn-geometry-cache";
 import { createRestingPageShadows } from "./resting-page-shadows";
 import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
@@ -640,6 +641,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let environmentRequest = 0;
   // The paper's look depends on the look (Simple/Studio) and the paper, not on brightness or the shadow settings,
   // so dragging a slider only changes the exposure or the shadow and never rebuilds the materials.
+  const paperTextures = createPaperTextures(() => requestPaint(false));
   let variant = "";
   const backdrop = createLitBackdrop(scene, () => requestPaint(false));
   const configure = (next: StudioSettings) => {
@@ -695,7 +697,6 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     shadowCatcher.material.opacity = .3;
     shadowCatcher.visible = next.studio;
     light.castShadow = next.studio && (!pattern || mix.hdri === 0);
-    const satin = next.material === "satin";
     if (variantChanged) variant = nextVariant;
     airDust.setIntensity(next.studio ? next.imperfections ?? 0 : 0);
     for (const m of pageMaterials) {
@@ -704,7 +705,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       if (!stickyMatte) m.bumpMap = null;
       // Satin is smooth with a visible sheen; textured shows clear paper grain.
       m.bumpScale = next.studio && stickyMatte ? .0015 : 0;
-      m.roughness = stickyMatte ? .97 : next.studio ? (satin ? 0.42 : 0.97) : 0.96;
+      paperTextures.apply(m, next.studio && !stickyMatte ? next.material : "matte");
+      m.roughness = stickyMatte ? .97 : next.studio ? m.roughness : .96;
       // Simple mode reproduces the source artwork independently of studio light.
       m.emissive.set(next.studio ? 0x000000 : 0xffffff);
       m.emissiveMap = next.studio ? null : m.map;
@@ -874,7 +876,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   resize();
   return {
     setCaptureClock(clock?:()=>Promise<void>) {captureClock=clock;},
-    async captureReady() { await backdrop.ready(); if (!await loadEnvironment(settings.hdri)) throw new Error("Studio lighting could not be prepared."); },
+    async captureReady() { await paperTextures.ready(); await backdrop.ready(); if (!await loadEnvironment(settings.hdri)) throw new Error("Studio lighting could not be prepared."); },
     setFrameSink(sink?: (canvas: HTMLCanvasElement) => void) { frameSink = sink; paint(); },
     renderFrame: paint,
     setBackdrop(url: string | undefined, fit: Parameters<typeof backdrop.set>[1], lit: boolean, colour: string, surface = false) {
@@ -1106,6 +1108,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       tabs.clear();
       airDust.dispose();
       backdrop.dispose();
+      paperTextures.dispose();
       diffuser.dispose();
       disposed = true;
       cancelAnimationFrame(frame);

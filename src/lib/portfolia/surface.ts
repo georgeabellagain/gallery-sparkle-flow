@@ -5,13 +5,13 @@
  * artwork colour is preserved and only the surface relief shows.
  * Wood tabletops are generated the same way — no external image assets.
  */
-export type SurfaceKind = "matte" | "satin" | "textured" | "natural" | "linen" | "cotton" | "recycled" | "watercolour" | "laid";
+export type SurfaceKind = "paper_0022" | "paper_0027" | "matte" | "satin" | "textured" | "natural" | "linen" | "cotton" | "recycled" | "watercolour" | "laid";
 export type Light = "soft" | "bright";
 
-export type PaperFinish = "matte" | "satin";
-/** Older saved paper varieties safely resolve to the single matte finish. */
-export const paperFinish = (kind: SurfaceKind): PaperFinish => kind === "satin" ? "satin" : "matte";
-export const PAPER_STYLES: readonly (readonly [PaperFinish, string])[] = [["matte","Matte"],["satin","Satin"]];
+export type PaperFinish = "matte" | "satin" | "paper_0022" | "paper_0027";
+/** Keep the available stocks; older removed varieties resolve to matte. */
+export const paperFinish = (kind: SurfaceKind): PaperFinish => kind === "satin" || kind === "paper_0022" || kind === "paper_0027" ? kind : "matte";
+export const PAPER_STYLES: readonly (readonly [PaperFinish, string])[] = [["matte","Matte"],["satin","Satin"],["paper_0022","Paper 22"],["paper_0027","Paper 27 — aged newsprint"]];
 export function paperRelief(kind: SurfaceKind, strength = 1) {
   const amount = Math.max(0, Math.min(1, Number.isFinite(strength) ? strength : 1));
   return (kind === "satin" ? 0.0003 : kind === "matte" ? 0.001 : kind === "watercolour" ? 0.008 : 0.006) * amount;
@@ -36,7 +36,7 @@ function noise(x: number, y: number, p: number, s: number) {
 }
 
 type Spec = { octaves: [scale: number, amp: number][]; stretch: number; bump: number; shine: number; spec: number };
-const SPECS: Record<SurfaceKind, Spec> = {
+const SPECS: Record<Exclude<SurfaceKind, "paper_0022" | "paper_0027">, Spec> = {
   // Fine, dense tooth; no specular response.
   matte: { octaves: [[64, 0.6], [128, 0.4]], stretch: 1, bump: 1.2, shine: 0, spec: 0 },
   // Nearly flat with a smooth, tight sheen.
@@ -57,7 +57,7 @@ export function surfaceCanvas(kind: SurfaceKind, light: Light): HTMLCanvasElemen
   const hit = cache.get(key);
   if (hit) return hit;
   const N = 256;
-  const spec = SPECS[kind];
+  const spec = SPECS[kind === "paper_0022" || kind === "paper_0027" ? "matte" : kind];
   const h = new Float32Array(N * N);
   for (let y = 0; y < N; y++)
     for (let x = 0; x < N; x++) {

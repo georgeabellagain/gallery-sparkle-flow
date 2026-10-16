@@ -47,8 +47,8 @@ test("diffused solid colour keeps the environment's average radiance", async () 
   for (const [i, expected] of [.3,.5,.9].entries()) assert.ok(Math.abs(colour[i]! - expected) < 1e-6);
 });
 
-test("only matte and satin are offered and older finishes resolve safely",()=>{
- assert.deepEqual(PAPER_STYLES.map(([id])=>id),["matte","satin"]);
+test("paper stocks are offered and older finishes resolve safely",()=>{
+ assert.deepEqual(PAPER_STYLES.map(([id])=>id),["matte","satin","paper_0022","paper_0027"]);
  assert.equal(paperFinish("satin"),"satin");
  for(const kind of ["linen","natural","cotton","recycled","textured","watercolour","laid"] as const)assert.equal(paperFinish(kind),"matte");
 });
