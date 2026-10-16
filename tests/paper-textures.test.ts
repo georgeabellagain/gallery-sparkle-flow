@@ -55,7 +55,13 @@ test("paper loading is deduplicated and cannot reapply a stale selection", async
     assert.equal(loaded[1]!.colorSpace,THREE.NoColorSpace);
     cache.apply(a,"paper_0027");assert.equal(a.normalMap,b.normalMap);assert.equal(loaded.length,3);
     let released=0;loaded.forEach(t=>t.addEventListener("dispose",()=>released++));
+    const otherCache = createPaperTextures(() => {}), otherMaterial = new THREE.MeshStandardMaterial();
+    otherCache.apply(otherMaterial,"paper_0027"); await otherCache.ready();
+    assert.equal(loaded.length,3,"a second Studio viewer reuses decoded paper sources");
+    assert.notEqual(otherMaterial.normalMap,b.normalMap,"GPU texture ownership remains viewer-local");
+    assert.equal(otherMaterial.normalMap!.source,b.normalMap!.source,"only decoded pixels are shared");
     cache.dispose();assert.equal(released,3);
+    assert.ok(otherMaterial.normalMap,"disposing one viewer leaves the other ready"); otherCache.dispose();
   } finally { THREE.TextureLoader.prototype.loadAsync=original;cache.dispose(); }
 });
 

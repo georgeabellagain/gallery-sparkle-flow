@@ -67,6 +67,18 @@ export function applyPaperMaps(material: THREE.MeshStandardMaterial, kind: Surfa
   if (changed) material.needsUpdate = true;
 }
 
+// Only the six bundled stock maps enter this cache. Decoding is shared;
+// cloned textures keep GPU ownership and disposal local to each viewer.
+const paperSources = new Map<string, Promise<THREE.Texture>>();
+function loadPaperSource(url: string, loader: THREE.TextureLoader) {
+  const hit = paperSources.get(url);
+  if (hit) return hit.then(texture => texture.clone());
+  const pending = loader.loadAsync(url);
+  paperSources.set(url, pending);
+  void pending.catch(() => { if (paperSources.get(url) === pending) paperSources.delete(url); });
+  return pending;
+}
+
 /** One prepared set per stock per renderer; page turns share these GPU maps. */
 export function createPaperTextures(repaint: () => void) {
   const cache = new Map<string, PaperMaps>();
@@ -84,7 +96,7 @@ export function createPaperTextures(repaint: () => void) {
     const textures: THREE.Texture[] = [];
     let failed = false;
     const job = Promise.all(["colour", "normal", "roughness"].map(async name => {
-      const t = await loader.loadAsync(`/studio/paper/${id}-${name}.webp`);
+      const t = await loadPaperSource(`/studio/paper/${id}-${name}.webp`, loader);
       if (disposed || failed) { t.dispose(); throw new Error("Paper texture preparation cancelled"); }
       textures.push(t);
       t.colorSpace = name === "colour" ? THREE.SRGBColorSpace : THREE.NoColorSpace;
@@ -96,7 +108,7 @@ export function createPaperTextures(repaint: () => void) {
       const maps: PaperMaps = {colour:colour!,normal:normal!,roughness:roughness!}; cache.set(id,maps);
       for (const [m,k] of materials) if (k===id) applyPaperMaps(m,k,maps);
       repaint();
-    }).catch(() => { failed = true; textures.forEach(t=>t.dispose()); });
+    }).catch(() => { failed = true; textures.forEach(t=>t.dispose()); }).finally(() => pending.delete(id));
     pending.set(id,job);
   };
   return { apply, release(material: THREE.MeshStandardMaterial) { materials.delete(material); },

@@ -76,12 +76,13 @@ export function PortfolioPage({
 
   const details = hasProfile ? <ProfileCard profile={profile} photoUrl={photoUrl} bannerUrl={bannerUrl} cvUrl={cvUrl} cv={cv} pageStyle={pageStyle} /> : undefined;
 
+  const bookDetails = bookMarketing && (bookMarketing.description || bookPurchaseUrl(bookMarketing.buyUrl)) && <div className="space-y-4 p-1">
+        {bookMarketing.description && <p className="max-w-3xl text-sm text-muted-foreground">{bookMarketing.description.slice(0,600)}</p>}
+        {bookPurchaseUrl(bookMarketing.buyUrl) && <a className="inline-block rounded-full bg-foreground px-5 py-2 text-sm text-background" href={bookPurchaseUrl(bookMarketing.buyUrl)} target="_blank" rel="noopener noreferrer">{bookMarketing.label?.slice(0,60) || "Buy the book"}</a>}
+      </div>;
+
   return (
     <div className="flex min-h-full flex-col bg-background" style={pageStyle ? { background: pageStyle.background, color: pageStyle.text } : undefined}>
-      {bookMarketing && (bookMarketing.description || bookPurchaseUrl(bookMarketing.buyUrl)) && <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background px-5 py-3">
-        {bookMarketing.description && <p className="max-w-3xl text-sm text-muted-foreground">{bookMarketing.description.slice(0,600)}</p>}
-        {bookPurchaseUrl(bookMarketing.buyUrl) && <a className="rounded-full bg-foreground px-5 py-2 text-sm text-background" href={bookPurchaseUrl(bookMarketing.buyUrl)} target="_blank" rel="noopener noreferrer">{bookMarketing.label?.slice(0,60) || "Buy the book"}</a>}
-      </div>}
       <h1 className="sr-only">{profile.name || "Portfolio"}</h1>
       <div className="flex-1">
         <PdfViewer
@@ -101,6 +102,7 @@ export function PortfolioPage({
           foldouts={foldouts} tags={tags} links={links}
           projectCode={projectCode}
           startFullscreen={startFullscreen}
+          bookMarketing={bookDetails}
           profile={details}
           profileImageUrl={photoUrl}
           home={!embed && !compact}

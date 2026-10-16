@@ -97,16 +97,16 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const environmentColours = new Map<HdriId, [number, number, number]>();
   const diffuser = createEnvironmentDiffuser(renderer);
   const loading = new Map<HdriId, Promise<THREE.WebGLRenderTarget | null>>();
+  let environmentGenerator: THREE.PMREMGenerator | undefined;
   const toEnvironment = (data: Uint16Array, width: number, height: number) => {
     const hdr = new THREE.DataTexture(data, width, height, THREE.RGBAFormat, THREE.HalfFloatType);
     hdr.mapping = THREE.EquirectangularReflectionMapping;
     hdr.minFilter = hdr.magFilter = THREE.LinearFilter;
     hdr.generateMipmaps = false;
     hdr.needsUpdate = true;
-    const pmrem = new THREE.PMREMGenerator(renderer);
+    const pmrem = environmentGenerator ??= new THREE.PMREMGenerator(renderer);
     const target = pmrem.fromEquirectangular(hdr);
     hdr.dispose();
-    pmrem.dispose();
     return target;
   };
   /** A plain, even light, used while a lighting file downloads and if one cannot be loaded. */
@@ -424,7 +424,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // update once per displayed frame; idle scenes only refresh when dirtied.
     // Keep hidden receiving/covered pages in the shadow pass throughout a turn.
     restingShadows.sync(turnRestPages ?? [left.visible, right.visible]);
-    renderer.shadowMap.needsUpdate = turning || shadowsDirty;
+    // Camera-only movement reuses the same world-space shadow maps.
+    renderer.shadowMap.needsUpdate = shadowsDirty;
     renderer.render(scene, camera);
     frameSink?.(renderer.domElement);
     shadowsDirty = false;
@@ -502,6 +503,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const restored = () => {
     if (disposed) return;
     environments.clear();
+    environmentGenerator?.dispose(); environmentGenerator = undefined;
     diffuser.reset();
     evenLight = null;
     scene.environment = null;
@@ -637,7 +639,13 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let environmentRequest = 0;
   // The paper's look depends on the look (Simple/Studio) and the paper, not on brightness or the shadow settings,
   // so dragging a slider only changes the exposure or the shadow and never rebuilds the materials.
-  const paperTextures = createPaperTextures(() => requestPaint(false));
+  const paperTextures = createPaperTextures(() => {
+    // New normal/roughness maps change the shader variant. Warm both turn
+    // directions before these maps can cause a first-turn compilation hitch.
+    warmedLooks.delete(true);
+    if (settings.studio && !disposed) { warm(); warmedLooks.add(true); }
+    requestPaint(false);
+  });
   let variant = "";
   const backdrop = createLitBackdrop(scene, () => requestPaint(false));
   const configure = (next: StudioSettings) => {
@@ -826,6 +834,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     return turnGeometryCache.get(key, () => bakeTurnGeometry(geometry, turnGeometryWriter(geometry, ratio, dir, seeds, restingSeeds, SHEET_CLEARANCE), 128, [restingTurnNormals(geometry, ratio, dir, seeds[0]!, dir), restingTurnNormals(geometry, ratio, -dir as 1 | -1, seeds[1]!, -dir)]));
   };
   const shape = (progress: number, dir: 1 | -1) => {
+    shadowsDirty = true;
     if (turnRestPages) {
       [left, right].forEach((mesh, i) => {
         const visible = !!turnRestPages![i] && turnRestVisible(progress, i === (dir === 1 ? 1 : 0));
@@ -862,10 +871,13 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const tx = x - x0, ty = y - y0;
       const position = stickyPosition.set(0, 0, 0), normal = stickyNormal.set(0, 0, 0);
       const normals = geometry.getAttribute("normal");
-      for (const [column, row, weight] of [[x0, y0, (1-tx)*(1-ty)], [x0+1, y0, tx*(1-ty)], [x0, y0+1, (1-tx)*ty], [x0+1, y0+1, tx*ty]]) {
-        const index = row! * 33 + column!;
-        position.x += attr.getX(index) * weight!; position.y += attr.getY(index) * weight!; position.z += attr.getZ(index) * weight!;
-        normal.x += normals.getX(index) * weight!; normal.y += normals.getY(index) * weight!; normal.z += normals.getZ(index) * weight!;
+      // Four bilinear samples without allocating nested arrays per sticky vertex.
+      for (let corner = 0; corner < 4; corner++) {
+        const column = x0 + (corner & 1), row = y0 + (corner >> 1);
+        const weight = (corner & 1 ? tx : 1-tx) * (corner & 2 ? ty : 1-ty);
+        const index = row * 33 + column;
+        position.x += attr.getX(index) * weight; position.y += attr.getY(index) * weight; position.z += attr.getZ(index) * weight;
+        normal.x += normals.getX(index) * weight; normal.y += normals.getY(index) * weight; normal.z += normals.getZ(index) * weight;
       }
       normal.normalize().multiplyScalar(dir);
       const resting = position.x < 0 ? left : right;
@@ -934,7 +946,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         configure(current);
       }
       const ids = [...new Set([...(bothLooks || settings.studio ? [settings.hdri] : []), ...lightingCycle])];
-      return Promise.all(ids.map(loadEnvironment)).then(() => {
+      return Promise.all([paperTextures.ready(), ...ids.map(loadEnvironment)]).then(() => {
         if (disposed || !lightingCycle.length) return;
         // Compile projected window/slat lighting before the demonstration is visible.
         const current = settings;
@@ -1137,6 +1149,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       spreadArt.texture.dispose();
       pageArt.texture.dispose();
       environments.forEach((target) => target.dispose());
+      environmentGenerator?.dispose();
       evenLight?.dispose();
       dapples.forEach(texture => texture.dispose());
       sunPatch.shadow.map?.dispose();
