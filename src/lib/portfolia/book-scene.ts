@@ -1,4 +1,5 @@
-import { createPaperTextures } from "./paper-textures";
+import { updatePaperTangents } from "./paper-tangents";
+import { createPaperTextures, paperTextureId } from "./paper-textures";
 import { applyTurnPose, bakeTurnGeometry, createTurnGeometryCache, turnGeometryWriter, restingTurnNormals, type TurnPose } from "./turn-geometry-cache";
 import { createRestingPageShadows } from "./resting-page-shadows";
 import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
@@ -317,6 +318,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     positions.needsUpdate = true;
     mesh.geometry.computeVertexNormals();
+    updatePaperTangents(mesh.geometry);
     mesh.userData["seed"] = seed;
   };
   const left = new THREE.Mesh(new THREE.PlaneGeometry(1, ratio, 32, 16), material());
@@ -344,6 +346,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       2,
     ),
   );
+  updatePaperTangents(geometry);
+  updatePaperTangents(reverseGeometry, true);
   const frontMat = material();
   const backMat = material(THREE.BackSide);
   const front = new THREE.Mesh(geometry, frontMat);
@@ -830,6 +834,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     if (bakedTurn) applyTurnPose(bakedTurn, progress, geometry);
     else return;
+    if (paperTextureId(settings.material)) {
+      updatePaperTangents(geometry);
+      updatePaperTangents(reverseGeometry, true);
+    }
     const attr = geometry.getAttribute("position") as THREE.BufferAttribute;
     // Reversing travel reverses winding; preserve the physical front face.
     // The side is part of the shader, so refresh it only when it changes.
