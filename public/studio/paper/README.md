@@ -62,3 +62,17 @@ response on pale neutral stock. Photos, colour artwork and dark ink receive less
 surface noise through a broad luminance/chroma mask, with no screen-space edge
 mask on the normals. Tint is limited to stock areas and dark-ink highlight
 protection remains. Crumbled is excluded from this artwork response mask.
+
+## Subtle Crumpled edges and cache reuse
+
+Studio Crumpled adds a deterministic outer-edge ripple and slight lean of under
+0.6% of page width. The spine stays fixed, paired faces share the same edge, and
+PDF UVs do not change. Resting pages and the cached turn writer use the same
+profile; normal endpoint preparation includes it. Edge profiles are prepared
+once per turn bake, not evaluated during animation. Simple and other stocks keep
+their existing outline. The turn-pose cache key includes the edge variant.
+
+Landed-frame caching now skips attribute uploads when the exact saved page is
+already on that mesh, and reuses its precomputed bounds. Resetting a page explicitly
+invalidates that fast path. Flat Studio readers also reuse their material programs
+for brightness-only changes instead of forcing shader invalidation.
