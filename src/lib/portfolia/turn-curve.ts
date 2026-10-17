@@ -12,7 +12,7 @@ export function readableTurnCurve(value: unknown): TurnCurve {
 export function turnCurl(curve: TurnCurve, u: number, v: number) {
   const arch = Math.sin(Math.PI*u);
   if (curve === "firm") return .08*arch;
-  if (curve === "deep") return .44*arch*arch*(1+.2*(.5-v));
+  if (curve === "deep") return .34*arch*arch*(1+.2*(.5-v));
   if (curve === "corner") return .25*arch*(.7+.9*(1-v)*(1-v));
   return .30*arch*(1+.35*(.5-v));
 }
