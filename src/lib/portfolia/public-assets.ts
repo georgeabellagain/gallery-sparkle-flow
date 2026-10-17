@@ -10,5 +10,5 @@ export function publicAssetKeys(p: Portfolio, personal: boolean): string[] {
   return [...new Set(keys.filter((key): key is string => typeof key === "string" && /^[a-zA-Z0-9_.-]+$/.test(key) && (personal || !paidKeys.includes(key))))];
 }
 export function publicPortfolioPlan(p: Portfolio, personal: boolean): Portfolio {
-  return { ...p, ...(!personal ? { viewer: freeViewer(p.viewer) } : {}), plan: personal ? "personal" : "free", profile: { ...p.profile, ...(!personal ? { cv: undefined } : {}) }, ...(!personal && p.style ? { style: { ...p.style, bannerKey: undefined } } : {}) };
+  return { ...p, ...(!personal ? { viewer: freeViewer(p.viewer) } : {}), plan: personal ? "personal" : "free", cancelledAt: undefined, profile: { ...p.profile, ...(!personal ? { cv: undefined } : {}) }, ...(!personal && p.style ? { style: { ...p.style, bannerKey: undefined } } : {}) };
 }

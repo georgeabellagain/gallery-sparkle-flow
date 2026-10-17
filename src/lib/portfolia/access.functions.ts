@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { personalActive } from "./store";
 const code = z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/);
 const lookup = z.object({ by: z.enum(["code", "username"]), value: code });
 
@@ -10,9 +9,14 @@ export const portfolioAccessStatus = createServerFn({ method: "GET" }).inputVali
   const { requestAccess } = await import("./access.server");
   const { setResponseHeader } = await import("@tanstack/react-start/server");
   setResponseHeader("Cache-Control", "private, no-store");
-  const { data: row, error } = await supabaseAdmin.from("portfolios").select("code,data").eq("status", "published").eq(data.by === "code" ? "code" : "username", data.value.toLowerCase()).maybeSingle();
+  const { data: row, error } = await supabaseAdmin.from("portfolios").select("code,owner_id,data").eq("status", "published").eq(data.by === "code" ? "code" : "username", data.value.toLowerCase()).maybeSingle();
   if (error) throw new Error("Couldn’t check this portfolio.");
-  if (!row || (data.by === "username" && !personalActive(row.data as any))) return { state: "missing" as const, code: null };
+  let named = false;
+  if (row && data.by === "username") {
+    const { ownerHasPersonal } = await import("./entitlements.server");
+    named = Boolean((row.data as any)?.username) && await ownerHasPersonal(row.owner_id);
+  }
+  if (!row || (data.by === "username" && !named)) return { state: "missing" as const, code: null };
   const { state } = await requestAccess(row.code);
   return { state, code: row.code };
 });
