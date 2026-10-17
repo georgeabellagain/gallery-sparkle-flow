@@ -1,3 +1,4 @@
+import { sampleCoverColour } from "./cover-colour";
 import { studioShadowSize, studioShadowRadius } from "./shadow-quality";
 import { createBookBinding } from "./book-binding";
 import { bindingTurnCurve, type BookStyle } from "./book-style";
@@ -922,6 +923,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   configure(settings);
   resize();
   return {
+    setCoverColour(canvas:HTMLCanvasElement){binding.setCoverColour(sampleCoverColour(canvas));requestPaint();},
     setCaptureClock(clock?:()=>Promise<void>) {captureClock=clock;},
     async captureReady() { await paperTextures.ready(); await backdrop.ready(); if (!await loadEnvironment(settings.hdri)) throw new Error("Studio lighting could not be prepared."); },
     setFrameSink(sink?: (canvas: HTMLCanvasElement) => void) { frameSink = sink; paint(); },

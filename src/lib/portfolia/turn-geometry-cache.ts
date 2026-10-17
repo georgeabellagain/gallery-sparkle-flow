@@ -1,4 +1,4 @@
-import { readableTurnCurve, turnCurl, turnCornerLead, type TurnCurve } from "./turn-curve";
+import { readableTurnCurve, deepTurnCurl, turnCurl, turnCornerLead, type TurnCurve } from "./turn-curve";
 import * as THREE from "three";
 import {pageRelief} from "./page-relief";
 import {turnClearance,turnSheetHeight} from "./turn-motion";
@@ -70,7 +70,7 @@ export function turnGeometryWriter(template:THREE.BufferGeometry, ratio:number, 
     const t=Math.min(1,Math.max(0,(progress-.3)/.4)),blend=t*t*(3-2*t);
     const sin=Math.sin(Math.PI*progress),cos=Math.cos(Math.PI*progress),clearance=turnClearance(progress,gap);
     for(let i=0;i<uv.count;i++) {
-      const u=uv.getX(i),v=uv.getY(i),bow=sin*curl[i]!;
+      const u=uv.getX(i),v=uv.getY(i),bow=sin*(shape === "deep" ? deepTurnCurl(u,v,progress) : curl[i]!);
       const angle = Math.PI*progress + sin*sin*lead[i]!;
       const localSin = shape === "corner" ? Math.sin(angle) : sin;
       const localCos = shape === "corner" ? Math.cos(angle) : cos;

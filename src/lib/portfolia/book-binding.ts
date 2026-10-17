@@ -18,9 +18,15 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
     return {root,board,pages};
   });
   const spine=new THREE.Mesh(cylinder,spineMaterial);spine.castShadow=spine.receiveShadow=true;group.add(spine);
-  let style:BookStyle="flipbook";
+  let style:BookStyle="flipbook",studio=false,coverColour:string|undefined;
+  const colour=()=>{
+    const value=coverColour??bookStyleProfile(style).colour;
+    for(const material of [boardMaterial,spineMaterial]){material.color.set(studio?value:"#000000");material.emissive.set(studio?"#000000":value);}
+  };
   return {
-    set(value:unknown,studio:boolean){
+    setCoverColour(value:string){coverColour=value;colour();},
+    set(value:unknown,lit:boolean){
+      studio=lit;
       const profile=bookStyleProfile(value);style=profile.id;
       group.visible=style!=="flipbook";
       sides.forEach(({board,pages})=>{
@@ -30,9 +36,7 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
       });
       spine.scale.set(profile.spine,ratio+2*profile.overhang,profile.spine);
       spine.position.z=-.005-profile.spine;
-      for(const material of [boardMaterial,spineMaterial]){
-        material.color.set(studio?profile.colour:"#000000");material.emissive.set(studio?"#000000":profile.colour);
-      }
+      colour();
       pageMaterial.color.set(studio?"#ffffff":"#000000");pageMaterial.emissive.set(studio?"#000000":"#ffffff");
       const emissiveMap=studio?null:edges;
       if(pageMaterial.emissiveMap!==emissiveMap){pageMaterial.emissiveMap=emissiveMap;pageMaterial.needsUpdate=true;}
