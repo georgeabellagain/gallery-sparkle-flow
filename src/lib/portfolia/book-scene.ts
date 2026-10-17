@@ -40,6 +40,8 @@ export type StudioSettings = {
   bookStyle?: BookStyle;
   ribbon?: boolean;
   ribbonColour?: string;
+  /** Gutter of the spread the ribbon marks (see ribbonPlacement); omitted is the plain tail. */
+  ribbonGutter?: number;
   material: SurfaceKind;
   /** 0..1 overall studio brightness. */
   brightness: number;
@@ -468,6 +470,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     binding.sync(turnRestPages ?? [left.visible,right.visible],[left,right].map((mesh,index):BindingSide=>({
       kind: mesh.userData["rigidCover"] ? (mesh.userData["coverRest"] as CoverRest) : "page",
       share: sideShare(index as 0|1, mesh.userData["leaf"] as number, mesh.userData["leaves"] as number),
+      leaf: mesh.userData["leaf"] as number | undefined,
     })) as [BindingSide,BindingSide]);
     // Camera-only movement reuses the same world-space shadow maps.
     renderer.shadowMap.needsUpdate = shadowsDirty;
@@ -697,7 +700,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const configure = (next: StudioSettings) => {
     next = {...next, material:paperFinish(next.material)};
     settings = next;
-    binding.setDetails({ribbon:next.ribbon,ribbonColour:next.ribbonColour});
+    binding.setDetails({ribbon:next.ribbon,ribbonColour:next.ribbonColour,ribbonGutter:next.ribbonGutter});
     binding.set(next.bookStyle,next.studio);
     const rest: CoverRest = left.visible && right.visible ? "open" : "closed";
     [left,right].forEach((mesh,i)=>{

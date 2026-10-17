@@ -9,6 +9,9 @@ export const PHOTO_SIZE_PRESETS = [
   { id: "story", label: "Story · 9:16", width: 1080, height: 1920 },
   { id: "amazon-tile", label: "Amazon A+ image tile", width: 600, height: 600 },
 ] as const;
+/** Everyone can stage and preview; saving the picture is Personal. Client-side only, so not tamper-proof. */
+export const PHOTO_EXPORT_REASON = "Photo shoot export";
+export const photoExportAction = (plan: "free" | "personal" | undefined) => (plan === "personal" ? "download" : "upgrade") as "download" | "upgrade";
 export function photoSizeError(size: PhotoSize, deviceLimit = 8192) {
   const { width, height } = size,
     max = Math.min(8192, deviceLimit);

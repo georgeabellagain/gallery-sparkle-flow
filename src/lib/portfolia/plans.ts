@@ -31,6 +31,7 @@ export const PERSONAL_FEATURES = [
   "Every lighting set and backdrop, plus your own images",
   "Downloadable CV and custom profile styling",
   "Export your flipbook as a 1080p HD video",
+  "Photo shoot: studio-quality book photos and flat lays",
 ];
 
 export type ComparisonValue = boolean | string;
@@ -64,6 +65,7 @@ export const PLAN_COMPARISON: { group: string; rows: { label: string; free: Comp
       { label: "Password protection", free: false, personal: true },
       { label: "Link expiry date", free: false, personal: true },
       { label: "1080p HD flipbook video", free: false, personal: true },
+      { label: "Photo shoot: studio-quality book photos and flat lays", free: "Preview", personal: "Download PNG" },
       { label: "Visit statistics", free: "Basic", personal: "Basic" },
     ],
   },

@@ -39,6 +39,8 @@ export interface Foldout {
   y: number;
   width: number;
   height: number;
+  /** Turn on the page in degrees, clockwise, about the note's centre. Missing means straight. */
+  rotation?: number;
 }
 export interface PageBounds {
   x: number;
@@ -49,6 +51,28 @@ export interface PageBounds {
 export const MAX_FOLDOUTS = 12;
 export const FOLDOUT_IMAGE_LIMIT = 8 * 1024 * 1024;
 export const NOTE_TEXT_LIMIT = 1200;
+/** Notes can be set at a slant, as they would be stuck into a scrapbook, but never upside down. */
+export const MAX_NOTE_ROTATION = 30;
+export const noteRotation = (f: Pick<Foldout, "rotation">) =>
+  typeof f.rotation === "number" && Number.isFinite(f.rotation) ? Math.max(-MAX_NOTE_ROTATION, Math.min(MAX_NOTE_ROTATION, f.rotation)) : 0;
+/** Rotates a note, snapping to straight within 2 degrees so it is easy to put back. */
+export function rotateFoldout(f: Foldout, degrees: number): Foldout {
+  const value = Math.round(Math.max(-MAX_NOTE_ROTATION, Math.min(MAX_NOTE_ROTATION, degrees)) * 10) / 10;
+  const { rotation: _r, ...rest } = f;
+  return Math.abs(value) < 2 ? rest : { ...rest, rotation: value };
+}
+/** A new note on a page, centred where it lands: a sticky note or a fold-out that opens from its left edge. */
+export function newFoldout(id: string, page: number, half: "left" | "right", style: "sticky" | "foldout", point = { x: .5, y: .45 }): Foldout {
+  const sticky = style === "sticky", width = sticky ? .26 : .32, height = sticky ? .2 : .34;
+  return fitFoldout({
+    id, page, half, style, title: sticky ? "Sticky note" : "Text note", colour: sticky ? "#f6e27a" : "#e5dcc6",
+    hinge: sticky ? "top" : point.x < .5 ? "right" : "left",
+    ...(sticky ? { openable: false } : {}),
+    x: point.x - width / 2, y: point.y - height / 2, width, height,
+    outside: { colour: sticky ? "#f6e27a" : "#e5dcc6", text: sticky ? "Write a note" : "Open note", ...(sticky ? { font: "hand" as const } : {}) },
+    inside: { colour: "#fbf6e9", text: sticky ? "" : "Write your note here…" },
+  });
+}
 const key = /^[a-zA-Z0-9_.-]{1,120}$/;
 export function foldoutSurfaces(f: Foldout): {
   outside: FoldoutSurface;
@@ -72,6 +96,7 @@ export function validateFoldout(f: Foldout, pages: number): string | null {
   if (f.openable !== undefined && typeof f.openable !== "boolean") return "Choose whether the note is openable.";
   if (f.style !== undefined && !["foldout", "sticky"].includes(f.style)) return "Choose a note style.";
   if (f.style === "sticky" && f.hinge !== "top") return "Sticky notes open from the top.";
+  if (f.rotation !== undefined && (typeof f.rotation !== "number" || !Number.isFinite(f.rotation) || Math.abs(f.rotation) > MAX_NOTE_ROTATION)) return "Choose a note angle up to 30 degrees.";
   if (typeof f.title !== "string" || !f.title.trim() || f.title.length > 60)
     return "Add a short note label (up to 60 characters).";
   if (!/^#[a-fA-F0-9]{6}$/.test(f.colour)) return "Choose a flap colour.";

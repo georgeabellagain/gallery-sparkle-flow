@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { hashPassword, verifyPassword, grantToken, validGrant } from "../src/lib/portfolia/access-crypto.server";
 import { accessState } from "../src/lib/portfolia/access.server";
-import { servePortfolioFile } from "../src/lib/portfolia/file.server";
+import { servePortfolioFile, servedFileType } from "../src/lib/portfolia/file.server";
 
 test("password hashes are salted and reject incorrect passwords", async () => {
   const one = await hashPassword("a long portfolio password"), two = await hashPassword("a long portfolio password");
@@ -38,4 +38,9 @@ test("protected file endpoint checks access and referenced asset before storage"
   assert.equal((await servePortfolioFile("book",url.replace("pdf_example","private_cv"),db,open)).status,404);assert.equal(downloaded,"");
   assert.equal((await servePortfolioFile("book",url.replace("pdf_example","../other-owner/file"),db,open)).status,404);
   const response=await servePortfolioFile("book",url,db,open);assert.equal(response.status,200);assert.equal(downloaded,"owner/pdf_example");assert.equal(response.headers.get("cache-control"),"private, no-store");
+  assert.equal(response.headers.get("content-type"),"application/pdf");
+});
+test("stored files can never be served as runnable pages", () => {
+  for (const type of ["text/html", "image/svg+xml", "application/javascript", "", "text/html; charset=utf-8", "application/xhtml+xml"]) assert.equal(servedFileType(type), "application/octet-stream");
+  assert.equal(servedFileType("image/PNG"), "image/png"); assert.equal(servedFileType("application/pdf"), "application/pdf");
 });

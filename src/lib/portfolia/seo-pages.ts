@@ -6,6 +6,31 @@ const qrFaq = { q: "Can I share it with a QR code?", a: "Yes. Every published po
 const sizeFaq = { q: "How large can my PDF be?", a: "Up to 10 MB on Free, or up to 50 MB per portfolio on Personal." };
 
 export const DISCIPLINE_PAGES: Record<string, Page> = {
+  "book-mockup-generator": {
+    label: "3D book mockup generator",
+    title: "3D Book Mockup Generator — Photos From Your PDF | Portfolia",
+    description: "Turn your book PDF into realistic 3D book mockups: leaning, spine and flat lay shots of a hardback, soft cover or flipbook, open or closed. Preview free; download PNGs with Personal.",
+    h1: "A 3D book mockup generator", h1Accent: "that starts from your PDF.",
+    intro: "Upload your book, zine or portfolio PDF and open the Photo shoot. Portfolia builds a 3D book from your own pages, lights it with studio HDRI light and lets you frame a product photo without a camera, props or 3D software.",
+    points: [
+      { title: "Leaning, spine and flat lay shots", body: "Camera presets stand the book against a wall, show off the spine or lay it flat on a table. Drag the preview to fine-tune the angle." },
+      { title: "Closed or open at any spread", body: "Show the cover, or open the book at any page so the spread sits under real light with gutter shading and contact shadows." },
+      { title: "Hardback, soft cover or flipbook", body: "Choose the binding, paper finish, lighting, wall and floor, and add a silk ribbon bookmark to hardbacks and soft covers." },
+    ],
+    sections: [
+      { title: "What the photo shoot makes", body: "A PNG photograph of your book at the size you choose, from Amazon A+ tiles and square product images to 16:9 website heroes and 9:16 stories, up to the limit your device's graphics allow. Everyone can open the photo shoot and preview every setting; downloading the picture is part of Personal." },
+      { title: "What it does not do", body: "It is a visual approximation from your PDF pages, not a print proof. Spine artwork, exact page counts, paper stock and printed colour are not modelled, so check print files with your printer or KDP's own previewer. You need the rights to the artwork you upload." },
+    ],
+    checklist: ["Export your cover as the first page and the back cover as the last.", "Use a sample if you do not want the whole book online.", "Pick a spread with strong artwork for open-book shots.", "Choose the export size for where the picture will be used."],
+    steps: ["Upload your book PDF on the homepage.", "Open Photo shoot from the editor's bottom bar and pick a camera preset.", "Choose binding, lighting and backdrop, then download your PNG with Personal."],
+    faqs: [
+      { q: "Is the book mockup generator free?", a: "You can open the photo shoot, change every setting and preview the result on the Free plan. Downloading the PNG photograph needs Personal." },
+      { q: "Do I need Photoshop or 3D software?", a: "No. The book is built and lit in your browser from your PDF pages." },
+      { q: "Can I make a flat lay?", a: "Yes. The Flat lay preset lays the book on the floor with the lights moved alongside, and works closed or open." },
+      { q: "Can I use the pictures on Amazon or social media?", a: "Yes, as long as you own the artwork. Size presets include Amazon A+ image tiles, square product images and social portrait and story formats." },
+      sizeFaq,
+    ],
+  },
   "hdri-book-visualisation": {
     label: "HDRI book visualisation",
     title: "HDRI Book Visualisation — See Your Book in Realistic 3D Light | Portfolia",
@@ -18,7 +43,7 @@ export const DISCIPLINE_PAGES: Record<string, Page> = {
       { title: "Your backdrop, your mood", body: "Pick a colour, a photographic surface such as wood or marble, or upload your own background picture." },
     ],
     sections: [
-      { title: "What is HDRI book visualisation?", body: "HDRI (high dynamic range imaging) environments capture real-world light. Used in 3D rendering, they make objects look as though they were photographed in a real room. Portfolia lights your book with these environments in the browser, so your printed design can be previewed as a believable physical object before or instead of a photo shoot. It shows your PDF exactly as designed; it does not create a 3D model of a printed binding or validate print-ready files. Personal includes downloadable HD flip-through videos." },
+      { title: "What is HDRI book visualisation?", body: "HDRI (high dynamic range imaging) environments capture real-world light. Used in 3D rendering, they make objects look as though they were photographed in a real room. Portfolia lights your book with these environments in the browser, so your printed design can be previewed as a believable physical object before or instead of a photo shoot. It shows your PDF exactly as designed; it does not create a 3D model of a printed binding or validate print-ready files. Personal includes downloadable HD flip-through videos and still photographs from the Photo shoot, a 3D book mockup generator." },
       { title: "Who it is for", body: "Self-published authors previewing a novel or photo book, designers presenting editorial layouts, students showing a printed portfolio, and brands sharing a lookbook or catalogue. Anyone with a book PDF can present it as an object rather than a flat document." },
     ],
     checklist: ["Export your book as a PDF with single pages or two-page spreads.", "Keep files under 10 MB on Free or 50 MB on Personal.", "Choose a lighting environment and brightness in the editor.", "Check the result on a phone before sharing."],

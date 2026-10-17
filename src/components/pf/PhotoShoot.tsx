@@ -2,7 +2,8 @@ import { coverLeaf } from "@/lib/portfolia/rigid-cover";
 import { photoLighting, photoSpreadPages } from "@/lib/portfolia/photo-settings";
 import { StudioLightingSettings, PaperSettings } from "./StudioAppearanceSettings";
 import { BackgroundPresetPicker } from "./BackgroundPresetPicker";
-import { PHOTO_SIZE_PRESETS, photoSizeError, type PhotoSize } from "@/lib/portfolia/photo-export";
+import { PHOTO_EXPORT_REASON, PHOTO_SIZE_PRESETS, photoExportAction, photoSizeError, type PhotoSize } from "@/lib/portfolia/photo-export";
+import { UpgradeModal } from "./UpgradeModal";
 import { Segmented } from "./viewer-ui";
 import { backgroundFor } from "@/lib/portfolia/background-settings";
 import { backgroundPicture } from "@/lib/portfolia/background-presets";
@@ -270,7 +271,15 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
   }, [selectedPage, ready, p.pdf?.pages, p.viewer?.spreads]);
   const change = (patch: Partial<ShootOptions>) =>
     setOptions((current) => ({ ...current, ...patch }));
+  // The ribbon lies across the pages only on the spread the creator marked in the reader.
+  useEffect(() => {
+    const marked = p.viewer?.ribbonPage;
+    change({ ribbonMarked: marked !== undefined && selectedPage > 0 && (selectedPage === marked || (p.viewer?.spreads !== "ready" && photoSpreadPages(selectedPage, p.pdf!.pages).includes(marked))) });
+  }, [selectedPage, p.viewer?.ribbonPage, p.viewer?.spreads, p.pdf?.pages]);
+  const [upgrade, setUpgrade] = useState(false),
+    gate = photoExportAction(p.plan);
   const download = async () => {
+    if (gate === "upgrade") return setUpgrade(true);
     if (!stage.current || sizeError) return;
     setSaving(true);
     setError("");
@@ -734,7 +743,9 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                 >
                   <Download className="size-4" />
                   {saving ? "Preparing PNG…" : "Download photograph"}
+                  {gate === "upgrade" && <span className="rounded-full bg-leaf-soft px-1.5 py-0.5 text-xxs text-leaf">Personal</span>}
                 </Button>
+                {gate === "upgrade" && <p className="text-xs text-muted-foreground">Preview every angle for free. Downloading the photograph is part of Personal.</p>}
               </div>
             )}
           </aside>
@@ -765,6 +776,7 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
           ))}
         </nav>
       </div>
+      <UpgradeModal open={upgrade} reason={PHOTO_EXPORT_REASON} onClose={() => setUpgrade(false)} />
     </section>
   );
 }

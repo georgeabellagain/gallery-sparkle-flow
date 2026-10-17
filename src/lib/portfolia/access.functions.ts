@@ -26,7 +26,8 @@ export const unlockPortfolio = createServerFn({ method: "POST" }).inputValidator
   setResponseHeader("Cache-Control", "private, no-store");
   const request = getRequest();
   if (request.headers.get("origin") !== new URL(request.url).origin) throw new Error("Please open the portfolio and try again.");
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  // The edge sets cf-connecting-ip itself; the first x-forwarded-for entry can be written by the visitor.
+  const ip = request.headers.get("cf-connecting-ip")?.trim() || request.headers.get("x-forwarded-for")?.split(",").pop()?.trim() || "unknown";
   const bucket = createHash("sha256").update(`${data.code}:${ip}`).digest("hex");
   const { data: globalAllowed, error: globalError } = await (supabaseAdmin as any).rpc("portfolio_unlock_attempt", { bucket_key: `global:${data.code}` });
   if (globalError || !globalAllowed) return { ok: false, message: "Too many attempts. Please wait five minutes before trying again." };

@@ -1,6 +1,6 @@
 import {lazy,Suspense} from "react";
 import {Link} from "@tanstack/react-router";
-import {ArrowRight, BookOpen, Link2, Lock, RefreshCw, Sparkles, Upload} from "lucide-react";
+import {ArrowRight, BookOpen, Camera, Link2, Lock, RefreshCw, Sparkles, Upload} from "lucide-react";
 import {PricingPlans, type Billing} from "./PricingPlans";
 import {SiteFooter} from "./Chrome";
 import {Button} from "@/components/ui/button";
@@ -14,6 +14,7 @@ const REASONS = [
  {icon: Upload, title: "Try it before you sign up", text: "Drop in your PDF and see it in every reader straight away. No account and no card until you want to publish."},
  {icon: Link2, title: "One link, everywhere", text: "Share a permanent link or a QR code, or embed it on your own website. Embedding is free on every plan."},
  {icon: RefreshCw, title: "Update without re-sending", text: "Replace your PDF whenever your work changes. The link you already sent shows the new version."},
+ {icon: Camera, title: "Book photos without a shoot", text: "The Photo shoot is a 3D book visualiser: leaning, spine and flat lay mockups of your own pages, ready to download with Personal."},
 ];
 
 const STEPS = [
@@ -34,7 +35,7 @@ export function HomeMarketing({onUpgrade,onAccepted,limitMb}:{onUpgrade:(billing
     <div className="shell py-14 sm:py-20">
      <p className="label-xs">Why Portfolia</p>
      <h2 id="why-title" className="display-title mt-2 max-w-2xl text-3xl sm:text-5xl">Your portfolio deserves better than a PDF attachment.</h2>
-     <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+     <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
       {REASONS.map(({icon: Icon, title, text}) => <div key={title}>
        <span className="flex size-10 items-center justify-center rounded-xl bg-leaf-soft text-leaf"><Icon className="size-5" aria-hidden /></span>
        <h3 className="mt-4 text-base font-medium">{title}</h3>

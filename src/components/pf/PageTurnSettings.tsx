@@ -8,7 +8,7 @@ import { RIBBON_COLOURS, readableRibbonColour } from "@/lib/portfolia/book-detai
 
 const RIBBON_NAMES: Record<string, string> = { "#8c1d2c": "Deep red", "#1f3a5f": "Navy", "#2f5d3a": "Forest green", "#c9a227": "Gold", "#1c1c1c": "Black", "#efe9dc": "Ivory" };
 
-export function PageTurnSettings({viewer,setViewer}:{viewer:ViewerSettings;setViewer:(patch:Partial<ViewerSettings>)=>boolean}) {
+export function PageTurnSettings({viewer,setViewer,pages=0}:{viewer:ViewerSettings;setViewer:(patch:Partial<ViewerSettings>)=>boolean;pages?:number}) {
   useEffect(()=>()=>setPreviewMode(null),[]);
   const style=readableTurnStyle(viewer.turnStyle), speed=readableTurnSpeed(viewer.turnSpeed);
   return <fieldset className="space-y-3 border-t border-border pt-3">
@@ -25,6 +25,15 @@ export function PageTurnSettings({viewer,setViewer}:{viewer:ViewerSettings;setVi
         <span>Ribbon bookmark</span>
         <input type="checkbox" role="switch" className="size-4 accent-leaf" checked={viewer.ribbon===true} onChange={event=>{setPreviewMode("book");setViewer({ribbon:event.target.checked});}} />
       </label>
+      {viewer.ribbon===true && pages>1 && <label className="flex items-center justify-between gap-3 text-sm">
+        <span>Marks</span>
+        <select aria-label="Page the ribbon marks" className="max-w-[10rem] rounded border border-border bg-background p-1.5 text-sm" value={viewer.ribbonPage ?? ""}
+          onChange={event=>{setPreviewMode("book");setViewer({ribbonPage:event.target.value?Number(event.target.value):undefined});}}>
+          <option value="">No page (tail only)</option>
+          {Array.from({length:pages},(_,i)=><option key={i+1} value={i+1}>Page {i+1}</option>)}
+        </select>
+      </label>}
+      {viewer.ribbon===true && viewer.ribbonPage!==undefined && <p className="text-xs text-muted-foreground">The ribbon lies across that spread when it is open, and shows between the pages everywhere else.</p>}
       {(viewer.ribbon===true||readableBookStyle(viewer.bookStyle)==="hardback") && <div>
         <p className="text-xs text-muted-foreground">{readableBookStyle(viewer.bookStyle)==="hardback"?"Ribbon and headband colour":"Ribbon colour"}</p>
         <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Ribbon colour">

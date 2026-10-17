@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   foldoutSurfaces,
+  noteRotation,
   type Foldout,
   type FoldoutSurface,
 } from "@/lib/portfolia/foldouts";
@@ -191,6 +192,7 @@ export function FoldoutCard({
     top: `${item.y * 100}%`,
     width: `${item.width * 100}%`,
     height: `${item.height * 100}%`,
+    ...(noteRotation(item) ? { transform: `rotate(${noteRotation(item)}deg)` } : {}),
   };
   if (item.style === "sticky" && item.openable === false) return sceneRendered ? null : <div className="pf-foldout" style={style}><NoteSurface side={outside} label={item.title} sticky /></div>;
   if (item.hinge === "none")

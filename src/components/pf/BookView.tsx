@@ -1,3 +1,5 @@
+import { tabTurnPlan } from "@/lib/portfolia/tab-turns";
+import { ribbonGutterFor } from "@/lib/portfolia/book-details";
 import { coverLeaf } from "@/lib/portfolia/rigid-cover";
 import { createPreparationGate } from "@/lib/portfolia/preparation-gate";
 import { LiveScrapbookContext } from "./live-scrapbook-context";
@@ -44,7 +46,7 @@ import { BackdropLayer, IconButton, Segmented, type Tone } from "@/components/pf
 /** Full screen is the visible height of the window, which on a phone changes as the address bar slides away. */
 const FULL_HEIGHT = typeof CSS !== "undefined" && CSS.supports?.("height", "100dvh") ? "100dvh" : "100vh";
 
-type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri" | "simpleShadow" | "simpleShadowOpacity" | "strength" | "textureStrength" | "topLight" | "imperfections" | "turnStyle" | "turnSpeed" | "turnCurve" | "bookStyle" | "ribbon" | "ribbonColour">;
+type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri" | "simpleShadow" | "simpleShadowOpacity" | "strength" | "textureStrength" | "topLight" | "imperfections" | "turnStyle" | "turnSpeed" | "turnCurve" | "bookStyle" | "ribbon" | "ribbonColour" | "ribbonGutter">;
 const lookFrom = (viewer: ViewerSettings): Look => ({
   studio: viewer.look === "studio",
   turnStyle: viewer.turnStyle,
@@ -384,6 +386,8 @@ export function BookView({
   const homeScroll = useContext(HomeScrollContext);
   const lock = useRef(false);
   const queued = useRef(0);
+  /** The page tab journey in progress, if any; its target can change on the way. */
+  const jumping = useRef<{ target: number } | null>(null);
   const epoch = useRef(0);
   const alive = useRef(true);
   const shown = useRef<string | null>(null);
@@ -457,7 +461,7 @@ export function BookView({
   }, [previewable]);
   const offered = viewer.looks?.length ? viewer.looks : [viewer.look];
   const lookFor = (): Look => {
-    const base = lookFrom(viewer);
+    const base = { ...lookFrom(viewer), ribbonGutter: ribbonGutterFor(viewer.ribbonPage, layout) };
     if (editingExtras) return {...base,studio:false};
     return previewLook && offered.includes(previewLook) ? { ...base, studio: previewLook === "studio" } : base;
   };
@@ -469,7 +473,7 @@ export function BookView({
   useEffect(() => {
     setSettings(lookFor());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer.bookStyle, viewer.ribbon, viewer.ribbonColour, viewer.turnCurve, viewer.turnStyle, viewer.turnSpeed, viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioTopLight, viewer.studioImperfections, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.studioLightingStrength, previewLook, editingExtras]);
+  }, [viewer.bookStyle, viewer.ribbon, viewer.ribbonColour, viewer.ribbonPage, layout, viewer.turnCurve, viewer.turnStyle, viewer.turnSpeed, viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioTopLight, viewer.studioImperfections, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.studioLightingStrength, previewLook, editingExtras]);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; from: number; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
   const [openNote, setOpenNote] = useState(false);
@@ -484,6 +488,9 @@ export function BookView({
   const atEnd = narrow ? leaf === layout.leaves.length - 1 : index === layout.spreads.length - 1;
   const current = layout.leaves[leaf]!;
   const pages = spread.filter((n): n is number => n !== null).map((n) => layout.leaves[n]!.page);
+  const onScrapbookPages = liveScrapbook?.onPages, shownLeaves = JSON.stringify(spread.filter((n): n is number => n !== null && (!narrow || n === leaf)).map((n) => layout.leaves[n]!));
+  // The editor adds new notes, tabs and links to the pages in view.
+  useEffect(() => { if (editingExtras) onScrapbookPages?.(JSON.parse(shownLeaves)); }, [editingExtras, onScrapbookPages, shownLeaves]);
   const tabEntries = useMemo(
     () =>
       tabSlots(pageTags).flatMap((t) => {
@@ -830,12 +837,13 @@ export function BookView({
 
   /** Remembers a click that arrives mid-turn, so quick clicking moves quickly through the pages. */
   const queueStep = (direction: 1 | -1) => {
+    if (jumping.current) return;
     queued.current = Math.max(-MAX_QUEUE, Math.min(MAX_QUEUE, queued.current + direction));
   };
 
   const move = useCallback(
-    async (direction: 1 | -1, chained = false) => {
-      if (wait) return;
+    async (direction: 1 | -1, chained = false, pace?: number) => {
+      if (wait || (jumping.current && !chained)) return;
       // A turn is in progress: keep the click and run it the moment the book is free.
       if (lock.current) {
         queueStep(direction);
@@ -870,7 +878,7 @@ export function BookView({
           if (alive.current) onZoomChange(1);
           if (!alive.current) return;
           if (fromIndex === nextIndex) await scene.current.pan(target, quick ? 200 : 420);
-          else await scene.current.turn(from, to, direction, target, (quick ? 0.5 : 1) * demoTurnDurationScale, tabPlanFor(fromSpread, nextSpread, direction));
+          else await scene.current.turn(from, to, direction, target, (pace ?? (quick ? 0.5 : 1)) * demoTurnDurationScale, tabPlanFor(fromSpread, nextSpread, direction));
           shown.current = `${ready}|${nextSpread.join(",")}|`;
         }
         if (alive.current) goTo(nextLeaf);
@@ -884,8 +892,8 @@ export function BookView({
     [wait, narrow, layout, faces, fallback, onZoomChange, ready, goTo, closeNotes, tabPlanFor, demoTurnDurationScale],
   );
 
-  /** Goes straight to the spread holding a page (used by the page tabs) with one smooth turn. */
-  const jumpTo = useCallback(
+  /** Places the book at a page without animation (reduced motion, and the silent start of a long tab jump). */
+  const place = useCallback(
     async (targetLeaf: number) => {
       if (wait || lock.current || targetLeaf < 0 || targetLeaf >= layout.leaves.length) return;
       await closeNotes();
@@ -926,10 +934,42 @@ export function BookView({
     },
     [wait, narrow, layout, faces, fallback, onZoomChange, ready, goTo, closeNotes, tabPlanFor, demoTurnDurationScale],
   );
+  /**
+   * A page tab turns the pages one after another, quickly, to reach its page (see tabTurnPlan). Another tab
+   * pressed on the way becomes the new destination; arrows and clicks wait until it arrives.
+   */
+  const jumpTo = useCallback(
+    async (targetLeaf: number) => {
+      if (wait || targetLeaf < 0 || targetLeaf >= layout.leaves.length) return;
+      if (jumping.current) { jumping.current.target = targetLeaf; return; }
+      if (lock.current) return;
+      const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      if (reduce || fallback || !scene.current) return place(targetLeaf);
+      const run = { target: targetLeaf };
+      jumping.current = run;
+      queued.current = 0;
+      const position = () => (narrow ? leafRef.current : spreadIndex(layout.spreads, leafRef.current));
+      const goal = () => (narrow ? run.target : spreadIndex(layout.spreads, run.target));
+      try {
+        const plan = tabTurnPlan(position(), goal());
+        if (plan.skip !== null) await place(narrow ? plan.skip : layout.spreads[plan.skip]!.find((n) => n !== null)!);
+        for (let guard = 0; alive.current && position() !== goal() && guard < layout.leaves.length; guard++) {
+          const before = position();
+          await move(goal() > before ? 1 : -1, true, tabTurnPlan(before, goal()).speed);
+          if (position() === before) break;
+        }
+        if (alive.current && !narrow && layout.spreads[spreadIndex(layout.spreads, leafRef.current)]!.includes(run.target)) goTo(run.target);
+      } finally {
+        jumping.current = null;
+        queued.current = 0;
+      }
+    },
+    [wait, narrow, layout, fallback, place, move, goTo],
+  );
 
   // When a turn ends, carry on with any clicks that arrived during it.
   useEffect(() => {
-    if (busy || wait || queued.current === 0) return;
+    if (busy || wait || queued.current === 0 || jumping.current) return;
     const direction: 1 | -1 = queued.current > 0 ? 1 : -1;
     if (direction === 1 ? atEnd : atStart) {
       queued.current = 0;

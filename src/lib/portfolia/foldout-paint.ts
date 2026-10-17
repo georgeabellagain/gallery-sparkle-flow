@@ -1,6 +1,6 @@
 import { layoutNoteText } from "./note-text";
 import { getBlob } from "./assets";
-import { foldoutSurfaces, type Foldout, type FoldoutSurface, type NoteFont } from "./foldouts";
+import { foldoutSurfaces, noteRotation, type Foldout, type FoldoutSurface, type NoteFont } from "./foldouts";
 /** Handwriting fonts come from Google Fonts and load the first time a note uses one. */
 export const NOTE_FONT_FAMILIES: Record<NoteFont, { css: string; google?: string }> = {
   serif: { css: "Georgia, serif" },
@@ -153,7 +153,13 @@ export function paintClosedNotes(
     // Sticky notes remain separate raised meshes, including while closed.
     if (f.style === "sticky") continue;
     ctx.save();
-    ctx.translate(f.x * canvas.width, f.y * canvas.height);
+    const w = f.width * canvas.width, h = f.height * canvas.height;
+    const angle = noteRotation(f);
+    if (angle) {
+      ctx.translate(f.x * canvas.width + w / 2, f.y * canvas.height + h / 2);
+      ctx.rotate((angle * Math.PI) / 180);
+      ctx.translate(-w / 2, -h / 2);
+    } else ctx.translate(f.x * canvas.width, f.y * canvas.height);
     paintNoteSurface(
       ctx,
       f.width * canvas.width,

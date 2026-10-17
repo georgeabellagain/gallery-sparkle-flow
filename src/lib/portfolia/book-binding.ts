@@ -2,10 +2,11 @@ import { pageBlockGeometry, coverBoardGeometry, caseSpineGeometry } from "./book
 import { COVER_GAP, PAGE_TOP, coverArtZ, coverTurnPose, type CoverRest } from "./rigid-cover";
 import * as THREE from "three";
 import { bookStyleProfile, type BookStyle } from "./book-style";
-import { applyCloth, disposeCloth, hasHeadbands, hasRibbon, headbandTexture, readableRibbonColour, ribbonGeometry, ribbonMaterial } from "./book-details";
+import { applyCloth, disposeCloth, hasHeadbands, hasRibbon, headbandTexture, readableRibbonColour, ribbonGeometry, ribbonMaterial, ribbonPlacement, ribbonShadowGeometry, ribbonShadowMaterial, type RibbonPlacement } from "./book-details";
+import { pageRelief } from "./page-relief";
 
-/** What rests on one side of the spine. `share` is that side's fraction of the page block (0..1). */
-export type BindingSide = { kind: "page" | CoverRest; share: number };
+/** What rests on one side of the spine. `share` is that side's fraction of the page block (0..1); `leaf` its index. */
+export type BindingSide = { kind: "page" | CoverRest; share: number; leaf?: number };
 const PAGE_SIDE: BindingSide = { kind: "page", share: 1 };
 
 /** Page-block thickness grows with the number of leaves, within believable limits. */
@@ -19,6 +20,25 @@ export function sideShare(side: 0 | 1, leaf: number, leaves: number) {
   if (!leaves || !Number.isFinite(leaf)) return 1;
   const read = THREE.MathUtils.clamp(leaf / Math.max(1, leaves - 1), 0, 1);
   return THREE.MathUtils.clamp(side === 0 ? read : 1 - read, .06, 1);
+}
+
+const TABLE_Z=-.0675;
+/**
+ * The ribbon's centre line in book space and how much of it rests on paper or the table. `side` is the page it
+ * leaves from; `z` is the height it leaves the block at (a tail) or the paper lift (lying open).
+ */
+export function ribbonPath(placement:RibbonPlacement,ratio:number,side:number,z:number){
+  const h=(ratio-.004)/2,p=(x:number,y:number,height:number)=>new THREE.Vector3(side*x,y,height);
+  // Off the foot of the book and out across the table, short enough to stay inside the reader's framing.
+  const drop=(x:number,start:number)=>[p(x+.004,-h-.012,THREE.MathUtils.lerp(start,TABLE_Z,.45)),p(x+.014,-h-.026,TABLE_Z+.0035),p(x+.044,-h-.06,TABLE_Z),p(x+.084,-h-.084,TABLE_Z),p(x+.109,-h-.098,TABLE_Z)];
+  if(placement.mode==="open"){
+    // From under the headband, down the gutter's valley with a slight wander, then over the foot.
+    const page=Array.from({length:9},(_,i)=>{const v=1-i/8,x=.008+.016*(1-v)+.004*Math.sin(v*5.2);return p(x,-h+(2*h+.002)*v,pageRelief(x,v,0)+z);});
+    const edge=.028;
+    return {points:[...page,p(edge+.002,-h-.003,pageRelief(edge,0,0)+z-.004),...drop(edge,pageRelief(edge,0,0)-.006)],contact:[...page.map(()=>1),.6,.1,0,.85,1,1,1]};
+  }
+  // Held flat between the leaves until it leaves the block, so it never twists up into the page area.
+  return {points:[p(.012,-h+.05,z),p(.016,-h+.004,z-.0015),...drop(.016,z)],contact:[1,1,.3,0,.85,1,1,1]};
 }
 
 /** A lightweight, renderer-owned shell below the PDF artwork. No per-frame allocations. */
@@ -50,13 +70,17 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
   const bandGeometry=new THREE.CylinderGeometry(1,1,1,12,1),bandMaterial=new THREE.MeshStandardMaterial({roughness:.45});
   let bandColour="";
   const bands=[1,-1].map(()=>{const band=mesh(bandGeometry,bandMaterial);band.name="Headband";band.visible=false;group.add(band);return band;});
-  // The ribbon bookmark tail, hanging from the foot of the spine onto the table.
+  // The ribbon bookmark: across its marked spread, otherwise a tail from between the pages onto the table.
   const ribbon=mesh(new THREE.BufferGeometry(),ribbonMaterial());ribbon.visible=false;group.add(ribbon);
-  let ribbonOn=false,ribbonColour:string=readableRibbonColour(undefined),ribbonStamp="";
+  const ribbonShadow=new THREE.Mesh(new THREE.BufferGeometry(),ribbonShadowMaterial());ribbonShadow.renderOrder=1;ribbonShadow.visible=false;group.add(ribbonShadow);
+  let ribbonOn=false,ribbonColour:string=readableRibbonColour(undefined),ribbonStamp="",ribbonGutter:number|undefined;
   let style:BookStyle="flipbook",studio=false,coverColour:string|undefined,backColour:string|undefined,leaves=0;
   const colour=()=>{
     const value=coverColour??bookStyleProfile(style).colour,back=backColour??value;
     for(const [material,shade] of [[boardMaterial,value],[spineMaterial,value],[backBoardMaterial,back],[ribbon.material as THREE.MeshStandardMaterial,ribbonColour]] as const){material.color.set(studio?shade:"#000000");material.emissive.set(studio?"#000000":shade);}
+    // Satin sheen only under Studio light; Simple shows the flat colour with its soft contact shadow.
+    const silk=ribbon.material as THREE.MeshPhysicalMaterial;silk.sheen=studio?.8:0;silk.sheenColor.set(ribbonColour).lerp(new THREE.Color("#ffffff"),.55);
+    (ribbonShadow.material as THREE.MeshBasicMaterial).opacity=studio?.3:.42;
     // Headbands carry a striped map: lit in Studio, shown flat (as emissive) in Simple.
     if(bandColour!==ribbonColour){bandMaterial.map?.dispose();bandMaterial.map=headbandTexture(ribbonColour);bandColour=ribbonColour;bandMaterial.needsUpdate=true;}
     bandMaterial.color.set(studio?"#ffffff":"#000000");bandMaterial.emissive.set(studio?"#000000":"#ffffff");
@@ -72,7 +96,7 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
     /** Leaf count of the open document, for block thickness. */
     setLeaves(count:number){leaves=Math.max(0,count|0);},
     /** Ribbon bookmark (hardback and soft cover) and the colour shared by ribbon and headbands. */
-    setDetails(details:{ribbon?:boolean;ribbonColour?:string}){ribbonOn=details.ribbon===true;ribbonColour=readableRibbonColour(details.ribbonColour);colour();},
+    setDetails(details:{ribbon?:boolean;ribbonColour?:string;ribbonGutter?:number}){ribbonOn=details.ribbon===true;ribbonColour=readableRibbonColour(details.ribbonColour);ribbonGutter=details.ribbonGutter;colour();},
     set(value:unknown,lit:boolean){
       studio=lit;
       const profile=bookStyleProfile(value),changed=profile.id!==style;style=profile.id;
@@ -119,14 +143,20 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
       // just proud of the page edges and tucked under the paper's rise at the spine.
       const showBands=hasHeadbands(style)&&spine.visible;
       bands.forEach((band,index)=>{band.visible=showBands;band.rotation.set(0,0,Math.PI/2);band.scale.set(.0055,.034,.0055);band.position.set(0,(index===0?1:-1)*((ratio-.004)/2+.0035),PAGE_TOP+.001);});
-      // The ribbon leaves the gutter at the foot of the page and drapes onto the table, on the side the book lies.
-      const showRibbon=hasRibbon(style,ribbonOn)&&spine.visible,sign=visible[1]?1:-1,stamp=`${sign}|${ratio}`;
-      ribbon.visible=showRibbon;
+      // The ribbon lies across its marked spread; elsewhere it leaves the block it is held in at the foot of the gutter
+      // and drapes onto the table. Resting pages straddle a turning sheet, so a turn only ever sees a tail.
+      const showRibbon=hasRibbon(style,ribbonOn)&&spine.visible;
+      const leafOf=(index:0|1)=>visible[index]?layout[index]!.leaf:undefined;
+      const placement:RibbonPlacement=hard||style==="softcover"?ribbonPlacement(ribbonGutter,leafOf(0),leafOf(1),leaves):{mode:"default"};
+      const sideOf=placement.mode==="tail"?placement.side:visible[1]?1:-1,held=sides[sideOf<0?0:1]!.pages;
+      const stamp=`${JSON.stringify(placement)}|${sideOf}|${ratio}|${held.scale.z.toFixed(4)}`;
+      ribbon.visible=ribbonShadow.visible=showRibbon;
       if(showRibbon&&stamp!==ribbonStamp){
         ribbonStamp=stamp;
-        const h=(ratio-.004)/2,p=(x:number,y:number,z:number)=>new THREE.Vector3(sign*x,y,z);
-        // Short enough to stay inside the reader's framing below the book, with a gentle sideways curl.
-        ribbonGeometry([p(.012,-h+.05,PAGE_TOP+.002),p(.016,-h+.004,PAGE_TOP+.002),p(.02,-h-.012,-.03),p(.03,-h-.026,-.064),p(.06,-h-.06,-.0675),p(.1,-h-.084,-.0675),p(.125,-h-.098,-.0675)],.03,new THREE.Vector3(0,0,1),ribbon.geometry);
+        const {points,contact}=ribbonPath(placement,ratio,sideOf,placement.mode==="open"?.0025:placement.mode==="tail"?PAGE_TOP-.0005-placement.depth*Math.max(0,held.scale.z-.001):PAGE_TOP+.002);
+        const shape={contact,twist:.6};
+        ribbonGeometry(points,.03,new THREE.Vector3(0,0,1),ribbon.geometry,72,shape);
+        ribbonShadowGeometry(points,.03,new THREE.Vector3(0,0,1),ribbonShadow.geometry,72,shape);
       }
     },
     /**
@@ -152,6 +182,6 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
       turning.rotation.y=-dir*pose.angle;
       turning.visible=true;
     },
-    dispose(){parent.remove(group);box.dispose();boardGeometry.dispose();faceGeometry.dispose();bandGeometry.dispose();bandMaterial.map?.dispose();bandMaterial.dispose();ribbon.geometry.dispose();(ribbon.material as THREE.Material).dispose();[boardMaterial,backBoardMaterial,spineMaterial].forEach(disposeCloth);cylinder.dispose();edges.dispose();boardMaterial.dispose();backBoardMaterial.dispose();pageMaterial.dispose();spineMaterial.dispose();},
+    dispose(){parent.remove(group);box.dispose();boardGeometry.dispose();faceGeometry.dispose();bandGeometry.dispose();bandMaterial.map?.dispose();bandMaterial.dispose();ribbon.geometry.dispose();(ribbon.material as THREE.Material).dispose();ribbonShadow.geometry.dispose();(ribbonShadow.material as THREE.Material).dispose();[boardMaterial,backBoardMaterial,spineMaterial].forEach(disposeCloth);cylinder.dispose();edges.dispose();boardMaterial.dispose();backBoardMaterial.dispose();pageMaterial.dispose();spineMaterial.dispose();},
   };
 }

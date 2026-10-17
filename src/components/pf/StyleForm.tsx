@@ -320,7 +320,7 @@ export function StyleForm({
                     onChange={(spreads) => setViewer({ spreads })}
                   />
                 </div>
-                {enabledModes.includes("book") && <PageTurnSettings viewer={viewer} setViewer={setViewer} />}
+                {enabledModes.includes("book") && <PageTurnSettings viewer={viewer} setViewer={setViewer} pages={p.pdf?.pages} />}
                 <label className="flex items-center justify-between gap-3">
                   <span>Show profile icon</span>
                   <input

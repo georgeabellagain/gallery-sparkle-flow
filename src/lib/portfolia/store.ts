@@ -45,6 +45,8 @@ export interface ViewerSettings {
   ribbon?: boolean;
   /** Ribbon (and hardback headband) colour; omitted uses the default deep red. */
   ribbonColour?: string;
+  /** PDF page whose spread the ribbon marks; omitted leaves only the tail at the foot of the gutter. */
+  ribbonPage?: number;
   /** Reading modes offered to visitors. Older portfolios without this use all modes. */
   modes?: ("scroll" | "paged" | "book")[];
   look: "clean" | "studio";
@@ -360,6 +362,29 @@ export function patchPortfolioExtra(code:string,blobKey:string,kind:ExtraKind,id
   });
 }
 
+/** Adds a note, tab or link to a portfolio's draft from the main editor; validated like the scrapbook editor's own. */
+export function addPortfolioExtra(code:string,blobKey:string,kind:ExtraKind,item:Extra,limit:number):boolean {
+  const portfolio=allPortfolios(getDoc()).find(p=>p.code===code);
+  if(!portfolio?.pdf || portfolio.pdf.blobKey!==blobKey || (portfolio.pdf[kind]?.length ?? 0)>=limit || portfolio.pdf[kind]?.some(existing=>existing.id===item.id))return false;
+  const pages=portfolio.pdf.pages;
+  const error=kind==="foldouts"?validateFoldout(item as import("./foldouts").Foldout,pages):kind==="tags"?validatePageTag(item as import("./page-extras").PageTag,pages):validatePageLink(item as import("./page-extras").PageLink,pages);
+  if(error)return false;
+  return update(d=>{
+    const p=allPortfolios(d).find(p=>p.code===code)!;
+    p.pdf={...p.pdf!,[kind]:[...(p.pdf![kind] ?? []),item]};
+    return d;
+  });
+}
+export function removePortfolioExtra(code:string,blobKey:string,kind:ExtraKind,id:string):boolean {
+  const portfolio=allPortfolios(getDoc()).find(p=>p.code===code);
+  if(!portfolio?.pdf || portfolio.pdf.blobKey!==blobKey || !portfolio.pdf[kind]?.some(item=>item.id===id))return false;
+  return update(d=>{
+    const p=allPortfolios(d).find(p=>p.code===code)!;
+    p.pdf={...p.pdf!,[kind]:(p.pdf![kind] as Extra[]).filter(item=>item.id!==id)};
+    return d;
+  });
+}
+
 /** Appearance saves belong to their editor, even if an upload finishes after switching portfolios. */
 export function patchPortfolioAppearance(code: string, patch: { viewer?: Partial<ViewerSettings>; style?: Partial<PageStyle> }): boolean {
   if (!allPortfolios(getDoc()).some(p => p.code === code)) return false;
@@ -504,7 +529,7 @@ export function resetAll() {
 
 /* ---------- Addresses ---------- */
 
-export const RESERVED = ["hdri-book-visualisation", "scrapbook-preview", "zine-flipbook", "magazine-flipbook", "admin", "support", "www", "api", "app", "mail", "help", "blog", "login", "signin", "portfolia", "status", "billing", "dashboard", "create", "p", "u", "reset-password", "signup", "account", "pricing", "terms", "privacy", "refund", "portfolio-checker", "embed-flipbook-in-squarespace", "embed-flipbook-in-wix", "embed-flipbook-in-notion", "sitemap.xml", "robots.txt", "sample", "free-pdf-portfolio", "free-portfolio-website", "architecture-portfolio", "fashion-portfolio",
+export const RESERVED = ["hdri-book-visualisation", "book-mockup-generator", "scrapbook-preview", "zine-flipbook", "magazine-flipbook", "admin", "support", "www", "api", "app", "mail", "help", "blog", "login", "signin", "portfolia", "status", "billing", "dashboard", "create", "p", "u", "reset-password", "signup", "account", "pricing", "terms", "privacy", "refund", "portfolio-checker", "embed-flipbook-in-squarespace", "embed-flipbook-in-wix", "embed-flipbook-in-notion", "sitemap.xml", "robots.txt", "sample", "free-pdf-portfolio", "free-portfolio-website", "architecture-portfolio", "fashion-portfolio",
   // Every other static route: a personalised address with one of these names could never be reached.
   "art-portfolio", "book-marketing", "edit", "embed", "flipbook-alternatives", "flipbooklets-alternative", "fliphtml5-alternative", "flipsnack-alternative", "free-pdf-flipbook", "graphic-design-portfolio", "heyzine-alternative", "illustration-portfolio", "interior-design-portfolio", "issuu-alternative", "landscape-architecture-portfolio", "marketing-portfolio", "paperturn-alternative", "pdfdeck-alternative", "photography-portfolio", "product-design-portfolio", "professional-portfolio", "publuu-alternative", "student-portfolio", "ux-design-portfolio"];
 

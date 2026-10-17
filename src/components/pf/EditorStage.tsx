@@ -1,8 +1,9 @@
 import { BookMarketingSettings } from "./BookMarketingSettings";
-import { LiveScrapbookContext } from "./live-scrapbook-context";
+import { LiveScrapbookContext, type ScrapbookSelection } from "./live-scrapbook-context";
+import { ScrapbookQuickPanel } from "./ScrapbookQuickPanel";
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, ChartNoAxesColumn, BookOpen, GripHorizontal, FolderOpen, Image as ImageIcon, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
+import { ArrowLeft, Camera, ChartNoAxesColumn, BookOpen, GripHorizontal, FolderOpen, Image as ImageIcon, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/pf/Chrome";
 import { ScrapbookDialog, type ScrapbookPanel } from "@/components/pf/FoldoutSettings";
@@ -31,7 +32,7 @@ const TOOLS: Array<[Tool, string, typeof Sun]> = [
   ["scrapbook", "Scrapbook", StickyNote],
   ["projects", "Projects", FolderOpen],
   ["book", "Book marketing", BookOpen],
-  ["shoot", "Photo shoot", ImageIcon],
+  ["shoot", "Photo shoot", Camera],
   ["share", "Share", Share2],
   ["statistics", "Statistics", ChartNoAxesColumn],
   ["publish", "File & publishing", Upload],
@@ -142,6 +143,8 @@ export function EditorStage({
   }, []);
   const [tool, setTool] = useState<Tool | null>(null);
   const [scrapbook, setScrapbook] = useState<ScrapbookPanel | null>(null);
+  const [selection, setSelection] = useState<ScrapbookSelection>(null);
+  const [shownPages, setShownPages] = useState<Array<{ page: number; half?: "left" | "right" }>>([]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !scrapbook) setTool(null);
@@ -162,14 +165,14 @@ export function EditorStage({
   const row = "flex items-center justify-between gap-3";
   return (
     <EditorFullscreenContext.Provider value={fullscreen}>
-    <LiveScrapbookContext.Provider value={{portfolio:p,enabled:tool==="scrapbook"&&!scrapbook,onError:onSaveError}}>
+    <LiveScrapbookContext.Provider value={{portfolio:p,enabled:tool==="scrapbook"&&!scrapbook,onError:onSaveError,selected:selection,onSelect:setSelection,onPages:setShownPages}}>
     <div ref={stageRef} data-fullscreen={fullscreen.full || undefined} style={fullscreen.full ? { height: "100dvh" } : undefined} className={cn("pf-editor-stage overflow-hidden bg-muted/50", fullscreen.fallback ? "fixed inset-0 z-[200]" : "relative h-[calc(100dvh-3.5rem)]")}>
       <div className="absolute inset-0 overflow-auto" onPointerDown={() => undefined}>
         {preview}
       </div>
       {home && <nav aria-label="Portfolio workspace tools" className="pf-home-toolbar absolute bottom-7 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-border bg-background/95 p-2 shadow-lift backdrop-blur">
         <Button size="sm" onClick={onUpload}><Upload className="size-4" /> <span>Upload PDF</span></Button>
-        {([["customise", "Customise", Sun], ["share", "Share", Share2]] as const).map(([id, label, Icon]) => <Button key={id} size="sm" variant="quiet" aria-pressed={tool === id} onClick={() => setTool(current => current === id ? null : id)}><Icon className="size-4" /><span>{label}</span></Button>)}
+        {([["customise", "Customise", Sun], ["shoot", "Photo shoot", Camera], ["share", "Share", Share2]] as const).map(([id, label, Icon]) => <Button key={id} size="sm" variant="quiet" aria-pressed={tool === id} onClick={() => setTool(current => current === id ? null : id)}><Icon className="size-4" /><span>{label}</span></Button>)}
       </nav>}
       {!home && <nav
         ref={dockRef}
@@ -250,7 +253,7 @@ export function EditorStage({
           </div>
           {tool === "customise" && <div className="space-y-2">
             <label className="mb-3 block text-xs">Portfolio name<input aria-label="Portfolio name" className="mt-1 w-full rounded-lg border bg-background p-2 text-sm" value={p.name ?? ""} maxLength={120} placeholder={p.pdf?.name ?? "My portfolio"} onChange={e=>patchPortfolio({name:e.target.value})} /></label>
-            {([["reading", "Visual style"], ["look", "Lighting"], ["paper", "Paper"], ["background", "Background"], ["scrapbook", "Notes, tabs & links"], ["book", "Book marketing"], ["shoot", "Photo shoot"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="line" size="sm" onClick={() => setTool(id)}>{label}</Button>)}
+            {([["reading", "Visual style"], ["look", "Lighting"], ["paper", "Paper"], ["background", "Background"], ["scrapbook", "Notes, tabs & website links"], ["book", "Book marketing"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="line" size="sm" onClick={() => setTool(id)}>{label}</Button>)}
             <details className="pt-3"><summary className="cursor-pointer text-sm">More options</summary><div className="mt-3 grid gap-2">{([["profile", "Profile details"], ["projects", "Named projects"], ["publish", "File & publishing"], ["statistics", "Statistics"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="quiet" size="sm" onClick={() => setTool(id)}>{label}</Button>)}</div></details>
           </div>}
           {tool === "profile" && profile}
@@ -261,31 +264,7 @@ export function EditorStage({
           {tool === "book" && <BookMarketingSettings p={p} />}
           {tool === "background" && <StyleForm sidebar part="background" p={p} onSaveError={onSaveError} />}
           {tool === "projects" && <ProjectSettings key={`${p.code}:${pdf.blobKey}`} p={p} />}
-          {tool === "scrapbook" && (
-            <div className="space-y-3 text-sm">
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Drag notes, tabs and links on the portfolio. Pull the corner handles to resize. Changes preview when you release. Use Save above to keep them. Use the options below to add items or change their content.
-              </p>
-              {([
-                ["notes", "Fold-out notes", "Text or pictures that unfold from a page", notes],
-                ["tabs", "Page tabs", "Coloured tabs on the book's edge that jump to a page", tabs],
-                ["links", "Website links", "A logo on the page that opens your site", links],
-              ] as const).map(([id, name, hint, count]) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setScrapbook(id)}
-                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-border p-3 text-left transition-colors hover:bg-muted"
-                >
-                  <span>
-                    <span className="block font-medium">{name}</span>
-                    <span className="block text-xs text-muted-foreground">{hint}</span>
-                  </span>
-                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums">{count}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          {tool === "scrapbook" && <ScrapbookQuickPanel p={p} shown={shownPages} selected={selection} onSelect={setSelection} onOpen={setScrapbook} onError={onSaveError} counts={{ notes, tabs, links }} />}
           {tool === "share" && <>{home && <Button className="mb-4 w-full" onClick={onPublish}>{p.status === "published" ? "Save & view sharing options" : "Publish portfolio"}</Button>}<ShareActions p={p} /></>}
           {tool === "publish" && (
             <div className="space-y-5 text-sm">

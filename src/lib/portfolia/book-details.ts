@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { spreadIndex, type Leaf, type Spread } from "./book-layout";
 
 /** Silk ribbon colours offered to creators; the first is the default. */
 export const RIBBON_COLOURS = ["#8c1d2c", "#1f3a5f", "#2f5d3a", "#c9a227", "#1c1c1c", "#efe9dc"] as const;
@@ -76,24 +77,106 @@ export function headbandTexture(colour: string) {
 }
 
 /**
- * A flat ribbon following `points`, `width` wide, its face turned towards `facing` where it can.
- * Rebuilds into `geometry` when given, so the shape can change without new allocations each time.
+ * Where the ribbon is for the pages showing. `mark` is the gutter of the marked spread and `left`/`right` the
+ * leaves resting either side (a gutter is the number of leaves to its left). While a sheet turns, the resting
+ * pages straddle it, so the ribbon is never on an open page then. Omitted mark keeps the plain table tail.
  */
-export function ribbonGeometry(points: readonly THREE.Vector3[], width: number, facing: THREE.Vector3, geometry?: THREE.BufferGeometry, segments = 40) {
+export type RibbonPlacement = { mode: "default" } | { mode: "open" } | { mode: "tail"; side: -1 | 1; depth: number };
+export function ribbonPlacement(mark: number | undefined, left: number | undefined, right: number | undefined, leaves: number): RibbonPlacement {
+  if (mark === undefined || !Number.isFinite(mark) || (left === undefined && right === undefined)) return { mode: "default" };
+  const low = left !== undefined ? left + 1 : 0, high = right !== undefined ? right : Math.max(low, leaves);
+  if (left !== undefined && right !== undefined && low === high && mark === low) return { mode: "open" };
+  // A closed book holds the ribbon in its only block.
+  if (right === undefined) return { mode: "tail", side: -1, depth: THREE.MathUtils.clamp((low - mark) / Math.max(1, low), 0, 1) };
+  if (left === undefined || mark >= high) return { mode: "tail", side: 1, depth: THREE.MathUtils.clamp((mark - high) / Math.max(1, leaves - high), 0, 1) };
+  if (mark <= low) return { mode: "tail", side: -1, depth: THREE.MathUtils.clamp((low - mark) / Math.max(1, low), 0, 1) };
+  return { mode: "tail", side: -1, depth: 0 };
+}
+/** The gutter of the spread showing PDF page `page`, for `ribbonPlacement`; undefined when no page is marked. */
+export function ribbonGutterFor(page: unknown, layout: { leaves: readonly Leaf[]; spreads: readonly Spread[] }) {
+  if (typeof page !== "number" || !Number.isInteger(page)) return undefined;
+  const leaf = layout.leaves.findIndex(l => l.page === page);
+  if (leaf < 0) return undefined;
+  return spreadGutter(layout.spreads[spreadIndex(layout.spreads as Spread[], leaf)] ?? [null, leaf]);
+}
+/** The gutter of the spread holding `leaf`: the right leaf's index, or one past a lone left leaf. */
+export function spreadGutter(spread: readonly [number | null, number | null]) {
+  return spread[1] ?? (spread[0] ?? -1) + 1;
+}
+
+export type RibbonShape = {
+  /** Thickness of the silk; the edges round over between the faces. */
+  thickness?: number;
+  /** Largest twist (radians) where the ribbon hangs free. */
+  twist?: number;
+  /** Depth of the V cut into the free end, as a share of the width. */
+  notch?: number;
+  /** How much each point rests on a surface (0 hanging, 1 lying flat); flat parts never twist and cast the contact shadow. */
+  contact?: readonly number[];
+};
+const contactAt = (contact: readonly number[] | undefined, t: number) => {
+  if (!contact?.length) return 1;
+  const x = t * (contact.length - 1), i = Math.min(contact.length - 2, Math.floor(x));
+  return contact.length === 1 ? contact[0]! : THREE.MathUtils.lerp(contact[i]!, contact[i + 1]!, x - i);
+};
+/** Centre, across and face directions of the ribbon along `points`, shared by the silk and its shadow. */
+/** One face direction, or one per point (blended between them) for a ribbon that runs over differently facing surfaces. */
+export type RibbonFacing = THREE.Vector3 | readonly THREE.Vector3[];
+const facingAt = (facing: RibbonFacing, t: number, out: THREE.Vector3) => {
+  if (facing instanceof THREE.Vector3) return out.copy(facing);
+  const x = t * (facing.length - 1), i = Math.min(facing.length - 2, Math.floor(x));
+  return facing.length === 1 ? out.copy(facing[0]!) : out.lerpVectors(facing[i]!, facing[i + 1]!, x - i).normalize();
+};
+function ribbonFrames(points: readonly THREE.Vector3[], width: number, facing: RibbonFacing, segments: number, shape: RibbonShape) {
+  const face = new THREE.Vector3();
   const curve = new THREE.CatmullRomCurve3(points.map(p => p.clone()), false, "centripetal");
-  const positions = new Float32Array((segments + 1) * 2 * 3), uvs = new Float32Array((segments + 1) * 2 * 2);
-  const side = new THREE.Vector3(), tangent = new THREE.Vector3(), point = new THREE.Vector3();
+  const frames: { point: THREE.Vector3; side: THREE.Vector3; normal: THREE.Vector3; tangent: THREE.Vector3; t: number; contact: number }[] = [];
   for (let i = 0; i <= segments; i++) {
-    const t = i / segments;
-    curve.getPointAt(t, point); curve.getTangentAt(t, tangent);
-    side.crossVectors(tangent, facing);
+    const t = i / segments, point = curve.getPointAt(t), tangent = curve.getTangentAt(t);
+    const side = new THREE.Vector3().crossVectors(tangent, facingAt(facing, t, face));
     if (side.lengthSq() < 1e-8) side.set(1, 0, 0);
-    side.normalize().multiplyScalar(width / 2);
-    positions.set([point.x - side.x, point.y - side.y, point.z - side.z, point.x + side.x, point.y + side.y, point.z + side.z], i * 6);
-    uvs.set([0, t, 1, t], i * 4);
+    side.normalize();
+    const contact = contactAt(shape.contact, t);
+    // Free silk turns a little about its length, most in the middle of the drop.
+    side.applyAxisAngle(tangent, (shape.twist ?? 0) * (1 - contact) ** 2 * Math.sin(Math.PI * t));
+    const normal = new THREE.Vector3().crossVectors(side, tangent).normalize();
+    frames.push({ point, side: side.multiplyScalar(width / 2), normal, tangent, t, contact });
   }
+  return frames;
+}
+/**
+ * A satin ribbon following `points`, `width` wide, its face turned towards `facing` where it can: two faces
+ * `thickness` apart whose shared edges round over (smoothed normals), a gentle twist where it hangs and a V
+ * cut into the free end. Rebuilds into `geometry` when given, so the shape can change without new allocations.
+ */
+export function ribbonGeometry(points: readonly THREE.Vector3[], width: number, facing: RibbonFacing, geometry?: THREE.BufferGeometry, segments = 40, shape: RibbonShape = {}) {
+  const thickness = shape.thickness ?? .0008, notch = (shape.notch ?? .55) * width;
+  const frames = ribbonFrames(points, width, facing, segments, { twist: .5, ...shape });
+  // Each row: three points across the top face, then the same three on the bottom face.
+  const positions = new Float32Array((segments + 1) * 6 * 3), uvs = new Float32Array((segments + 1) * 6 * 2);
+  frames.forEach(({ point, side, normal, tangent, t }, i) => {
+    const last = i === segments;
+    for (let face = 0; face < 2; face++) {
+      const lift = (face === 0 ? .5 : -.5) * thickness;
+      for (let k = 0; k < 3; k++) {
+        const across = k - 1, back = last && k === 1 ? -notch : 0;
+        const o = (i * 6 + face * 3 + k) * 3;
+        positions[o] = point.x + side.x * across + normal.x * lift + tangent.x * back;
+        positions[o + 1] = point.y + side.y * across + normal.y * lift + tangent.y * back;
+        positions[o + 2] = point.z + side.z * across + normal.z * lift + tangent.z * back;
+        uvs.set([k / 2, t], (i * 6 + face * 3 + k) * 2);
+      }
+    }
+  });
   const index: number[] = [];
-  for (let i = 0; i < segments; i++) { const a = i * 2; index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+  const quad = (a: number, b: number, c: number, d: number) => index.push(a, b, c, b, d, c);
+  for (let i = 0; i < segments; i++) {
+    const a = i * 6, b = a + 6;
+    quad(a, a + 1, b, b + 1); quad(a + 1, a + 2, b + 1, b + 2);
+    quad(a + 4, a + 3, b + 4, b + 3); quad(a + 5, a + 4, b + 5, b + 4);
+    // The two long edges join the faces; sharing their points rounds the edge in the shading.
+    quad(a + 3, a, b + 3, b); quad(a + 2, a + 5, b + 2, b + 5);
+  }
   const output = geometry ?? new THREE.BufferGeometry();
   output.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   output.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
@@ -101,7 +184,32 @@ export function ribbonGeometry(points: readonly THREE.Vector3[], width: number, 
   output.setIndex(index); output.computeVertexNormals(); output.computeBoundingSphere(); output.computeBoundingBox();
   return output;
 }
-/** Satin ribbon material: slightly glossy, two-sided so it reads from either face. */
+/** The soft dark band under the ribbon where it rests on paper or the table; vertex alpha fades it to nothing at its edges. */
+export function ribbonShadowGeometry(points: readonly THREE.Vector3[], width: number, facing: RibbonFacing, geometry?: THREE.BufferGeometry, segments = 40, shape: RibbonShape = {}) {
+  const frames = ribbonFrames(points, width, facing, segments, { ...shape, twist: 0 });
+  const positions = new Float32Array((segments + 1) * 3 * 3), colours = new Float32Array((segments + 1) * 3 * 4);
+  frames.forEach(({ point, side, normal, contact, t }, i) => {
+    const strength = contact * contact * Math.min(1, (1 - t) * 12);
+    for (let k = 0; k < 3; k++) {
+      const across = (k - 1) * 1.9, o = (i * 3 + k) * 3;
+      positions[o] = point.x + side.x * across - normal.x * .0003 + side.x * .15;
+      positions[o + 1] = point.y + side.y * across - normal.y * .0003 + side.y * .15;
+      positions[o + 2] = point.z + side.z * across - normal.z * .0003 + side.z * .15;
+      colours.set([0, 0, 0, k === 1 ? strength : 0], (i * 3 + k) * 4);
+    }
+  });
+  const index: number[] = [];
+  for (let i = 0; i < segments; i++) { const a = i * 3, b = a + 3; index.push(a, a + 1, b, a + 1, b + 1, b, a + 1, a + 2, b + 1, a + 2, b + 2, b + 1); }
+  const output = geometry ?? new THREE.BufferGeometry();
+  output.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  output.setAttribute("color", new THREE.BufferAttribute(colours, 4));
+  output.setIndex(index); output.computeBoundingSphere(); output.computeBoundingBox();
+  return output;
+}
+/** Satin ribbon material: a soft fabric sheen over a slightly glossy base, two-sided so it reads from either face. */
 export function ribbonMaterial() {
-  return new THREE.MeshStandardMaterial({ color: DEFAULT_RIBBON_COLOUR, roughness: .38, metalness: 0, side: THREE.DoubleSide });
+  return new THREE.MeshPhysicalMaterial({ color: DEFAULT_RIBBON_COLOUR, roughness: .42, metalness: 0, sheen: .8, sheenRoughness: .32, sheenColor: new THREE.Color("#ffffff"), side: THREE.DoubleSide });
+}
+export function ribbonShadowMaterial(opacity = .38) {
+  return new THREE.MeshBasicMaterial({ color: 0x000000, vertexColors: true, transparent: true, opacity, depthWrite: false, toneMapped: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
 }

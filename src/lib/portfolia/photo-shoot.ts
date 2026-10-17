@@ -14,11 +14,12 @@ import { createBookBinding, sideShare, type BindingSide } from "./book-binding";
 import { createPhotoGrounding } from "./photo-grounding";
 import { createGutterShade } from "./gutter-shade";
 import { pageRelief } from "./page-relief";
-import { applyCloth, disposeCloth, hasHeadbands, hasRibbon, headbandTexture, readableRibbonColour, ribbonGeometry, ribbonMaterial } from "./book-details";
+import { applyCloth, disposeCloth, hasHeadbands, hasRibbon, headbandTexture, readableRibbonColour, ribbonGeometry, ribbonMaterial, ribbonShadowGeometry, ribbonShadowMaterial } from "./book-details";
+import { ribbonPath } from "./book-binding";
 import type { SurfaceKind } from "./surface";
 /** `lean` stands the book against the wall; `flat` lays it on the floor for a top-down flat lay. */
 export type ShootLayout="lean"|"flat";
-export type ShootOptions={style:BookStyle;colour:string;wall?:string;floorColour:string;floor?:string;yaw:number;elevation:number;zoom:number;hdri:HdriId;finish:SurfaceKind;brightness:number;strength:number;topLight:number;layout?:ShootLayout;ribbon?:boolean;ribbonColour?:string};
+export type ShootOptions={style:BookStyle;colour:string;wall?:string;floorColour:string;floor?:string;yaw:number;elevation:number;zoom:number;hdri:HdriId;finish:SurfaceKind;brightness:number;strength:number;topLight:number;layout?:ShootLayout;ribbon?:boolean;ribbonColour?:string;/** The open spread is the one the ribbon marks, so it lies across the pages. */ribbonMarked?:boolean};
 /** Camera heights each layout allows, in degrees. */
 export const SHOOT_ELEVATION={lean:[2,25],flat:[40,88]} as const;
 /** Ready-made camera set-ups. */
@@ -61,6 +62,7 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
  const bands=[1,-1].map(()=>{const band=add(bandGeometry,bandMaterial);band.rotation.x=Math.PI/2;return band;});let bandColour="";
  // The ribbon tail lies on the floor in world space, so it drapes the same way in either layout.
  const ribbonMesh=new THREE.Mesh(new THREE.BufferGeometry(),ribbonMaterial());ribbonMesh.castShadow=ribbonMesh.receiveShadow=true;ribbonMesh.visible=false;scene.add(ribbonMesh);materials.add(ribbonMesh.material);geometries.add(ribbonMesh.geometry);
+ const ribbonShadow=new THREE.Mesh(new THREE.BufferGeometry(),ribbonShadowMaterial(.3));ribbonShadow.renderOrder=1;ribbonShadow.visible=false;scene.add(ribbonShadow);materials.add(ribbonShadow.material);geometries.add(ribbonShadow.geometry);
  const spreadMaterials=[material({}),material({})];
  // Open pages rise from the gutter exactly as in the reader, and darken softly into the spine.
  const spreadRelief=(side:number,u:number,v:number)=>pageRelief(side===0?1-u:u,v,side+3);
@@ -126,8 +128,8 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
    }).catch(()=>{if(!disposed&&token===environmentRevision)onError("The selected HDRI could not load.");throw new Error("The selected HDRI could not load.");});void pendingEnvironment.catch(()=>{});
  };
  const apply=()=>{
-   const style=readableBookStyle(options.style),profile=bookStyleProfile(style),hard=style==="hardback",soft=style==="softcover",flat=options.layout==="flat",showRibbon=hasRibbon(style,options.ribbon),stamp=`${style}|${open}|${flat}|${showRibbon}|${spreadPages.map(mesh=>Boolean(mesh.userData["coverBoard"])).join()}`;
-   const ribbonShade=readableRibbonColour(options.ribbonColour);(ribbonMesh.material as THREE.MeshStandardMaterial).color.set(ribbonShade);
+   const style=readableBookStyle(options.style),profile=bookStyleProfile(style),hard=style==="hardback",soft=style==="softcover",flat=options.layout==="flat",showRibbon=hasRibbon(style,options.ribbon),marked=open&&options.ribbonMarked===true,stamp=`${style}|${open}|${flat}|${showRibbon}|${marked}|${spreadPages.map(mesh=>Boolean(mesh.userData["coverBoard"])).join()}`;
+   const ribbonShade=readableRibbonColour(options.ribbonColour),silk=ribbonMesh.material as THREE.MeshPhysicalMaterial;silk.color.set(ribbonShade);silk.sheenColor.set(ribbonShade).lerp(new THREE.Color("#ffffff"),.55);
    if(bandColour!==ribbonShade){if(bandMaterial.map){textures.delete(bandMaterial.map);bandMaterial.map.dispose();}bandMaterial.map=headbandTexture(ribbonShade);textures.add(bandMaterial.map);bandColour=ribbonShade;bandMaterial.needsUpdate=true;}
    // The spread's binding draws the headbands; the photo's own ribbon replaces the reader's table ribbon.
    binding.setDetails({ribbon:false,ribbonColour:ribbonShade});
@@ -163,15 +165,24 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
      book.updateMatrixWorld(true);gutter.setSpace(spread.matrixWorld.clone().invert());
      const bounds=visibleBookBounds(open?spread:closed);
      grounding.update(bounds,depth,flat?"flat":"lean");
-     ribbonMesh.visible=showRibbon;
-     if(showRibbon){
+     ribbonMesh.visible=ribbonShadow.visible=showRibbon;
+     if(showRibbon&&marked){
+       // Down the marked spread's gutter from the headband, then off the foot onto the floor.
+       const local=ribbonPath({mode:"open"},ratio,1,.0025).points.slice(0,9),world=local.map(p=>p.applyMatrix4(spread.matrixWorld));
+       const foot=world[world.length-1]!,f=FLOOR_Y+.0015,up=new THREE.Vector3(0,1,0),page=new THREE.Vector3(0,0,1).transformDirection(spread.matrixWorld);
+       const v=(x:number,y:number,z:number)=>new THREE.Vector3(foot.x+x,y,foot.z+z);
+       const drape=flat?[v(.002,foot.y-.012,.012),v(.008,f+.006,.03),v(.03,f,.12),v(.06,f,.22),v(.07,f,.3)]:[v(.004,f+.01,.012),v(.012,f+.002,.04),v(.03,f,.13),v(.06,f,.22),v(.07,f,.3)];
+       const points=[...world,...drape],facing=points.map((_,i)=>i<world.length?page:up),contact=points.map((_,i)=>i<world.length?1:i===world.length?.1:i===world.length+1?.5:1);
+       ribbonGeometry(points,.028,facing,ribbonMesh.geometry,72,{contact,twist:.4});ribbonShadowGeometry(points,.028,facing,ribbonShadow.geometry,72,{contact});
+     }else if(showRibbon){
        // From between the pages at the foot of the spine, over the edge and out across the floor.
        const spineX=open?(bounds.min.x+bounds.max.x)/2:bounds.min.x+.03,f=FLOOR_Y+.0015,mid=(bounds.min.y+bounds.max.y)/2;
        const v=(x:number,y:number,z:number)=>new THREE.Vector3(spineX+x,y,z);
        const points=flat
          ?[v(.01,mid,bounds.max.z-.04),v(.012,mid,bounds.max.z+.004),v(.02,f+.006,bounds.max.z+.03),v(.05,f,bounds.max.z+.12),v(.09,f,bounds.max.z+.22),v(.1,f,bounds.max.z+.3)]
          :[v(.01,.03,bounds.max.z-depth/2-.004),v(.012,.008,bounds.max.z-depth/2+.004),v(.025,f,bounds.max.z+.03),v(.06,f,bounds.max.z+.13),v(.1,f,bounds.max.z+.22),v(.11,f,bounds.max.z+.3)];
-       ribbonGeometry(points,.028,new THREE.Vector3(0,1,0),ribbonMesh.geometry);
+       const contact=points.map((_,i)=>i<2?0:i===2?.3:1);
+       ribbonGeometry(points,.028,new THREE.Vector3(0,1,0),ribbonMesh.geometry,48,{contact,twist:.5});ribbonShadowGeometry(points,.028,new THREE.Vector3(0,1,0),ribbonShadow.geometry,48,{contact});
      }
    }
    binding.set(style,true);binding.setLeaves(pages);binding.sync([spreadPages[0]!.visible,spreadPages[1]!.visible],spreadPages.map((mesh,index)=>({kind:hard&&mesh.userData["coverBoard"]===true?"open" as const:"page" as const,share:sideShare(index as 0|1,Number(mesh.userData["leaf"]),pages)})) as [BindingSide,BindingSide]);
@@ -191,6 +202,6 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
      if(disposed)throw new Error("Photo shoot closed.");if(renderer.getContext().isContextLost())throw new Error("Graphics were interrupted. Reopen Photo shoot.");const {width,height}=outputSize,gl=renderer.getContext(),limit=Math.min(renderer.capabilities.maxTextureSize,gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),...Array.from(gl.getParameter(gl.MAX_VIEWPORT_DIMS) as Int32Array)),error=photoSizeError(outputSize,limit);if(error)throw new Error(error);
      try{render(width,height);return await new Promise<Blob>((resolve,reject)=>renderer.domElement.toBlob(blob=>blob?resolve(blob):reject(new Error("The image could not be exported.")),"image/png"));}finally{if(!disposed)paint();}
    },
-   dispose(){disposed=true;environmentRevision++;surfaces.forEach(s=>s.revision++);cancelAnimationFrame(frame);observer.disconnect();renderer.domElement.removeEventListener("webglcontextlost",lost);binding.dispose();grounding.dispose();disposeCloth(coverMaterial);scene.remove(ribbonMesh);paper.dispose();diffuser.dispose();pmrem.dispose();environment?.dispose();masks.forEach(t=>t.dispose());textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());key.shadow.map?.dispose();sun.shadow.map?.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();},
+   dispose(){disposed=true;environmentRevision++;surfaces.forEach(s=>s.revision++);cancelAnimationFrame(frame);observer.disconnect();renderer.domElement.removeEventListener("webglcontextlost",lost);binding.dispose();grounding.dispose();disposeCloth(coverMaterial);scene.remove(ribbonMesh,ribbonShadow);paper.dispose();diffuser.dispose();pmrem.dispose();environment?.dispose();masks.forEach(t=>t.dispose());textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());key.shadow.map?.dispose();sun.shadow.map?.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();},
  };
 }

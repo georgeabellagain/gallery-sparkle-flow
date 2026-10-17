@@ -1,6 +1,6 @@
 import { setNaturalImperfections } from "./natural-imperfections";
 import * as THREE from "three";
-import { foldoutSurfaces, type Foldout } from "./foldouts";
+import { foldoutSurfaces, noteRotation, type Foldout } from "./foldouts";
 import { flapGeometry, flapGrid, flapShape, NOTE_LIFT, FLAP_LIFT, PAPER_GAP, FLAP_SEGMENTS, FLAP_ACROSS } from "./note-flap";
 import { pageRelief } from "./page-relief";
 import { loadNoteFonts, loadNoteImages, paintNoteSurface, paintStickySurface } from "./foldout-paint";
@@ -162,15 +162,18 @@ export function createBookNotes(
           y: ratio / 2 - f.y * ratio - h / 2,
         };
         group.position.set(centre.x, centre.y, 0);
+        // A slanted note is turned in its own geometry, not by its group, so page turns (which move every vertex
+        // from its resting position) carry the slant with them.
+        const angle = (-noteRotation(f) * Math.PI) / 180, cos = Math.cos(angle), sin = Math.sin(angle);
+        const turn = (x: number, y: number) => [x * cos - y * sin, x * sin + y * cos] as const;
         // The paper under the flap follows the page's own curve, so a note never floats or sinks into it.
         const baseGeometry = new THREE.PlaneGeometry(w, h, 8, 8);
         resources.push(baseGeometry);
         const basePos = baseGeometry.getAttribute("position") as THREE.BufferAttribute;
-        for (let i = 0; i < basePos.count; i++)
-          basePos.setZ(
-            i,
-            NOTE_LIFT + reliefAt(centre.x + basePos.getX(i), centre.y + basePos.getY(i)),
-          );
+        for (let i = 0; i < basePos.count; i++) {
+          const [x, y] = turn(basePos.getX(i), basePos.getY(i));
+          basePos.setXYZ(i, x, y, NOTE_LIFT + reliefAt(centre.x + x, centre.y + y));
+        }
         baseGeometry.computeVertexNormals();
         const baseMesh = mesh(half(negative), baseGeometry, THREE.FrontSide);
         baseMesh.castShadow = false;
@@ -197,9 +200,8 @@ export function createBookNotes(
           resources.push(adhesiveGeometry);
           const positions = adhesiveGeometry.getAttribute("position") as THREE.BufferAttribute;
           for (let i = 0; i < positions.count; i++) {
-            const y = positions.getY(i) + h * .46;
-            positions.setY(i, y);
-            positions.setZ(i, stickyLift + .002 + reliefAt(centre.x + positions.getX(i), centre.y + y));
+            const [x, y] = turn(positions.getX(i), positions.getY(i) + h * .46);
+            positions.setXYZ(i, x, y, stickyLift + .002 + reliefAt(centre.x + x, centre.y + y));
           }
           adhesiveGeometry.computeVertexNormals();
           const adhesive = mesh(adhesiveArt, adhesiveGeometry, THREE.FrontSide);
@@ -213,8 +215,9 @@ export function createBookNotes(
             { along, across, e, hinge, vertical, centre },
             grid,
             p,
-            reliefAt,
+            angle ? (x, y) => { const [rx, ry] = turn(x - centre.x, y - centre.y); return reliefAt(centre.x + rx, centre.y + ry); } : reliefAt,
           );
+          if (angle) for (const q of points) { [q.x, q.y] = turn(q.x, q.y); [q.nx, q.ny] = turn(q.nx, q.ny); }
           for (const [geometry, sign] of [[frontGeometry, 1], [backGeometry, -1]] as const) {
             const pos = geometry.getAttribute("position") as THREE.BufferAttribute;
             for (let i = 0; i < points.length; i++) {

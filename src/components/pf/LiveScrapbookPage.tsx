@@ -5,13 +5,15 @@ import { LinkLogo } from "./PageLinks";
 import {
   foldoutsForLeaf,
   foldoutSurfaces,
+  noteRotation,
+  rotateFoldout,
   type Foldout,
   type ResizeCorner,
 } from "@/lib/portfolia/foldouts";
 import { linksForLeaf, tabSlots, type PageLink, type PageTag } from "@/lib/portfolia/page-extras";
 import { tabSlot } from "@/lib/portfolia/tab-geometry";
 import type { Leaf } from "@/lib/portfolia/book-layout";
-import { patchPortfolioExtra } from "@/lib/portfolia/store";
+import { patchPortfolioExtra, removePortfolioExtra } from "@/lib/portfolia/store";
 import { transformExtra, type Extra, type ExtraKind } from "@/lib/portfolia/scrapbook-transform";
 export function LiveScrapbookPage({
   leaf,
@@ -26,7 +28,10 @@ export function LiveScrapbookPage({
   const pdf = context.portfolio.pdf!;
   const root = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState<{ kind: ExtraKind; item: Extra } | null>(null),
-    [selected, setSelected] = useState<string | null>(null);
+    [ownSelection, setOwnSelection] = useState<string | null>(null);
+  // The editor's side panel shares the selection when it can, so the picked item can be edited there.
+  const selected = context.onSelect ? context.selected?.id ?? null : ownSelection;
+  const setSelected = (kind: ExtraKind, id: string) => (context.onSelect ? context.onSelect({ kind, id }) : setOwnSelection(id));
   const drag = useRef<{
     kind: ExtraKind;
     item: Extra;
@@ -34,8 +39,9 @@ export function LiveScrapbookPage({
     y: number;
     width: number;
     height: number;
-    handle: "move" | ResizeCorner;
+    handle: "move" | ResizeCorner | "rotate";
     next: Extra;
+    centre?: { x: number; y: number };
   } | null>(null);
   useEffect(() => setDraft(null), [pdf.foldouts, pdf.links, pdf.tags]);
   const commit = (kind: ExtraKind, item: Extra) =>
@@ -48,14 +54,15 @@ export function LiveScrapbookPage({
     e: PointerEvent<HTMLButtonElement>,
     kind: ExtraKind,
     item: Extra,
-    handle: "move" | ResizeCorner,
+    handle: "move" | ResizeCorner | "rotate",
   ) => {
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
-    setSelected(item.id);
+    setSelected(kind, item.id);
     const bounds = root.current!.getBoundingClientRect();
+    const note = item as Foldout;
     drag.current = {
       kind,
       item,
@@ -65,6 +72,7 @@ export function LiveScrapbookPage({
       height: bounds.height,
       handle,
       next: item,
+      ...(handle === "rotate" ? { centre: { x: bounds.left + (note.x + note.width / 2) * bounds.width, y: bounds.top + (note.y + note.height / 2) * bounds.height } } : {}),
     };
   };
   const move = (e: PointerEvent<HTMLButtonElement>) => {
@@ -72,6 +80,14 @@ export function LiveScrapbookPage({
     if (!d) return;
     e.preventDefault();
     e.stopPropagation();
+    if (d.handle === "rotate") {
+      if (!d.centre) return;
+      // The handle sits above the note, so straight up is no turn.
+      const angle = (Math.atan2(e.clientY - d.centre.y, e.clientX - d.centre.x) * 180) / Math.PI + 90;
+      d.next = rotateFoldout(d.item as Foldout, ((angle + 540) % 360) - 180);
+      setDraft({ kind: d.kind, item: d.next });
+      return;
+    }
     d.next = transformExtra(
       d.kind,
       d.item,
@@ -94,7 +110,7 @@ export function LiveScrapbookPage({
   };
   const live = <T extends Extra>(item: T) =>
     draft?.item.id === item.id ? (draft.item as T) : item;
-  const controls = (kind: ExtraKind, item: Extra, handle: "move" | ResizeCorner) => ({
+  const controls = (kind: ExtraKind, item: Extra, handle: "move" | ResizeCorner | "rotate") => ({
     onPointerDown: (e: PointerEvent<HTMLButtonElement>) => begin(e, kind, item, handle),
     onPointerMove: move,
     onPointerUp: end,
@@ -104,12 +120,25 @@ export function LiveScrapbookPage({
       e.preventDefault();
     },
     onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        e.stopPropagation();
+        context.onSelect?.(null);
+        context.onError(removePortfolioExtra(context.portfolio.code, pdf.blobKey, kind, item.id) ? null : "The item could not be removed. Please try again.");
+        return;
+      }
+      if (handle === "rotate" && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+        e.preventDefault();
+        e.stopPropagation();
+        commit(kind, rotateFoldout(item as Foldout, noteRotation(item as Foldout) + (e.key === "ArrowRight" ? 3 : -3)));
+        return;
+      }
       const dx = e.key === "ArrowRight" ? 0.005 : e.key === "ArrowLeft" ? -0.005 : 0,
         dy = e.key === "ArrowDown" ? 0.005 : e.key === "ArrowUp" ? -0.005 : 0;
       if (!dx && !dy) return;
       e.preventDefault();
       e.stopPropagation();
-      commit(kind, transformExtra(kind, item, dx, dy, handle, ratio));
+      if (handle !== "rotate") commit(kind, transformExtra(kind, item, dx, dy, handle, ratio));
     },
   });
   const resize = (kind: ExtraKind, item: Extra, all = false) =>
@@ -130,12 +159,14 @@ export function LiveScrapbookPage({
         return (
           <div
             key={f.id}
-            className="absolute pointer-events-auto ring-2 ring-blue-500 shadow-md"
+            data-selected={selected === f.id || undefined}
+            className="absolute pointer-events-auto shadow-[0_2px_6px_rgba(0,0,0,.25)] ring-1 ring-blue-500/60 data-[selected]:ring-2 data-[selected]:ring-blue-600"
             style={{
               left: `${f.x * 100}%`,
               top: `${f.y * 100}%`,
               width: `${f.width * 100}%`,
               height: `${f.height * 100}%`,
+              transform: noteRotation(f) ? `rotate(${noteRotation(f)}deg)` : undefined,
             }}
           >
             <NoteSurface side={foldoutSurfaces(f).outside} sticky={f.style === "sticky"} />
@@ -146,6 +177,14 @@ export function LiveScrapbookPage({
               className="absolute inset-0 touch-none cursor-move bg-transparent"
             />
             {resize("foldouts", f, true)}
+            <button
+              type="button"
+              aria-label={`Rotate ${f.style === "sticky" ? "sticky note" : "fold-out"} ${f.title || ""}. Left and right arrows turn it.`}
+              title="Drag to rotate"
+              {...controls("foldouts", f, "rotate")}
+              className="pointer-events-auto absolute -top-7 left-1/2 z-20 size-4 -translate-x-1/2 touch-none cursor-grab rounded-full border-2 border-white bg-blue-600 shadow"
+            />
+            <span aria-hidden className="pointer-events-none absolute -top-3 left-1/2 h-3 w-px -translate-x-1/2 bg-blue-600" />
           </div>
         );
       })}
@@ -206,7 +245,7 @@ export function LiveScrapbookPage({
         })}
       {selected && (
         <span className="sr-only" aria-live="polite">
-          Selected item. Drag to move or use arrow keys.
+          Selected item. Drag to move or use arrow keys. Delete removes it.
         </span>
       )}
     </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ExternalLink } from "lucide-react";
 import { hostOf, linkName, siteIconUrl, type PageLink } from "@/lib/portfolia/page-extras";
 import { useBlob, useObjectUrl } from "./Chrome";
 
@@ -31,9 +32,13 @@ export function LinkLogo({ link, className = "" }: { link: Pick<PageLink, "url" 
   );
 }
 
-/** A real link on a page of the book. It opens the website in a new tab and never hands the site this page. */
+/**
+ * A real link on a page of the book. It opens the website in a new tab and never hands the site this page.
+ * The logo itself is painted into the page; hovering (or, on touch screens, always) shows a small "opens a
+ * website" badge and where it goes, so readers know the logo is clickable.
+ */
 export function PageLinkAnchor({ link, visible = false }: { link: PageLink; visible?: boolean }) {
-  const name = linkName(link);
+  const name = linkName(link), host = hostOf(link.url);
   return (
     <a
       href={link.url}
@@ -50,10 +55,14 @@ export function PageLinkAnchor({ link, visible = false }: { link: PageLink; visi
       onTouchEnd={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
-      <span className="block aspect-square w-full rounded-[22%] transition-colors group-hover:bg-foreground/5 group-focus-visible:ring-2 group-focus-visible:ring-foreground/60 [container-type:inline-size]">
+      <span className="block aspect-square w-full rounded-[22%] transition-[background-color,box-shadow] group-hover:bg-foreground/5 group-hover:ring-2 group-hover:ring-foreground/25 group-focus-visible:ring-2 group-focus-visible:ring-foreground/60 [container-type:inline-size]">
         {visible && <span className="block text-[36cqw]"><LinkLogo link={link} /></span>}
         {visible && link.label?.trim() && <span className="relative -left-[45%] mt-[10%] block w-[190%] text-center font-medium leading-tight text-foreground text-[24cqw]" style={{ fontSize: `${24 * (link.fontSize ?? 100) / 100}cqw` }}>{link.label}</span>}
       </span>
+      <span aria-hidden className="pointer-events-none absolute -right-2 -top-2 flex size-5 items-center justify-center rounded-full bg-foreground text-background opacity-0 shadow-md ring-2 ring-background transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-90">
+        <ExternalLink className="size-3" />
+      </span>
+      {host && <span aria-hidden className="pointer-events-none absolute left-1/2 top-full z-10 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-[11px] leading-none text-background opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">Opens {host}</span>}
     </a>
   );
 }
