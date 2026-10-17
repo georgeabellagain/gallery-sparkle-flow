@@ -1,3 +1,4 @@
+import { readableTurnCurve, turnCurl, turnCornerLead, type TurnCurve } from "./turn-curve";
 import * as THREE from "three";
 import {pageRelief} from "./page-relief";
 import {turnClearance,turnSheetHeight} from "./turn-motion";
@@ -56,19 +57,24 @@ export function createTurnGeometryCache(capacity=8) {
   };
 }
 
-/** Original turn deformation, evaluated only while baking a new page combination. */
-export function turnGeometryWriter(template:THREE.BufferGeometry, ratio:number, dir:1|-1, seeds:readonly number[], restingSeeds:readonly number[], gap:number) {
+/** Deformation is baked once per curve/page combination, with shared resting poses. */
+export function turnGeometryWriter(template:THREE.BufferGeometry, ratio:number, dir:1|-1, seeds:readonly number[], restingSeeds:readonly number[], gap:number, curve:TurnCurve = "classic") {
   const uv=template.getAttribute("uv");
   const from=Float32Array.from({length:uv.count},(_,i)=>pageRelief(uv.getX(i),uv.getY(i),seeds[0]!));
   const to=Float32Array.from({length:uv.count},(_,i)=>pageRelief(uv.getX(i),uv.getY(i),seeds[1]!));
-  const curl=Float32Array.from({length:uv.count},(_,i)=>.30*Math.sin(Math.PI*uv.getX(i))*(1+.35*(.5-uv.getY(i))));
+  const shape = readableTurnCurve(curve);
+  const curl=Float32Array.from({length:uv.count},(_,i)=>turnCurl(shape,uv.getX(i),uv.getY(i)));
+  const lead=Float32Array.from({length:uv.count},(_,i)=>turnCornerLead(shape,uv.getX(i),uv.getY(i)));
   return (progress:number, output:THREE.BufferGeometry)=>{
     const positions=output.getAttribute("position") as THREE.BufferAttribute;
     const t=Math.min(1,Math.max(0,(progress-.3)/.4)),blend=t*t*(3-2*t);
     const sin=Math.sin(Math.PI*progress),cos=Math.cos(Math.PI*progress),clearance=turnClearance(progress,gap);
     for(let i=0;i<uv.count;i++) {
       const u=uv.getX(i),v=uv.getY(i),bow=sin*curl[i]!;
-      const x=dir*(u*cos+bow*sin),z=u*sin-bow*cos;
+      const angle = Math.PI*progress + sin*sin*lead[i]!;
+      const localSin = shape === "corner" ? Math.sin(angle) : sin;
+      const localCos = shape === "corner" ? Math.cos(angle) : cos;
+      const x=dir*(u*localCos+bow*localSin),z=u*localSin-bow*localCos;
       const relief=from[i]!*(1-blend)+to[i]!*blend;
       const floor=pageRelief(Math.min(1,Math.abs(x)),v,restingSeeds[x<0?0:1]!);
       positions.setXYZ(i,x,(v-.5)*ratio,turnSheetHeight(z+relief+clearance,floor,gap,progress));

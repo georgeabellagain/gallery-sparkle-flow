@@ -56,3 +56,48 @@ test("closing sheets hand off to identical resting-page lighting normals in both
   geometry.dispose();
  }
 });
+
+test("curve presets settle onto the same page, stay anchored and clear receiving surfaces", async()=>{
+ const {TURN_CURVES}=await import("../src/lib/portfolia/turn-curve");
+ for(const {id} of TURN_CURVES)for(const ratio of [.65,1.4,2])for(const dir of [1,-1] as const){
+  const geometry=new THREE.PlaneGeometry(1,ratio,32,16);
+  const baseline=geometry.clone(),write=turnGeometryWriter(geometry,ratio,dir,[3,4],[4,3],.01,id);
+  const ends=[restingTurnNormals(geometry,ratio,dir,3,dir),restingTurnNormals(geometry,ratio,-dir as 1|-1,4,-dir)] as const;
+  const poses=bakeTurnGeometry(geometry,write,128,ends);
+  for(const p of [0,.001,.08,.123,.35,.5,.777,.92,.999,1]){
+   applyTurnPose(poses,p,geometry);
+   const a=geometry.getAttribute("position"),n=geometry.getAttribute("normal"),uv=geometry.getAttribute("uv");
+   if(p===0||p===1)turnGeometryWriter(baseline,ratio,dir,[3,4],[4,3],.01)(p,baseline);
+   const b=baseline.getAttribute("position");
+   for(let i=0;i<a.count;i++){
+    assert.ok([a.getX(i),a.getY(i),a.getZ(i)].every(Number.isFinite));
+    assert.ok(Math.abs(Math.hypot(n.getX(i),n.getY(i),n.getZ(i))-1)<.00001);
+    if(uv.getX(i)===0)assert.equal(a.getX(i),0,"spine cannot drift");
+    if(p===0||p===1){assert.ok(Math.abs(a.getX(i)-b.getX(i))<1e-7);assert.ok(Math.abs(a.getZ(i)-b.getZ(i))<1e-7);}
+    if(p>=.08&&p<=.92){
+     const floor=pageRelief(Math.min(1,Math.abs(a.getX(i))),uv.getY(i),a.getX(i)<0?4:3);
+     assert.ok(a.getZ(i)>floor+.0094,`${id} ${ratio} ${dir} ${p}: receiving sheet clearance`);
+    }
+   }
+  }
+  geometry.dispose();baseline.dispose();
+ }
+});
+
+test("curve choices produce distinct geometry and corner lift leads from the lower outside edge",async()=>{
+ const {TURN_CURVES,readableTurnCurve}=await import("../src/lib/portfolia/turn-curve");
+ const geometry=new THREE.PlaneGeometry(1,1.4,32,16),poses=new Map<string,Float32Array>();
+ for(const {id} of TURN_CURVES){
+  turnGeometryWriter(geometry,1.4,1,[3,4],[4,3],.01,id)(.4,geometry);
+  poses.set(id,Float32Array.from(geometry.getAttribute("position").array));
+ }
+ for(let i=0;i<TURN_CURVES.length;i++)for(let j=i+1;j<TURN_CURVES.length;j++){
+  const a=poses.get(TURN_CURVES[i]!.id)!,b=poses.get(TURN_CURVES[j]!.id)!;
+  assert.ok(Math.max(...a.map((value,k)=>Math.abs(value-b[k]!)))>.03,"presets must change the sheet geometry, not just its speed");
+ }
+ turnGeometryWriter(geometry,1.4,1,[3,4],[4,3],.01,"corner")(.5,geometry);
+ const p=geometry.getAttribute("position");
+ assert.ok(p.getX(16*33+32)<p.getX(32)-.3,"bottom outer corner leads the upper corner");
+ assert.equal(readableTurnCurve(undefined),"classic");assert.equal(readableTurnCurve("unknown"),"classic");
+ geometry.dispose();
+});
