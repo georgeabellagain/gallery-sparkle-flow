@@ -10,8 +10,8 @@ test("every preset exports its exact dimensions within the safety limits", () =>
     ids.add(preset.id);
   }
   assert.deepEqual(
-    PHOTO_SIZE_PRESETS.find((p) => p.id === "amazon-banner"),
-    { id: "amazon-banner", label: "Amazon A+ banner · high resolution", width: 1940, height: 600 },
+    PHOTO_SIZE_PRESETS.find((p) => p.id === "amazon-tile"),
+    { id: "amazon-tile", label: "Amazon A+ image tile", width: 600, height: 600 },
   );
 });
 test("custom sizes reject invalid input, excessive areas and GPU limits without silently resizing", () => {

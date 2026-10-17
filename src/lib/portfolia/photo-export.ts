@@ -7,8 +7,6 @@ export const PHOTO_SIZE_PRESETS = [
   { id: "square", label: "Square product image", width: 2000, height: 2000 },
   { id: "social-portrait", label: "Social portrait · 4:5", width: 1080, height: 1350 },
   { id: "story", label: "Story · 9:16", width: 1080, height: 1920 },
-  { id: "amazon-banner", label: "Amazon A+ banner · high resolution", width: 1940, height: 600 },
-  { id: "amazon-banner-small", label: "Amazon A+ banner", width: 970, height: 300 },
   { id: "amazon-tile", label: "Amazon A+ image tile", width: 600, height: 600 },
 ] as const;
 export function photoSizeError(size: PhotoSize, deviceLimit = 8192) {
