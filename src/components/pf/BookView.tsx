@@ -616,6 +616,8 @@ export function BookView({
         return;
       }
       scene.current = made;
+      const coverScene=made;
+      void source.face(0).then(canvas=>{if(canvas&&!cancelled&&scene.current===coverScene)coverScene.setCoverColour(canvas);}).catch(()=>{});
       // A rebuilt view is prepared again (shaders, lighting) without holding anything up.
       lightingPreparation = made.prepare(offersBoth.current, demoLightingCycle).catch(() => undefined);
       setFallback(false);
@@ -1090,6 +1092,7 @@ export function BookView({
       };
       try {
         await document.fonts.ready;
+        const cover=await loader.current?.face(0);if(cover)renderer.setCoverColour(cover);
         await renderer.captureReady();
         renderer.setFrameSink(draw);
         renderer.setInset(0);

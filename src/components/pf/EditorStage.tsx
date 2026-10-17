@@ -1,6 +1,6 @@
 import { BookMarketingSettings } from "./BookMarketingSettings";
 import { LiveScrapbookContext } from "./live-scrapbook-context";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ChartNoAxesColumn, BookOpen, GripHorizontal, FolderOpen, Image as ImageIcon, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,9 @@ import { cn } from "@/lib/utils";
 import { EditorFullscreenContext, useEditorFullscreen } from "./editor-fullscreen";
 import { openingLook } from "@/lib/portfolia/appearance";
 
-type Tool = "book" | "customise" | "profile" | "reading" | "look" | "paper" | "background" | "scrapbook" | "projects" | "publish" | "share" | "statistics";
+const PhotoShoot=lazy(()=>import("./PhotoShoot").then(module=>({default:module.PhotoShoot})));
+
+type Tool = "shoot" | "book" | "customise" | "profile" | "reading" | "look" | "paper" | "background" | "scrapbook" | "projects" | "publish" | "share" | "statistics";
 const TOOLS: Array<[Tool, string, typeof Sun]> = [
   ["reading", "Visual style", BookOpen],
   ["look", "Lighting", Sun],
@@ -29,6 +31,7 @@ const TOOLS: Array<[Tool, string, typeof Sun]> = [
   ["scrapbook", "Scrapbook", StickyNote],
   ["projects", "Projects", FolderOpen],
   ["book", "Book marketing", BookOpen],
+  ["shoot", "Photo shoot", ImageIcon],
   ["share", "Share", Share2],
   ["statistics", "Statistics", ChartNoAxesColumn],
   ["publish", "File & publishing", Upload],
@@ -231,7 +234,7 @@ export function EditorStage({
         ))}
         </div>
       </nav>}
-      {tool && (
+      {tool && tool !== "shoot" && (
         <section
           aria-label={title}
           className="absolute inset-x-2 bottom-36 z-30 max-h-[62%] overflow-y-auto overflow-x-hidden [overflow-wrap:anywhere] rounded-2xl border border-border bg-background p-4 shadow-soft lg:inset-x-auto lg:bottom-4 lg:right-4 lg:top-4 lg:max-h-none lg:w-[19rem]"
@@ -247,7 +250,7 @@ export function EditorStage({
           </div>
           {tool === "customise" && <div className="space-y-2">
             <label className="mb-3 block text-xs">Portfolio name<input aria-label="Portfolio name" className="mt-1 w-full rounded-lg border bg-background p-2 text-sm" value={p.name ?? ""} maxLength={120} placeholder={p.pdf?.name ?? "My portfolio"} onChange={e=>patchPortfolio({name:e.target.value})} /></label>
-            {([["reading", "Visual style"], ["look", "Lighting"], ["paper", "Paper"], ["background", "Background"], ["scrapbook", "Notes, tabs & links"], ["book", "Book marketing"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="line" size="sm" onClick={() => setTool(id)}>{label}</Button>)}
+            {([["reading", "Visual style"], ["look", "Lighting"], ["paper", "Paper"], ["background", "Background"], ["scrapbook", "Notes, tabs & links"], ["book", "Book marketing"], ["shoot", "Photo shoot"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="line" size="sm" onClick={() => setTool(id)}>{label}</Button>)}
             <details className="pt-3"><summary className="cursor-pointer text-sm">More options</summary><div className="mt-3 grid gap-2">{([["profile", "Profile details"], ["projects", "Named projects"], ["publish", "File & publishing"], ["statistics", "Statistics"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="quiet" size="sm" onClick={() => setTool(id)}>{label}</Button>)}</div></details>
           </div>}
           {tool === "profile" && profile}
@@ -320,6 +323,7 @@ export function EditorStage({
           )}
         </section>
       )}
+      {tool === "shoot" && <Suspense fallback={<div role="status" className="absolute inset-0 z-50 flex items-center justify-center bg-background">Opening photo shoot…</div>}><PhotoShoot p={p} onClose={()=>setTool(null)}/></Suspense>}
       <ScrapbookDialog p={p} open={scrapbook !== null} onOpenChange={(open) => !open && setScrapbook(null)} panel={scrapbook ?? "notes"} />
     </div>
     </LiveScrapbookContext.Provider>

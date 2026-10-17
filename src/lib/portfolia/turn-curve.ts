@@ -12,11 +12,17 @@ export function readableTurnCurve(value: unknown): TurnCurve {
 export function turnCurl(curve: TurnCurve, u: number, v: number) {
   const arch = Math.sin(Math.PI*u);
   if (curve === "firm") return .08*arch;
-  if (curve === "deep") return .34*arch*arch*(1+.2*(.5-v));
+  if (curve === "deep") return .25*arch*arch*(1+.2*(.5-v));
   if (curve === "corner") return .25*arch*(.7+.9*(1-v)*(1-v));
   return .30*arch*(1+.35*(.5-v));
 }
 /** A smooth twist vanishes at both resting poses and remains anchored at the spine. */
 export function turnCornerLead(curve: TurnCurve, u: number, v: number) {
   return curve === "corner" ? .4*u*u*(1-v)*(1-v) : 0;
+}
+
+/** Paper bends progressively, peaks near mid-turn, then relaxes into its landing. */
+export function deepTurnCurl(u:number,v:number,progress:number){
+  const p=Math.max(0,Math.min(1,progress)),wave=Math.sin(Math.PI*p);
+  return .25*Math.sin(Math.PI*u)**(1.6+.8*p)*(1+.12*(.5-v))*(.45+.55*wave);
 }
