@@ -400,7 +400,7 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                 {tool === "customise"
                   ? "Customise"
                   : tool === "camera"
-                    ? "Camera & book"
+                    ? "Camera & pages"
                     : "Export photograph"}
               </h3>
               <Button
@@ -414,6 +414,24 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
             </div>
             {tool === "customise" && (
               <div className="space-y-5">
+                <p className="font-medium">Book style</p>
+                <div
+                  className="grid grid-cols-3 gap-2"
+                  role="group"
+                  aria-label="Photo shoot book style"
+                >
+                  {BOOK_STYLES.map((style) => (
+                    <button
+                      key={style.id}
+                      type="button"
+                      aria-pressed={options.style === style.id}
+                      onClick={() => change({ style: style.id })}
+                      className="rounded-lg border border-border px-2 py-3 text-sm aria-pressed:border-blue-600 aria-pressed:bg-blue-50 aria-pressed:text-blue-900"
+                    >
+                      {style.label}
+                    </button>
+                  ))}
+                </div>
                 <nav
                   aria-label="Photo appearance settings"
                   className="flex gap-1 border-b border-border pb-3"
@@ -531,24 +549,6 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
             {tool === "camera" && (
               <div className="space-y-5">
                 <p className="text-muted-foreground">Drag the preview to choose an angle.</p>
-                <p className="font-medium">Book style</p>
-                <div
-                  className="grid grid-cols-3 gap-2"
-                  role="group"
-                  aria-label="Photo shoot book style"
-                >
-                  {BOOK_STYLES.map((style) => (
-                    <button
-                      key={style.id}
-                      type="button"
-                      aria-pressed={options.style === style.id}
-                      onClick={() => change({ style: style.id })}
-                      className="rounded-lg border border-border px-2 py-3 text-sm aria-pressed:border-blue-600 aria-pressed:bg-blue-50 aria-pressed:text-blue-900"
-                    >
-                      {style.label}
-                    </button>
-                  ))}
-                </div>
                 <label className="block space-y-2">
                   <span>Book presentation</span>
                   <select
