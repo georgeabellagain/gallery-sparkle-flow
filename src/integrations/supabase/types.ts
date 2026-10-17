@@ -245,8 +245,16 @@ export type Database = {
         Returns: boolean
       }
       portfolio_is_open: { Args: { portfolio_code: string }; Returns: boolean }
+      portfolio_owner_has_personal: {
+        Args: { owner_uuid: string }
+        Returns: boolean
+      }
       portfolio_unlock_attempt: {
         Args: { bucket_key: string }
+        Returns: boolean
+      }
+      portfolio_upload_allowed: {
+        Args: { object_metadata: Json; object_name: string }
         Returns: boolean
       }
     }
