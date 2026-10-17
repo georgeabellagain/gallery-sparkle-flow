@@ -1,9 +1,9 @@
+import { StudioLightingSettings, PaperSettings } from "./StudioAppearanceSettings";
 import { PageTurnSettings } from "./PageTurnSettings";
-import { personalHdri } from "@/lib/portfolia/premium-appearance";
 import { isPortfolioDraft } from "@/lib/portfolia/store";
 import { ChoiceTile } from "./ChoiceTile";
 import { BackgroundSettings } from "./BackgroundSettings";
-import { ScrollText, File, BookOpen, Square, Sun, Layers, Origami, Newspaper } from "lucide-react";
+import { ScrollText, File, BookOpen, Square, Sun } from "lucide-react";
 import { usePortfolioFont } from "@/lib/portfolia/fonts";
 import { useEffect, useRef, useState } from "react";
 import { Minus, Palette, Plus, RotateCcw, X } from "lucide-react";
@@ -23,10 +23,7 @@ import { backgroundColour } from "@/lib/portfolia/background";
 import { Segmented } from "@/components/pf/viewer-ui";
 import {
   DEFAULT_SIMPLE_SHADOW_OPACITY,
-  HDRI_PRESETS,
-  MAX_STUDIO_BRIGHTNESS,
 } from "@/lib/portfolia/lighting";
-import { PAPER_STYLES, paperFinish } from "@/lib/portfolia/surface";
 import { setPreviewLook } from "@/lib/portfolia/preview-look";
 
 export function StyleForm({
@@ -106,8 +103,6 @@ export function StyleForm({
   };
   const shadowOn = viewer.simpleShadow ?? true;
   const shadowOpacity = viewer.simpleShadowOpacity ?? DEFAULT_SIMPLE_SHADOW_OPACITY;
-  const studioBrightness = viewer.studioBrightness ?? 0.5;
-  const studioLighting = viewer.studioLighting ?? "4";
 
   const onBanner = (f?: File) => {
     setErr(null);
@@ -409,76 +404,7 @@ export function StyleForm({
                         className="space-y-3 border-t border-border pt-3"
                         onPointerDownCapture={() => setPreviewLook("studio")}
                       >
-                        <p>Studio HDRI</p><p className="text-xs text-muted-foreground">Preview any light. Free includes 1–4; Personal unlocks all 15 when saving.</p>
-                        {([false, true] as const).map(personal => (
-                          <section key={String(personal)} aria-label={personal ? "Personal HDRIs" : "Free HDRIs"} className="space-y-2">
-                            <h3 className="text-xs font-medium">{personal ? "Personal" : "Free"}</h3>
-                            <div className="grid grid-cols-3 gap-2">
-                              {HDRI_PRESETS.filter(light => personalHdri(light.id) === personal).map(light => (
-                                <button
-                                  key={light.id}
-                                  type="button"
-                                  aria-pressed={studioLighting === light.id}
-                                  aria-label={`Lighting ${light.label}`}
-                                  onClick={() => setViewer({ studioLighting: light.id })}
-                                  className={`h-16 rounded-lg border bg-cover text-white ${studioLighting === light.id ? "ring-2 ring-blue-600 border-blue-600" : "border-border"}`}
-                                  style={{ background: light.preview }}
-                                >
-                                  <span className="rounded bg-black/60 px-2 py-1">{light.label}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </section>
-                        ))}
-                        <label className="block space-y-1">
-                          <span>Brightness · {Math.round(studioBrightness * 100)}%</span>
-                          <input
-                            className="w-full accent-blue-600"
-                            type="range"
-                            aria-label="Studio brightness"
-                            min="0"
-                            max={MAX_STUDIO_BRIGHTNESS * 100}
-                            value={Math.round(studioBrightness * 100)}
-                            onChange={(e) =>
-                              setViewer({ studioBrightness: Number(e.target.value) / 100 })
-                            }
-                          />
-                        </label>
-                        <label className="block space-y-1">
-                          <span>
-                            Diffusion ·{" "}
-                            {Math.round((1 - (viewer.studioLightingStrength ?? 0.75)) * 100)}%
-                          </span>
-                          <input
-                            className="w-full accent-blue-600"
-                            type="range"
-                            aria-label="Studio lighting diffusion"
-                            min="0"
-                            max="100"
-                            value={Math.round((1 - (viewer.studioLightingStrength ?? 0.75)) * 100)}
-                            onChange={(e) =>
-                              setViewer({
-                                studioLightingStrength: 1 - Number(e.target.value) / 100,
-                              })
-                            }
-                          />
-                        </label>
-                        <label className="block space-y-1">
-                          <span>
-                            White top light · {Math.round((viewer.studioTopLight ?? 0) * 100)}%
-                          </span>
-                          <input
-                            className="w-full accent-blue-600"
-                            type="range"
-                            aria-label="Studio white top light"
-                            min="0"
-                            max="100"
-                            value={Math.round((viewer.studioTopLight ?? 0) * 100)}
-                            onChange={(e) =>
-                              setViewer({ studioTopLight: Number(e.target.value) / 100 })
-                            }
-                          />
-                        </label>
+                        <StudioLightingSettings viewer={viewer} setViewer={setViewer} />
                         <p>Offer Studio in</p>
                         {(
                           [
@@ -512,26 +438,7 @@ export function StyleForm({
                     className="space-y-3"
                     onPointerDownCapture={() => setPreviewLook("studio")}
                   >
-                    <p className="font-medium">Paper</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {PAPER_STYLES.map(([id, label]) => (
-                        <ChoiceTile
-                          key={id}
-                          label={label}
-                          icon={
-                            id === "matte"
-                              ? Square
-                              : id === "satin"
-                                ? Layers
-                                : id === "paper_0022"
-                                  ? Origami
-                                  : Newspaper
-                          }
-                          selected={paperFinish(viewer.finish) === id}
-                          onClick={() => setViewer({ finish: id })}
-                        />
-                      ))}
-                    </div>
+                    <PaperSettings viewer={viewer} setViewer={setViewer} />
                   </div>
                 )}
                 {showBackground && (

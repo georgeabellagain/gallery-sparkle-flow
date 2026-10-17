@@ -1,8 +1,8 @@
-import { personalBackground } from "@/lib/portfolia/premium-appearance";
+import { BackgroundPresetPicker } from "./BackgroundPresetPicker";
 import { useEffect, useRef, useState } from "react";
 import { useBlob, useObjectUrl } from "./Chrome";
 import { Button } from "@/components/ui/button";
-import { BACKGROUND_PRESETS, backgroundPicture } from "@/lib/portfolia/background-presets";
+import { backgroundPicture } from "@/lib/portfolia/background-presets";
 import {
   backgroundFor,
   backgroundKeys,
@@ -210,30 +210,7 @@ export function BackgroundSettings({
           </>
         )}
         <p className="font-medium">Presets</p><p className="text-xs text-muted-foreground">Preview every background. Warm wood and Soft concrete are included on Free. Other presets and uploaded backgrounds require Personal to save.</p>
-        <div className="grid grid-cols-2 gap-2">
-          {BACKGROUND_PRESETS.map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              aria-pressed={choice.backgroundPreset === preset.id && !choice.backgroundKey}
-              onClick={() =>
-                choose({
-                  backgroundPreset: preset.id,
-                  backgroundFit: { ...DEFAULT_FIT, tile: true },
-                })
-              }
-              className="overflow-hidden rounded border border-border text-left aria-pressed:ring-2 aria-pressed:ring-blue-600"
-            >
-              <img
-                src={preset.url.replace(".webp", "-thumb.webp")}
-                alt=""
-                loading="lazy"
-                className="h-14 w-full object-cover"
-              />
-              <span className="block p-2">{preset.label}{personalBackground(preset.id) ? " · Personal" : ""}</span>
-            </button>
-          ))}
-        </div>
+        <BackgroundPresetPicker selected={!choice.backgroundKey?choice.backgroundPreset:undefined} onSelect={id=>choose({backgroundPreset:id,backgroundFit:{...DEFAULT_FIT,tile:true}})} />
         {(choice.backgroundKey || choice.backgroundPreset) && (
           <div className="space-y-2">
             <Picture choice={choice} label={`${title} picture`} />

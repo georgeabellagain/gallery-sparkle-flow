@@ -1,3 +1,4 @@
+import { photoSizeError, type PhotoSize } from "./photo-export";
 import { pageBlockGeometry, coverBoardGeometry, caseSpineGeometry, visibleBookBounds } from "./book-model";
 import { COVER_HEIGHT, COVER_OVERHANG } from "./rigid-cover";
 import * as THREE from "three";
@@ -47,6 +48,7 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
  for(const light of [key,sun]){light.shadow.mapSize.set(2048,2048);light.shadow.normalBias=.008;light.shadow.radius=4;}
  Object.assign(key.shadow.camera,{left:-4,right:4,top:5,bottom:-2,near:.1,far:20});key.shadow.camera.updateProjectionMatrix();
  let options:ShootOptions={style:"flipbook",colour:"#ded9cf",floorColour:"#ded9cf",yaw:20,elevation:10,zoom:1,hdri:"4",finish:"satin",brightness:.5,strength:.75,topLight:0,...initial};
+ let outputSize:PhotoSize={width:2048,height:2560};
  let disposed=false,frame=0,open=false,shapeStamp="",environmentKey="",environmentRevision=0,environment:THREE.WebGLRenderTarget|undefined;
  const diffuser=createEnvironmentDiffuser(renderer),pmrem=new THREE.PMREMGenerator(renderer),paper=createPaperTextures(()=>request());
  const masks=new Map<HdriId,THREE.CanvasTexture>();
@@ -117,12 +119,14 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
  apply();
  return {
    set(value:ShootOptions){options=value;apply();},
+   setSize(size:PhotoSize){if(photoSizeError(size))return;outputSize={...size};request();},
+   exportLimit(){const gl=renderer.getContext();return Math.min(8192,renderer.capabilities.maxTextureSize,gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),...Array.from(gl.getParameter(gl.MAX_VIEWPORT_DIMS) as Int32Array));},
    setSpread(canvases:readonly [HTMLCanvasElement|null,HTMLCanvasElement|null]|null){
      open=Boolean(canvases);spreadMaterials.forEach((m,i)=>{const old=m.map;if(old){old.dispose();textures.delete(old);}const canvas=canvases?.[i];m.map=canvas?texture(canvas):null;m.needsUpdate=true;spreadPages[i]!.visible=Boolean(canvas);spreadPages[i]!.userData["coverBoard"]=canvas?.dataset["coverBoard"]==="true";});apply();
    },
    async png(){
      let pending:Promise<void>[];do{pending=[pendingEnvironment,...surfaces.map(s=>s.pending)];await Promise.all([...pending,paper.ready()]);}while(pending[0]!==pendingEnvironment||pending[1]!==surfaces[0]!.pending||pending[2]!==surfaces[1]!.pending);
-     if(disposed)throw new Error("Photo shoot closed.");if(renderer.getContext().isContextLost())throw new Error("Graphics were interrupted. Reopen Photo shoot.");const width=Math.min(2048,Math.floor(renderer.capabilities.maxTextureSize/1.25)),height=Math.round(width*1.25);
+     if(disposed)throw new Error("Photo shoot closed.");if(renderer.getContext().isContextLost())throw new Error("Graphics were interrupted. Reopen Photo shoot.");const {width,height}=outputSize,gl=renderer.getContext(),limit=Math.min(renderer.capabilities.maxTextureSize,gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),...Array.from(gl.getParameter(gl.MAX_VIEWPORT_DIMS) as Int32Array)),error=photoSizeError(outputSize,limit);if(error)throw new Error(error);
      try{render(width,height);return await new Promise<Blob>((resolve,reject)=>renderer.domElement.toBlob(blob=>blob?resolve(blob):reject(new Error("The image could not be exported.")),"image/png"));}finally{if(!disposed)paint();}
    },
    dispose(){disposed=true;environmentRevision++;surfaces.forEach(s=>s.revision++);cancelAnimationFrame(frame);observer.disconnect();renderer.domElement.removeEventListener("webglcontextlost",lost);binding.dispose();paper.dispose();diffuser.dispose();pmrem.dispose();environment?.dispose();masks.forEach(t=>t.dispose());textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());key.shadow.map?.dispose();sun.shadow.map?.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();},
