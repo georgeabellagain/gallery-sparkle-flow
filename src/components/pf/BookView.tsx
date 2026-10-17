@@ -1,3 +1,4 @@
+import { coverLeaf } from "@/lib/portfolia/rigid-cover";
 import { createPreparationGate } from "@/lib/portfolia/preparation-gate";
 import { LiveScrapbookContext } from "./live-scrapbook-context";
 import { LiveScrapbookPage } from "./LiveScrapbookPage";
@@ -144,6 +145,7 @@ function pageLoader(
     canvas.height = Math.round(canvas.width * ratio);
     // Each page's position in the book gives it its own, repeatable imperfections.
     canvas.dataset["seed"] = String(index);
+    canvas.dataset["coverBoard"] = String(coverLeaf(index,layout.leaves.length));
     const ctx = canvas.getContext("2d")!;
     ctx.imageSmoothingQuality = "high";
     ctx.fillStyle = "white";

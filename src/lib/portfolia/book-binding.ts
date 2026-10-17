@@ -1,3 +1,4 @@
+import { COVER_HEIGHT } from "./rigid-cover";
 import * as THREE from "three";
 import { bookStyleProfile, type BookStyle } from "./book-style";
 
@@ -9,7 +10,7 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
   const edges=new THREE.DataTexture(pixels,1,128);edges.colorSpace=THREE.SRGBColorSpace;edges.magFilter=THREE.LinearFilter;edges.needsUpdate=true;
   const boardMaterial=new THREE.MeshStandardMaterial({roughness:.88});
   const pageMaterial=new THREE.MeshStandardMaterial({map:edges,roughness:.98});
-  const spineMaterial=new THREE.MeshStandardMaterial({roughness:.92});
+  const spineMaterial=new THREE.MeshStandardMaterial({roughness:.6,envMapIntensity:1.15});
   const box=new THREE.BoxGeometry(1,1,1),cylinder=new THREE.CylinderGeometry(1,1,1,16);
   const sides=([-1,1] as const).map(side=>{
     const root=new THREE.Group(),board=new THREE.Mesh(box,boardMaterial),pages=new THREE.Mesh(box,pageMaterial);
@@ -41,8 +42,17 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
       const emissiveMap=studio?null:edges;
       if(pageMaterial.emissiveMap!==emissiveMap){pageMaterial.emissiveMap=emissiveMap;pageMaterial.needsUpdate=true;}
     },
-    sync(visible:readonly [boolean,boolean]){
-      sides.forEach(({root},index)=>{root.visible=visible[index]!;});
+    sync(visible:readonly [boolean,boolean],covers:readonly [boolean,boolean]=[false,false]){
+      sides.forEach(({root,board,pages},index)=>{
+        root.visible=visible[index]!;
+        const profile=bookStyleProfile(style),rise=style==="hardback"&&covers[index]?COVER_HEIGHT+.005:0;
+        board.position.x=style==="hardback"&&covers[index]?(index===0?-1:1)*profile.overhang:0;
+        board.position.z=-.005-profile.stack-profile.board/2+rise+ (rise?profile.stack:0);
+        pages.scale.z=profile.stack+(rise?rise-profile.board:0);
+        pages.position.z=-.005-profile.stack/2+(rise?(rise-profile.board)/2:0);
+      });
+      const profile=bookStyleProfile(style);
+      spine.position.z=(style==="hardback"&&(covers[0]||covers[1])?COVER_HEIGHT:-.005)-profile.spine;
       spine.visible=style!=="flipbook" && (visible[0]||visible[1]);
     },
     dispose(){parent.remove(group);box.dispose();cylinder.dispose();edges.dispose();boardMaterial.dispose();pageMaterial.dispose();spineMaterial.dispose();},

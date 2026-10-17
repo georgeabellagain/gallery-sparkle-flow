@@ -1,88 +1,128 @@
+import { COVER_HEIGHT, COVER_OVERHANG } from "./rigid-cover";
 import * as THREE from "three";
 import { bookStyleProfile, readableBookStyle, type BookStyle } from "./book-style";
 import { sampleCoverColour } from "./cover-colour";
-export type ShootOptions={style:BookStyle;colour:string;wall?:string;yaw:number;elevation:number;zoom:number};
-export function shootCamera(yaw:number,elevation:number,zoom:number,ratio:number,aspect:number){
-  const angle=THREE.MathUtils.degToRad(Math.max(-40,Math.min(40,yaw)));
-  const pitch=THREE.MathUtils.degToRad(Math.max(2,Math.min(25,elevation)));
-  const distance=Math.max(ratio*2.3,2.3/aspect)/Math.max(.7,Math.min(1.4,zoom));
-  const target=new THREE.Vector3(0,ratio*.52,0);
-  return {target,position:new THREE.Vector3(Math.sin(angle)*distance, target.y+Math.sin(pitch)*distance,Math.cos(angle)*Math.cos(pitch)*distance)};
+import { loadPreparedEnvironment } from "./prepared-environment";
+import { createEnvironmentDiffuser } from "./environment-diffusion";
+import { createPaperTextures } from "./paper-textures";
+import { backgroundSurfaceMaps } from "./background-presets";
+import { studioExposure, studioTopLight, presetShadow, presetDirectLight, HDRI_PRESETS, type HdriId } from "./lighting";
+import { dappleTexture } from "./dapple-light";
+import { createBookBinding } from "./book-binding";
+import type { SurfaceKind } from "./surface";
+export type ShootOptions={style:BookStyle;colour:string;wall?:string;floorColour:string;floor?:string;yaw:number;elevation:number;zoom:number;hdri:HdriId;finish:SurfaceKind;brightness:number;strength:number;topLight:number};
+export function shootCamera(yaw:number,elevation:number,zoom:number,ratio:number,aspect:number,span=1){
+ const angle=THREE.MathUtils.degToRad(Math.max(-40,Math.min(40,yaw))),pitch=THREE.MathUtils.degToRad(Math.max(2,Math.min(25,elevation)));
+ const distance=Math.max(ratio*2.3,span*2.3/aspect)/Math.max(.7,Math.min(1.4,zoom));
+ const target=new THREE.Vector3(0,ratio*.52,0);
+ return {target,position:new THREE.Vector3(Math.sin(angle)*distance,target.y+Math.sin(pitch)*distance,Math.cos(angle)*Math.cos(pitch)*distance)};
 }
-/** Standalone closed-book photographic stage; the shared reader is never moved. */
-export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:HTMLCanvasElement,pages:number,onError:(message:string)=>void=()=>{}){
-  const ratio=front.height/front.width,renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:false});
-  renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.NeutralToneMapping;
-  renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;
-  renderer.domElement.style.cssText="width:100%;height:100%;display:block;touch-action:none";
-  host.appendChild(renderer.domElement);
-  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(35,1,.1,100),book=new THREE.Group();scene.add(book);
-  const textures=new Set<THREE.Texture>(),materials=new Set<THREE.Material>(),geometries=new Set<THREE.BufferGeometry>();
-  const material=(options:THREE.MeshStandardMaterialParameters)=>{const value=new THREE.MeshStandardMaterial(options);materials.add(value);return value;};
-  const texture=(canvas:HTMLCanvasElement)=>{const t=new THREE.CanvasTexture(canvas);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());textures.add(t);return t;};
-  const colour=sampleCoverColour(front),coverMaterial=material({color:colour,roughness:.8}),pageMaterial=material({color:"#f1eee5",roughness:.98});
-  const edgePixels=new Uint8Array(128*4);
-  for(let y=0;y<128;y++){const shade=y%4===0?200:255;edgePixels.set([shade,shade,shade,255],y*4);}
-  const edgeTexture=new THREE.DataTexture(edgePixels,1,128);edgeTexture.colorSpace=THREE.SRGBColorSpace;edgeTexture.needsUpdate=true;textures.add(edgeTexture);pageMaterial.map=edgeTexture;
-  const artMaterial=material({map:texture(front),roughness:.82}),backMaterial=material({map:texture(back),roughness:.82});
-  const box=new THREE.BoxGeometry(1,1,1),plane=new THREE.PlaneGeometry(1,1,32,8);geometries.add(box);geometries.add(plane);
-  const add=(geometry:THREE.BufferGeometry,mat:THREE.Material)=>{const mesh=new THREE.Mesh(geometry,mat);mesh.castShadow=mesh.receiveShadow=true;book.add(mesh);return mesh;};
-  const spineGeometry=new THREE.CylinderGeometry(1,1,1,24);geometries.add(spineGeometry);const spine=add(spineGeometry,coverMaterial);
-  const block=add(box,pageMaterial),frontBoard=add(box,coverMaterial),backBoard=add(box,coverMaterial),art=add(plane,artMaterial),rear=add(plane.clone(),backMaterial);geometries.add(rear.geometry);rear.rotation.y=Math.PI;
-  const fan=[add(plane.clone(),pageMaterial),add(plane.clone(),pageMaterial)];fan.forEach(mesh=>geometries.add(mesh.geometry));
-  const wallMaterial=material({color:"#ded9cf",roughness:1}),floorMaterial=material({color:"#ded9cf",roughness:.94});
-  const stageGeometry=new THREE.PlaneGeometry(30,30);geometries.add(stageGeometry);
-  const wall=new THREE.Mesh(stageGeometry,wallMaterial);wall.position.set(0,5,-.12);wall.receiveShadow=true;scene.add(wall);
-  const floor=new THREE.Mesh(stageGeometry,floorMaterial);floor.rotation.x=-Math.PI/2;floor.position.y=-.002;floor.receiveShadow=true;scene.add(floor);
-  scene.add(new THREE.HemisphereLight(0xffffff,0xc6c0b5,2.2));
-  const key=new THREE.DirectionalLight(0xffffff,3);key.position.set(-3,5,6);key.target.position.set(0,ratio/2,0);key.castShadow=true;
-  key.shadow.mapSize.set(2048,2048);Object.assign(key.shadow.camera,{left:-3,right:3,top:4,bottom:-2,near:.1,far:20});key.shadow.camera.updateProjectionMatrix();key.shadow.normalBias=.008;key.shadow.radius=4;
-  scene.add(key,key.target);
-  let options:ShootOptions={style:"flipbook",colour:"#ded9cf",yaw:20,elevation:10,zoom:1},disposed=false,frame=0,wallUrl:string|undefined,revision=0;
-  const render=(width:number,height:number)=>{renderer.setSize(width,height,false);camera.aspect=width/height;const pose=shootCamera(options.yaw,options.elevation,options.zoom,ratio,camera.aspect);camera.position.copy(pose.position);camera.lookAt(pose.target);camera.updateProjectionMatrix();renderer.render(scene,camera);};
-  const paint=()=>{if(disposed)return;const box=host.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);render(Math.max(1,Math.round(box.width*dpr)),Math.max(1,Math.round(box.height*dpr)));};
-  const request=()=>{if(!frame&&!disposed)frame=requestAnimationFrame(()=>{frame=0;paint();});};
-  const observer=new ResizeObserver(request);observer.observe(host);
-  let shapeStyle:BookStyle|undefined, pendingWall:Promise<void>=Promise.resolve();
-  const apply=()=>{
-    const style=readableBookStyle(options.style),profile=bookStyleProfile(style),hard=style==="hardback",soft=style==="softcover";
-    if(shapeStyle!==style){
-    shapeStyle=style;
-    const thickness=style==="flipbook"?.018:Math.min(hard?.14:.075,(hard?.055:.025)+pages*.00045),board=hard?.024:soft?.004:.001;
-    spine.visible=style!=="flipbook";spine.scale.set((thickness+2*board)/2,ratio,(thickness+2*board)/2);spine.position.x=-.5+(thickness+2*board)/2;
-    block.scale.set(.98,ratio-.018,thickness);frontBoard.scale.set(1+2*profile.overhang,ratio+2*profile.overhang,board);backBoard.scale.copy(frontBoard.scale);
-    frontBoard.position.z=thickness/2+board/2;backBoard.position.z=-thickness/2-board/2;
-    art.scale.set(1,ratio,1);art.position.z=thickness/2+board+.001;rear.scale.copy(art.scale);rear.position.z=-thickness/2-board-.001;
-    // Flexible softcover has a subtle curved fore edge; hardcover remains planar.
-    const positions=plane.getAttribute("position") as THREE.BufferAttribute;
-    for(let i=0;i<positions.count;i++){const x=positions.getX(i);positions.setZ(i,soft?.018*Math.sin(Math.PI*(x+.5)):0);}positions.needsUpdate=true;plane.computeVertexNormals();
-    fan.forEach((mesh,i)=>{mesh.visible=style==="flipbook";mesh.scale.set(1,ratio,1);mesh.rotation.z=(i+1)*.018;mesh.position.z=-thickness/2-(i+1)*.002;});
-    book.rotation.x=-.10;
-    const height=ratio+2*profile.overhang,depth=thickness+2*board;
-    book.position.set(0,height/2*Math.cos(.1)+depth/2*Math.sin(.1)+.01,-.12+height/2*Math.sin(.1)+depth/2*Math.cos(.1)+.006);
-    }
-    wallMaterial.color.set(options.colour);floorMaterial.color.set(options.colour);scene.background=new THREE.Color(options.colour);
-    if(options.wall!==wallUrl){
-      wallUrl=options.wall;const token=++revision;const previous=wallMaterial.map;wallMaterial.map=null;wallMaterial.needsUpdate=true;if(previous){previous.dispose();textures.delete(previous);}
-      pendingWall=wallUrl ? new THREE.TextureLoader().loadAsync(wallUrl).then(t=>{
-        if(disposed||revision!==token){t.dispose();return;}
-        t.colorSpace=THREE.SRGBColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;const image=t.image as HTMLImageElement;
-        const repeatsX=30/4,repeatsY=30/(4*(image.naturalHeight/image.naturalWidth||1));
-        t.repeat.set(repeatsX,repeatsY);t.offset.set(.5-.5*repeatsX,.5-((ratio*.52-5)/30+.5)*repeatsY);textures.add(t);wallMaterial.map=t;wallMaterial.color.set("#ffffff");wallMaterial.needsUpdate=true;request();
-      }).catch(error=>{if(!disposed&&revision===token)onError("The wall picture could not load. Choose another background.");throw new Error("The wall picture could not load. Choose another background.");}) : Promise.resolve();
-      void pendingWall.catch(()=>{});
-    }else if(wallMaterial.map)wallMaterial.color.set("#ffffff");
-    request();
-  };
-  apply();
-  return {
-    set(value:ShootOptions){options=value;apply();},
-    async png(){
-      let loading:Promise<void>;do{loading=pendingWall;await loading;}while(loading!==pendingWall);
-      if(disposed)throw new Error("Photo shoot closed.");
-      const width=Math.min(2048,Math.floor(renderer.capabilities.maxTextureSize/1.25)),height=Math.round(width*1.25);
-      try{render(width,height);return await new Promise<Blob>((resolve,reject)=>renderer.domElement.toBlob(blob=>blob?resolve(blob):reject(new Error("The image could not be exported.")),"image/png"));}finally{if(!disposed)paint();}
-    },
-    dispose(){disposed=true;revision++;cancelAnimationFrame(frame);observer.disconnect();textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());key.shadow.map?.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();},
-  };
+export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:HTMLCanvasElement,pages:number,onError:(message:string)=>void=()=>{},initial?:Partial<ShootOptions>){
+ const ratio=front.height/front.width,renderer=new THREE.WebGLRenderer({antialias:true});
+ renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.NeutralToneMapping;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;
+ renderer.domElement.style.cssText="width:100%;height:100%;display:block;touch-action:none";host.appendChild(renderer.domElement);
+ const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(35,1,.1,100),book=new THREE.Group(),closed=new THREE.Group(),spread=new THREE.Group();scene.add(book);book.add(closed,spread);spread.visible=false;
+ const textures=new Set<THREE.Texture>(),materials=new Set<THREE.Material>(),geometries=new Set<THREE.BufferGeometry>();
+ const material=(options:THREE.MeshStandardMaterialParameters)=>{const m=new THREE.MeshStandardMaterial(options);materials.add(m);return m;};
+ const texture=(canvas:HTMLCanvasElement)=>{const t=new THREE.CanvasTexture(canvas);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());textures.add(t);return t;};
+ const coverColour=sampleCoverColour(front),coverMaterial=material({color:coverColour,roughness:.6,envMapIntensity:1.15}),pageMaterial=material({color:"#f1eee5",roughness:.98});
+ const edgePixels=new Uint8Array(128*4);for(let y=0;y<128;y++){const shade=y%4===0?200:255;edgePixels.set([shade,shade,shade,255],y*4);}
+ const edgeTexture=new THREE.DataTexture(edgePixels,1,128);edgeTexture.colorSpace=THREE.SRGBColorSpace;edgeTexture.needsUpdate=true;textures.add(edgeTexture);pageMaterial.map=edgeTexture;
+ const artMaterial=material({map:texture(front)}),backMaterial=material({map:texture(back)});
+ const box=new THREE.BoxGeometry(1,1,1),plane=new THREE.PlaneGeometry(1,1,32,16),spineGeometry=new THREE.CylinderGeometry(1,1,1,24);[box,plane,spineGeometry].forEach(g=>geometries.add(g));
+ const add=(geometry:THREE.BufferGeometry,mat:THREE.Material,parent=closed)=>{const m=new THREE.Mesh(geometry,mat);m.castShadow=m.receiveShadow=true;parent.add(m);return m;};
+ const spine=add(spineGeometry,coverMaterial),block=add(box,pageMaterial),frontBoard=add(box,coverMaterial),backBoard=add(box,coverMaterial),art=add(plane,artMaterial),rear=add(plane.clone(),backMaterial);geometries.add(rear.geometry);rear.rotation.y=Math.PI;
+ const fan=[add(plane.clone(),pageMaterial),add(plane.clone(),pageMaterial)];fan.forEach(m=>geometries.add(m.geometry));
+ const spreadMaterials=[material({}),material({})];
+ const spreadPages=spreadMaterials.map((m,i)=>{const geometry=new THREE.PlaneGeometry(1,ratio,32,16);geometries.add(geometry);const pos=geometry.getAttribute("position") as THREE.BufferAttribute;
+   for(let n=0;n<pos.count;n++){const x=pos.getX(n);pos.setZ(n,.014+.022*Math.sin(Math.PI*(x+.5)));}pos.needsUpdate=true;geometry.computeVertexNormals();const mesh=add(geometry,m,spread);mesh.position.x=i===0?-.5:.5;return mesh;});
+ const binding=createBookBinding(spread,ratio);binding.setCoverColour(coverColour);
+ const wallMaterial=material({roughness:1}),floorMaterial=material({roughness:.94}),stageGeometry=new THREE.PlaneGeometry(30,30);geometries.add(stageGeometry);
+ const wall=new THREE.Mesh(stageGeometry,wallMaterial);wall.position.set(0,5,-.12);wall.receiveShadow=true;scene.add(wall);
+ const floor=new THREE.Mesh(stageGeometry,floorMaterial);floor.rotation.x=-Math.PI/2;floor.position.y=-.002;floor.receiveShadow=true;scene.add(floor);
+ const key=new THREE.DirectionalLight(0xffffff,.6),top=new THREE.DirectionalLight(0xffffff,0),sun=new THREE.SpotLight(0xfff3dc,0,0,Math.PI/5,.35,0);
+ top.position.set(0,5,6);scene.add(key,key.target,top,sun,sun.target);
+ key.castShadow=sun.castShadow=true;sun.shadow.camera.near=.1;sun.shadow.camera.far=20;sun.shadow.camera.updateProjectionMatrix();
+ for(const light of [key,sun]){light.shadow.mapSize.set(2048,2048);light.shadow.normalBias=.008;light.shadow.radius=4;}
+ Object.assign(key.shadow.camera,{left:-4,right:4,top:5,bottom:-2,near:.1,far:20});key.shadow.camera.updateProjectionMatrix();
+ let options:ShootOptions={style:"flipbook",colour:"#ded9cf",floorColour:"#ded9cf",yaw:20,elevation:10,zoom:1,hdri:"4",finish:"satin",brightness:.5,strength:.75,topLight:0,...initial};
+ let disposed=false,frame=0,open=false,shapeStamp="",environmentKey="",environmentRevision=0,environment:THREE.WebGLRenderTarget|undefined;
+ const diffuser=createEnvironmentDiffuser(renderer),pmrem=new THREE.PMREMGenerator(renderer),paper=createPaperTextures(()=>request());
+ const masks=new Map<HdriId,THREE.CanvasTexture>();
+ const render=(width:number,height:number)=>{renderer.setSize(width,height,false);camera.aspect=width/height;const pose=shootCamera(options.yaw,options.elevation,options.zoom,ratio,camera.aspect,open?2.1:1);camera.position.copy(pose.position);camera.lookAt(pose.target);camera.updateProjectionMatrix();renderer.render(scene,camera);};
+ const paint=()=>{if(disposed)return;const rect=host.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);render(Math.max(1,Math.round(rect.width*dpr)),Math.max(1,Math.round(rect.height*dpr)));};
+ const request=()=>{if(!frame&&!disposed)frame=requestAnimationFrame(()=>{frame=0;paint();});};
+ const lost=(event:Event)=>{event.preventDefault();onError("Graphics were interrupted. Close and reopen Photo shoot to restore the stage.");};
+ renderer.domElement.addEventListener("webglcontextlost",lost);
+ const observer=new ResizeObserver(request);observer.observe(host);
+ const surfaces=[{url:undefined as string|undefined,revision:0,maps:[] as THREE.Texture[],pending:Promise.resolve()}, {url:undefined as string|undefined,revision:0,maps:[] as THREE.Texture[],pending:Promise.resolve()}];
+ const setSurface=(index:number,url:string|undefined,colour:string)=>{
+   const state=surfaces[index]!,m=index===0?wallMaterial:floorMaterial;
+   m.color.set(url?"#ffffff":colour);if(url===state.url)return;
+   state.url=url;const token=++state.revision;
+   const clear=()=>{state.maps.forEach(t=>{t.dispose();textures.delete(t);});state.maps=[];m.map=m.normalMap=m.roughnessMap=null;};
+   if(!url){clear();m.roughness=.94;m.needsUpdate=true;state.pending=Promise.resolve();return;}
+   const maps=backgroundSurfaceMaps(url),loader=new THREE.TextureLoader(),acquired=new Set<THREE.Texture>();let failed=false;
+   const load=async(file:string)=>{const t=await loader.loadAsync(file);if(disposed||failed||token!==state.revision){t.dispose();throw new Error("Surface replaced");}acquired.add(t);return t;};
+   state.pending=Promise.all([load(url),maps?load(maps.normal):Promise.resolve(null),maps?load(maps.roughness):Promise.resolve(null)]).then(loaded=>{
+     if(disposed||token!==state.revision){loaded.forEach(t=>t?.dispose());return;}
+     clear();loaded.forEach((t,i)=>{if(!t)return;t.colorSpace=i===0?THREE.SRGBColorSpace:THREE.NoColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;
+       const image=loaded[0]!.image as HTMLImageElement,rx=30/4,ry=30/(4*(image.naturalHeight/image.naturalWidth||1));t.repeat.set(rx,ry);t.offset.set(.5-.5*rx,index===0?.5-((ratio*.52-5)/30+.5)*ry:.5-.5*ry);textures.add(t);state.maps.push(t);});
+     acquired.clear();[m.map,m.normalMap,m.roughnessMap]=loaded;m.normalScale.set(.65,.65);m.roughness=maps?1:.94;m.needsUpdate=true;request();
+   }).catch(()=>{failed=true;acquired.forEach(t=>t.dispose());acquired.clear();if(!disposed&&token===state.revision)onError(`The ${index===0?"wall":"floor"} surface could not load.`);throw new Error("A photo surface could not load. Choose another preset.");});void state.pending.catch(()=>{});
+ };
+ let pendingEnvironment:Promise<void>=Promise.resolve();
+ const setLighting=()=>{
+   renderer.toneMappingExposure=studioExposure(options.brightness);top.intensity=studioTopLight(options.topLight);
+   const shadow=presetShadow(options.hdri);key.position.set(...shadow.position);key.target.position.set(0,ratio*.5,0);key.shadow.radius=shadow.radius*4;
+   sun.position.copy(key.position);sun.target.position.copy(key.target.position);sun.penumbra=shadow.penumbra;sun.shadow.radius=shadow.radius*4;
+   const pattern=HDRI_PRESETS.find(p=>p.id===options.hdri)?.dapple;
+   if(pattern&&!masks.has(options.hdri)){const mask=dappleTexture(pattern,shadow);masks.set(options.hdri,mask);}
+   sun.map=pattern?masks.get(options.hdri)!:null;sun.intensity=presetDirectLight(options.hdri,options.strength);sun.visible=Boolean(pattern);key.intensity=pattern?0:.6;
+   const stamp=`${options.hdri}|${options.strength}`;if(stamp===environmentKey)return;environmentKey=stamp;
+   const token=++environmentRevision,id=options.hdri,strength=options.strength;
+   pendingEnvironment=loadPreparedEnvironment(id).then(prepared=>{
+     if(disposed||token!==environmentRevision)return;
+     const source=new THREE.DataTexture(prepared.pixels,prepared.width,prepared.height,THREE.RGBAFormat,THREE.HalfFloatType);source.mapping=THREE.EquirectangularReflectionMapping;source.needsUpdate=true;
+     let target:THREE.WebGLRenderTarget;try{target=pmrem.fromEquirectangular(source);}finally{source.dispose();}
+     diffuser.reset();scene.environment=diffuser.apply(target,strength,prepared.colour);environment?.dispose();environment=target;request();
+   }).catch(()=>{if(!disposed&&token===environmentRevision)onError("The selected HDRI could not load.");throw new Error("The selected HDRI could not load.");});void pendingEnvironment.catch(()=>{});
+ };
+ const apply=()=>{
+   const style=readableBookStyle(options.style),profile=bookStyleProfile(style),hard=style==="hardback",soft=style==="softcover",stamp=`${style}|${open}|${spreadPages.map(mesh=>Boolean(mesh.userData["coverBoard"])).join()}`;
+   closed.visible=!open;spread.visible=open;
+   if(shapeStamp!==stamp){shapeStamp=stamp;
+     spreadPages.forEach((mesh,index)=>{
+       const rigid=hard&&mesh.userData["coverBoard"]===true,uv=mesh.geometry.getAttribute("uv"),p=mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
+       for(let i=0;i<p.count;i++){const u=uv.getX(i),v=uv.getY(i),x=u-.5;p.setXYZ(i,rigid?x*(1+2*COVER_OVERHANG)+(index===0?-1:1)*COVER_OVERHANG:x,(v-.5)*(ratio+(rigid?2*COVER_OVERHANG:0)),rigid?COVER_HEIGHT:.014+.022*Math.sin(Math.PI*u));}
+       p.needsUpdate=true;mesh.geometry.computeVertexNormals();
+     });
+     const thickness=style==="flipbook"?.018:Math.min(hard?.14:.075,(hard?.055:.025)+pages*.00045),board=hard?.024:soft?.004:.001;
+     spine.visible=style!=="flipbook";spine.scale.set((thickness+2*board)/2,ratio,(thickness+2*board)/2);spine.position.x=-.5+(thickness+2*board)/2;
+     block.scale.set(.98,ratio-.018,thickness);frontBoard.scale.set(1+2*profile.overhang,ratio+2*profile.overhang,board);backBoard.scale.copy(frontBoard.scale);
+     frontBoard.position.z=thickness/2+board/2;backBoard.position.z=-thickness/2-board/2;
+     const coverWidth=hard?1+2*profile.overhang:1,coverHeight=hard?ratio+2*profile.overhang:ratio;
+     art.scale.set(coverWidth,coverHeight,1);art.position.z=thickness/2+board+.001;rear.scale.copy(art.scale);rear.position.z=-thickness/2-board-.001;
+     const positions=plane.getAttribute("position") as THREE.BufferAttribute;for(let i=0;i<positions.count;i++){const x=positions.getX(i);positions.setZ(i,soft?.018*Math.sin(Math.PI*(x+.5)):0);}positions.needsUpdate=true;plane.computeVertexNormals();
+     fan.forEach((mesh,i)=>{mesh.visible=style==="flipbook";mesh.scale.set(1,ratio,1);mesh.rotation.z=(i+1)*.018;mesh.position.z=-thickness/2-(i+1)*.002;});
+     book.rotation.x=-.10;const height=ratio+2*profile.overhang,depth=open?.07:thickness+2*board;
+     book.position.set(0,height/2*Math.cos(.1)+depth/2*Math.sin(.1)+.01,-.12+height/2*Math.sin(.1)+depth/2*Math.cos(.1)+.006);
+   }
+   binding.set(style,true);binding.sync([spreadPages[0]!.visible,spreadPages[1]!.visible],spreadPages.map(mesh=>hard&&mesh.userData["coverBoard"]===true) as [boolean,boolean]);
+   for(const m of [artMaterial,backMaterial,...spreadMaterials])paper.apply(m,options.finish);
+   setSurface(0,options.wall,options.colour);setSurface(1,options.floor,options.floorColour);scene.background=new THREE.Color(options.colour);setLighting();request();
+ };
+ apply();
+ return {
+   set(value:ShootOptions){options=value;apply();},
+   setSpread(canvases:readonly [HTMLCanvasElement|null,HTMLCanvasElement|null]|null){
+     open=Boolean(canvases);spreadMaterials.forEach((m,i)=>{const old=m.map;if(old){old.dispose();textures.delete(old);}const canvas=canvases?.[i];m.map=canvas?texture(canvas):null;m.needsUpdate=true;spreadPages[i]!.visible=Boolean(canvas);spreadPages[i]!.userData["coverBoard"]=canvas?.dataset["coverBoard"]==="true";});apply();
+   },
+   async png(){
+     let pending:Promise<void>[];do{pending=[pendingEnvironment,...surfaces.map(s=>s.pending)];await Promise.all([...pending,paper.ready()]);}while(pending[0]!==pendingEnvironment||pending[1]!==surfaces[0]!.pending||pending[2]!==surfaces[1]!.pending);
+     if(disposed)throw new Error("Photo shoot closed.");if(renderer.getContext().isContextLost())throw new Error("Graphics were interrupted. Reopen Photo shoot.");const width=Math.min(2048,Math.floor(renderer.capabilities.maxTextureSize/1.25)),height=Math.round(width*1.25);
+     try{render(width,height);return await new Promise<Blob>((resolve,reject)=>renderer.domElement.toBlob(blob=>blob?resolve(blob):reject(new Error("The image could not be exported.")),"image/png"));}finally{if(!disposed)paint();}
+   },
+   dispose(){disposed=true;environmentRevision++;surfaces.forEach(s=>s.revision++);cancelAnimationFrame(frame);observer.disconnect();renderer.domElement.removeEventListener("webglcontextlost",lost);binding.dispose();paper.dispose();diffuser.dispose();pmrem.dispose();environment?.dispose();masks.forEach(t=>t.dispose());textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());key.shadow.map?.dispose();sun.shadow.map?.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();},
+ };
 }
