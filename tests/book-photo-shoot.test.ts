@@ -35,3 +35,17 @@ test("photo camera stays in front of the wall and above the floor within bounded
  const clamp=shootCamera(90,80,5,1.4,.8),bounded=shootCamera(40,25,1.4,1.4,.8);
  assert.ok(clamp.position.distanceTo(bounded.position)<1e-9);
 });
+
+test("photo lighting follows the selected editor HDRI and paper",async()=>{
+ const {photoLighting,photoSpreadPages}=await import("../src/lib/portfolia/photo-settings");
+ assert.deepEqual(photoLighting({studioLighting:"12",finish:"paper_0027",studioBrightness:1.2,studioLightingStrength:.35,studioTopLight:.4}),{hdri:"12",finish:"paper_0027",brightness:1.2,strength:.35,topLight:.4});
+ assert.deepEqual(photoSpreadPages(1,14),[null,1]);assert.deepEqual(photoSpreadPages(2,14),[2,3]);assert.deepEqual(photoSpreadPages(3,14),[2,3]);assert.deepEqual(photoSpreadPages(14,14),[14,null]);
+ assert.deepEqual(photoSpreadPages(500,13),[12,13]);
+ const closed=shootCamera(20,10,1,1.4,.8),spread=shootCamera(20,10,1,1.4,.8,2.1);
+ assert.ok(spread.position.distanceTo(spread.target)>closed.position.distanceTo(closed.target));
+});
+test("wall and floor presets provide colour, normal and roughness files",async()=>{
+ const {BACKGROUND_PRESETS,backgroundSurfaceMaps}=await import("../src/lib/portfolia/background-presets");
+ const {existsSync}=await import("node:fs");
+ for(const preset of BACKGROUND_PRESETS){const maps=backgroundSurfaceMaps(preset.url)!;for(const file of [preset.url,maps.normal,maps.roughness])assert.ok(existsSync(`public${file}`),file);}
+});
