@@ -53,3 +53,38 @@ test("mouse progress maps to the eased video frame and can rewind", () => {
   for (const p of [.001,.05,.25,.5,.75,.95,.999]) assert.ok(Math.abs(turnEase(turnVideoTime(p))-p)<1e-6);
   assert.ok(turnVideoTime(.2)<turnVideoTime(.8));
 });
+
+test("every custom motion starts/ends exactly and moves monotonically in both directions", async () => {
+  const { TURN_STYLES, styledTurnEase } = await import("../src/lib/portfolia/turn-motion");
+  for (const {id} of TURN_STYLES) {
+    assert.equal(styledTurnEase(0,id),0);assert.equal(styledTurnEase(1,id),1);
+    assert.equal(styledTurnEase(-1,id),0);assert.equal(styledTurnEase(2,id),1);
+    let previous=0;
+    for(let i=0;i<=1000;i++) {
+      const t=styledTurnEase(i/1000,id);
+      assert.ok(t>=previous && t>=0 && t<=1);previous=t;
+      assert.ok(1-t>=0 && 1-t<=1);
+    }
+    for(const p of [.001,.05,.25,.5,.75,.95,.999]) assert.ok(Math.abs(styledTurnEase(turnVideoTime(p,id),id)-p)<1e-6);
+  }
+});
+test("old portfolios retain exact classic timing; invalid saved settings have bounded defaults", async () => {
+  const { styledTurnEase, readableTurnStyle, readableTurnSpeed, turnDurationScale } = await import("../src/lib/portfolia/turn-motion");
+  for(let i=0;i<=100;i++) assert.equal(styledTurnEase(i/100),turnEase(i/100));
+  assert.equal(turnDurationScale(undefined,undefined),1);
+  assert.equal(readableTurnStyle("unrecognised"),"classic");
+  for(const value of [undefined,null,"2",NaN,Infinity,-Infinity]) assert.equal(readableTurnSpeed(value),1);
+  assert.equal(readableTurnSpeed(-100),.5);assert.equal(readableTurnSpeed(100),2);
+  assert.equal(turnDurationScale("soft",1),1.35);assert.equal(turnDurationScale("snappy",1),.72);
+  assert.equal(turnDurationScale("classic",2),.5);assert.equal(turnDurationScale("classic",.5),2);
+});
+test("frame-count video capture uses the same motion curve and customised duration as live turns", async () => {
+  const { TURN_STYLES, styledTurnEase, turnDurationScale } = await import("../src/lib/portfolia/turn-motion");
+  for(const {id} of TURN_STYLES) {
+    const duration=805*turnDurationScale(id,1.25),samples:number[]=[];
+    await captureFrames(duration,t=>samples.push(styledTurnEase(t,id)),async()=>{});
+    assert.equal(samples.length,Math.ceil(duration*60/1000)+1);
+    samples.forEach((p,i)=>assert.equal(p,styledTurnEase(i/(samples.length-1),id)));
+    assert.equal(samples[0],0);assert.equal(samples.at(-1),1);
+  }
+});
