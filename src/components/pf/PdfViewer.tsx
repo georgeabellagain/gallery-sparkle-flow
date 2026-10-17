@@ -794,7 +794,7 @@ export function PdfViewer({
 
       {(mode !== "book" || (renderedStudio && !compact)) && enabledLooks.length > 1 && showControls && (
         <div className="absolute bottom-1.5 left-1.5 z-30 flex w-fit">
-          <Segmented className="bg-white text-black [&_[role=radio]]:text-black [&_[aria-checked=true]]:bg-slate-900 [&_[aria-checked=true]]:text-white" label="Page appearance" value={activeLook} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={changeLook} />
+          <Segmented className="bg-white text-black [&_[role=radio]]:text-black [&_[role=radio][aria-checked=true]]:bg-slate-900 [&_[role=radio][aria-checked=true]]:text-white" label="Page appearance" value={activeLook} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={changeLook} />
         </div>
       )}
 

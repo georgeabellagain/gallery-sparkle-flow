@@ -1,4 +1,6 @@
 import { AccessSettings } from "./AccessSettings";
+import { AddressSettings } from "./AddressSettings";
+import { UpgradeModal } from "./UpgradeModal";
 import { ShareCover } from "./ShareCover";
 import { VideoExportPanel } from "./VideoExportPanel";
 import { useState } from "react";
@@ -7,16 +9,20 @@ import { Button } from "@/components/ui/button";
 import { EmbedModal } from "@/components/pf/EmbedModal";
 import { PortfolioQrCode } from "@/components/pf/PortfolioQrCode";
 import { retrySync, useSyncStatus } from "@/lib/portfolia/cloud";
-import { useDoc, type Portfolio } from "@/lib/portfolia/store";
+import { allPortfolios, getSavedDoc, personalActive, useDoc, type Portfolio } from "@/lib/portfolia/store";
 
 /** Share a portfolio by link, QR code or embed. The same three ways the dashboard offers. */
 export function ShareActions({ p }: { p: Portfolio }) {
   const signedIn = useDoc().account.signedIn;
   const sync = useSyncStatus();
   const [dialog, setDialog] = useState<null | "qr" | "embed" | "video">(null);
+  const [upgrade, setUpgrade] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const sharePath = `/p/${p.code}`;
+  const personal = p.plan === "personal";
+  // Prefer the personalised address once it is saved (not just previewed); /p/<code> always keeps working.
+  const saved = allPortfolios(getSavedDoc()).find(x => x.code === p.code);
+  const sharePath = saved && personalActive(saved) ? `/${saved.username}` : `/p/${p.code}`;
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const published = p.status === "published";
   const copy = async () => {
@@ -42,8 +48,8 @@ export function ShareActions({ p }: { p: Portfolio }) {
         {published && <Button size="sm" variant="line" onClick={() => setDialog("embed")}><Code2 /> Embed</Button>}
       </div>
       {p.pdf && <div className="mt-4 border-t border-border pt-4">
-        <Button size="sm" variant="line" disabled={!signedIn || p.plan !== "personal"} onClick={() => setDialog("video")}><Video /> Export HD video</Button>
-        <p className="mt-2 text-xs text-muted-foreground">Personal includes a downloadable HD video of your flipbook turning through every page.</p>
+        <Button size="sm" variant="line" disabled={!signedIn} onClick={() => personal ? setDialog("video") : setUpgrade("HD flipbook video export")}><Video /> Export HD video{!personal && <span className="rounded-full bg-leaf-soft px-1.5 py-0.5 text-xxs text-leaf">Personal</span>}</Button>
+        <p className="mt-2 text-xs text-muted-foreground">A 1080p video of your flipbook turning through every page, ready for Instagram, LinkedIn or a showreel.</p>
       </div>}
       {dialog === "video" && <VideoExportPanel p={p} onClose={() => setDialog(null)} />}
       <span role="status" className="sr-only">{copied ? "Portfolio link copied" : ""}</span>
@@ -55,7 +61,9 @@ export function ShareActions({ p }: { p: Portfolio }) {
         <summary className="cursor-pointer text-sm font-medium">Link preview image</summary>
         <ShareCover p={p} />
       </details>
-      {signedIn && <details className="mt-4 border-t border-border pt-4"><summary className="cursor-pointer text-sm font-medium">Password and expiry</summary><AccessSettings code={p.code} /></details>}
+      {signedIn && <details className="mt-4 border-t border-border pt-4"><summary className="cursor-pointer text-sm font-medium">Personalised address {!personal && <span className="ml-1 rounded-full bg-leaf-soft px-1.5 py-0.5 text-xxs font-normal text-leaf">Personal</span>}</summary><AddressSettings p={p} onUpgrade={() => setUpgrade("Your own portfolia.site address")} /></details>}
+      {signedIn && <details className="mt-4 border-t border-border pt-4"><summary className="cursor-pointer text-sm font-medium">Password and expiry {!personal && <span className="ml-1 rounded-full bg-leaf-soft px-1.5 py-0.5 text-xxs font-normal text-leaf">Personal</span>}</summary><AccessSettings code={p.code} />{!personal && <Button size="sm" className="mt-3" onClick={() => setUpgrade("Password protection")}>Unlock with Personal</Button>}</details>}
+      <UpgradeModal open={upgrade !== null} reason={upgrade ?? undefined} onClose={() => setUpgrade(null)} />
       <PortfolioQrCode open={dialog === "qr"} onClose={() => setDialog(null)} url={origin + sharePath} name={p.profile.name} />
       <EmbedModal open={dialog === "embed"} onClose={() => setDialog(null)} url={`${origin}/embed/${p.code}`} title={p.profile.name || "Portfolio"} />
     </section>

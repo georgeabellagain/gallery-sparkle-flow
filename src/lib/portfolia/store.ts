@@ -500,7 +500,9 @@ export function resetAll() {
 
 /* ---------- Addresses ---------- */
 
-export const RESERVED = ["hdri-book-visualisation", "scrapbook-preview", "zine-flipbook", "magazine-flipbook", "admin", "support", "www", "api", "app", "mail", "help", "blog", "login", "signin", "portfolia", "status", "billing", "dashboard", "create", "p", "u", "reset-password", "signup", "account", "pricing", "terms", "privacy", "refund", "portfolio-checker", "embed-flipbook-in-squarespace", "embed-flipbook-in-wix", "embed-flipbook-in-notion", "sitemap.xml", "robots.txt", "sample", "free-pdf-portfolio", "free-portfolio-website", "architecture-portfolio", "fashion-portfolio"];
+export const RESERVED = ["hdri-book-visualisation", "scrapbook-preview", "zine-flipbook", "magazine-flipbook", "admin", "support", "www", "api", "app", "mail", "help", "blog", "login", "signin", "portfolia", "status", "billing", "dashboard", "create", "p", "u", "reset-password", "signup", "account", "pricing", "terms", "privacy", "refund", "portfolio-checker", "embed-flipbook-in-squarespace", "embed-flipbook-in-wix", "embed-flipbook-in-notion", "sitemap.xml", "robots.txt", "sample", "free-pdf-portfolio", "free-portfolio-website", "architecture-portfolio", "fashion-portfolio",
+  // Every other static route: a personalised address with one of these names could never be reached.
+  "art-portfolio", "book-marketing", "edit", "embed", "flipbook-alternatives", "flipbooklets-alternative", "fliphtml5-alternative", "flipsnack-alternative", "free-pdf-flipbook", "graphic-design-portfolio", "heyzine-alternative", "illustration-portfolio", "interior-design-portfolio", "issuu-alternative", "landscape-architecture-portfolio", "marketing-portfolio", "paperturn-alternative", "pdfdeck-alternative", "photography-portfolio", "product-design-portfolio", "professional-portfolio", "publuu-alternative", "student-portfolio", "ux-design-portfolio"];
 
 export function checkUsername(raw: string): { ok: boolean; msg: string } {
   const u = raw.trim().toLowerCase();

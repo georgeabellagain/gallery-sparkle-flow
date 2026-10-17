@@ -1,12 +1,13 @@
-import { PlanCard as Plan } from "@/components/pf/PlanCard";
+import { PricingPlans, type Billing } from "@/components/pf/PricingPlans";
 import { softwareSchema } from "@/lib/portfolia/software-schema";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight } from "lucide-react";
-import { SiteHeader, SiteFooter, DemoNote, LOCAL_NOTE } from "@/components/pf/Chrome";
+import { ArrowRight, Check, Minus } from "lucide-react";
+import { SiteHeader, SiteFooter } from "@/components/pf/Chrome";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
 import { Button } from "@/components/ui/button";
 import { PRICE } from "@/lib/portfolia/store";
+import { PLAN_COMPARISON, PLAN_FAQ, type ComparisonValue } from "@/lib/portfolia/plans";
 
 export const Route = createFileRoute("/pricing")({
   staticData: { sitemap: true },
@@ -16,7 +17,7 @@ export const Route = createFileRoute("/pricing")({
       {
         name: "description",
         content:
-          `Free PDF portfolio hosting with Simple and Studio flipbooks, QR codes and embedding. Personal is ${PRICE.month}/month or ${PRICE.year}/year for more portfolios, larger PDFs and HD flipbook video downloads.`,
+          `Free PDF portfolio hosting with a 3D flipbook, QR code and website embedding. Personal is ${PRICE.month}/month or ${PRICE.year}/year for your own address, password protection, no branding and more portfolios.`,
       },
       { property: "og:title", content: "Pricing — Portfolia PDF Portfolio Hosting" },
       {
@@ -28,119 +29,116 @@ export const Route = createFileRoute("/pricing")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
-    scripts: [{ type: "application/ld+json", children: JSON.stringify(softwareSchema) }],
+    scripts: [
+      { type: "application/ld+json", children: JSON.stringify(softwareSchema) },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: PLAN_FAQ.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+        }),
+      },
+    ],
     links: [{ rel: "canonical", href: "https://portfolia.site/pricing" }],
   }),
   component: PricingPage,
 });
 
+function Cell({ value }: { value: ComparisonValue }) {
+  if (value === true) return <Check className="mx-auto size-4 text-leaf" aria-label="Included" />;
+  if (value === false) return <Minus className="mx-auto size-4 text-muted-foreground/60" aria-label="Not included" />;
+  return <span>{value}</span>;
+}
+
 function PricingPage() {
   const [upgrade, setUpgrade] = useState(false);
+  const [billing, setBilling] = useState<Billing>("year");
 
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader
         right={
-          <Link to="/" hash="upload" className="hover:underline underline-offset-4">
-            Create a portfolio
-          </Link>
+          <Button asChild size="sm" className="bg-black text-white hover:bg-black/80">
+            <Link to="/" hash="upload">Create a portfolio</Link>
+          </Button>
         }
       />
       <main className="flex-1">
-        <section className="shell py-14 sm:py-16">
-          <h1 className="display-title text-3xl sm:text-4xl">Pricing</h1>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground">
-            Start free with one PDF portfolio and a permanent sharing address. Move to
-            Personal for larger PDFs, more portfolios and HD flipbook video downloads.
+        <section className="shell py-14 text-center sm:py-20">
+          <h1 className="display-title text-4xl sm:text-6xl">Simple pricing. Free to start.</h1>
+          <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+            Put one portfolio online free, forever. Upgrade to Personal when you want your own address,
+            password protection and no Portfolia branding.
           </p>
+          <PricingPlans
+            className="mt-10 text-left"
+            onChoosePersonal={(b) => { setBilling(b); setUpgrade(true); }}
+            freeAction={
+              <Button asChild variant="line" size="lg" className="w-full">
+                <Link to="/" hash="upload">Start for free <ArrowRight className="size-4" aria-hidden /></Link>
+              </Button>
+            }
+          />
+          <p className="mx-auto mt-5 max-w-5xl text-xs text-muted-foreground">
+            Prices include any applicable taxes, shown before checkout. Secure payment by Paddle.
+          </p>
+        </section>
 
-          <div className="mx-auto mt-10 grid max-w-5xl gap-5 sm:grid-cols-2">
-            <Plan
-              name="Free"
-              price="£0"
-              description="A complete, permanent starting point for one portfolio."
-              items={[
-                "One PDF portfolio up to 10 MB",
-                "Permanent Portfolia sharing address",
-                "Downloadable personal QR code",
-                "Profile and contact links",
-                "Simple and 3D Studio flipbooks",
-                "4 HDRIs and 2 backgrounds; preview the full collection",
-                "Scroll and page-by-page viewing",
-                "Embed your portfolio on another website",
-                "Basic visit statistics",
-                "Replace your PDF without changing its link",
-                "Small Portfolia credit",
-              ]}
-              action={
-                <Button asChild variant="line" size="lg" className="w-full">
-                  <Link to="/" hash="upload">
-                    Start for free <ArrowRight className="size-4" aria-hidden />
-                  </Link>
-                </Button>
-              }
-            />
-            <Plan
-              name="Personal"
-              price={PRICE.month} period="/month" alternative={`${PRICE.year} billed yearly`}
-              description="More room for your work, with larger PDFs and multiple portfolios."
-              featured
-              items={[
-                "Everything included in Free",
-                "Up to 10 portfolios, each up to 50 MB",
-                "All 15 HDRIs, all backgrounds and uploaded pictures",
-                "Download your flipbook as a 1080p HD video",
-              ]}
-              action={
-                <Button size="lg" className="w-full bg-black text-white hover:bg-black/80" onClick={() => setUpgrade(true)}>
-                  Choose Personal
-                </Button>
-              }
-            />
+        <section aria-labelledby="compare-title" className="rule-t bg-canvas">
+          <div className="shell max-w-4xl py-14">
+            <h2 id="compare-title" className="display-title text-3xl">Compare plans</h2>
+            <div className="mt-6 overflow-x-auto border border-border bg-background" tabIndex={0} aria-label="Plan comparison table; scroll horizontally on small screens">
+              <table className="w-full min-w-[520px] text-sm">
+                <caption className="sr-only">Free and Personal plan features</caption>
+                <thead>
+                  <tr className="border-b border-border">
+                    <th scope="col" className="p-4 text-left font-medium">Feature</th>
+                    <th scope="col" className="w-32 p-4 text-center font-medium">Free</th>
+                    <th scope="col" className="w-32 bg-leaf-soft/60 p-4 text-center font-medium text-leaf">Personal</th>
+                  </tr>
+                </thead>
+                {PLAN_COMPARISON.map((group) => (
+                  <tbody key={group.group}>
+                    <tr><th scope="rowgroup" colSpan={3} className="bg-muted px-4 py-2 text-left text-xxs font-semibold uppercase tracking-wide text-muted-foreground">{group.group}</th></tr>
+                    {group.rows.map((row) => (
+                      <tr key={row.label} className="border-t border-border">
+                        <th scope="row" className="p-4 text-left font-normal">{row.label}</th>
+                        <td className="p-4 text-center text-muted-foreground"><Cell value={row.free} /></td>
+                        <td className="bg-leaf-soft/30 p-4 text-center"><Cell value={row.personal} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                ))}
+              </table>
+            </div>
           </div>
+        </section>
 
-          <p className="mx-auto mt-4 max-w-5xl text-xs text-muted-foreground">
-            Prices are shown before checkout and include any applicable taxes at
-            payment. You may cancel at any time; cancellation does not immediately
-            delete your work.
-          </p>
-
-          <div className="mx-auto mt-12 max-w-2xl">
-            <h2 className="text-sm font-medium">Questions</h2>
-            <dl className="mt-4 space-y-5 text-sm">
-              <div>
-                <dt className="font-medium">Can I change plan later?</dt>
-                <dd className="mt-1 text-muted-foreground">
-                  Yes. You can move between monthly and yearly billing, or back to Free,
-                  at any time from your dashboard.
-                </dd>
-              </div>
-              <div>
-                <dt className="font-medium">What happens if I cancel?</dt>
-                <dd className="mt-1 text-muted-foreground">
-                  Access continues to the end of the paid period, your portfolios keep
-                  their existing links, and nothing is deleted when you cancel.
-                </dd>
-              </div>
-              <div>
-                <dt className="font-medium">How do people find my portfolio?</dt>
-                <dd className="mt-1 text-muted-foreground">
-                  Every portfolio gets a permanent Portfolia link and a QR code, ready to share anywhere.
-                </dd>
-              </div>
-            </dl>
+        <section aria-labelledby="faq-title" className="rule-t">
+          <div className="shell max-w-3xl py-14">
+            <h2 id="faq-title" className="display-title text-3xl">Questions</h2>
+            <div className="mt-6 divide-y divide-border border-y border-border">
+              {PLAN_FAQ.map((f) => (
+                <details key={f.q} className="group py-4">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium [&::-webkit-details-marker]:hidden">
+                    {f.q}
+                    <span aria-hidden className="text-lg leading-none text-muted-foreground transition-transform group-open:rotate-45">+</span>
+                  </summary>
+                  <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
+                </details>
+              ))}
+            </div>
             <p className="mt-6 text-xs text-muted-foreground">
-              See our <Link to="/refund" className="underline underline-offset-4">refund policy</Link> and{" "}
+              Still unsure? Email <a href="mailto:hello@portfolia.site" className="underline underline-offset-4">hello@portfolia.site</a>. See our{" "}
+              <Link to="/refund" className="underline underline-offset-4">refund policy</Link> and{" "}
               <Link to="/terms" className="underline underline-offset-4">terms</Link>.
             </p>
           </div>
-
-          <DemoNote className="mt-10 max-w-2xl">{LOCAL_NOTE}</DemoNote>
         </section>
       </main>
       <SiteFooter />
-      <UpgradeModal open={upgrade} onClose={() => setUpgrade(false)} />
+      <UpgradeModal open={upgrade} initialBilling={billing} onClose={() => setUpgrade(false)} />
     </div>
   );
 }
-

@@ -2,7 +2,8 @@ import { AnalyticsPanel } from "@/components/pf/AnalyticsPanel";
 import { totalAnalytics } from "@/lib/portfolia/analytics";
 import { createFileRoute, Link, useHydrated, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Eye, Pencil, Share2, Upload } from "lucide-react";
+import { Check, Eye, Pencil, Share2, Upload } from "lucide-react";
+import { PERSONAL_FEATURES, YEARLY_PER_MONTH } from "@/lib/portfolia/plans";
 import { SiteHeader, SiteFooter, Modal, useBlob, useObjectUrl } from "@/components/pf/Chrome";
 import { DropZone } from "@/components/pf/DropZone";
 import { PdfViewer } from "@/components/pf/PdfViewer";
@@ -18,7 +19,7 @@ import { getPortalUrl } from "@/lib/payments.functions";
 import { getPaddleEnvironment } from "@/lib/paddle";
 import { submitFeedback } from "@/lib/feedback.functions";
 import {
-  allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, switchPortfolio,
+  allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, personalActive, switchPortfolio,
   getDoc, startPortfolio, update, uploadLimitMb, useDoc, DEFAULT_VIEWER, type Portfolio,
 } from "@/lib/portfolia/store";
 
@@ -145,7 +146,7 @@ function Dashboard() {
                 </div>
                 <div className="pt-4">
                   <h3 className="truncate text-sm font-medium">{portfolio.name?.trim() || portfolio.pdf?.name?.replace(/\.pdf$/i, "") || portfolio.profile.name || "Untitled portfolio"}</h3>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">{`/p/${portfolio.code}`}</p>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">{personalActive(portfolio) ? `/${portfolio.username}` : `/p/${portfolio.code}`}</p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Button size="sm" variant="line" onClick={() => openFor(portfolio.code, "share")}><Share2 /> Share</Button>
                     <Button size="sm" variant="line" asChild><Link to="/p/$slug" params={{ slug: portfolio.code }} search={{ preview: "1" }}><Eye /> Preview</Link></Button>
@@ -163,8 +164,15 @@ function Dashboard() {
             <p className="mt-2 text-sm">{p.plan === "personal" ? `Personal — billed ${p.billing === "month" ? "monthly" : "yearly"}` : "Free"}</p>
             {checkoutDone && !sub && <p role="status" className="mt-1 text-xs text-muted-foreground">Payment received — confirming your plan…</p>}
             {sub?.status === "past_due" && <p role="alert" className="mt-1 text-xs text-destructive">Your last payment didn’t go through. Please update your card.</p>}
+            {p.plan === "free" && <div className="mt-4 border border-leaf/40 bg-leaf-soft/50 p-5">
+              <p className="text-sm font-medium">Make your portfolio unmistakably yours</p>
+              <ul className="mt-3 space-y-1.5 text-sm text-muted-foreground">
+                {PERSONAL_FEATURES.slice(0, 4).map(f => <li key={f} className="flex gap-2"><Check className="mt-1 size-3.5 shrink-0 text-leaf" aria-hidden />{f}</li>)}
+              </ul>
+              <p className="mt-3 text-xs text-muted-foreground">From {YEARLY_PER_MONTH}/month, billed yearly. Cancel anytime.</p>
+            </div>}
             <div className="mt-4 flex flex-wrap gap-2">
-              {p.plan === "free" ? <Button size="sm" onClick={() => setDialog("upgrade")}>See Personal plan</Button> : <>
+              {p.plan === "free" ? <Button size="sm" onClick={() => setDialog("upgrade")}>Upgrade to Personal</Button> : <>
                 {sub && sub.status !== "canceled" && <Button size="sm" variant="quiet" onClick={() => setDialog("cancel")}>{sub.status === "past_due" ? "Update card" : "Manage billing"}</Button>}
               </>}
             </div>
