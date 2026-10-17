@@ -1,3 +1,4 @@
+import { readableTurnCurve, type TurnCurve } from "./turn-curve";
 import { createCachedLightMask } from "./cached-light-mask";
 import { createSettledPaperCache } from "./settled-paper";
 import { presetShadow } from "./lighting";
@@ -29,6 +30,7 @@ export type StudioSettings = {
   studio: boolean;
   turnStyle?: TurnStyle;
   turnSpeed?: number;
+  turnCurve?: TurnCurve;
   material: SurfaceKind;
   /** 0..1 overall studio brightness. */
   brightness: number;
@@ -837,8 +839,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const posesForTurn = (from: BookFaces, to: BookFaces, dir: 1 | -1) => {
     const seeds = [seedFor(from[dir === 1 ? 1 : 0]), seedFor(to[dir === 1 ? 0 : 1])];
     const restingSeeds = [seedFor(dir === 1 ? from[0] : to[0]), seedFor(dir === 1 ? to[1] : from[1])];
-    const key = `${dir}|${seeds.join(":")}|${restingSeeds.join(":")}`;
-    return turnGeometryCache.get(key, () => bakeTurnGeometry(geometry, turnGeometryWriter(geometry, ratio, dir, seeds, restingSeeds, SHEET_CLEARANCE), 128, [restingTurnNormals(geometry, ratio, dir, seeds[0]!, dir), restingTurnNormals(geometry, ratio, -dir as 1 | -1, seeds[1]!, -dir)]));
+    const curve = readableTurnCurve(settings.turnCurve);
+    const key = `${curve}|${dir}|${seeds.join(":")}|${restingSeeds.join(":")}`;
+    return turnGeometryCache.get(key, () => bakeTurnGeometry(geometry, turnGeometryWriter(geometry, ratio, dir, seeds, restingSeeds, SHEET_CLEARANCE, curve), 128, [restingTurnNormals(geometry, ratio, dir, seeds[0]!, dir), restingTurnNormals(geometry, ratio, -dir as 1 | -1, seeds[1]!, -dir)]));
   };
   const shape = (progress: number, dir: 1 | -1) => {
     shadowsDirty = true;
