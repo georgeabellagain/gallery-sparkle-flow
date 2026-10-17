@@ -20,6 +20,8 @@ test("all bundled backgrounds have matching linear surface maps", async () => {
   for (const preset of BACKGROUND_PRESETS) {
     const maps = backgroundSurfaceMaps(preset.url)!;
     assert.ok(maps);
+    assert.ok(existsSync(`public${preset.url}`));
+    assert.ok(existsSync(`public${preset.url.replace(".webp","-thumb.webp")}`));
     assert.ok(existsSync(`public${maps.normal}`));
     assert.ok(existsSync(`public${maps.roughness}`));
   }

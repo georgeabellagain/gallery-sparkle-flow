@@ -30,3 +30,18 @@ mode, fit or viewport. Page turns and camera movement reuse them. Existing HDRI
 prefiltering and cached shadows remain reusable because the surface does not
 change the environment. No displacement geometry or extra shadow pass is added.
 Uploaded backgrounds use estimated normal relief, with constant matte roughness.
+
+## Expanded photo shoot collection — 17 October 2026
+
+Ten additional Poly Haven CC0 materials, with matched 1K diffuse, OpenGL normal and roughness maps and 256px thumbnails. JPG source maps converted to WebP (normal quality 88; colour/roughness 80). These load on selection, in both viewer backgrounds and independent photo shoot surfaces.
+
+- Cloud plaster: https://polyhaven.com/a/grey_plaster_03
+- Fine grey plaster: https://polyhaven.com/a/plaster_grey_04
+- White stucco: https://polyhaven.com/a/white_stucco_02
+- Chalk plaster: https://polyhaven.com/a/white_plaster_02
+- Trowelled clay: https://polyhaven.com/a/patterned_clay_plaster
+- Wood slats: https://polyhaven.com/a/synthetic_wood
+- Polished wood: https://polyhaven.com/a/wood_table_001
+- Pale marble: https://polyhaven.com/a/marble_tiles_02
+- Wool herringbone: https://polyhaven.com/a/poly_wool_herringbone
+- Plastered brick: https://polyhaven.com/a/plaster_brick_pattern

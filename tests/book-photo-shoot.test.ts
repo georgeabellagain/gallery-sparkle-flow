@@ -49,3 +49,29 @@ test("wall and floor presets provide colour, normal and roughness files",async()
  const {existsSync}=await import("node:fs");
  for(const preset of BACKGROUND_PRESETS){const maps=backgroundSurfaceMaps(preset.url)!;for(const file of [preset.url,maps.normal,maps.roughness])assert.ok(existsSync(`public${file}`),file);}
 });
+
+test("cover framing returns to the same centre after opening any spread",async()=>{
+ const {visibleBookBounds}=await import("../src/lib/portfolia/book-model");
+ const book=new THREE.Group(),closed=new THREE.Group(),spread=new THREE.Group();book.add(closed,spread);
+ book.position.set(0,.76,.03);book.rotation.x=-.1;
+ closed.add(new THREE.Mesh(new THREE.BoxGeometry(1,1.4,.1)));
+ const hiddenFan=new THREE.Mesh(new THREE.BoxGeometry(20,20,20));hiddenFan.visible=false;closed.add(hiddenFan);
+ spread.add(new THREE.Mesh(new THREE.BoxGeometry(2.1,1.4,.07)));
+ const camera=new THREE.PerspectiveCamera(35,.8,.1,100);
+ const pose=()=>{const bounds=visibleBookBounds(book),size=bounds.getSize(new THREE.Vector3());return shootCamera(35,18,1,1.4,.8,size.x,bounds.getCenter(new THREE.Vector3()));};
+ spread.visible=false;const before=pose();
+ for(let i=0;i<5;i++){
+  closed.visible=false;spread.visible=true;spread.position.x=i%2?.5:0;
+  const open=pose();camera.position.copy(open.position);camera.lookAt(open.target);camera.updateMatrixWorld(true);
+  const projected=open.target.clone().project(camera);assert.ok(Math.abs(projected.x)<1e-9&&Math.abs(projected.y)<1e-9);
+  spread.visible=false;closed.visible=true;const after=pose();
+  assert.ok(after.target.distanceTo(before.target)<1e-9);assert.ok(after.position.distanceTo(before.position)<1e-9);
+ }
+});
+test("case spine is a capped half curve and page lines follow thickness",async()=>{
+ const {caseSpineGeometry,pageBlockGeometry,coverBoardGeometry}=await import("../src/lib/portfolia/book-model");
+ const spine=caseSpineGeometry();spine.computeBoundingBox();assert.ok(spine.boundingBox!.max.z<1e-7);assert.ok(spine.boundingBox!.min.z<-.99);
+ const pages=pageBlockGeometry(),p=pages.getAttribute("position"),uv=pages.getAttribute("uv");for(let i=0;i<p.count;i++)assert.equal(uv.getY(i),p.getZ(i)+.5);
+ const board=coverBoardGeometry(1,1.4,.014);assert.ok(board.getAttribute("position").count>24);
+ [spine,pages,board].forEach(g=>g.dispose());
+});
