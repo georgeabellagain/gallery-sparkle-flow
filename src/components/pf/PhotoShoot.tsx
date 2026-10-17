@@ -400,7 +400,7 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                 {tool === "customise"
                   ? "Customise"
                   : tool === "camera"
-                    ? "Camera & pages"
+                    ? "Camera"
                     : "Export photograph"}
               </h3>
               <Button
@@ -432,6 +432,22 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                     </button>
                   ))}
                 </div>
+                <label className="block space-y-2">
+                  <span>Page or spread</span>
+                  <select
+                    aria-label="Photo shoot page or spread"
+                    value={selectedPage}
+                    onChange={(e) => setSelectedPage(Number(e.target.value))}
+                    className="w-full rounded border border-border bg-background p-2"
+                  >
+                    <option value={0}>Closed cover</option>
+                    {Array.from({ length: p.pdf?.pages ?? 0 }, (_, i) => (
+                      <option key={i + 1} value={i + 1}>
+                        Page {i + 1} · show its spread
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <nav
                   aria-label="Photo appearance settings"
                   className="flex gap-1 border-b border-border pb-3"
@@ -549,22 +565,6 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
             {tool === "camera" && (
               <div className="space-y-5">
                 <p className="text-muted-foreground">Drag the preview to choose an angle.</p>
-                <label className="block space-y-2">
-                  <span>Book presentation</span>
-                  <select
-                    aria-label="Photo shoot page or spread"
-                    value={selectedPage}
-                    onChange={(e) => setSelectedPage(Number(e.target.value))}
-                    className="w-full rounded border border-border bg-background p-2"
-                  >
-                    <option value={0}>Closed cover</option>
-                    {Array.from({ length: p.pdf?.pages ?? 0 }, (_, i) => (
-                      <option key={i + 1} value={i + 1}>
-                        Page {i + 1} · show its spread
-                      </option>
-                    ))}
-                  </select>
-                </label>
                 {(
                   [
                     ["yaw", "Camera angle", -40, 40, 1],
