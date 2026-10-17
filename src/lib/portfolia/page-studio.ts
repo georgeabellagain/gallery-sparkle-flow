@@ -1,3 +1,4 @@
+import { createCachedLightMask } from "./cached-light-mask";
 import { presetShadow } from "./lighting";
 import { createPaperTextures } from "./paper-textures";
 import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
@@ -40,6 +41,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   scene.add(ambient, key, sun, sun.target);
   key.shadow.mapSize.set(512,512); key.shadow.camera.left=-2;key.shadow.camera.right=2;key.shadow.camera.top=3;key.shadow.camera.bottom=-3;key.shadow.camera.updateProjectionMatrix();key.shadow.normalBias=.008;key.shadow.bias=-.0001;key.shadow.radius=6;
   sun.shadow.mapSize.set(512,512);sun.shadow.normalBias=.008;sun.shadow.bias=-.0001;sun.shadow.radius=6;
+  const cachedLightMask = createCachedLightMask();
   const masks = new Map<string, THREE.CanvasTexture>();
   const environments = new Map<HdriId, Promise<THREE.WebGLRenderTarget>>();
   const environmentColours = new Map<HdriId, [number, number, number]>();
@@ -75,6 +77,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
     page.mesh.material.dispose(); page.mesh = null;
   };
   const applyMaterial = (material: THREE.MeshStandardMaterial) => {
+    cachedLightMask.apply(material);
     setNaturalImperfections(material,settings.imperfections ?? 0);
     material.bumpMap = null; material.bumpScale = 0;
     paperTextures.apply(material, settings.finish);
@@ -199,6 +202,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   };
   const paperTextures = createPaperTextures(requestPaint);
   const backdrop = createLitBackdrop(scene, requestPaint, true);
+  cachedLightMask.apply(backdrop.material);
   const observer = new IntersectionObserver(entries => {
     for (const entry of entries) { const page = pages.get(entry.target as HTMLElement); if (page) page.near = entry.isIntersecting; }
     requestPaint();
@@ -250,6 +254,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       sun.map = pattern ? masks.get(next.hdri)! : null; sun.visible = Boolean(pattern);
       sun.intensity = presetDirectLight(next.hdri, next.strength);
       sun.penumbra = shadow.penumbra;
+      cachedLightMask.set(next.hdri, pattern ? masks.get(next.hdri)! : null, sun.angle, sun.penumbra);
       const mix = studioLightMix(next.strength);
       scene.environment = diffuser.apply(target, mix.hdri, environmentColours.get(next.hdri));
       scene.environmentIntensity = pattern ? 1 - .3 * mix.hdri : 1;
@@ -290,6 +295,7 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
       diffuser.dispose();
       pending.clear(); pages.forEach(page => release(page)); pages.clear();
       environments.forEach(p => { void p.then(t => t.dispose(), () => undefined); });
+      cachedLightMask.dispose();
       masks.forEach(t => t.dispose());
       environmentGenerator?.dispose();
       paperGeometry.dispose();

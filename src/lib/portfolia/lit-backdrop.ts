@@ -46,6 +46,7 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
   const roughCanvas = document.createElement("canvas");
   let roughness = new THREE.CanvasTexture(roughCanvas); roughness.colorSpace = THREE.NoColorSpace;
   return {
+    material,
     set(url: string | undefined, nextFit: Partial<BackgroundFit> | undefined, active: boolean, colour = "#191d3a", lit = true, surface = false) {
       const useSurface = lit && surface && Boolean(url);
       const shaderChanged = Boolean(material.normalMap) !== useSurface || Boolean(material.emissiveMap) !== (!lit && Boolean(url)) || Boolean(material.map) !== Boolean(url);
