@@ -146,6 +146,7 @@ function pageLoader(
     // Each page's position in the book gives it its own, repeatable imperfections.
     canvas.dataset["seed"] = String(index);
     canvas.dataset["coverBoard"] = String(coverLeaf(index,layout.leaves.length));
+    canvas.dataset["leafCount"] = String(layout.leaves.length);
     const ctx = canvas.getContext("2d")!;
     ctx.imageSmoothingQuality = "high";
     ctx.fillStyle = "white";
@@ -620,6 +621,8 @@ export function BookView({
       scene.current = made;
       const coverScene=made;
       void source.face(0).then(canvas=>{if(canvas&&!cancelled&&scene.current===coverScene)coverScene.setCoverColour(canvas);}).catch(()=>{});
+      // The back board takes its own colour from the back cover, so its edges match that artwork.
+      if(layout.leaves.length>2)void source.face(layout.leaves.length-1).then(canvas=>{if(canvas&&!cancelled&&scene.current===coverScene)coverScene.setCoverColour(canvas,"back");}).catch(()=>{});
       // A rebuilt view is prepared again (shaders, lighting) without holding anything up.
       lightingPreparation = made.prepare(offersBoth.current, demoLightingCycle).catch(() => undefined);
       setFallback(false);
@@ -1334,7 +1337,7 @@ export function BookView({
         {/* Simple / Studio: only offered when the creator has enabled both. Everything else is set in the editor. */}
         {enabledLooks.length > 1 && !frameAspect && (
           <div className={cn("absolute bottom-1.5 left-1.5 z-20 flex w-fit transition-opacity duration-300", awake ? "opacity-100" : "pointer-events-none opacity-0")}>
-            <Segmented className="bg-white text-black [&_[role=radio]]:text-black [&_[aria-checked=true]]:bg-slate-900 [&_[aria-checked=true]]:text-white" label="Book appearance" value={settings.studio ? "studio" : "clean"} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={updateLook} />
+            <Segmented className="bg-white text-black [&_[role=radio]]:text-black [&_[role=radio][aria-checked=true]]:bg-slate-900 [&_[role=radio][aria-checked=true]]:text-white" label="Book appearance" value={settings.studio ? "studio" : "clean"} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={updateLook} />
           </div>
         )}
       </div>

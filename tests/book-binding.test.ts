@@ -12,7 +12,9 @@ test("binding styles have distinct dimensions and safe legacy defaults",()=>{
  assert.equal(bindingTurnCurve("hardback","deep",[null,{}],[{},{}]),"firm");
  assert.equal(bindingTurnCurve("hardback","corner",[{},{}],[{},null]),"firm");
  assert.equal(bindingTurnCurve("hardback","deep",[{},{}],[{},{}]),"deep");
- assert.equal(bindingTurnCurve("softcover","corner",[null,{}],[{},{}]),"corner");
+ // A card cover is stiffer than paper too; loose flipbook sheets keep the creator's curve.
+ assert.equal(bindingTurnCurve("softcover","corner",[null,{}],[{},{}]),"firm");
+ assert.equal(bindingTurnCurve("flipbook","corner",[null,{}],[{},{}]),"corner");
 });
 test("shell stays under artwork and above backdrop, follows spread visibility and disposes resources",()=>{
  const book=new THREE.Group(),binding=createBookBinding(book,1.4),shell=book.children[0] as THREE.Group;
@@ -22,7 +24,8 @@ test("shell stays under artwork and above backdrop, follows spread visibility an
   assert.equal(shell.visible,style.id!=="flipbook");assert.equal(shell.children[0]!.visible,false);assert.equal(shell.children[1]!.visible,true);
   if(style.id==="flipbook")continue;
   book.updateMatrixWorld(true);
-  const box=new THREE.Box3().setFromObject(shell);
+  // Hidden parts (a closed book's top board, the turning board) are not drawn on an open spread.
+  const box=new THREE.Box3();shell.traverseVisible(o=>{if(o instanceof THREE.Mesh)box.expandByObject(o);});
   assert.ok(box.max.z<=-.0049,"shell cannot cover PDF artwork");assert.ok(box.min.z>-.072,"shell cannot intersect backdrop");
  }
  const resources=new Set<THREE.BufferGeometry|THREE.Material|THREE.Texture>();

@@ -8,7 +8,7 @@ import { backgroundFor } from "@/lib/portfolia/background-settings";
 import { backgroundPicture } from "@/lib/portfolia/background-presets";
 import { useBlob, useObjectUrl } from "./Chrome";
 import { useEffect, useRef, useState } from "react";
-import { X, Download, RotateCcw, Sun, BookOpen, Image as ImageIcon, Camera } from "lucide-react";
+import { X, Download, RotateCcw, Sun, BookOpen, Image as ImageIcon, Camera, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getBlob } from "@/lib/portfolia/assets";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
@@ -401,7 +401,7 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                   ? "Customise"
                   : tool === "camera"
                     ? "Camera"
-                    : "Export photograph"}
+                    : "Export photo"}
               </h3>
               <Button
                 size="sm"
@@ -426,24 +426,24 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                       type="button"
                       aria-pressed={options.style === style.id}
                       onClick={() => change({ style: style.id })}
-                      className="rounded-lg border border-border px-2 py-3 text-sm aria-pressed:border-blue-600 aria-pressed:bg-blue-50 aria-pressed:text-blue-900"
+                      className="rounded-lg border border-border px-2 py-3 text-sm aria-pressed:border-foreground aria-pressed:bg-muted aria-pressed:font-medium aria-pressed:text-foreground aria-pressed:ring-1 aria-pressed:ring-foreground"
                     >
                       {style.label}
                     </button>
                   ))}
                 </div>
                 <label className="block space-y-2">
-                  <span>Page or spread</span>
+                  <span>Show</span>
                   <select
                     aria-label="Photo shoot page or spread"
                     value={selectedPage}
                     onChange={(e) => setSelectedPage(Number(e.target.value))}
                     className="w-full rounded border border-border bg-background p-2"
                   >
-                    <option value={0}>Closed cover</option>
+                    <option value={0}>Closed book</option>
                     {Array.from({ length: p.pdf?.pages ?? 0 }, (_, i) => (
                       <option key={i + 1} value={i + 1}>
-                        Page {i + 1} · show its spread
+                        Open at page {i + 1}
                       </option>
                     ))}
                   </select>
@@ -463,7 +463,7 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                       key={id}
                       size="sm"
                       variant="quiet"
-                      className="px-1.5 sm:px-3"
+                      className="px-1.5 aria-pressed:bg-muted aria-pressed:text-foreground sm:px-3"
                       aria-pressed={tab === id}
                       onClick={() => setTab(id)}
                     >
@@ -495,7 +495,7 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                       onChange={setSurface}
                     />
                     <label className="flex items-center justify-between gap-3">
-                      Colour wheel
+                      Colour
                       <input
                         aria-label={`${surface} colour`}
                         className="h-10 w-12 cursor-pointer rounded border border-border"
@@ -537,7 +537,7 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                         type="button"
                         aria-pressed={options[surface] === uploads[surface]}
                         onClick={() => changeSurface({ [surface]: uploads[surface] })}
-                        className="block w-full overflow-hidden rounded border border-border text-left aria-pressed:ring-2 aria-pressed:ring-blue-600"
+                        className="block w-full overflow-hidden rounded border border-border text-left aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-1"
                       >
                         <img
                           src={uploads[surface]}
@@ -585,7 +585,7 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                       step={step}
                       value={options[key]}
                       onChange={(e) => change({ [key]: Number(e.target.value) })}
-                      className="w-full accent-blue-600"
+                      className="w-full accent-leaf"
                     />
                   </label>
                 ))}
@@ -695,16 +695,16 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
         >
           {(
             [
-              ["customise", "Customise", Sun],
+              ["customise", "Customise", SlidersHorizontal],
               ["camera", "Camera", Camera],
-              ["export", "Take image", Download],
+              ["export", "Export", Download],
             ] as const
           ).map(([id, label, Icon]) => (
             <Button
               key={id}
               size="sm"
               variant="quiet"
-              className="px-2 sm:px-3"
+              className="px-2 aria-pressed:bg-muted aria-pressed:text-foreground sm:px-3"
               aria-expanded={tool === id}
               aria-pressed={tool === id}
               onClick={() => setTool((current) => (current === id ? null : id))}

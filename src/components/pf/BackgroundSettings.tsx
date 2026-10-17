@@ -141,7 +141,7 @@ export function BackgroundSettings({
           setTarget("main");
           setPreviewMode(null);
         }}
-        className="w-full overflow-hidden rounded-lg border border-border text-left aria-pressed:ring-2 aria-pressed:ring-blue-600"
+        className="w-full overflow-hidden rounded-lg border border-border text-left aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-1"
       >
         <Picture choice={viewer} label="Default background" />
         <span className="block p-2">Default background</span>
@@ -158,7 +158,7 @@ export function BackgroundSettings({
               setPreviewMode(id === "studio" || id === "clean" ? "book" : id);
               setPreviewLook(id === "studio" ? "studio" : "clean");
             }}
-            className="overflow-hidden rounded-lg border border-border text-left aria-pressed:ring-2 aria-pressed:ring-blue-600"
+            className="overflow-hidden rounded-lg border border-border text-left aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-1"
           >
             <Picture choice={backgroundFor(viewer, id)} label={label} />
             <span className="block p-2">{label}</span>
@@ -201,7 +201,7 @@ export function BackgroundSettings({
                   aria-label={`Use uploaded picture ${i + 1}`}
                   aria-pressed={choice.backgroundKey === key}
                   onClick={() => choose({ backgroundKey: key })}
-                  className="overflow-hidden rounded border border-border aria-pressed:ring-2 aria-pressed:ring-blue-600"
+                  className="overflow-hidden rounded border border-border aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-1"
                 >
                   <Picture choice={{ backgroundKey: key }} label={`Uploaded picture ${i + 1}`} />
                 </button>
@@ -234,7 +234,7 @@ export function BackgroundSettings({
                 </span>
                 <input
                   type="range"
-                  className="w-full accent-blue-600"
+                  className="w-full accent-leaf"
                   aria-label={`${title} ${label}`}
                   min={min}
                   max={max}

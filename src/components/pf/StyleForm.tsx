@@ -389,7 +389,7 @@ export function StyleForm({
                           min="0"
                           max="100"
                           value={Math.round((shadowOn ? shadowOpacity : 0) * 100)}
-                          className="w-full accent-blue-600"
+                          className="w-full accent-leaf"
                           onChange={(e) =>
                             setViewer({
                               simpleShadow: Number(e.target.value) > 0,

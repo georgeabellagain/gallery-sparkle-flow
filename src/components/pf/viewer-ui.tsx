@@ -43,15 +43,27 @@ export function useTone(colour: string, imageUrl?: string): Tone {
   return imageUrl ? imageTone ?? "dark" : toneOfHex(colour);
 }
 
-/** Quiet round icon: faint until pointed at. */
-export const iconClass = (tone: Tone, large = false) =>
+/**
+ * Quiet round icon: faint until pointed at. `flat` drops the button's own disc and ring for use inside a
+ * toolbar that already has a background, so the bar reads as one control rather than a row of circles.
+ */
+export const iconClass = (tone: Tone, large = false, flat = false) =>
   cn(
     "inline-flex shrink-0 items-center justify-center rounded-full transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-1 disabled:pointer-events-none disabled:opacity-40",
     large ? "size-11" : "size-9 sm:size-8",
-    tone === "dark"
-      ? "text-white bg-slate-950/75 shadow-sm ring-1 ring-white/20 backdrop-blur-sm hover:bg-slate-950/90 hover:text-white aria-pressed:bg-white/15 aria-pressed:text-white aria-checked:bg-white/15 aria-checked:text-white"
-      : "text-slate-700 bg-white/90 shadow-sm ring-1 ring-black/15 backdrop-blur-sm hover:bg-white hover:text-slate-950 aria-pressed:bg-black/10 aria-pressed:text-black aria-checked:bg-black/10 aria-checked:text-black",
+    flat
+      ? tone === "dark"
+        ? "text-white/85 hover:bg-white/12 hover:text-white aria-pressed:bg-white/15 aria-pressed:text-white aria-checked:bg-white aria-checked:text-slate-950"
+        : "text-slate-600 hover:bg-black/6 hover:text-slate-950 aria-pressed:bg-black/10 aria-pressed:text-black aria-checked:bg-slate-900 aria-checked:text-white"
+      : tone === "dark"
+        ? "text-white bg-slate-950/75 shadow-sm ring-1 ring-white/20 backdrop-blur-sm hover:bg-slate-950/90 hover:text-white aria-pressed:bg-white/15 aria-pressed:text-white aria-checked:bg-white/15 aria-checked:text-white"
+        : "text-slate-700 bg-white/90 shadow-sm ring-1 ring-black/15 backdrop-blur-sm hover:bg-white hover:text-slate-950 aria-pressed:bg-black/10 aria-pressed:text-black aria-checked:bg-black/10 aria-checked:text-black",
   );
+
+/** A hairline between groups of toolbar buttons. */
+export function ToolbarDivider() {
+  return <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-current opacity-20" />;
+}
 
 export function IconButton({
   label,
@@ -61,6 +73,7 @@ export function IconButton({
   checked,
   tone,
   large,
+  flat,
   className,
   children,
 }: {
@@ -74,13 +87,15 @@ export function IconButton({
   tone: Tone;
   /** A bigger target, for the page arrows. */
   large?: boolean;
+  /** Inside a toolbar that has its own background. */
+  flat?: boolean;
   className?: string;
   children: ReactNode;
 }) {
   const state =
     checked !== undefined ? { role: "radio" as const, "aria-checked": checked } : pressed !== undefined ? { "aria-pressed": pressed } : {};
   return (
-    <button type="button" aria-label={label} title={label} disabled={disabled} onClick={onClick} className={cn(iconClass(tone, large), className)} {...state}>
+    <button type="button" aria-label={label} title={label} disabled={disabled} onClick={onClick} className={cn(iconClass(tone, large, flat), className)} {...state}>
       {children}
     </button>
   );

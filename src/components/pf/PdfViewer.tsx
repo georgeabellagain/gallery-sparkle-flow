@@ -34,7 +34,7 @@ import { useTouchGestures } from "@/components/pf/touch-gestures";
 import { BookLoader } from "@/components/pf/book-loader";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 import { backgroundColour, fitTransform, toneOfHex } from "@/lib/portfolia/background";
-import { BackdropLayer, IconButton, LogoMark, Panel, Segmented, iconClass, useDismiss, useTone } from "@/components/pf/viewer-ui";
+import { BackdropLayer, IconButton, LogoMark, Panel, Segmented, ToolbarDivider, iconClass, useDismiss, useTone } from "@/components/pf/viewer-ui";
 
 import type { PageStudioRenderer, PageStudioSettings } from "@/lib/portfolia/page-studio";
 
@@ -643,30 +643,32 @@ export function PdfViewer({
               {!minimalControls && doc && availableModes.length > 1 && (
                 <div role="radiogroup" aria-label="Reading mode" className="flex items-center">
                   {MODES.filter(([m]) => availableModes.includes(m)).map(([m, label, Icon]) => (
-                    <IconButton key={m} label={label} tone={tone} checked={mode === m} onClick={() => setMode(m)}>
+                    <IconButton key={m} label={label} tone={tone} flat checked={mode === m} onClick={() => setMode(m)}>
                       <Icon className="size-[17px]" />
                     </IconButton>
                   ))}
+                  <ToolbarDivider />
                 </div>
               )}
               {!minimalControls && doc && (
-                <IconButton label="Pages" tone={tone} pressed={panel === "pages"} onClick={() => togglePanel("pages")}>
+                <IconButton label="Pages" tone={tone} flat pressed={panel === "pages"} onClick={() => togglePanel("pages")}>
                   <LayoutGrid className="size-[17px]" />
                 </IconButton>
               )}
               {!minimalControls && sections.length > 0 && (
-                <IconButton label="Projects" tone={tone} pressed={panel === "projects"} onClick={() => togglePanel("projects")}>
+                <IconButton label="Projects" tone={tone} flat pressed={panel === "projects"} onClick={() => togglePanel("projects")}>
                   <List className="size-[17px]" />
                 </IconButton>
               )}
               {/* Page numbers share the controls row in every reading mode. */}
               {!minimalControls && doc && (
-                <span className={cn("inline-flex rounded-full px-2.5 py-2 text-[11px] tabular-nums ring-1 backdrop-blur-sm", tone === "dark" ? "bg-slate-950/75 text-white ring-white/20" : "bg-white/90 text-slate-700 ring-black/15")} aria-live="polite">
+                <span className={cn("inline-flex px-2 py-2 text-[11px] tabular-nums", tone === "dark" ? "text-white/85" : "text-slate-600")} aria-live="polite">
                   {current} / {doc.numPages}
                 </span>
               )}
+              {!minimalControls && doc && <ToolbarDivider />}
               {!minimalControls && doc && (
-                <IconButton label="Zoom out" tone={tone} onClick={() => z(-zoomStep)} disabled={zoom <= minimumZoom}>
+                <IconButton label="Zoom out" tone={tone} flat onClick={() => z(-zoomStep)} disabled={zoom <= minimumZoom}>
                   <ZoomOut className="size-[17px]" />
                 </IconButton>
               )}
@@ -676,15 +678,16 @@ export function PdfViewer({
                 </button>
               )}
               {!minimalControls && doc && (
-                <IconButton label="Zoom in" tone={tone} onClick={() => z(zoomStep)} disabled={zoom >= 3}>
+                <IconButton label="Zoom in" tone={tone} flat onClick={() => z(zoomStep)} disabled={zoom >= 3}>
                   <ZoomIn className="size-[17px]" />
                 </IconButton>
               )}
-              <IconButton label={full ? "Exit full screen" : "Full screen"} tone={tone} onClick={() => void toggleFull()}>
+              {!minimalControls && doc && <ToolbarDivider />}
+              <IconButton label={full ? "Exit full screen" : "Full screen"} tone={tone} flat onClick={() => void toggleFull()}>
                 {full ? <Minimize2 className="size-[17px]" /> : <Maximize2 className="size-[17px]" />}
               </IconButton>
               {!minimalControls && allowDownload && downloadUrl && (
-                <a href={downloadUrl} download={fileName} onClick={onDownload} aria-label="Download PDF" title="Download PDF" className={iconClass(tone)}>
+                <a href={downloadUrl} download={fileName} onClick={onDownload} aria-label="Download PDF" title="Download PDF" className={iconClass(tone, false, true)}>
                   <Download className="size-[17px]" />
                 </a>
               )}

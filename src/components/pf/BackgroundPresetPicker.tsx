@@ -15,7 +15,7 @@ export function BackgroundPresetPicker({
           type="button"
           aria-pressed={selected === preset.id}
           onClick={() => onSelect(preset.id)}
-          className="overflow-hidden rounded border border-border text-left aria-pressed:ring-2 aria-pressed:ring-blue-600"
+          className="overflow-hidden rounded border border-border text-left aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-1"
         >
           <img
             src={preset.url.replace(".webp", "-thumb.webp")}

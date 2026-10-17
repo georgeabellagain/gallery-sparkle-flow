@@ -42,7 +42,7 @@ export function StudioLightingSettings({
                 aria-pressed={studioLighting === light.id}
                 aria-label={`Lighting ${light.label}`}
                 onClick={() => setViewer({ studioLighting: light.id })}
-                className={`h-16 rounded-lg border bg-cover text-white ${studioLighting === light.id ? "ring-2 ring-blue-600 border-blue-600" : "border-border"}`}
+                className={`h-16 rounded-lg border bg-cover text-white ${studioLighting === light.id ? "ring-2 ring-foreground ring-offset-1 border-foreground" : "border-border"}`}
                 style={{ background: light.preview }}
               >
                 <span className="rounded bg-black/60 px-2 py-1">{light.label}</span>
@@ -54,7 +54,7 @@ export function StudioLightingSettings({
       <label className="block space-y-1">
         <span>Brightness · {Math.round(studioBrightness * 100)}%</span>
         <input
-          className="w-full accent-blue-600"
+          className="w-full accent-leaf"
           type="range"
           aria-label="Studio brightness"
           min="0"
@@ -66,7 +66,7 @@ export function StudioLightingSettings({
       <label className="block space-y-1">
         <span>Diffusion · {Math.round((1 - (viewer.studioLightingStrength ?? 0.75)) * 100)}%</span>
         <input
-          className="w-full accent-blue-600"
+          className="w-full accent-leaf"
           type="range"
           aria-label="Studio lighting diffusion"
           min="0"
@@ -82,7 +82,7 @@ export function StudioLightingSettings({
       <label className="block space-y-1">
         <span>White top light · {Math.round((viewer.studioTopLight ?? 0) * 100)}%</span>
         <input
-          className="w-full accent-blue-600"
+          className="w-full accent-leaf"
           type="range"
           aria-label="Studio white top light"
           min="0"

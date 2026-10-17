@@ -1,8 +1,9 @@
-import { rigidCoverWriter, COVER_OVERHANG, COVER_HEIGHT } from "./rigid-cover";
+import { rigidCoverWriter, COVER_OVERHANG, coverArtZ, type CoverRest } from "./rigid-cover";
 import { sampleCoverColour } from "./cover-colour";
 import { studioShadowSize, studioShadowRadius } from "./shadow-quality";
-import { createBookBinding } from "./book-binding";
-import { bindingTurnCurve, type BookStyle } from "./book-style";
+import { createBookBinding, sideShare, type BindingSide } from "./book-binding";
+import { createGutterShade } from "./gutter-shade";
+import { bindingTurnCurve, bookStyleProfile, type BookStyle } from "./book-style";
 import { type TurnCurve } from "./turn-curve";
 import { createCachedLightMask } from "./cached-light-mask";
 import { createSettledPaperCache } from "./settled-paper";
@@ -264,6 +265,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let paintQueued = 0;
   let finishAnimation: (() => void) | null = null;
   const pageMaterials: THREE.MeshStandardMaterial[] = [];
+  const gutter = createGutterShade();
   const material = (side: THREE.Side = THREE.FrontSide) => {
     const mat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
@@ -275,6 +277,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // one-sided sheet that faces the light casts none, so the real shadow would come and go.
     mat.shadowSide = THREE.DoubleSide;
     cachedLightMask.apply(mat);
+    gutter.apply(mat);
     pageMaterials.push(mat);
     return mat;
   };
@@ -308,14 +311,17 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const settledPaper = createSettledPaperCache();
 
   /** Shapes a resting page: curved, with its own small imperfections. */
-  const shapePage = (mesh: THREE.Mesh, side: -1 | 1, seed: number, rigid=false) => {
+  /** Board thickness of the current style, used to place hardback covers. */
+  const boardDepth = () => bookStyleProfile(settings.bookStyle).board;
+  const shapePage = (mesh: THREE.Mesh, side: -1 | 1, seed: number, rigid=false, rest: CoverRest="open") => {
     settledPaper.invalidate(mesh);
     const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
+    const coverZ = coverArtZ(rest, boardDepth());
     for (let i = 0; i < positions.count; i++) {
       // Reset the canonical order when a different page replaces a saved back face.
       const u=(i%33)/32, v=1-Math.floor(i/33)/16;
       const x=u-.5;
-      positions.setXYZ(i,rigid?x*(1+2*COVER_OVERHANG)+side*COVER_OVERHANG:x,(v-.5)*(ratio+(rigid?2*COVER_OVERHANG:0)),rigid?COVER_HEIGHT:pageRelief(.5+side*x,v,seed));
+      positions.setXYZ(i,rigid?x*(1+2*COVER_OVERHANG)+side*COVER_OVERHANG:x,(v-.5)*(ratio+(rigid?2*COVER_OVERHANG:0)),rigid?coverZ:pageRelief(.5+side*x,v,seed));
       (mesh.geometry.getAttribute("uv") as THREE.BufferAttribute).setXY(i,u,v);
     }
     positions.needsUpdate = true;
@@ -327,6 +333,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     mesh.geometry.computeBoundingSphere();
     mesh.userData["seed"] = seed;
     mesh.userData["rigidCover"] = rigid;
+    mesh.userData["coverRest"] = rigid ? rest : undefined;
+    mesh.userData["coverZ"] = rigid ? coverZ : 0;
   };
   const left = new THREE.Mesh(new THREE.PlaneGeometry(1, ratio, 32, 16), material());
   const right = new THREE.Mesh(new THREE.PlaneGeometry(1, ratio, 32, 16), material());
@@ -364,6 +372,12 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   back.castShadow = false;
   front.receiveShadow = back.receiveShadow = true;
   front.frustumCulled = back.frustumCulled = false;
+  // A hardback cover turns as a real board: these carry its two printed faces (see binding.turnCover).
+  const coverFrontMat = material();
+  const coverBackMat = material();
+  /** Resting positions of the cover in the turn in progress, or null for a paper turn. */
+  let rigidTurn: { from: CoverRest; to: CoverRest; board: "front" | "back" } | null = null;
+  const coverRestOf = (faces: BookFaces): CoverRest => (faces[0] && faces[1] ? "open" : "closed");
   const sheet = new THREE.Group();
   sheet.add(front, back);
   sheet.visible = false;
@@ -449,7 +463,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // update once per displayed frame; idle scenes only refresh when dirtied.
     // Keep hidden receiving/covered pages in the shadow pass throughout a turn.
     restingShadows.sync(turnRestPages ?? [left.visible, right.visible]);
-    binding.sync(turnRestPages ?? [left.visible,right.visible],[Boolean(left.userData["rigidCover"]),Boolean(right.userData["rigidCover"])]);
+    binding.sync(turnRestPages ?? [left.visible,right.visible],[left,right].map((mesh,index):BindingSide=>({
+      kind: mesh.userData["rigidCover"] ? (mesh.userData["coverRest"] as CoverRest) : "page",
+      share: sideShare(index as 0|1, mesh.userData["leaf"] as number, mesh.userData["leaves"] as number),
+    })) as [BindingSide,BindingSide]);
     // Camera-only movement reuses the same world-space shadow maps.
     renderer.shadowMap.needsUpdate = shadowsDirty;
     renderer.render(scene, camera);
@@ -679,9 +696,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     next = {...next, material:paperFinish(next.material)};
     settings = next;
     binding.set(next.bookStyle,next.studio);
+    const rest: CoverRest = left.visible && right.visible ? "open" : "closed";
     [left,right].forEach((mesh,i)=>{
       const rigid=next.bookStyle==="hardback"&&Boolean(mesh.userData["coverBoard"]);
-      if(mesh.userData["rigidCover"]!==rigid)shapePage(mesh,i===0?-1:1,mesh.userData["seed"] as number,rigid);
+      const moved=rigid&&(mesh.userData["coverRest"]!==rest||mesh.userData["coverZ"]!==coverArtZ(rest,boardDepth()));
+      if(mesh.userData["rigidCover"]!==rigid||moved)shapePage(mesh,i===0?-1:1,mesh.userData["seed"] as number,rigid,rest);
     });
     shadowsDirty = true;
     const mix = studioLightMix(next.strength);
@@ -739,6 +758,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     light.castShadow = next.studio && (!pattern || mix.hdri === 0);
     if (variantChanged) variant = nextVariant;
     airDust.setIntensity(next.studio ? next.imperfections ?? 0 : 0);
+    // Bound pages darken softly into the spine; Simple reproduces the artwork exactly.
+    gutter.set(next.studio && next.bookStyle !== "flipbook" ? .32 : next.studio ? .18 : 0);
     for (const m of pageMaterials) {
       setNaturalImperfections(m,next.studio ? next.imperfections ?? 0 : 0);
       const stickyMatte = Boolean(m.userData["stickyMatte"]);
@@ -763,17 +784,25 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   };
   const show = (next: BookFaces, render = true) => {
     shadowsDirty = true;
+    const rest = coverRestOf(next);
     [left, right].forEach((mesh, i) => {
       mesh.visible = !!next[i];
       setMap(mesh.material, next[i] ?? null);
       const seed = seedFor(next[i]);
       const page=next[i];
       mesh.userData["coverBoard"]=page?.dataset["coverBoard"]==="true";
+      // Leaf position decides how much of the page block lies under this side.
+      if(page){
+        mesh.userData["leaf"]=Number(page.dataset["seed"]);
+        const leaves=Number(page.dataset["leafCount"]);
+        mesh.userData["leaves"]=leaves;
+        if(Number.isFinite(leaves))binding.setLeaves(leaves);
+      }
       const rigid=settings.bookStyle==="hardback"&&mesh.userData["coverBoard"]===true;
       if(!rigid && settings.material === "paper_0022" && page && settledPaper.apply(page,mesh)) {
         mesh.userData["settledPaper"]=true;mesh.userData["seed"]=seed;
-      } else if(mesh.userData["seed"] !== seed || mesh.userData["settledPaper"] || mesh.userData["rigidCover"]!==rigid) {
-        shapePage(mesh,i===0?-1:1,seed,rigid);mesh.userData["settledPaper"]=false;
+      } else if(mesh.userData["seed"] !== seed || mesh.userData["settledPaper"] || mesh.userData["rigidCover"]!==rigid || (rigid && mesh.userData["coverRest"]!==rest)) {
+        shapePage(mesh,i===0?-1:1,seed,rigid,rest);mesh.userData["settledPaper"]=false;
       }
     });
     setContact(next);
@@ -862,14 +891,17 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     });
   };
   const stickyPosition = new THREE.Vector3(), stickyNormal = new THREE.Vector3();
+  /** A hardback board turns when either face of the moving sheet is a cover. */
+  const isRigidTurn = (from: BookFaces, to: BookFaces, dir: 1 | -1) =>
+    settings.bookStyle==="hardback"&&[from[dir===1?1:0],to[dir===1?0:1]].some(canvas=>canvas?.dataset["coverBoard"]==="true");
   const posesForTurn = (from: BookFaces, to: BookFaces, dir: 1 | -1) => {
     const seeds = [seedFor(from[dir === 1 ? 1 : 0]), seedFor(to[dir === 1 ? 0 : 1])];
     const restingSeeds = [seedFor(dir === 1 ? from[0] : to[0]), seedFor(dir === 1 ? to[1] : from[1])];
-    const rigid=settings.bookStyle==="hardback"&&[from[dir===1?1:0],to[dir===1?0:1]].some(canvas=>canvas?.dataset["coverBoard"]==="true");
-    const curve = rigid?"rigid":bindingTurnCurve(settings.bookStyle,settings.turnCurve,from,to);
+    const rigid=isRigidTurn(from,to,dir);
+    const curve = rigid?`rigid:${coverRestOf(from)}:${coverRestOf(to)}:${boardDepth()}`:bindingTurnCurve(settings.bookStyle,settings.turnCurve,from,to);
     const key = `${curve}|${dir}|${seeds.join(":")}|${restingSeeds.join(":")}`;
     return turnGeometryCache.get(key, () => rigid
-      ? bakeTurnGeometry(geometry,rigidCoverWriter(geometry,ratio,dir),128)
+      ? bakeTurnGeometry(geometry,rigidCoverWriter(geometry,ratio,dir,coverArtZ(coverRestOf(from),boardDepth()),coverArtZ(coverRestOf(to),boardDepth())),128)
       : bakeTurnGeometry(geometry,turnGeometryWriter(geometry,ratio,dir,seeds,restingSeeds,SHEET_CLEARANCE,curve as TurnCurve),128,[restingTurnNormals(geometry,ratio,dir,seeds[0]!,dir),restingTurnNormals(geometry,ratio,-dir as 1|-1,seeds[1]!,-dir)]));
   };
   const shape = (progress: number, dir: 1 | -1) => {
@@ -882,6 +914,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     if (bakedTurn) applyTurnPose(bakedTurn, progress, geometry);
     else return;
+    // A hardback cover is drawn by its own rigid board; the paper sheet only carries notes and tabs.
+    front.visible = back.visible = !rigidTurn;
+    binding.turnCover(rigidTurn ? progress : null, dir, rigidTurn?.from ?? "open", rigidTurn?.to ?? "open", coverFrontMat, coverBackMat, rigidTurn?.board);
     if (settings.material === "paper_0027" || settings.material === "paper_0022") {
       updatePaperTangents(geometry);
       updatePaperTangents(reverseGeometry, true);
@@ -934,7 +969,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   configure(settings);
   resize();
   return {
-    setCoverColour(canvas:HTMLCanvasElement){binding.setCoverColour(sampleCoverColour(canvas));requestPaint();},
+    setCoverColour(canvas:HTMLCanvasElement,board:"front"|"back"="front"){binding.setCoverColour(sampleCoverColour(canvas),board);requestPaint();},
     setCaptureClock(clock?:()=>Promise<void>) {captureClock=clock;},
     async captureReady() { await paperTextures.ready(); await backdrop.ready(); if (!await loadEnvironment(settings.hdri)) throw new Error("Studio lighting could not be prepared."); },
     setFrameSink(sink?: (canvas: HTMLCanvasElement) => void) { frameSink = sink; paint(); },
@@ -1053,7 +1088,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     pageBounds() {
       camera.updateMatrixWorld();
       return [left,right].map((mesh,index) => {
-        const rigid=Boolean(mesh.userData["rigidCover"]),width=1+(rigid?2*COVER_OVERHANG:0),height=ratio+(rigid?2*COVER_OVERHANG:0),z=rigid?COVER_HEIGHT:0;
+        const rigid=Boolean(mesh.userData["rigidCover"]),width=1+(rigid?2*COVER_OVERHANG:0),height=ratio+(rigid?2*COVER_OVERHANG:0),z=rigid?(mesh.userData["coverZ"] as number):0;
         const x=index===0?-width:0;
         const top=new THREE.Vector3(x,height/2,z).project(camera),bottom=new THREE.Vector3(x+width,-height/2,z).project(camera);
         return {x:(top.x+1)*50,y:(1-top.y)*50,width:(bottom.x-top.x)*50,height:(top.y-bottom.y)*50};
@@ -1063,7 +1098,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       camera.updateMatrixWorld();
       return [left,right].map((mesh,index) => {
         const rigid=Boolean(mesh.userData["rigidCover"]),x=(index===0?-1:1)*(1+(rigid?2*COVER_OVERHANG:0)),y=-(ratio+(rigid?2*COVER_OVERHANG:0))/2;
-        const point=new THREE.Vector3(x,y,rigid?COVER_HEIGHT:0).project(camera);
+        const point=new THREE.Vector3(x,y,rigid?(mesh.userData["coverZ"] as number):0).project(camera);
         return {x:(point.x+1)*50,y:(1-point.y)*50};
       });
     },
@@ -1090,6 +1125,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const landing = dir === 1 ? 0 : 1;
       setMap(frontMat, from[moving]);
       setMap(backMat, to[landing]);
+      rigidTurn = isRigidTurn(from, to, dir) ? { from: coverRestOf(from), to: coverRestOf(to), board: Number(from[moving]?.dataset["seed"] ?? to[landing]?.dataset["seed"]) < 2 ? "front" : "back" } : null;
+      if (rigidTurn) { setMap(coverFrontMat, from[moving]); setMap(coverBackMat, to[landing]); }
       // Prepare resting textures now, but reveal the page below only after
       // 5% travel. Hide the receiving page over the last 5% as well.
       contactTurn = { from: kindOf(from), to: kindOf(to), landing: (to[0] ? 1 : 0) + (to[1] ? 1 : 0) > (from[0] ? 1 : 0) + (from[1] ? 1 : 0) };
@@ -1145,6 +1182,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         if(page)settledPaper.remember(page,complete?back:front,(restingSide===0?left:right).position);
       }
       sheet.visible = false;
+      front.visible = back.visible = true;
+      rigidTurn = null;
+      binding.turnCover(null, dir, "open", "open");
       turnRestPages = null;
       notes.endTurn(complete);
       contactTurn = null;

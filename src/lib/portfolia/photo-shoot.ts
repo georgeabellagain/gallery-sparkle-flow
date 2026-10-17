@@ -10,7 +10,10 @@ import { createPaperTextures } from "./paper-textures";
 import { backgroundSurfaceMaps } from "./background-presets";
 import { studioExposure, studioTopLight, presetShadow, presetDirectLight, HDRI_PRESETS, type HdriId } from "./lighting";
 import { dappleTexture } from "./dapple-light";
-import { createBookBinding } from "./book-binding";
+import { createBookBinding, sideShare, type BindingSide } from "./book-binding";
+import { createPhotoGrounding } from "./photo-grounding";
+import { createGutterShade } from "./gutter-shade";
+import { pageRelief } from "./page-relief";
 import type { SurfaceKind } from "./surface";
 export type ShootOptions={style:BookStyle;colour:string;wall?:string;floorColour:string;floor?:string;yaw:number;elevation:number;zoom:number;hdri:HdriId;finish:SurfaceKind;brightness:number;strength:number;topLight:number};
 export function shootCamera(yaw:number,elevation:number,zoom:number,ratio:number,aspect:number,span=1,centre?:THREE.Vector3){
@@ -36,12 +39,16 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
  const spine=add(spineGeometry,coverMaterial),block=add(box,pageMaterial),frontBoard=add(box,coverMaterial),backBoard=add(box,coverMaterial),art=add(plane,artMaterial),rear=add(plane.clone(),backMaterial);geometries.add(rear.geometry);rear.rotation.y=Math.PI;
  const fan=[add(plane.clone(),pageMaterial),add(plane.clone(),pageMaterial)];fan.forEach(m=>geometries.add(m.geometry));
  const spreadMaterials=[material({}),material({})];
+ // Open pages rise from the gutter exactly as in the reader, and darken softly into the spine.
+ const spreadRelief=(side:number,u:number,v:number)=>pageRelief(side===0?1-u:u,v,side+3);
+ const gutter=createGutterShade();spreadMaterials.forEach(m=>gutter.apply(m));gutter.set(.3);
  const spreadPages=spreadMaterials.map((m,i)=>{const geometry=new THREE.PlaneGeometry(1,ratio,32,16);geometries.add(geometry);const pos=geometry.getAttribute("position") as THREE.BufferAttribute;
-   for(let n=0;n<pos.count;n++){const x=pos.getX(n);pos.setZ(n,.014+.022*Math.sin(Math.PI*(x+.5)));}pos.needsUpdate=true;geometry.computeVertexNormals();const mesh=add(geometry,m,spread);mesh.position.x=i===0?-.5:.5;return mesh;});
+   for(let n=0;n<pos.count;n++){const x=pos.getX(n),y=pos.getY(n);pos.setZ(n,spreadRelief(i,x+.5,y/ratio+.5));}pos.needsUpdate=true;geometry.computeVertexNormals();const mesh=add(geometry,m,spread);mesh.position.x=i===0?-.5:.5;return mesh;});
  const binding=createBookBinding(spread,ratio);binding.setCoverColour(coverColour);
  const wallMaterial=material({roughness:1}),floorMaterial=material({roughness:.94}),stageGeometry=new THREE.PlaneGeometry(30,30);geometries.add(stageGeometry);
  const wall=new THREE.Mesh(stageGeometry,wallMaterial);wall.position.set(0,5,-.12);wall.receiveShadow=true;scene.add(wall);
  const floor=new THREE.Mesh(stageGeometry,floorMaterial);floor.rotation.x=-Math.PI/2;floor.position.y=-.002;floor.receiveShadow=true;scene.add(floor);
+ const grounding=createPhotoGrounding(scene,-.002,-.12);
  const key=new THREE.DirectionalLight(0xffffff,.6),top=new THREE.DirectionalLight(0xffffff,0),sun=new THREE.SpotLight(0xfff3dc,0,0,Math.PI/5,.35,0);
  top.position.set(0,5,6);scene.add(key,key.target,top,sun,sun.target);
  key.castShadow=sun.castShadow=true;sun.shadow.camera.near=.1;sun.shadow.camera.far=20;sun.shadow.camera.updateProjectionMatrix();
@@ -97,7 +104,7 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
    if(shapeStamp!==stamp){shapeStamp=stamp;
      spreadPages.forEach((mesh,index)=>{
        const rigid=hard&&mesh.userData["coverBoard"]===true,uv=mesh.geometry.getAttribute("uv"),p=mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
-       for(let i=0;i<p.count;i++){const u=uv.getX(i),v=uv.getY(i),x=u-.5;p.setXYZ(i,rigid?x*(1+2*COVER_OVERHANG)+(index===0?-1:1)*COVER_OVERHANG:x,(v-.5)*(ratio+(rigid?2*COVER_OVERHANG:0)),rigid?COVER_HEIGHT:.014+.022*Math.sin(Math.PI*u));}
+       for(let i=0;i<p.count;i++){const u=uv.getX(i),v=uv.getY(i),x=u-.5;p.setXYZ(i,rigid?x*(1+2*COVER_OVERHANG)+(index===0?-1:1)*COVER_OVERHANG:x,(v-.5)*(ratio+(rigid?2*COVER_OVERHANG:0)),rigid?COVER_HEIGHT:spreadRelief(index,u,v));}
        p.needsUpdate=true;mesh.geometry.computeVertexNormals();
      });
      const thickness=style==="flipbook"?.018:Math.min(hard?.14:.075,(hard?.055:.025)+pages*.00045),board=hard?.012:soft?.004:.001;
@@ -111,8 +118,10 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
      fan.forEach((mesh,i)=>{mesh.visible=style==="flipbook";mesh.scale.set(1,ratio,1);mesh.rotation.z=(i+1)*.018;mesh.position.z=-thickness/2-(i+1)*.002;});
      book.rotation.x=-.10;const height=ratio+2*profile.overhang,depth=open?.07:thickness+2*board;
      book.position.set(0,height/2*Math.cos(.1)+depth/2*Math.sin(.1)+.01,-.12+height/2*Math.sin(.1)+depth/2*Math.cos(.1)+.006);
+     book.updateMatrixWorld(true);gutter.setSpace(spread.matrixWorld.clone().invert());
+     grounding.update(visibleBookBounds(open?spread:closed),depth);
    }
-   binding.set(style,true);binding.sync([spreadPages[0]!.visible,spreadPages[1]!.visible],spreadPages.map(mesh=>hard&&mesh.userData["coverBoard"]===true) as [boolean,boolean]);
+   binding.set(style,true);binding.setLeaves(pages);binding.sync([spreadPages[0]!.visible,spreadPages[1]!.visible],spreadPages.map((mesh,index)=>({kind:hard&&mesh.userData["coverBoard"]===true?"open" as const:"page" as const,share:sideShare(index as 0|1,Number(mesh.userData["leaf"]),pages)})) as [BindingSide,BindingSide]);
    for(const m of [artMaterial,backMaterial,...spreadMaterials])paper.apply(m,options.finish);
    setSurface(0,options.wall,options.colour);setSurface(1,options.floor,options.floorColour);scene.background=new THREE.Color(options.colour);setLighting();request();
  };
@@ -122,13 +131,13 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
    setSize(size:PhotoSize){if(photoSizeError(size))return;outputSize={...size};request();},
    exportLimit(){const gl=renderer.getContext();return Math.min(8192,renderer.capabilities.maxTextureSize,gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),...Array.from(gl.getParameter(gl.MAX_VIEWPORT_DIMS) as Int32Array));},
    setSpread(canvases:readonly [HTMLCanvasElement|null,HTMLCanvasElement|null]|null){
-     open=Boolean(canvases);spreadMaterials.forEach((m,i)=>{const old=m.map;if(old){old.dispose();textures.delete(old);}const canvas=canvases?.[i];m.map=canvas?texture(canvas):null;m.needsUpdate=true;spreadPages[i]!.visible=Boolean(canvas);spreadPages[i]!.userData["coverBoard"]=canvas?.dataset["coverBoard"]==="true";});apply();
+     open=Boolean(canvases);spreadMaterials.forEach((m,i)=>{const old=m.map;if(old){old.dispose();textures.delete(old);}const canvas=canvases?.[i];m.map=canvas?texture(canvas):null;m.needsUpdate=true;spreadPages[i]!.visible=Boolean(canvas);spreadPages[i]!.userData["coverBoard"]=canvas?.dataset["coverBoard"]==="true";spreadPages[i]!.userData["leaf"]=Number(canvas?.dataset["seed"]);});apply();
    },
    async png(){
      let pending:Promise<void>[];do{pending=[pendingEnvironment,...surfaces.map(s=>s.pending)];await Promise.all([...pending,paper.ready()]);}while(pending[0]!==pendingEnvironment||pending[1]!==surfaces[0]!.pending||pending[2]!==surfaces[1]!.pending);
      if(disposed)throw new Error("Photo shoot closed.");if(renderer.getContext().isContextLost())throw new Error("Graphics were interrupted. Reopen Photo shoot.");const {width,height}=outputSize,gl=renderer.getContext(),limit=Math.min(renderer.capabilities.maxTextureSize,gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),...Array.from(gl.getParameter(gl.MAX_VIEWPORT_DIMS) as Int32Array)),error=photoSizeError(outputSize,limit);if(error)throw new Error(error);
      try{render(width,height);return await new Promise<Blob>((resolve,reject)=>renderer.domElement.toBlob(blob=>blob?resolve(blob):reject(new Error("The image could not be exported.")),"image/png"));}finally{if(!disposed)paint();}
    },
-   dispose(){disposed=true;environmentRevision++;surfaces.forEach(s=>s.revision++);cancelAnimationFrame(frame);observer.disconnect();renderer.domElement.removeEventListener("webglcontextlost",lost);binding.dispose();paper.dispose();diffuser.dispose();pmrem.dispose();environment?.dispose();masks.forEach(t=>t.dispose());textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());key.shadow.map?.dispose();sun.shadow.map?.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();},
+   dispose(){disposed=true;environmentRevision++;surfaces.forEach(s=>s.revision++);cancelAnimationFrame(frame);observer.disconnect();renderer.domElement.removeEventListener("webglcontextlost",lost);binding.dispose();grounding.dispose();paper.dispose();diffuser.dispose();pmrem.dispose();environment?.dispose();masks.forEach(t=>t.dispose());textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());key.shadow.map?.dispose();sun.shadow.map?.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();},
  };
 }
