@@ -1,3 +1,4 @@
+import { pageBlockGeometry, coverBoardGeometry, caseSpineGeometry, visibleBookBounds } from "./book-model";
 import { COVER_HEIGHT, COVER_OVERHANG } from "./rigid-cover";
 import * as THREE from "three";
 import { bookStyleProfile, readableBookStyle, type BookStyle } from "./book-style";
@@ -11,11 +12,11 @@ import { dappleTexture } from "./dapple-light";
 import { createBookBinding } from "./book-binding";
 import type { SurfaceKind } from "./surface";
 export type ShootOptions={style:BookStyle;colour:string;wall?:string;floorColour:string;floor?:string;yaw:number;elevation:number;zoom:number;hdri:HdriId;finish:SurfaceKind;brightness:number;strength:number;topLight:number};
-export function shootCamera(yaw:number,elevation:number,zoom:number,ratio:number,aspect:number,span=1){
+export function shootCamera(yaw:number,elevation:number,zoom:number,ratio:number,aspect:number,span=1,centre?:THREE.Vector3){
  const angle=THREE.MathUtils.degToRad(Math.max(-40,Math.min(40,yaw))),pitch=THREE.MathUtils.degToRad(Math.max(2,Math.min(25,elevation)));
  const distance=Math.max(ratio*2.3,span*2.3/aspect)/Math.max(.7,Math.min(1.4,zoom));
- const target=new THREE.Vector3(0,ratio*.52,0);
- return {target,position:new THREE.Vector3(Math.sin(angle)*distance,target.y+Math.sin(pitch)*distance,Math.cos(angle)*Math.cos(pitch)*distance)};
+ const target=centre?.clone()??new THREE.Vector3(0,ratio*.52,0);
+ return {target,position:new THREE.Vector3(target.x+Math.sin(angle)*distance,target.y+Math.sin(pitch)*distance,target.z+Math.cos(angle)*Math.cos(pitch)*distance)};
 }
 export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:HTMLCanvasElement,pages:number,onError:(message:string)=>void=()=>{},initial?:Partial<ShootOptions>){
  const ratio=front.height/front.width,renderer=new THREE.WebGLRenderer({antialias:true});
@@ -26,10 +27,10 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
  const material=(options:THREE.MeshStandardMaterialParameters)=>{const m=new THREE.MeshStandardMaterial(options);materials.add(m);return m;};
  const texture=(canvas:HTMLCanvasElement)=>{const t=new THREE.CanvasTexture(canvas);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());textures.add(t);return t;};
  const coverColour=sampleCoverColour(front),coverMaterial=material({color:coverColour,roughness:.6,envMapIntensity:1.15}),pageMaterial=material({color:"#f1eee5",roughness:.98});
- const edgePixels=new Uint8Array(128*4);for(let y=0;y<128;y++){const shade=y%4===0?200:255;edgePixels.set([shade,shade,shade,255],y*4);}
+ const edgePixels=new Uint8Array(128*4);for(let y=0;y<128;y++){const shade=y%4===0?223:250;edgePixels.set([shade,shade,shade,255],y*4);}
  const edgeTexture=new THREE.DataTexture(edgePixels,1,128);edgeTexture.colorSpace=THREE.SRGBColorSpace;edgeTexture.needsUpdate=true;textures.add(edgeTexture);pageMaterial.map=edgeTexture;
  const artMaterial=material({map:texture(front)}),backMaterial=material({map:texture(back)});
- const box=new THREE.BoxGeometry(1,1,1),plane=new THREE.PlaneGeometry(1,1,32,16),spineGeometry=new THREE.CylinderGeometry(1,1,1,24);[box,plane,spineGeometry].forEach(g=>geometries.add(g));
+ const box=pageBlockGeometry(),plane=new THREE.PlaneGeometry(1,1,32,16),spineGeometry=caseSpineGeometry();[box,plane,spineGeometry].forEach(g=>geometries.add(g));
  const add=(geometry:THREE.BufferGeometry,mat:THREE.Material,parent=closed)=>{const m=new THREE.Mesh(geometry,mat);m.castShadow=m.receiveShadow=true;parent.add(m);return m;};
  const spine=add(spineGeometry,coverMaterial),block=add(box,pageMaterial),frontBoard=add(box,coverMaterial),backBoard=add(box,coverMaterial),art=add(plane,artMaterial),rear=add(plane.clone(),backMaterial);geometries.add(rear.geometry);rear.rotation.y=Math.PI;
  const fan=[add(plane.clone(),pageMaterial),add(plane.clone(),pageMaterial)];fan.forEach(m=>geometries.add(m.geometry));
@@ -49,7 +50,7 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
  let disposed=false,frame=0,open=false,shapeStamp="",environmentKey="",environmentRevision=0,environment:THREE.WebGLRenderTarget|undefined;
  const diffuser=createEnvironmentDiffuser(renderer),pmrem=new THREE.PMREMGenerator(renderer),paper=createPaperTextures(()=>request());
  const masks=new Map<HdriId,THREE.CanvasTexture>();
- const render=(width:number,height:number)=>{renderer.setSize(width,height,false);camera.aspect=width/height;const pose=shootCamera(options.yaw,options.elevation,options.zoom,ratio,camera.aspect,open?2.1:1);camera.position.copy(pose.position);camera.lookAt(pose.target);camera.updateProjectionMatrix();renderer.render(scene,camera);};
+ const render=(width:number,height:number)=>{renderer.setSize(width,height,false);camera.aspect=width/height;const bounds=visibleBookBounds(open?spread:closed),size=bounds.getSize(new THREE.Vector3()),centre=bounds.getCenter(new THREE.Vector3());const pose=shootCamera(options.yaw,options.elevation,options.zoom,Math.max(ratio,size.y),camera.aspect,size.x,centre);camera.position.copy(pose.position);camera.lookAt(pose.target);camera.updateProjectionMatrix();renderer.render(scene,camera);};
  const paint=()=>{if(disposed)return;const rect=host.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);render(Math.max(1,Math.round(rect.width*dpr)),Math.max(1,Math.round(rect.height*dpr)));};
  const request=()=>{if(!frame&&!disposed)frame=requestAnimationFrame(()=>{frame=0;paint();});};
  const lost=(event:Event)=>{event.preventDefault();onError("Graphics were interrupted. Close and reopen Photo shoot to restore the stage.");};
@@ -66,9 +67,9 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
    const load=async(file:string)=>{const t=await loader.loadAsync(file);if(disposed||failed||token!==state.revision){t.dispose();throw new Error("Surface replaced");}acquired.add(t);return t;};
    state.pending=Promise.all([load(url),maps?load(maps.normal):Promise.resolve(null),maps?load(maps.roughness):Promise.resolve(null)]).then(loaded=>{
      if(disposed||token!==state.revision){loaded.forEach(t=>t?.dispose());return;}
-     clear();loaded.forEach((t,i)=>{if(!t)return;t.colorSpace=i===0?THREE.SRGBColorSpace:THREE.NoColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;
+     clear();loaded.forEach((t,i)=>{if(!t)return;t.colorSpace=i===0?THREE.SRGBColorSpace:THREE.NoColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
        const image=loaded[0]!.image as HTMLImageElement,rx=30/4,ry=30/(4*(image.naturalHeight/image.naturalWidth||1));t.repeat.set(rx,ry);t.offset.set(.5-.5*rx,index===0?.5-((ratio*.52-5)/30+.5)*ry:.5-.5*ry);textures.add(t);state.maps.push(t);});
-     acquired.clear();[m.map,m.normalMap,m.roughnessMap]=loaded;m.normalScale.set(.65,.65);m.roughness=maps?1:.94;m.needsUpdate=true;request();
+     acquired.clear();[m.map,m.normalMap,m.roughnessMap]=loaded;m.normalScale.set(1,1);m.roughness=maps?1:.94;m.needsUpdate=true;request();
    }).catch(()=>{failed=true;acquired.forEach(t=>t.dispose());acquired.clear();if(!disposed&&token===state.revision)onError(`The ${index===0?"wall":"floor"} surface could not load.`);throw new Error("A photo surface could not load. Choose another preset.");});void state.pending.catch(()=>{});
  };
  let pendingEnvironment:Promise<void>=Promise.resolve();
@@ -97,13 +98,14 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
        for(let i=0;i<p.count;i++){const u=uv.getX(i),v=uv.getY(i),x=u-.5;p.setXYZ(i,rigid?x*(1+2*COVER_OVERHANG)+(index===0?-1:1)*COVER_OVERHANG:x,(v-.5)*(ratio+(rigid?2*COVER_OVERHANG:0)),rigid?COVER_HEIGHT:.014+.022*Math.sin(Math.PI*u));}
        p.needsUpdate=true;mesh.geometry.computeVertexNormals();
      });
-     const thickness=style==="flipbook"?.018:Math.min(hard?.14:.075,(hard?.055:.025)+pages*.00045),board=hard?.024:soft?.004:.001;
-     spine.visible=style!=="flipbook";spine.scale.set((thickness+2*board)/2,ratio,(thickness+2*board)/2);spine.position.x=-.5+(thickness+2*board)/2;
-     block.scale.set(.98,ratio-.018,thickness);frontBoard.scale.set(1+2*profile.overhang,ratio+2*profile.overhang,board);backBoard.scale.copy(frontBoard.scale);
+     const thickness=style==="flipbook"?.018:Math.min(hard?.14:.075,(hard?.055:.025)+pages*.00045),board=hard?.012:soft?.004:.001;
+     spine.visible=style!=="flipbook";spine.rotation.y=Math.PI/2;spine.scale.set((thickness+2*board)/2,ratio+2*profile.overhang,hard?.025:.012);spine.position.x=-.5-profile.overhang+.008;
+     block.scale.set(hard?.958:.98,ratio-(hard?.035:.018),thickness);block.position.x=hard?.009:0;frontBoard.scale.set(1+2*profile.overhang,ratio+2*profile.overhang,board);backBoard.scale.copy(frontBoard.scale);
+     for(const mesh of [frontBoard,backBoard]){if(mesh.geometry!==box){geometries.delete(mesh.geometry);mesh.geometry.dispose();}mesh.geometry=coverBoardGeometry(1+2*profile.overhang,ratio+2*profile.overhang,board);geometries.add(mesh.geometry);}
      frontBoard.position.z=thickness/2+board/2;backBoard.position.z=-thickness/2-board/2;
      const coverWidth=hard?1+2*profile.overhang:1,coverHeight=hard?ratio+2*profile.overhang:ratio;
-     art.scale.set(coverWidth,coverHeight,1);art.position.z=thickness/2+board+.001;rear.scale.copy(art.scale);rear.position.z=-thickness/2-board-.001;
-     const positions=plane.getAttribute("position") as THREE.BufferAttribute;for(let i=0;i<positions.count;i++){const x=positions.getX(i);positions.setZ(i,soft?.018*Math.sin(Math.PI*(x+.5)):0);}positions.needsUpdate=true;plane.computeVertexNormals();
+     art.scale.set(coverWidth,coverHeight,1);art.position.z=thickness/2+board+.002;rear.scale.copy(art.scale);rear.position.z=-thickness/2-board-.002;
+     for(const mesh of [art,rear]){const positions=mesh.geometry.getAttribute("position") as THREE.BufferAttribute;for(let i=0;i<positions.count;i++){const x=positions.getX(i),hinge=mesh===art?x+.5:.5-x;positions.setZ(i,soft?.012*Math.sin(Math.PI*(x+.5)):hard?-.0015*Math.exp(-Math.pow((hinge-.04)/.018,2)):0);}positions.needsUpdate=true;mesh.geometry.computeVertexNormals();}
      fan.forEach((mesh,i)=>{mesh.visible=style==="flipbook";mesh.scale.set(1,ratio,1);mesh.rotation.z=(i+1)*.018;mesh.position.z=-thickness/2-(i+1)*.002;});
      book.rotation.x=-.10;const height=ratio+2*profile.overhang,depth=open?.07:thickness+2*board;
      book.position.set(0,height/2*Math.cos(.1)+depth/2*Math.sin(.1)+.01,-.12+height/2*Math.sin(.1)+depth/2*Math.cos(.1)+.006);
