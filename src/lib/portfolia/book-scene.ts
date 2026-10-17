@@ -6,7 +6,7 @@ import { createPaperTextures } from "./paper-textures";
 import { applyTurnPose, bakeTurnGeometry, createTurnGeometryCache, turnGeometryWriter, restingTurnNormals, type TurnPose } from "./turn-geometry-cache";
 import { createRestingPageShadows } from "./resting-page-shadows";
 import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
-import { turnEase, captureFrames, turnRestVisible } from "./turn-motion";
+import { turnEase, captureFrames, turnRestVisible, styledTurnEase, turnDurationScale, readableTurnStyle, type TurnStyle } from "./turn-motion";
 import { createEnvironmentDiffuser } from "./environment-diffusion";
 import { dappleTexture } from "./dapple-light";
 import { bookSurfaceRatio, bookMotionBudget } from "./render-budget";
@@ -27,6 +27,8 @@ export type { HdriId };
 
 export type StudioSettings = {
   studio: boolean;
+  turnStyle?: TurnStyle;
+  turnSpeed?: number;
   material: SurfaceKind;
   /** 0..1 overall studio brightness. */
   brightness: number;
@@ -362,7 +364,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const turnGeometryCache = createTurnGeometryCache(compact ? 4 : 8);
   let bakedTurn: TurnPose[] | null = null;
   let turnRestPages: [boolean, boolean] | null = null;
-  let draggedTurn: { from: BookFaces; to: BookFaces; dir: 1 | -1; destinationFocus: number; originalFocus: number; progress: number; speed: number } | null = null;
+  let draggedTurn: { from: BookFaces; to: BookFaces; dir: 1 | -1; destinationFocus: number; originalFocus: number; progress: number; speed: number; style: TurnStyle } | null = null;
 
   // Pages kept on the graphics card are limited by count and by memory, so the browser never has a reason to take the context away.
   // The most graphics memory page pictures may hold at once depends on the device (see resolution.ts); beyond it the
@@ -771,8 +773,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   };
   /** The most a turn advances in one frame, however slow that frame was. */
   const MAX_FRAME_STEP = 1000 / 60;
-  const animate = (duration: number, update: (t: number) => void): Promise<void> => {
-    if(captureClock) return captureFrames(duration,t=>{if(disposed)throw new Error("The renderer closed.");update(ease(t));paint();},captureClock);
+  const animate = (duration: number, update: (t: number) => void, easing = ease): Promise<void> => {
+    if(captureClock) return captureFrames(duration,t=>{if(disposed)throw new Error("The renderer closed.");update(easing(t));paint();},captureClock);
     return new Promise<void>((resolve) => {
       if (disposed) {
         resolve();
@@ -807,7 +809,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         elapsed += Math.min(now - previous, MAX_FRAME_STEP);
         previous = now;
         const t = Math.min(1, elapsed / duration);
-        update(ease(t));
+        update(easing(t));
         paint();
         // The first few frames of a turn are not representative (shaders, uploads), so they are not counted.
         if (lastFrame && ++frames > 2) watchSpeed(now - lastFrame);
@@ -1034,6 +1036,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     /** `speed` 1 is the normal pace; smaller is quicker (used when pages are turned in quick succession). */
     async prepareTurn(from: BookFaces, to: BookFaces, dir: 1 | -1, destinationFocus: number, speed = 1, plan: TabPlan[] | null = null, dragging = false) {
       if (disposed) return;
+      const style = readableTurnStyle(settings.turnStyle);
+      speed *= turnDurationScale(style, settings.turnSpeed);
       const openingCover = dir === 1 && !from[0] && Boolean(from[1] && to[0] && to[1]);
       if (openingCover && !dragging) speed *= 1.8;
       bakedTurn = posesForTurn(from, to, dir);
@@ -1066,7 +1070,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       } catch {
         /* not available: the turn simply starts */
       }
-      draggedTurn = { from, to, dir, destinationFocus, originalFocus, progress: 0, speed };
+      draggedTurn = { from, to, dir, destinationFocus, originalFocus, progress: 0, speed, style };
     },
     /** How far the turn in progress has got (0 to 1), or null when no page is turning. */
     turnProgress(): number | null {
@@ -1084,7 +1088,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       pendingDragShape = null;
       const turn = draggedTurn;
       if (!turn || disposed) return;
-      const { from, to, dir, destinationFocus, originalFocus, speed } = turn;
+      const { from, to, dir, destinationFocus, originalFocus, speed, style } = turn;
       const start = turn.progress;
       const startFocus = focus;
       const end = complete ? 1 : 0;
@@ -1096,7 +1100,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
           focus = THREE.MathUtils.lerp(startFocus, destinationFocus, progress);
           frameCamera();
         }
-      });
+      }, (t) => styledTurnEase(t,style));
       if (disposed) return;
       // At the end the sheet lies exactly over the covered page, so swapping
       // the textures in the same frame as hiding it is invisible.

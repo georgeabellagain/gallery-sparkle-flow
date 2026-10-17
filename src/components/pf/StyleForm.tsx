@@ -1,3 +1,4 @@
+import { PageTurnSettings } from "./PageTurnSettings";
 import { personalHdri } from "@/lib/portfolia/premium-appearance";
 import { isPortfolioDraft } from "@/lib/portfolia/store";
 import { ChoiceTile } from "./ChoiceTile";
@@ -324,6 +325,7 @@ export function StyleForm({
                     onChange={(spreads) => setViewer({ spreads })}
                   />
                 </div>
+                {enabledModes.includes("book") && <PageTurnSettings viewer={viewer} setViewer={setViewer} />}
                 <label className="flex items-center justify-between gap-3">
                   <span>Show profile icon</span>
                   <input

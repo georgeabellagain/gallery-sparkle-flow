@@ -36,6 +36,9 @@ export interface PageStyle {
 
 export interface ViewerSettings {
   mode: "scroll" | "paged" | "book";
+  /** Creator-selected flipbook motion; omitted retains Classic at normal speed. */
+  turnStyle?: import("./turn-motion").TurnStyle;
+  turnSpeed?: number;
   /** Reading modes offered to visitors. Older portfolios without this use all modes. */
   modes?: ("scroll" | "paged" | "book")[];
   look: "clean" | "studio";
