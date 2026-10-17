@@ -1,3 +1,4 @@
+import { createCachedLightMask } from "./cached-light-mask";
 import { createSettledPaperCache } from "./settled-paper";
 import { presetShadow } from "./lighting";
 import { updatePaperTangents } from "./paper-tangents";
@@ -170,6 +171,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   sunPatch.shadow.bias = -.0001;
   sunPatch.shadow.camera.near = .1;
   sunPatch.shadow.camera.far = 12;
+  const cachedLightMask = createCachedLightMask();
   const dapples = new Map<string, THREE.CanvasTexture>();
   scene.add(sunPatch, sunPatch.target);
 
@@ -261,6 +263,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // A single sheet of paper must cast its shadow whichever way it faces the light. By default a
     // one-sided sheet that faces the light casts none, so the real shadow would come and go.
     mat.shadowSide = THREE.DoubleSide;
+    cachedLightMask.apply(mat);
     pageMaterials.push(mat);
     return mat;
   };
@@ -648,6 +651,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   });
   let variant = "";
   const backdrop = createLitBackdrop(scene, () => requestPaint(false));
+  cachedLightMask.apply(backdrop.material);
   const configure = (next: StudioSettings) => {
     next = {...next, material:paperFinish(next.material)};
     settings = next;
@@ -682,6 +686,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     sunPatch.target.position.set(shadow.offset[0]/40,shadow.offset[1]/40,0);
     sunPatch.intensity = next.studio ? presetDirectLight(next.hdri, next.strength) : 0;
     sunPatch.penumbra = shadow.penumbra;
+    cachedLightMask.set(next.hdri, pattern ? dapples.get(next.hdri)! : null, sunPatch.angle, sunPatch.penumbra);
     // The patterned light casts the moving sheet onto the backdrop; a shadow-only
     // directional source covers even environments without adding illumination.
     sunPatch.castShadow = next.studio && Boolean(pattern) && mix.hdri > 0;
@@ -1151,6 +1156,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       environments.forEach((target) => target.dispose());
       environmentGenerator?.dispose();
       evenLight?.dispose();
+      cachedLightMask.dispose();
       dapples.forEach(texture => texture.dispose());
       sunPatch.shadow.map?.dispose();
       light.shadow.map?.dispose();
