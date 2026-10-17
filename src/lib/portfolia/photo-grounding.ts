@@ -45,9 +45,21 @@ export function createPhotoGrounding(scene: THREE.Scene, floorY: number, wallZ: 
   cornerFloor.scale.set(30, .32, 1); cornerFloor.position.set(0, floorY + .0006, wallZ + .16);
   cornerWall.scale.set(30, .24, 1); cornerWall.position.set(0, floorY + .12, wallZ + .0006);
   return {
-    /** `bounds` is the book's world box; `depth` its thickness where it stands on the floor. */
-    update(bounds: THREE.Box3, depth: number) {
+    /**
+     * `bounds` is the book's world box; `depth` its thickness. Leaning, the book touches the floor along its
+     * foot and the wall behind it; lying flat, its whole underside meets the floor.
+     */
+    update(bounds: THREE.Box3, depth: number, layout: "lean" | "flat" = "lean") {
       const width = bounds.max.x - bounds.min.x, cx = (bounds.min.x + bounds.max.x) / 2, height = bounds.max.y - floorY;
+      behind.visible = layout === "lean";
+      if (layout === "flat") {
+        const length = bounds.max.z - bounds.min.z, cz = (bounds.min.z + bounds.max.z) / 2;
+        footprint.scale.set(width * 1.03, length * 1.03, 1);
+        footprint.position.set(cx, floorY + .0008, cz);
+        spread.scale.set(width * 1.22, length * 1.2, 1);
+        spread.position.set(cx + .015, floorY + .0007, cz + .02);
+        return;
+      }
       footprint.scale.set(width * 1.04, depth + .05, 1);
       footprint.position.set(cx, floorY + .0008, bounds.max.z - depth / 2 - .005);
       spread.scale.set(width * 1.3, depth + .5, 1);

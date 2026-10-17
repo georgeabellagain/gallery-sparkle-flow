@@ -38,6 +38,8 @@ export type StudioSettings = {
   turnSpeed?: number;
   turnCurve?: TurnCurve;
   bookStyle?: BookStyle;
+  ribbon?: boolean;
+  ribbonColour?: string;
   material: SurfaceKind;
   /** 0..1 overall studio brightness. */
   brightness: number;
@@ -695,6 +697,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const configure = (next: StudioSettings) => {
     next = {...next, material:paperFinish(next.material)};
     settings = next;
+    binding.setDetails({ribbon:next.ribbon,ribbonColour:next.ribbonColour});
     binding.set(next.bookStyle,next.studio);
     const rest: CoverRest = left.visible && right.visible ? "open" : "closed";
     [left,right].forEach((mesh,i)=>{

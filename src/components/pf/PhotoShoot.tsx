@@ -14,7 +14,8 @@ import { getBlob } from "@/lib/portfolia/assets";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
 import { BOOK_STYLES, readableBookStyle } from "@/lib/portfolia/book-style";
 import { BACKGROUND_PRESETS } from "@/lib/portfolia/background-presets";
-import { createPhotoShoot, type ShootOptions } from "@/lib/portfolia/photo-shoot";
+import { createPhotoShoot, SHOOT_ELEVATION, SHOOT_PRESETS, type ShootOptions } from "@/lib/portfolia/photo-shoot";
+import { RIBBON_COLOURS, readableRibbonColour } from "@/lib/portfolia/book-details";
 import { DEFAULT_VIEWER, type ViewerSettings, type Portfolio } from "@/lib/portfolia/store";
 
 export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }) {
@@ -33,10 +34,15 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
     wall: backgroundPicture(startingBackground),
     floorColour: startingBackground.backgroundColor ?? "#ded9cf",
     ...photoLighting(p.viewer),
+    ribbon: p.viewer?.ribbon,
+    ribbonColour: p.viewer?.ribbonColour,
+    layout: "lean",
     yaw: 20,
     elevation: 10,
     zoom: 1,
   }));
+  const elevationRange = SHOOT_ELEVATION[options.layout ?? "lean"];
+  const activePreset = SHOOT_PRESETS.find((preset) => preset.layout === (options.layout ?? "lean") && preset.yaw === options.yaw && preset.elevation === options.elevation && preset.zoom === options.zoom)?.id;
   const [tool, setTool] = useState<"customise" | "camera" | "export" | null>(null),
     [tab, setTab] = useState<"lighting" | "paper" | "background">("lighting"),
     [surface, setSurface] = useState<"wall" | "floor">("wall");
@@ -350,8 +356,8 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                     change({
                       yaw: Math.max(-40, Math.min(40, start.yaw + (e.clientX - start.x) * 0.16)),
                       elevation: Math.max(
-                        2,
-                        Math.min(25, start.elevation + (e.clientY - start.y) * 0.1),
+                        elevationRange[0],
+                        Math.min(elevationRange[1], start.elevation + (e.clientY - start.y) * 0.1),
                       ),
                     });
                 }}
@@ -432,6 +438,36 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                     </button>
                   ))}
                 </div>
+                {options.style !== "flipbook" && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        className="size-4 accent-leaf"
+                        checked={options.ribbon === true}
+                        onChange={(e) => change({ ribbon: e.target.checked })}
+                      />
+                      Ribbon bookmark
+                    </label>
+                    {(options.ribbon === true || options.style === "hardback") && (
+                      <div className="flex gap-1.5" role="radiogroup" aria-label="Ribbon colour">
+                        {RIBBON_COLOURS.map((colour) => (
+                          <button
+                            key={colour}
+                            type="button"
+                            role="radio"
+                            aria-checked={readableRibbonColour(options.ribbonColour) === colour}
+                            aria-label={`Ribbon colour ${colour}`}
+                            onClick={() => change({ ribbonColour: colour })}
+                            className="size-5 rounded-full border border-black/15 aria-checked:ring-2 aria-checked:ring-foreground aria-checked:ring-offset-1"
+                            style={{ background: colour }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <label className="block space-y-2">
                   <span>Show</span>
                   <select
@@ -564,11 +600,25 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
             )}
             {tool === "camera" && (
               <div className="space-y-5">
-                <p className="text-muted-foreground">Drag the preview to choose an angle.</p>
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Camera presets">
+                  {SHOOT_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={activePreset === preset.id}
+                      onClick={() => change({ layout: preset.layout, yaw: preset.yaw, elevation: preset.elevation, zoom: preset.zoom })}
+                      className="rounded-lg border border-border px-2 py-2.5 text-sm aria-checked:border-foreground aria-checked:bg-muted aria-checked:font-medium aria-checked:ring-1 aria-checked:ring-foreground"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-muted-foreground">Drag the preview to fine-tune the angle.</p>
                 {(
                   [
                     ["yaw", "Camera angle", -40, 40, 1],
-                    ["elevation", "Camera height", 2, 25, 1],
+                    ["elevation", "Camera height", elevationRange[0], elevationRange[1], 1],
                     ["zoom", "Framing", 0.7, 1.4, 0.05],
                   ] as const
                 ).map(([key, label, min, max, step]) => (
@@ -592,7 +642,7 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                 <Button
                   variant="line"
                   size="sm"
-                  onClick={() => change({ yaw: 20, elevation: 10, zoom: 1 })}
+                  onClick={() => change({ layout: "lean", yaw: 20, elevation: 10, zoom: 1 })}
                 >
                   <RotateCcw className="size-4" />
                   Reset camera

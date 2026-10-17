@@ -6,7 +6,7 @@ import { beginPortfolioDraft, discardPortfolioDraft, savePortfolioDraft, portfol
 import { ProfileForm } from "@/components/pf/ProfileForm";
 import { StyleForm } from "@/components/pf/StyleForm";
 import { AnalyticsPanel } from "@/components/pf/AnalyticsPanel";
-import { createFileRoute, Link, useNavigate, useBlocker } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useBlocker, useHydrated } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Modal, useBlob } from "@/components/pf/Chrome";
 import { EditorBar, EditorStage } from "@/components/pf/EditorStage";
@@ -64,11 +64,14 @@ function EditPortfolio() {
   };
   const { pdf, photoUrl } = useStoredMedia(p?.pdf?.blobKey, p?.profile.photoKey);
 
+  // The saved portfolio only appears once the page has hydrated; redirecting before then sent a reload of
+  // the editor to the dashboard even when a portfolio was saved on this device.
+  const hydrated = useHydrated();
   useEffect(() => {
-    if (!p) {
+    if (hydrated && !p) {
       void navigate({ to: "/dashboard" });
     }
-  }, [p, navigate]);
+  }, [hydrated, p, navigate]);
 
   if (!p || !p.pdf) return null;
 

@@ -44,13 +44,15 @@ import { BackdropLayer, IconButton, Segmented, type Tone } from "@/components/pf
 /** Full screen is the visible height of the window, which on a phone changes as the address bar slides away. */
 const FULL_HEIGHT = typeof CSS !== "undefined" && CSS.supports?.("height", "100dvh") ? "100dvh" : "100vh";
 
-type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri" | "simpleShadow" | "simpleShadowOpacity" | "strength" | "textureStrength" | "topLight" | "imperfections" | "turnStyle" | "turnSpeed" | "turnCurve" | "bookStyle">;
+type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri" | "simpleShadow" | "simpleShadowOpacity" | "strength" | "textureStrength" | "topLight" | "imperfections" | "turnStyle" | "turnSpeed" | "turnCurve" | "bookStyle" | "ribbon" | "ribbonColour">;
 const lookFrom = (viewer: ViewerSettings): Look => ({
   studio: viewer.look === "studio",
   turnStyle: viewer.turnStyle,
   turnSpeed: viewer.turnSpeed,
   turnCurve: viewer.turnCurve,
   bookStyle: viewer.bookStyle,
+  ribbon: viewer.ribbon,
+  ribbonColour: viewer.ribbonColour,
   material: viewer.finish,
   strength: viewer.studioLightingStrength ?? .75,
   textureStrength: 1,
@@ -467,7 +469,7 @@ export function BookView({
   useEffect(() => {
     setSettings(lookFor());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer.bookStyle, viewer.turnCurve, viewer.turnStyle, viewer.turnSpeed, viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioTopLight, viewer.studioImperfections, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.studioLightingStrength, previewLook, editingExtras]);
+  }, [viewer.bookStyle, viewer.ribbon, viewer.ribbonColour, viewer.turnCurve, viewer.turnStyle, viewer.turnSpeed, viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioTopLight, viewer.studioImperfections, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.studioLightingStrength, previewLook, editingExtras]);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; from: number; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
   const [openNote, setOpenNote] = useState(false);

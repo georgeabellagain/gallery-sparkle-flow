@@ -4,6 +4,9 @@ import { useEffect } from "react";
 import { TURN_STYLES, readableTurnSpeed, readableTurnStyle } from "@/lib/portfolia/turn-motion";
 import { setPreviewMode } from "@/lib/portfolia/preview-look";
 import type { ViewerSettings } from "@/lib/portfolia/store";
+import { RIBBON_COLOURS, readableRibbonColour } from "@/lib/portfolia/book-details";
+
+const RIBBON_NAMES: Record<string, string> = { "#8c1d2c": "Deep red", "#1f3a5f": "Navy", "#2f5d3a": "Forest green", "#c9a227": "Gold", "#1c1c1c": "Black", "#efe9dc": "Ivory" };
 
 export function PageTurnSettings({viewer,setViewer}:{viewer:ViewerSettings;setViewer:(patch:Partial<ViewerSettings>)=>boolean}) {
   useEffect(()=>()=>setPreviewMode(null),[]);
@@ -17,6 +20,20 @@ export function PageTurnSettings({viewer,setViewer}:{viewer:ViewerSettings;setVi
         onClick={()=>{setPreviewMode("book");setViewer({bookStyle:option.id});}}>{option.label}</button>)}
     </div>
     <p className="text-xs text-muted-foreground">{BOOK_STYLES.find(option=>option.id===readableBookStyle(viewer.bookStyle))!.description}</p>
+    {readableBookStyle(viewer.bookStyle)!=="flipbook" && <div className="space-y-2 rounded-lg border border-border p-3">
+      <label className="flex items-center justify-between gap-3 text-sm">
+        <span>Ribbon bookmark</span>
+        <input type="checkbox" role="switch" className="size-4 accent-leaf" checked={viewer.ribbon===true} onChange={event=>{setPreviewMode("book");setViewer({ribbon:event.target.checked});}} />
+      </label>
+      {(viewer.ribbon===true||readableBookStyle(viewer.bookStyle)==="hardback") && <div>
+        <p className="text-xs text-muted-foreground">{readableBookStyle(viewer.bookStyle)==="hardback"?"Ribbon and headband colour":"Ribbon colour"}</p>
+        <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Ribbon colour">
+          {RIBBON_COLOURS.map(colour=><button key={colour} type="button" role="radio" aria-checked={readableRibbonColour(viewer.ribbonColour)===colour} aria-label={RIBBON_NAMES[colour]} title={RIBBON_NAMES[colour]}
+            className="size-7 rounded-full border border-black/15 aria-checked:ring-2 aria-checked:ring-foreground aria-checked:ring-offset-2" style={{background:colour}}
+            onClick={()=>{setPreviewMode("book");setViewer({ribbonColour:colour});}} />)}
+        </div>
+      </div>}
+    </div>}
     <p className="text-sm font-medium">Page curve</p>
     <div className="grid grid-cols-2 gap-2" role="group" aria-label="Page-curve shape">
       {TURN_CURVES.map(option=><button key={option.id} type="button" aria-pressed={readableTurnCurve(viewer.turnCurve)===option.id}

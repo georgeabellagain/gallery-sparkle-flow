@@ -41,6 +41,10 @@ export interface ViewerSettings {
   turnSpeed?: number;
   turnCurve?: import("./turn-curve").TurnCurve;
   bookStyle?: import("./book-style").BookStyle;
+  /** Silk ribbon bookmark on hardback and soft-cover books; omitted is off. */
+  ribbon?: boolean;
+  /** Ribbon (and hardback headband) colour; omitted uses the default deep red. */
+  ribbonColour?: string;
   /** Reading modes offered to visitors. Older portfolios without this use all modes. */
   modes?: ("scroll" | "paged" | "book")[];
   look: "clean" | "studio";

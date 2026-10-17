@@ -2,6 +2,7 @@ import { pageBlockGeometry, coverBoardGeometry, caseSpineGeometry } from "./book
 import { COVER_GAP, PAGE_TOP, coverArtZ, coverTurnPose, type CoverRest } from "./rigid-cover";
 import * as THREE from "three";
 import { bookStyleProfile, type BookStyle } from "./book-style";
+import { applyCloth, disposeCloth, hasHeadbands, hasRibbon, headbandTexture, readableRibbonColour, ribbonGeometry, ribbonMaterial } from "./book-details";
 
 /** What rests on one side of the spine. `share` is that side's fraction of the page block (0..1). */
 export type BindingSide = { kind: "page" | CoverRest; share: number };
@@ -45,10 +46,21 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
   const turning=new THREE.Group();turning.visible=false;group.add(turning);
   const turningBoard=mesh(boardGeometry,boardMaterial);turning.add(turningBoard);
   const faceGeometry=new THREE.PlaneGeometry(1,1),faces:THREE.Mesh[]=[];
+  // Hardback headbands: small striped silk beads at the head and tail of the spine.
+  const bandGeometry=new THREE.CylinderGeometry(1,1,1,12,1),bandMaterial=new THREE.MeshStandardMaterial({roughness:.45});
+  let bandColour="";
+  const bands=[1,-1].map(()=>{const band=mesh(bandGeometry,bandMaterial);band.name="Headband";band.visible=false;group.add(band);return band;});
+  // The ribbon bookmark tail, hanging from the foot of the spine onto the table.
+  const ribbon=mesh(new THREE.BufferGeometry(),ribbonMaterial());ribbon.visible=false;group.add(ribbon);
+  let ribbonOn=false,ribbonColour:string=readableRibbonColour(undefined),ribbonStamp="";
   let style:BookStyle="flipbook",studio=false,coverColour:string|undefined,backColour:string|undefined,leaves=0;
   const colour=()=>{
     const value=coverColour??bookStyleProfile(style).colour,back=backColour??value;
-    for(const [material,shade] of [[boardMaterial,value],[spineMaterial,value],[backBoardMaterial,back]] as const){material.color.set(studio?shade:"#000000");material.emissive.set(studio?"#000000":shade);}
+    for(const [material,shade] of [[boardMaterial,value],[spineMaterial,value],[backBoardMaterial,back],[ribbon.material as THREE.MeshStandardMaterial,ribbonColour]] as const){material.color.set(studio?shade:"#000000");material.emissive.set(studio?"#000000":shade);}
+    // Headbands carry a striped map: lit in Studio, shown flat (as emissive) in Simple.
+    if(bandColour!==ribbonColour){bandMaterial.map?.dispose();bandMaterial.map=headbandTexture(ribbonColour);bandColour=ribbonColour;bandMaterial.needsUpdate=true;}
+    bandMaterial.color.set(studio?"#ffffff":"#000000");bandMaterial.emissive.set(studio?"#000000":"#ffffff");
+    const bandGlow=studio?null:bandMaterial.map;if(bandMaterial.emissiveMap!==bandGlow){bandMaterial.emissiveMap=bandGlow;bandMaterial.needsUpdate=true;}
   };
   const setBoardGeometry=(next:THREE.BufferGeometry)=>{
     const old=boardGeometry;boardGeometry=next;
@@ -59,6 +71,8 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
     setCoverColour(value:string,board:"front"|"back"="front"){if(board==="back")backColour=value;else coverColour=value;colour();},
     /** Leaf count of the open document, for block thickness. */
     setLeaves(count:number){leaves=Math.max(0,count|0);},
+    /** Ribbon bookmark (hardback and soft cover) and the colour shared by ribbon and headbands. */
+    setDetails(details:{ribbon?:boolean;ribbonColour?:string}){ribbonOn=details.ribbon===true;ribbonColour=readableRibbonColour(details.ribbonColour);colour();},
     set(value:unknown,lit:boolean){
       studio=lit;
       const profile=bookStyleProfile(value),changed=profile.id!==style;style=profile.id;
@@ -69,6 +83,9 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
         pages.scale.set(.997,ratio-.004,1);
       }
       turningBoard.scale.set(1+2*profile.overhang,ratio+2*profile.overhang,profile.board);
+      // Hardback boards and spine are covered in book cloth; card covers stay smooth.
+      if(style==="hardback"){applyCloth(boardMaterial,1+2*profile.overhang,ratio);applyCloth(backBoardMaterial,1+2*profile.overhang,ratio);applyCloth(spineMaterial,.08,ratio);}
+      else for(const material of [boardMaterial,backBoardMaterial,spineMaterial])if(material.normalMap){disposeCloth(material);material.userData["cloth"]=undefined;material.normalMap=material.roughnessMap=null;material.roughness=.62;material.needsUpdate=true;}
       colour();
       pageMaterial.color.set(studio?"#ffffff":"#000000");pageMaterial.emissive.set(studio?"#000000":"#ffffff");
       const emissiveMap=studio?null:edges;
@@ -98,6 +115,19 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
       const raised=hard&&(turning.visible||sides.some(({root},index)=>root.visible&&layout[index]!.kind==="closed"));
       spine.position.z=PAGE_TOP+(raised?B:0)-.001;
       spine.visible=style!=="flipbook"&&(visible[0]||visible[1]);
+      // In an open book the headband shows as a short striped roll lying across the head and foot of the gutter,
+      // just proud of the page edges and tucked under the paper's rise at the spine.
+      const showBands=hasHeadbands(style)&&spine.visible;
+      bands.forEach((band,index)=>{band.visible=showBands;band.rotation.set(0,0,Math.PI/2);band.scale.set(.0055,.034,.0055);band.position.set(0,(index===0?1:-1)*((ratio-.004)/2+.0035),PAGE_TOP+.001);});
+      // The ribbon leaves the gutter at the foot of the page and drapes onto the table, on the side the book lies.
+      const showRibbon=hasRibbon(style,ribbonOn)&&spine.visible,sign=visible[1]?1:-1,stamp=`${sign}|${ratio}`;
+      ribbon.visible=showRibbon;
+      if(showRibbon&&stamp!==ribbonStamp){
+        ribbonStamp=stamp;
+        const h=(ratio-.004)/2,p=(x:number,y:number,z:number)=>new THREE.Vector3(sign*x,y,z);
+        // Short enough to stay inside the reader's framing below the book, with a gentle sideways curl.
+        ribbonGeometry([p(.012,-h+.05,PAGE_TOP+.002),p(.016,-h+.004,PAGE_TOP+.002),p(.02,-h-.012,-.03),p(.03,-h-.026,-.064),p(.06,-h-.06,-.0675),p(.1,-h-.084,-.0675),p(.125,-h-.098,-.0675)],.03,new THREE.Vector3(0,0,1),ribbon.geometry);
+      }
     },
     /**
      * Shows the turning hardback board, carrying `front` (the face up at the start) and `back` (up at the end).
@@ -122,6 +152,6 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
       turning.rotation.y=-dir*pose.angle;
       turning.visible=true;
     },
-    dispose(){parent.remove(group);box.dispose();boardGeometry.dispose();faceGeometry.dispose();cylinder.dispose();edges.dispose();boardMaterial.dispose();backBoardMaterial.dispose();pageMaterial.dispose();spineMaterial.dispose();},
+    dispose(){parent.remove(group);box.dispose();boardGeometry.dispose();faceGeometry.dispose();bandGeometry.dispose();bandMaterial.map?.dispose();bandMaterial.dispose();ribbon.geometry.dispose();(ribbon.material as THREE.Material).dispose();[boardMaterial,backBoardMaterial,spineMaterial].forEach(disposeCloth);cylinder.dispose();edges.dispose();boardMaterial.dispose();backBoardMaterial.dispose();pageMaterial.dispose();spineMaterial.dispose();},
   };
 }

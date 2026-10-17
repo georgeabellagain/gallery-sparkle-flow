@@ -14,8 +14,26 @@ import { createBookBinding, sideShare, type BindingSide } from "./book-binding";
 import { createPhotoGrounding } from "./photo-grounding";
 import { createGutterShade } from "./gutter-shade";
 import { pageRelief } from "./page-relief";
+import { applyCloth, disposeCloth, hasHeadbands, hasRibbon, headbandTexture, readableRibbonColour, ribbonGeometry, ribbonMaterial } from "./book-details";
 import type { SurfaceKind } from "./surface";
-export type ShootOptions={style:BookStyle;colour:string;wall?:string;floorColour:string;floor?:string;yaw:number;elevation:number;zoom:number;hdri:HdriId;finish:SurfaceKind;brightness:number;strength:number;topLight:number};
+/** `lean` stands the book against the wall; `flat` lays it on the floor for a top-down flat lay. */
+export type ShootLayout="lean"|"flat";
+export type ShootOptions={style:BookStyle;colour:string;wall?:string;floorColour:string;floor?:string;yaw:number;elevation:number;zoom:number;hdri:HdriId;finish:SurfaceKind;brightness:number;strength:number;topLight:number;layout?:ShootLayout;ribbon?:boolean;ribbonColour?:string};
+/** Camera heights each layout allows, in degrees. */
+export const SHOOT_ELEVATION={lean:[2,25],flat:[40,88]} as const;
+/** Ready-made camera set-ups. */
+export const SHOOT_PRESETS=[
+ {id:"hero",label:"Leaning",layout:"lean",yaw:20,elevation:10,zoom:1},
+ {id:"three-quarter",label:"Three-quarter",layout:"lean",yaw:34,elevation:20,zoom:1.05},
+ {id:"spine",label:"Spine",layout:"lean",yaw:-34,elevation:14,zoom:1.05},
+ {id:"flat",label:"Flat lay",layout:"flat",yaw:0,elevation:72,zoom:1},
+] as const;
+/** Looking down on a book lying on the floor; `depth` is its extent away from the camera. */
+export function flatCamera(yaw:number,elevation:number,zoom:number,depth:number,aspect:number,span:number,centre:THREE.Vector3){
+ const angle=THREE.MathUtils.degToRad(Math.max(-40,Math.min(40,yaw))),pitch=THREE.MathUtils.degToRad(Math.max(40,Math.min(88,elevation)));
+ const distance=Math.max(depth*2.3,span*2.3/aspect)/Math.max(.7,Math.min(1.4,zoom));
+ return {target:centre.clone(),position:new THREE.Vector3(centre.x+Math.sin(angle)*Math.cos(pitch)*distance,centre.y+Math.sin(pitch)*distance,centre.z+Math.cos(angle)*Math.cos(pitch)*distance)};
+}
 export function shootCamera(yaw:number,elevation:number,zoom:number,ratio:number,aspect:number,span=1,centre?:THREE.Vector3){
  const angle=THREE.MathUtils.degToRad(Math.max(-40,Math.min(40,yaw))),pitch=THREE.MathUtils.degToRad(Math.max(2,Math.min(25,elevation)));
  const distance=Math.max(ratio*2.3,span*2.3/aspect)/Math.max(.7,Math.min(1.4,zoom));
@@ -38,13 +56,18 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
  const add=(geometry:THREE.BufferGeometry,mat:THREE.Material,parent=closed)=>{const m=new THREE.Mesh(geometry,mat);m.castShadow=m.receiveShadow=true;parent.add(m);return m;};
  const spine=add(spineGeometry,coverMaterial),block=add(box,pageMaterial),frontBoard=add(box,coverMaterial),backBoard=add(box,coverMaterial),art=add(plane,artMaterial),rear=add(plane.clone(),backMaterial);geometries.add(rear.geometry);rear.rotation.y=Math.PI;
  const fan=[add(plane.clone(),pageMaterial),add(plane.clone(),pageMaterial)];fan.forEach(m=>geometries.add(m.geometry));
+ // Hardback headbands at the head and tail of the closed book's spine.
+ const bandGeometry=new THREE.CylinderGeometry(1,1,1,12,1),bandMaterial=material({roughness:.45});geometries.add(bandGeometry);
+ const bands=[1,-1].map(()=>{const band=add(bandGeometry,bandMaterial);band.rotation.x=Math.PI/2;return band;});let bandColour="";
+ // The ribbon tail lies on the floor in world space, so it drapes the same way in either layout.
+ const ribbonMesh=new THREE.Mesh(new THREE.BufferGeometry(),ribbonMaterial());ribbonMesh.castShadow=ribbonMesh.receiveShadow=true;ribbonMesh.visible=false;scene.add(ribbonMesh);materials.add(ribbonMesh.material);geometries.add(ribbonMesh.geometry);
  const spreadMaterials=[material({}),material({})];
  // Open pages rise from the gutter exactly as in the reader, and darken softly into the spine.
  const spreadRelief=(side:number,u:number,v:number)=>pageRelief(side===0?1-u:u,v,side+3);
  const gutter=createGutterShade();spreadMaterials.forEach(m=>gutter.apply(m));gutter.set(.3);
  const spreadPages=spreadMaterials.map((m,i)=>{const geometry=new THREE.PlaneGeometry(1,ratio,32,16);geometries.add(geometry);const pos=geometry.getAttribute("position") as THREE.BufferAttribute;
    for(let n=0;n<pos.count;n++){const x=pos.getX(n),y=pos.getY(n);pos.setZ(n,spreadRelief(i,x+.5,y/ratio+.5));}pos.needsUpdate=true;geometry.computeVertexNormals();const mesh=add(geometry,m,spread);mesh.position.x=i===0?-.5:.5;return mesh;});
- const binding=createBookBinding(spread,ratio);binding.setCoverColour(coverColour);
+ const binding=createBookBinding(spread,ratio);binding.setCoverColour(coverColour);binding.setCoverColour(sampleCoverColour(back),"back");
  const wallMaterial=material({roughness:1}),floorMaterial=material({roughness:.94}),stageGeometry=new THREE.PlaneGeometry(30,30);geometries.add(stageGeometry);
  const wall=new THREE.Mesh(stageGeometry,wallMaterial);wall.position.set(0,5,-.12);wall.receiveShadow=true;scene.add(wall);
  const floor=new THREE.Mesh(stageGeometry,floorMaterial);floor.rotation.x=-Math.PI/2;floor.position.y=-.002;floor.receiveShadow=true;scene.add(floor);
@@ -54,12 +77,13 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
  key.castShadow=sun.castShadow=true;sun.shadow.camera.near=.1;sun.shadow.camera.far=20;sun.shadow.camera.updateProjectionMatrix();
  for(const light of [key,sun]){light.shadow.mapSize.set(2048,2048);light.shadow.normalBias=.008;light.shadow.radius=4;}
  Object.assign(key.shadow.camera,{left:-4,right:4,top:5,bottom:-2,near:.1,far:20});key.shadow.camera.updateProjectionMatrix();
- let options:ShootOptions={style:"flipbook",colour:"#ded9cf",floorColour:"#ded9cf",yaw:20,elevation:10,zoom:1,hdri:"4",finish:"satin",brightness:.5,strength:.75,topLight:0,...initial};
+ const FLOOR_Y=-.002,FLAT_Z=2.2;
+ let options:ShootOptions={layout:"lean",style:"flipbook",colour:"#ded9cf",floorColour:"#ded9cf",yaw:20,elevation:10,zoom:1,hdri:"4",finish:"satin",brightness:.5,strength:.75,topLight:0,...initial};
  let outputSize:PhotoSize={width:2048,height:2560};
  let disposed=false,frame=0,open=false,shapeStamp="",environmentKey="",environmentRevision=0,environment:THREE.WebGLRenderTarget|undefined;
  const diffuser=createEnvironmentDiffuser(renderer),pmrem=new THREE.PMREMGenerator(renderer),paper=createPaperTextures(()=>request());
  const masks=new Map<HdriId,THREE.CanvasTexture>();
- const render=(width:number,height:number)=>{renderer.setSize(width,height,false);camera.aspect=width/height;const bounds=visibleBookBounds(open?spread:closed),size=bounds.getSize(new THREE.Vector3()),centre=bounds.getCenter(new THREE.Vector3());const pose=shootCamera(options.yaw,options.elevation,options.zoom,Math.max(ratio,size.y),camera.aspect,size.x,centre);camera.position.copy(pose.position);camera.lookAt(pose.target);camera.updateProjectionMatrix();renderer.render(scene,camera);};
+ const render=(width:number,height:number)=>{renderer.setSize(width,height,false);camera.aspect=width/height;const bounds=visibleBookBounds(open?spread:closed),size=bounds.getSize(new THREE.Vector3()),centre=bounds.getCenter(new THREE.Vector3());const pose=options.layout==="flat"?flatCamera(options.yaw,options.elevation,options.zoom,size.z,camera.aspect,size.x,centre):shootCamera(options.yaw,options.elevation,options.zoom,Math.max(ratio,size.y),camera.aspect,size.x,centre);camera.position.copy(pose.position);camera.lookAt(pose.target);camera.updateProjectionMatrix();renderer.render(scene,camera);};
  const paint=()=>{if(disposed)return;const rect=host.getBoundingClientRect(),dpr=Math.min(window.devicePixelRatio||1,2);render(Math.max(1,Math.round(rect.width*dpr)),Math.max(1,Math.round(rect.height*dpr)));};
  const request=()=>{if(!frame&&!disposed)frame=requestAnimationFrame(()=>{frame=0;paint();});};
  const lost=(event:Event)=>{event.preventDefault();onError("Graphics were interrupted. Close and reopen Photo shoot to restore the stage.");};
@@ -84,7 +108,10 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
  let pendingEnvironment:Promise<void>=Promise.resolve();
  const setLighting=()=>{
    renderer.toneMappingExposure=studioExposure(options.brightness);top.intensity=studioTopLight(options.topLight);
-   const shadow=presetShadow(options.hdri);key.position.set(...shadow.position);key.target.position.set(0,ratio*.5,0);key.shadow.radius=shadow.radius*4;
+   // A flat lay moves the book away from the wall; the lights move with it so shadows keep their direction.
+   const shadow=presetShadow(options.hdri),flatLay=options.layout==="flat";
+   key.position.set(...shadow.position);if(flatLay)key.position.z+=FLAT_Z;
+   key.target.position.set(0,flatLay?0:ratio*.5,flatLay?FLAT_Z:0);key.shadow.radius=shadow.radius*4;
    sun.position.copy(key.position);sun.target.position.copy(key.target.position);sun.penumbra=shadow.penumbra;sun.shadow.radius=shadow.radius*4;
    const pattern=HDRI_PRESETS.find(p=>p.id===options.hdri)?.dapple;
    if(pattern&&!masks.has(options.hdri)){const mask=dappleTexture(pattern,shadow);masks.set(options.hdri,mask);}
@@ -99,7 +126,13 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
    }).catch(()=>{if(!disposed&&token===environmentRevision)onError("The selected HDRI could not load.");throw new Error("The selected HDRI could not load.");});void pendingEnvironment.catch(()=>{});
  };
  const apply=()=>{
-   const style=readableBookStyle(options.style),profile=bookStyleProfile(style),hard=style==="hardback",soft=style==="softcover",stamp=`${style}|${open}|${spreadPages.map(mesh=>Boolean(mesh.userData["coverBoard"])).join()}`;
+   const style=readableBookStyle(options.style),profile=bookStyleProfile(style),hard=style==="hardback",soft=style==="softcover",flat=options.layout==="flat",showRibbon=hasRibbon(style,options.ribbon),stamp=`${style}|${open}|${flat}|${showRibbon}|${spreadPages.map(mesh=>Boolean(mesh.userData["coverBoard"])).join()}`;
+   const ribbonShade=readableRibbonColour(options.ribbonColour);(ribbonMesh.material as THREE.MeshStandardMaterial).color.set(ribbonShade);
+   if(bandColour!==ribbonShade){if(bandMaterial.map){textures.delete(bandMaterial.map);bandMaterial.map.dispose();}bandMaterial.map=headbandTexture(ribbonShade);textures.add(bandMaterial.map);bandColour=ribbonShade;bandMaterial.needsUpdate=true;}
+   // The spread's binding draws the headbands; the photo's own ribbon replaces the reader's table ribbon.
+   binding.setDetails({ribbon:false,ribbonColour:ribbonShade});
+   if(hard)applyCloth(coverMaterial,1+2*profile.overhang,ratio);
+   else if(coverMaterial.normalMap){disposeCloth(coverMaterial);coverMaterial.userData["cloth"]=undefined;coverMaterial.normalMap=coverMaterial.roughnessMap=null;coverMaterial.roughness=.6;coverMaterial.needsUpdate=true;}
    closed.visible=!open;spread.visible=open;
    if(shapeStamp!==stamp){shapeStamp=stamp;
      spreadPages.forEach((mesh,index)=>{
@@ -116,10 +149,30 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
      art.scale.set(coverWidth,coverHeight,1);art.position.z=thickness/2+board+.002;rear.scale.copy(art.scale);rear.position.z=-thickness/2-board-.002;
      for(const mesh of [art,rear]){const positions=mesh.geometry.getAttribute("position") as THREE.BufferAttribute;for(let i=0;i<positions.count;i++){const x=positions.getX(i),hinge=mesh===art?x+.5:.5-x;positions.setZ(i,soft?.012*Math.sin(Math.PI*(x+.5)):hard?-.0015*Math.exp(-Math.pow((hinge-.04)/.018,2)):0);}positions.needsUpdate=true;mesh.geometry.computeVertexNormals();}
      fan.forEach((mesh,i)=>{mesh.visible=style==="flipbook";mesh.scale.set(1,ratio,1);mesh.rotation.z=(i+1)*.018;mesh.position.z=-thickness/2-(i+1)*.002;});
-     book.rotation.x=-.10;const height=ratio+2*profile.overhang,depth=open?.07:thickness+2*board;
-     book.position.set(0,height/2*Math.cos(.1)+depth/2*Math.sin(.1)+.01,-.12+height/2*Math.sin(.1)+depth/2*Math.cos(.1)+.006);
+     bands.forEach((band,index)=>{band.visible=hasHeadbands(style);band.scale.set(.006,thickness,.006);band.position.set(-.5+.004,(index===0?1:-1)*(ratio-.035)/2,0);});
+     const height=ratio+2*profile.overhang,depth=open?.07:thickness+2*board;
+     if(flat){
+       // Lying on the floor, cover (or spread) facing up and the head of the page away from the camera.
+       book.rotation.set(-Math.PI/2,0,0);book.position.set(0,0,0);book.updateMatrixWorld(true);
+       const lying=visibleBookBounds(open?spread:closed),middle=lying.getCenter(new THREE.Vector3());
+       book.position.set(-middle.x,FLOOR_Y+.001-lying.min.y,FLAT_Z-middle.z);
+     }else{
+       book.rotation.set(-.10,0,0);
+       book.position.set(0,height/2*Math.cos(.1)+depth/2*Math.sin(.1)+.01,-.12+height/2*Math.sin(.1)+depth/2*Math.cos(.1)+.006);
+     }
      book.updateMatrixWorld(true);gutter.setSpace(spread.matrixWorld.clone().invert());
-     grounding.update(visibleBookBounds(open?spread:closed),depth);
+     const bounds=visibleBookBounds(open?spread:closed);
+     grounding.update(bounds,depth,flat?"flat":"lean");
+     ribbonMesh.visible=showRibbon;
+     if(showRibbon){
+       // From between the pages at the foot of the spine, over the edge and out across the floor.
+       const spineX=open?(bounds.min.x+bounds.max.x)/2:bounds.min.x+.03,f=FLOOR_Y+.0015,mid=(bounds.min.y+bounds.max.y)/2;
+       const v=(x:number,y:number,z:number)=>new THREE.Vector3(spineX+x,y,z);
+       const points=flat
+         ?[v(.01,mid,bounds.max.z-.04),v(.012,mid,bounds.max.z+.004),v(.02,f+.006,bounds.max.z+.03),v(.05,f,bounds.max.z+.12),v(.09,f,bounds.max.z+.22),v(.1,f,bounds.max.z+.3)]
+         :[v(.01,.03,bounds.max.z-depth/2-.004),v(.012,.008,bounds.max.z-depth/2+.004),v(.025,f,bounds.max.z+.03),v(.06,f,bounds.max.z+.13),v(.1,f,bounds.max.z+.22),v(.11,f,bounds.max.z+.3)];
+       ribbonGeometry(points,.028,new THREE.Vector3(0,1,0),ribbonMesh.geometry);
+     }
    }
    binding.set(style,true);binding.setLeaves(pages);binding.sync([spreadPages[0]!.visible,spreadPages[1]!.visible],spreadPages.map((mesh,index)=>({kind:hard&&mesh.userData["coverBoard"]===true?"open" as const:"page" as const,share:sideShare(index as 0|1,Number(mesh.userData["leaf"]),pages)})) as [BindingSide,BindingSide]);
    for(const m of [artMaterial,backMaterial,...spreadMaterials])paper.apply(m,options.finish);
@@ -138,6 +191,6 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
      if(disposed)throw new Error("Photo shoot closed.");if(renderer.getContext().isContextLost())throw new Error("Graphics were interrupted. Reopen Photo shoot.");const {width,height}=outputSize,gl=renderer.getContext(),limit=Math.min(renderer.capabilities.maxTextureSize,gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),...Array.from(gl.getParameter(gl.MAX_VIEWPORT_DIMS) as Int32Array)),error=photoSizeError(outputSize,limit);if(error)throw new Error(error);
      try{render(width,height);return await new Promise<Blob>((resolve,reject)=>renderer.domElement.toBlob(blob=>blob?resolve(blob):reject(new Error("The image could not be exported.")),"image/png"));}finally{if(!disposed)paint();}
    },
-   dispose(){disposed=true;environmentRevision++;surfaces.forEach(s=>s.revision++);cancelAnimationFrame(frame);observer.disconnect();renderer.domElement.removeEventListener("webglcontextlost",lost);binding.dispose();grounding.dispose();paper.dispose();diffuser.dispose();pmrem.dispose();environment?.dispose();masks.forEach(t=>t.dispose());textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());key.shadow.map?.dispose();sun.shadow.map?.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();},
+   dispose(){disposed=true;environmentRevision++;surfaces.forEach(s=>s.revision++);cancelAnimationFrame(frame);observer.disconnect();renderer.domElement.removeEventListener("webglcontextlost",lost);binding.dispose();grounding.dispose();disposeCloth(coverMaterial);scene.remove(ribbonMesh);paper.dispose();diffuser.dispose();pmrem.dispose();environment?.dispose();masks.forEach(t=>t.dispose());textures.forEach(t=>t.dispose());materials.forEach(m=>m.dispose());geometries.forEach(g=>g.dispose());key.shadow.map?.dispose();sun.shadow.map?.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove();},
  };
 }

@@ -25,8 +25,10 @@ test("shell stays under artwork and above backdrop, follows spread visibility an
   if(style.id==="flipbook")continue;
   book.updateMatrixWorld(true);
   // Hidden parts (a closed book's top board, the turning board) are not drawn on an open spread.
-  const box=new THREE.Box3();shell.traverseVisible(o=>{if(o instanceof THREE.Mesh)box.expandByObject(o);});
+  const box=new THREE.Box3();shell.traverseVisible(o=>{if(o instanceof THREE.Mesh&&o.name!=="Headband")box.expandByObject(o);});
   assert.ok(box.max.z<=-.0049,"shell cannot cover PDF artwork");assert.ok(box.min.z>-.072,"shell cannot intersect backdrop");
+  // Headbands may sit at paper level, but only beyond the head and foot of the pages, never over the artwork.
+  shell.traverseVisible(o=>{if(o.name==="Headband"){const band=new THREE.Box3().setFromObject(o);assert.ok(Math.min(Math.abs(band.min.y),Math.abs(band.max.y))>=1.4/2-.006,"headband stays outside the page area");assert.ok(band.max.z<.014,"headband stays under the paper's rise at the spine");}});
  }
  const resources=new Set<THREE.BufferGeometry|THREE.Material|THREE.Texture>();
  shell.traverse(o=>{if(o instanceof THREE.Mesh){resources.add(o.geometry);resources.add(o.material);if(o.material.map)resources.add(o.material.map);}});
