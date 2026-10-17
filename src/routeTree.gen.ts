@@ -14,6 +14,7 @@ import { Route as UsernameRouteImport } from './routes/$username'
 import { Route as ArchitecturePortfolioRouteImport } from './routes/architecture-portfolio'
 import { Route as ArtPortfolioRouteImport } from './routes/art-portfolio'
 import { Route as BookMarketingRouteImport } from './routes/book-marketing'
+import { Route as BookMockupGeneratorRouteImport } from './routes/book-mockup-generator'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EditRouteImport } from './routes/edit'
@@ -86,6 +87,11 @@ const ArtPortfolioRoute = ArtPortfolioRouteImport.update({
 const BookMarketingRoute = BookMarketingRouteImport.update({
   id: '/book-marketing',
   path: '/book-marketing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BookMockupGeneratorRoute = BookMockupGeneratorRouteImport.update({
+  id: '/book-mockup-generator',
+  path: '/book-mockup-generator',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CreateRoute = CreateRouteImport.update({
@@ -340,6 +346,7 @@ export interface FileRoutesByFullPath {
   '/architecture-portfolio': typeof ArchitecturePortfolioRoute
   '/art-portfolio': typeof ArtPortfolioRoute
   '/book-marketing': typeof BookMarketingRoute
+  '/book-mockup-generator': typeof BookMockupGeneratorRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
@@ -395,6 +402,7 @@ export interface FileRoutesByTo {
   '/architecture-portfolio': typeof ArchitecturePortfolioRoute
   '/art-portfolio': typeof ArtPortfolioRoute
   '/book-marketing': typeof BookMarketingRoute
+  '/book-mockup-generator': typeof BookMockupGeneratorRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
@@ -451,6 +459,7 @@ export interface FileRoutesById {
   '/architecture-portfolio': typeof ArchitecturePortfolioRoute
   '/art-portfolio': typeof ArtPortfolioRoute
   '/book-marketing': typeof BookMarketingRoute
+  '/book-mockup-generator': typeof BookMockupGeneratorRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
@@ -508,6 +517,7 @@ export interface FileRouteTypes {
     | '/architecture-portfolio'
     | '/art-portfolio'
     | '/book-marketing'
+    | '/book-mockup-generator'
     | '/create'
     | '/dashboard'
     | '/edit'
@@ -563,6 +573,7 @@ export interface FileRouteTypes {
     | '/architecture-portfolio'
     | '/art-portfolio'
     | '/book-marketing'
+    | '/book-mockup-generator'
     | '/create'
     | '/dashboard'
     | '/edit'
@@ -618,6 +629,7 @@ export interface FileRouteTypes {
     | '/architecture-portfolio'
     | '/art-portfolio'
     | '/book-marketing'
+    | '/book-mockup-generator'
     | '/create'
     | '/dashboard'
     | '/edit'
@@ -674,6 +686,7 @@ export interface RootRouteChildren {
   ArchitecturePortfolioRoute: typeof ArchitecturePortfolioRoute
   ArtPortfolioRoute: typeof ArtPortfolioRoute
   BookMarketingRoute: typeof BookMarketingRoute
+  BookMockupGeneratorRoute: typeof BookMockupGeneratorRoute
   CreateRoute: typeof CreateRoute
   DashboardRoute: typeof DashboardRoute
   EditRoute: typeof EditRoute
@@ -759,6 +772,13 @@ declare module '@tanstack/react-router' {
       path: '/book-marketing'
       fullPath: '/book-marketing'
       preLoaderRoute: typeof BookMarketingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/book-mockup-generator': {
+      id: '/book-mockup-generator'
+      path: '/book-mockup-generator'
+      fullPath: '/book-mockup-generator'
+      preLoaderRoute: typeof BookMockupGeneratorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/create': {
@@ -1106,6 +1126,7 @@ const rootRouteChildren: RootRouteChildren = {
   ArchitecturePortfolioRoute: ArchitecturePortfolioRoute,
   ArtPortfolioRoute: ArtPortfolioRoute,
   BookMarketingRoute: BookMarketingRoute,
+  BookMockupGeneratorRoute: BookMockupGeneratorRoute,
   CreateRoute: CreateRoute,
   DashboardRoute: DashboardRoute,
   EditRoute: EditRoute,

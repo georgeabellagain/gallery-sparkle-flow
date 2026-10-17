@@ -29,6 +29,13 @@
       "when": 1791536850485,
       "tag": "0003_restore_featured_portfolio",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792277776997,
+      "tag": "0004_portfolio_plan_limits",
+      "breakpoints": true
     }
   ]
 }
