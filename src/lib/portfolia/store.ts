@@ -40,6 +40,7 @@ export interface ViewerSettings {
   turnStyle?: import("./turn-motion").TurnStyle;
   turnSpeed?: number;
   turnCurve?: import("./turn-curve").TurnCurve;
+  bookStyle?: import("./book-style").BookStyle;
   /** Reading modes offered to visitors. Older portfolios without this use all modes. */
   modes?: ("scroll" | "paged" | "book")[];
   look: "clean" | "studio";

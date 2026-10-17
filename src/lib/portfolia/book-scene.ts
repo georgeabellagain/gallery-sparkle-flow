@@ -1,4 +1,7 @@
-import { readableTurnCurve, type TurnCurve } from "./turn-curve";
+import { studioShadowSize, studioShadowRadius } from "./shadow-quality";
+import { createBookBinding } from "./book-binding";
+import { bindingTurnCurve, type BookStyle } from "./book-style";
+import { type TurnCurve } from "./turn-curve";
 import { createCachedLightMask } from "./cached-light-mask";
 import { createSettledPaperCache } from "./settled-paper";
 import { presetShadow } from "./lighting";
@@ -31,6 +34,7 @@ export type StudioSettings = {
   turnStyle?: TurnStyle;
   turnSpeed?: number;
   turnCurve?: TurnCurve;
+  bookStyle?: BookStyle;
   material: SurfaceKind;
   /** 0..1 overall studio brightness. */
   brightness: number;
@@ -82,7 +86,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.autoUpdate = false;
   let shadowsDirty = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.domElement.setAttribute("aria-hidden", "true");
   // CSS owns the display size; the renderer owns only the drawing buffer.
   renderer.domElement.style.width = "100%";
@@ -149,6 +153,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 50);
   const book = new THREE.Group();
   scene.add(book);
+  const binding = createBookBinding(book,ratio);
   const ambient = new THREE.HemisphereLight(0xffffff, 0xd5cfbf, 2.2);
   const light = new THREE.DirectionalLight(0xffffff, 2.3);
   light.position.set(-1.8, 2.8, 5.5);
@@ -157,7 +162,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   topLight.position.set(0, 0, 6); topLight.castShadow = false; scene.add(topLight);
   // A tight frustum keeps shadow detail high.
   const shadowExtent = Math.hypot(1, ratio / 2) + 0.7;
-  light.shadow.mapSize.set(512, 512);
+  light.shadow.mapSize.set(1024, 1024);
   light.shadow.camera.left = -shadowExtent;
   light.shadow.camera.right = shadowExtent;
   light.shadow.camera.top = shadowExtent;
@@ -165,12 +170,12 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   light.shadow.camera.updateProjectionMatrix();
   light.shadow.normalBias = 0.012;
   light.shadow.bias = -0.0001;
-  light.shadow.radius = 3;
+  light.shadow.radius = studioShadowRadius(3,light.shadow.mapSize.x);
   scene.add(ambient, light);
   const sunPatch = new THREE.SpotLight(0xfff3dc, 0, 0, Math.PI / 5, .35, 0);
   sunPatch.position.set(-1.8, 2.8, 5.5);
   sunPatch.target.position.set(0, 0, 0);
-  sunPatch.shadow.mapSize.set(512, 512);
+  sunPatch.shadow.mapSize.set(1024, 1024);
   sunPatch.shadow.normalBias = .012;
   sunPatch.shadow.bias = -.0001;
   sunPatch.shadow.camera.near = .1;
@@ -418,6 +423,16 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // Fullscreen can change layout before ResizeObserver delivers its callback.
     // Never draw a new camera aspect into a buffer with the previous aspect.
     const w = Math.max(1, host.clientWidth), h = Math.max(1, host.clientHeight);
+    // Keep shadow edges detailed even when adaptive animation quality lowers
+    // the main canvas resolution. Reallocate only when the output tier changes.
+    const shadowSize=studioShadowSize(w,h,window.devicePixelRatio,renderer.capabilities.maxTextureSize,fixedQuality);
+    for(const source of [light,sunPatch])if(source.shadow.mapSize.x!==shadowSize){
+      const radius=source.shadow.radius*512/source.shadow.mapSize.x;
+      source.shadow.map?.dispose();source.shadow.map=null;
+      source.shadow.mapSize.set(shadowSize,shadowSize);
+      source.shadow.radius=studioShadowRadius(radius,shadowSize);
+      source.shadow.needsUpdate=true;shadowsDirty=true;
+    }
     const size = renderer.getSize(surfaceSize);
     if (size.x !== w || size.y !== h) {
       renderer.setSize(w, h, false);
@@ -427,10 +442,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     pendingDragShape = null;
     update?.();
     backdrop.frame(camera, w, h, Math.max(ratio * 1.1 + FRAME_PAD, 2.32 / camera.aspect) * (1 + inset));
-    // Fixed 512px maps remain attached to the lights. Moving sheets and notes
+    // Output-sized filtered maps remain attached to the lights. Moving sheets and notes
     // update once per displayed frame; idle scenes only refresh when dirtied.
     // Keep hidden receiving/covered pages in the shadow pass throughout a turn.
     restingShadows.sync(turnRestPages ?? [left.visible, right.visible]);
+    binding.sync(turnRestPages ?? [left.visible,right.visible]);
     // Camera-only movement reuses the same world-space shadow maps.
     renderer.shadowMap.needsUpdate = shadowsDirty;
     renderer.render(scene, camera);
@@ -659,6 +675,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const configure = (next: StudioSettings) => {
     next = {...next, material:paperFinish(next.material)};
     settings = next;
+    binding.set(next.bookStyle,next.studio);
     shadowsDirty = true;
     const mix = studioLightMix(next.strength);
     const nextVariant = `${next.studio ? 1 : 0}|${next.material}`;
@@ -694,7 +711,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // The patterned light casts the moving sheet onto the backdrop; a shadow-only
     // directional source covers even environments without adding illumination.
     sunPatch.castShadow = next.studio && Boolean(pattern) && mix.hdri > 0;
-    sunPatch.shadow.radius = shadow.radius;
+    sunPatch.shadow.radius = studioShadowRadius(shadow.radius,sunPatch.shadow.mapSize.x);
     sunPatch.visible = Boolean(pattern);
     scene.environmentIntensity = next.studio ? (pattern ? 1 - .3 * mix.hdri : 1) : 0;
     // Studio illumination comes only from the diffused environment and preset pattern.
@@ -702,7 +719,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     light.color.set(0xffffff);
     light.intensity = next.studio ? mix.top : 0;
     topLight.intensity = next.studio ? studioTopLight(next.topLight) : 0;
-    light.shadow.radius = shadow.radius;
+    light.shadow.radius = studioShadowRadius(shadow.radius,light.shadow.mapSize.x);
     ambient.intensity = next.studio ? mix.ambient : Math.PI;
     ambient.color.set(0xffffff);
     ambient.groundColor.set(next.studio ? 0xb7bdca : 0xffffff);
@@ -839,7 +856,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const posesForTurn = (from: BookFaces, to: BookFaces, dir: 1 | -1) => {
     const seeds = [seedFor(from[dir === 1 ? 1 : 0]), seedFor(to[dir === 1 ? 0 : 1])];
     const restingSeeds = [seedFor(dir === 1 ? from[0] : to[0]), seedFor(dir === 1 ? to[1] : from[1])];
-    const curve = readableTurnCurve(settings.turnCurve);
+    const curve = bindingTurnCurve(settings.bookStyle,settings.turnCurve,from,to);
     const key = `${curve}|${dir}|${seeds.join(":")}|${restingSeeds.join(":")}`;
     return turnGeometryCache.get(key, () => bakeTurnGeometry(geometry, turnGeometryWriter(geometry, ratio, dir, seeds, restingSeeds, SHEET_CLEARANCE, curve), 128, [restingTurnNormals(geometry, ratio, dir, seeds[0]!, dir), restingTurnNormals(geometry, ratio, -dir as 1 | -1, seeds[1]!, -dir)]));
   };
@@ -1141,6 +1158,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       turnGeometryCache.clear();
       bakedTurn = null;
       restingShadows.dispose();
+      binding.dispose();
       notes.clear();
       tabs.clear();
       airDust.dispose();
