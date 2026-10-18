@@ -133,10 +133,12 @@ function ribbonFrames(points: readonly THREE.Vector3[], width: number, facing: R
   const frames: { point: THREE.Vector3; side: THREE.Vector3; normal: THREE.Vector3; tangent: THREE.Vector3; t: number; contact: number }[] = [];
   for (let i = 0; i <= segments; i++) {
     const t = i / segments, point = curve.getPointAt(t), tangent = curve.getTangentAt(t);
-    const side = new THREE.Vector3().crossVectors(tangent, facingAt(facing, t, face));
+    // Per-point values belong to the control points, which are not evenly spaced along the ribbon.
+    const along = curve.getUtoTmapping(t, 0);
+    const side = new THREE.Vector3().crossVectors(tangent, facingAt(facing, along, face));
     if (side.lengthSq() < 1e-8) side.set(1, 0, 0);
     side.normalize();
-    const contact = contactAt(shape.contact, t);
+    const contact = contactAt(shape.contact, along);
     // Free silk turns a little about its length, most in the middle of the drop.
     side.applyAxisAngle(tangent, (shape.twist ?? 0) * (1 - contact) ** 2 * Math.sin(Math.PI * t));
     const normal = new THREE.Vector3().crossVectors(side, tangent).normalize();

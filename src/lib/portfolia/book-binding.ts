@@ -23,24 +23,35 @@ export function sideShare(side: 0 | 1, leaf: number, leaves: number) {
 }
 
 const TABLE_Z=-.0675;
+/** The board under the side the ribbon leaves from: its top height, thickness and how far it overhangs the foot. */
+export type RibbonBoard = { top: number; thickness: number; overhang: number };
 /**
  * The ribbon's centre line in book space and how much of it rests on paper or the table. `side` is the page it
- * leaves from; `z` is the height it leaves the block at (a tail) or the paper lift (lying open).
+ * leaves from; `z` is the height it leaves the block at (a tail) or the paper lift (lying open). From the foot it
+ * lies over the board's overhang and round its edge before dropping, so it never passes through the cover.
  */
-export function ribbonPath(placement:RibbonPlacement,ratio:number,side:number,z:number){
+export function ribbonPath(placement:RibbonPlacement,ratio:number,side:number,z:number,board:RibbonBoard={top:PAGE_TOP-.006,thickness:0,overhang:0}){
   const h=(ratio-.004)/2,p=(x:number,y:number,height:number)=>new THREE.Vector3(side*x,y,height);
-  // Off the foot of the book and out across the table, short enough to stay inside the reader's framing.
-  const drop=(x:number,start:number)=>[p(x+.004,-h-.012,THREE.MathUtils.lerp(start,TABLE_Z,.45)),p(x+.014,-h-.026,TABLE_Z+.0035),p(x+.044,-h-.06,TABLE_Z),p(x+.084,-h-.084,TABLE_Z),p(x+.109,-h-.098,TABLE_Z)];
+  const {top,thickness,overhang}=board,edge=-h-overhang;
+  // Over the board's overhang, round its edge and out across the table, short enough to stay in the reader's frame.
+  const drop=(x:number)=>[
+    // Straight over the edge: a sideways drift here would tilt its width back under the board.
+    p(x,-h-overhang*.45-.002,top+.0022),p(x,edge-.007,top+.0002),p(x,edge-.012,top-thickness*.6-.002),p(x+.002,edge-.016,top-thickness-.008),
+    p(x+.016,edge-.026,TABLE_Z+.0035),p(x+.046,edge-.056,TABLE_Z),p(x+.086,edge-.078,TABLE_Z),p(x+.111,edge-.092,TABLE_Z),
+  ];
+  // Barely any twist where it rounds the board edge: a twisted edge would swing back under the board.
+  const dropContact=[.85,.6,.5,.5,.85,1,1,1];
   if(placement.mode==="open"){
     // From under the headband, down the gutter's valley with a slight wander, then over the foot.
     const page=Array.from({length:9},(_,i)=>{const v=1-i/8,x=.008+.016*(1-v)+.004*Math.sin(v*5.2);return p(x,-h+(2*h+.002)*v,pageRelief(x,v,0)+z);});
-    const edge=.028;
-    return {points:[...page,p(edge+.002,-h-.003,pageRelief(edge,0,0)+z-.004),...drop(edge,pageRelief(edge,0,0)-.006)],contact:[...page.map(()=>1),.6,.1,0,.85,1,1,1]};
+    const out=.028;
+    return {points:[...page,p(out+.001,-h-.002,Math.max(top+.003,pageRelief(out,0,0)+z-.003)),...drop(out)],contact:[...page.map(()=>1),.7,...dropContact]};
   }
-  // Held flat between the leaves until it leaves the block, so it never twists up into the page area.
-  return {points:[p(.012,-h+.05,z),p(.016,-h+.004,z-.0015),...drop(.016,z)],contact:[1,1,.3,0,.85,1,1,1]};
+  // Held flat between the leaves until it leaves the block, so it never twists up into the page area; its inner edge
+  // stays clear of the spine, where an opposite cover board would begin.
+  const held=Math.max(z,top+.0012);
+  return {points:[p(.019,-h+.05,held),p(.021,-h+.004,held),p(.022,-h-.001,Math.max(top+.002,held-.0005)),...drop(.022)],contact:[1,1,1,...dropContact]};
 }
-
 /** A lightweight, renderer-owned shell below the PDF artwork. No per-frame allocations. */
 export function createBookBinding(parent:THREE.Group,ratio:number){
   const group=new THREE.Group();group.name="Book binding";parent.add(group);
@@ -141,20 +152,28 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
       spine.visible=style!=="flipbook"&&(visible[0]||visible[1]);
       // In an open book the headband shows as a short striped roll lying across the head and foot of the gutter,
       // just proud of the page edges and tucked under the paper's rise at the spine.
-      const showBands=hasHeadbands(style)&&spine.visible;
+      // Only an open book shows them; a closed one keeps them inside its case, where their ends would poke past the spine.
+      const showBands=hasHeadbands(style)&&spine.visible&&visible[0]&&visible[1];
       bands.forEach((band,index)=>{band.visible=showBands;band.rotation.set(0,0,Math.PI/2);band.scale.set(.0055,.034,.0055);band.position.set(0,(index===0?1:-1)*((ratio-.004)/2+.0035),PAGE_TOP+.001);});
       // The ribbon lies across its marked spread; elsewhere it leaves the block it is held in at the foot of the gutter
       // and drapes onto the table. Resting pages straddle a turning sheet, so a turn only ever sees a tail.
       const showRibbon=hasRibbon(style,ribbonOn)&&spine.visible;
       const leafOf=(index:0|1)=>visible[index]?layout[index]!.leaf:undefined;
       const placement:RibbonPlacement=hard||style==="softcover"?ribbonPlacement(ribbonGutter,leafOf(0),leafOf(1),leaves):{mode:"default"};
-      const sideOf=placement.mode==="tail"?placement.side:visible[1]?1:-1,held=sides[sideOf<0?0:1]!.pages;
-      const stamp=`${JSON.stringify(placement)}|${sideOf}|${ratio}|${held.scale.z.toFixed(4)}`;
+      // The ribbon is held between paper, so it never leaves from (or lies on) a cover lying open with no pages under it.
+      const paper=(index:0|1)=>visible[index]&&(!hard||layout[index]!.kind!=="open");
+      let sideOf:1|-1=placement.mode==="tail"?placement.side:placement.mode==="open"?1:visible[1]?1:-1;
+      if(!paper(sideOf<0?0:1)&&paper(sideOf<0?1:0))sideOf=sideOf<0?1:-1;
+      const index=sideOf<0?0:1,held=sides[index]!.pages,under=sides[index]!.board;
+      const ribbonBoard:RibbonBoard={top:held.visible?PAGE_TOP-held.scale.z:under.position.z+B/2,thickness:B,overhang:B>0?profile.overhang:0};
+      const stamp=`${JSON.stringify(placement)}|${sideOf}|${ratio}|${held.scale.z.toFixed(4)}|${ribbonBoard.top.toFixed(4)}`;
       ribbon.visible=ribbonShadow.visible=showRibbon;
       if(showRibbon&&stamp!==ribbonStamp){
         ribbonStamp=stamp;
-        const {points,contact}=ribbonPath(placement,ratio,sideOf,placement.mode==="open"?.0025:placement.mode==="tail"?PAGE_TOP-.0005-placement.depth*Math.max(0,held.scale.z-.001):PAGE_TOP+.002);
-        const shape={contact,twist:.6};
+        const depth=placement.mode==="tail"&&paper(index)?placement.depth:0;
+        // A tail always leaves from inside the paper block, just under the top leaf at least.
+        const {points,contact}=ribbonPath(placement,ratio,sideOf,placement.mode==="open"?.0025:PAGE_TOP-.0006-depth*Math.max(0,held.scale.z-.0012),ribbonBoard);
+        const shape={contact,twist:.3};
         ribbonGeometry(points,.03,new THREE.Vector3(0,0,1),ribbon.geometry,72,shape);
         ribbonShadowGeometry(points,.03,new THREE.Vector3(0,0,1),ribbonShadow.geometry,72,shape);
       }

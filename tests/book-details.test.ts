@@ -134,3 +134,48 @@ test("ribbon contact shadow only darkens where the silk rests on a surface", () 
   for (let i = 0; i < colour.count; i++) if (i % 3 !== 1) assert.equal(colour.getW(i), 0, "edges fade to nothing");
   assert.ok(colour.getW(1) > .5 && colour.getW(3 * 20 + 1) < colour.getW(4));
 });
+test("hardback ribbon never passes through a board or lies on an open cover, and closed books hide headbands", () => {
+  const root = new THREE.Group(), binding = createBookBinding(root, 1.4), group = root.children[0]!;
+  const ribbon = group.children.find(o => o instanceof THREE.Mesh && (o.material as THREE.MeshStandardMaterial).side === THREE.DoubleSide && !(o.material instanceof THREE.MeshBasicMaterial)) as THREE.Mesh;
+  const bands = group.children.filter(o => o.name === "Headband");
+  const roots = group.children.filter(o => o instanceof THREE.Group && o.children.length === 3) as THREE.Group[];
+  binding.set("hardback", true); binding.setLeaves(12);
+  const page = (leaf: number) => ({ kind: "page" as const, share: .5, leaf }), cover = (leaf: number, kind: "open" | "closed") => ({ kind, share: 1, leaf });
+  const states: Array<[readonly [boolean, boolean], readonly [any, any], string]> = [
+    [[false, true], [page(0), cover(0, "closed")], "closed front"],
+    [[true, true], [cover(1, "open"), page(2)], "first spread"],
+    [[true, true], [page(3), page(4)], "marked spread"],
+    [[true, true], [page(9), cover(10, "open")], "last spread"],
+    [[true, false], [cover(11, "closed"), page(0)], "closed back"],
+  ];
+  for (const mark of [undefined, 4, 10]) for (const [visible, layout, name] of states) {
+    binding.setDetails({ ribbon: true, ribbonGutter: mark });
+    binding.sync(visible, layout as never); root.updateMatrixWorld(true);
+    const boards = roots.filter(r => r.visible).flatMap(r => [r.children[0]!, r.children[2]!]).filter(m => m.visible).map(m => new THREE.Box3().setFromObject(m).expandByScalar(-.0004));
+    const p = ribbon.geometry.getAttribute("position"), v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i);
+      assert.ok(!boards.some(b => b.containsPoint(v)), `${name} (mark ${mark}): ribbon point inside a board`);
+      layout.forEach((side, index) => {
+        if (visible[index] && side.kind === "open" && v.y > -.69 && Math.sign(v.x) === (index ? 1 : -1) && Math.abs(v.x) > .02) assert.fail(`${name} (mark ${mark}): ribbon on an open cover`);
+      });
+    }
+    assert.equal(bands.every(b => b.visible), visible[0] && visible[1], `${name}: headbands only on an open book`);
+  }
+  binding.dispose();
+});
+
+test("soft-cover ribbon never passes through a board", () => {
+  const root = new THREE.Group(), binding = createBookBinding(root, 1.4), group = root.children[0]!;
+  const ribbon = group.children.find(o => o instanceof THREE.Mesh && (o.material as THREE.MeshStandardMaterial).side === THREE.DoubleSide && !(o.material instanceof THREE.MeshBasicMaterial)) as THREE.Mesh;
+  const roots = group.children.filter(o => o instanceof THREE.Group && o.children.length === 3) as THREE.Group[];
+  binding.set("softcover", true); binding.setLeaves(12);
+  const page = (leaf: number) => ({ kind: "page" as const, share: .5, leaf });
+  for (const mark of [undefined, 4, 10]) for (const [visible, layout] of [[[false, true], [page(0), page(0)]], [[true, true], [page(3), page(4)]], [[true, true], [page(9), page(10)]], [[true, false], [page(11), page(0)]]] as const) {
+    binding.setDetails({ ribbon: true, ribbonGutter: mark }); binding.sync(visible, layout); root.updateMatrixWorld(true);
+    const boards = roots.filter(r => r.visible).flatMap(r => [r.children[0]!, r.children[2]!]).filter(m => m.visible).map(m => new THREE.Box3().setFromObject(m).expandByScalar(-.0004));
+    const p = ribbon.geometry.getAttribute("position"), v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) assert.ok(!boards.some(b => b.containsPoint(v.fromBufferAttribute(p, i))), `mark ${mark}: soft-cover ribbon inside a board`);
+  }
+  binding.dispose();
+});
