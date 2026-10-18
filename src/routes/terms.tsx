@@ -32,7 +32,7 @@ function TermsPage() {
       <h2>Who you are contracting with</h2>
       <p>
         Portfolia is provided by <strong>George Bell</strong> (“Portfolia”, “we”, “us”),
-        operating the service at portfolia.site. “You” means the person who creates an
+        of 33 Gautrey Road, Peckham, London SE15, operating the service at portfolia.site. “You” means the person who creates an
         account or uses the service. If you use Portfolia on behalf of an organisation,
         you confirm you have authority to bind that organisation to these terms.
       </p>
@@ -54,7 +54,7 @@ function TermsPage() {
       <ul>
         <li>Keep your password confidential. You are responsible for activity under your account.</li>
         <li>Give accurate information and keep it up to date.</li>
-        <li>You must be old enough to form a binding contract in your country.</li>
+        <li>You must be at least 13 years old. If you are under 18, you need permission from a parent or guardian, and paid plans must be bought by an adult.</li>
       </ul>
 
       <h2>Your content</h2>
