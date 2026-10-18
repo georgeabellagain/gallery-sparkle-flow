@@ -3,10 +3,12 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { getPaddleEnvironment } from "@/lib/paddle";
 import { getDoc, setPlanAll, update } from "@/lib/portfolia/store";
+import { isNewAccount, reportSignup, reportSubscription } from "@/lib/conversions";
 
 export type Sub = {
   status: string;
   price_id: string;
+  paddle_subscription_id?: string | null;
   current_period_end: string | null;
   cancel_at_period_end: boolean | null;
 };
@@ -19,8 +21,10 @@ export function useAccount() {
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => {
+    const { data } = supabase.auth.onAuthStateChange((event, s) => {
       setUser(s?.user ?? null);
+      // A brand-new account signing in for the first time (email after confirming, or Google) is a sign-up.
+      if (event === "SIGNED_IN" && s?.user && isNewAccount(s.user)) reportSignup(s.user.id);
       if (!s?.user) syncPlan(null); // signed out: never leave paid features on in this browser
       update((d) => ({ ...d, account: { signedIn: Boolean(s?.user) } }));
     });
@@ -34,10 +38,12 @@ export function useAccount() {
   useEffect(() => {
     if (!user) return;
     let stop = false;
+    // Right after checkout, check every 3s so the plan unlocks quickly.
+    const fast = typeof window !== "undefined" && window.location.search.includes("checkout=success");
     const load = async () => {
       const { data, error } = await supabase
         .from("subscriptions")
-        .select("status, price_id, current_period_end, cancel_at_period_end")
+        .select("status, price_id, current_period_end, cancel_at_period_end, paddle_subscription_id")
         .eq("user_id", user.id)
         .eq("environment", getPaddleEnvironment())
         .order("created_at", { ascending: false })
@@ -47,10 +53,10 @@ export function useAccount() {
       setSub(data as Sub | null);
       setLoading(false);
       syncPlan(data as Sub | null);
+      // Back from checkout with the payment confirmed by the webhook: one subscription conversion.
+      if (fast && data) reportSubscription(data as Sub);
     };
     void load();
-    // Right after checkout, check every 3s so the plan unlocks quickly.
-    const fast = typeof window !== "undefined" && window.location.search.includes("checkout=success");
     const t = setInterval(load, fast ? 3000 : 15000);
     return () => {
       stop = true;

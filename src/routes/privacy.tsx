@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LegalPage } from "@/components/pf/LegalPage";
+import { openCookieSettings } from "@/lib/ads-consent";
 
 export const Route = createFileRoute("/privacy")({
   staticData: { sitemap: true },
@@ -152,8 +153,22 @@ function PrivacyPage() {
       <h2>Cookies</h2>
       <p>
         Portfolia uses cookies and browser storage to keep
-        you signed in, remember your work and retain access to a portfolio you have unlocked. A random identifier in browser storage helps estimate unique portfolio visitors; it does not identify you by name. Our hosting provider may also set a small number of cookies and load a script that counts site visits in aggregate; these do not build a profile of you or track you across other websites. There are no advertising cookies. You can clear cookies and site data in your browser settings at any
+        you signed in, remember your work and retain access to a portfolio you have unlocked. A random identifier in browser storage helps estimate unique portfolio visitors; it does not identify you by name. Our hosting provider may also set a small number of cookies and load a script that counts site visits in aggregate; these do not build a profile of you or track you across other websites. You can clear cookies and site data in your browser settings at any
         time.
+      </p>
+      <h3>Google Ads measurement</h3>
+      <p>
+        We advertise Portfolia on Google. To see whether those ads lead to people signing up or upgrading to
+        Personal, our site can load Google’s ads tag, which sets cookies and tells Google when a sign-up or a
+        Personal subscription happens (with the plan’s price and a reference, never your portfolio or its content).
+        Google uses this under its own terms and may link it to its records of the ad you clicked.
+      </p>
+      <p>
+        In the UK, the European Economic Area, Switzerland and Canada this only happens if you choose Accept in the
+        cookie banner; if you choose Reject, or make no choice, nothing is sent and no Google advertising cookies are
+        set. Elsewhere it is on by default. You can change your choice at any time with{" "}
+        <button type="button" onClick={openCookieSettings} className="underline underline-offset-2">Cookie settings</button>,
+        also linked at the foot of every page. Embedded portfolios on other websites never load it.
       </p>
 
       <h2>International transfers</h2>

@@ -1,3 +1,4 @@
+import { openCookieSettings } from "@/lib/ads-consent";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
@@ -48,6 +49,7 @@ export function SiteFooter({ className }: { className?: string }) {
             <Link to="/terms" className="hover:underline">Terms</Link>
             <Link to="/privacy" className="hover:underline">Privacy</Link>
             <Link to="/refund" className="hover:underline">Refund policy</Link>
+            <button type="button" onClick={openCookieSettings} className="text-left hover:underline">Cookie settings</button>
           </div>
         </nav>
       </div>

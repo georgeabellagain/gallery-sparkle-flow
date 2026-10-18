@@ -9,6 +9,8 @@ export function CookieBanner() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    // Embedded portfolios live inside other people's sites: no banner and no ads tag there.
+    if (window.location.pathname.startsWith("/embed/")) return;
     void loadGoogleAds();
     if (storedChoice() === null) void isConsentRequiredRegion().then((req) => { if (req && storedChoice() === null) setOpen(true); });
     const show = () => setOpen(true);

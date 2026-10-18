@@ -1,3 +1,4 @@
+import { reportSignup } from "@/lib/conversions";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { SiteHeader, SiteFooter } from "@/components/pf/Chrome";
@@ -70,6 +71,7 @@ function SignIn() {
       const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/dashboard` } });
       setBusy(false);
       if (error) return setErr(error.message);
+      if (data.user?.identities?.length) reportSignup(data.user.id);
       if (data.session) return done();
       setInfo("Check your inbox and click the confirmation link, then sign in.");
       setMode("in");
