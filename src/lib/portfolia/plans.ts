@@ -64,6 +64,7 @@ export const PLAN_COMPARISON: { group: string; rows: { label: string; free: Comp
       { label: "QR code and website embed", free: true, personal: true },
       { label: "Password protection", free: false, personal: true },
       { label: "Link expiry date", free: false, personal: true },
+      { label: "Share to LinkedIn, Facebook, X and more", free: "With link", personal: "With link or flip-through video" },
       { label: "1080p HD flipbook video", free: false, personal: true },
       { label: "Photo shoot: studio-quality book photos and flat lays", free: "Preview", personal: "Download PNG" },
       { label: "Visit statistics", free: "Basic", personal: "Basic" },

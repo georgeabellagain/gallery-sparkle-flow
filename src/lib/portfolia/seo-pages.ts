@@ -33,7 +33,7 @@ export const DISCIPLINE_PAGES: Record<string, Page> = {
   },
   "hdri-book-visualisation": {
     label: "HDRI book visualisation",
-    title: "HDRI Book Visualisation — See Your Book in Realistic 3D Light | Portfolia",
+    title: "HDRI Book Visualisation in Realistic 3D Light | Portfolia",
     description: "Upload your book, zine or lookbook PDF and see it as a realistic 3D flipbook lit by HDRI studio lighting. Share a link or QR code. Free to start.",
     h1: "Visualise your book", h1Accent: "in real HDRI studio light.",
     intro: "Skip the 3D software. Upload the PDF of your book and Portfolia turns it into a turning, physically shaded flipbook lit by real photographic HDRI environments — ready to share with publishers, clients and readers.",
@@ -57,7 +57,7 @@ export const DISCIPLINE_PAGES: Record<string, Page> = {
   },
   "marketing-portfolio": {
     label: "Marketing portfolio",
-    title: "Marketing Portfolio — Share Your Campaigns as a Free PDF Flipbook | Portfolia",
+    title: "Marketing Portfolio — Share Campaigns as a Flipbook | Portfolia",
     description: "Turn your marketing portfolio PDF into a shareable online flipbook. Present campaign case studies, content and results to employers or clients. Start free.",
     h1: "Your marketing portfolio,", h1Accent: "ready for your next opportunity.",
     intro: "Bring your campaigns, content and case studies together in the PDF you already designed. Upload it to Portfolia and share one portfolio link with employers, agencies and clients.",

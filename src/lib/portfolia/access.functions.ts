@@ -53,8 +53,9 @@ export const ownerAccessSettings = createServerFn({ method: "GET" }).middleware(
   const { data: row } = await context.supabase.from("portfolios").select("code").eq("code", data.code).eq("owner_id", context.userId).maybeSingle();
   if (!row) throw new Error("Save this portfolio to your account first.");
   const policy = await readAccessPolicy(data.code);
-  const { data: sub } = await supabaseAdmin.from("subscriptions").select("status,current_period_end").eq("user_id", context.userId).eq("environment", "live").order("created_at", { ascending: false }).limit(1).maybeSingle();
-  const personal = Boolean(sub && (["active", "trialing"].includes(sub.status) || (sub.status === "canceled" && sub.current_period_end && Date.parse(sub.current_period_end) > Date.now())));
+  // The same rule as public delivery (including the past-due retry grace), so settings and visitors never disagree.
+  const { ownerHasPersonal } = await import("./entitlements.server");
+  const personal = await ownerHasPersonal(context.userId, supabaseAdmin);
   return { password: Boolean(policy?.password_hash), expiresAt: policy?.expires_at ?? null, personal };
 });
 
@@ -72,8 +73,8 @@ export const saveAccessSettings = createServerFn({ method: "POST" }).middleware(
   const current = await readAccessPolicy(data.code);
   const passwordHash = data.removePassword ? null : data.password ? await hashPassword(data.password) : current?.password_hash ?? null;
   if (passwordHash || data.expiresAt) {
-    const { data: sub } = await supabaseAdmin.from("subscriptions").select("status,current_period_end").eq("user_id", context.userId).eq("environment", "live").order("created_at", { ascending: false }).limit(1).maybeSingle();
-    if (!sub || !(["active", "trialing"].includes(sub.status) || (sub.status === "canceled" && sub.current_period_end && Date.parse(sub.current_period_end) > Date.now()))) throw new Error("An active Personal plan is required for passwords and expiry.");
+    const { ownerHasPersonal } = await import("./entitlements.server");
+    if (!(await ownerHasPersonal(context.userId, supabaseAdmin))) throw new Error("An active Personal plan is required for passwords and expiry.");
   }
   if (data.expiresAt && Date.parse(data.expiresAt) <= Date.now()) throw new Error("Choose a future expiry date.");
   const { error } = await (supabaseAdmin as any).from("portfolio_access").upsert({ code: data.code, password_hash: passwordHash, expires_at: data.expiresAt, secret: randomBytes(32).toString("hex") });

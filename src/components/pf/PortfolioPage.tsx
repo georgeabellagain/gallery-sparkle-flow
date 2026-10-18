@@ -5,6 +5,7 @@ import type { Foldout } from "@/lib/portfolia/foldouts";
 import type { PageLink, PageTag } from "@/lib/portfolia/page-extras";
 import type { PortfolioProject } from "@/lib/portfolia/projects";
 import { usePortfolioFont } from "@/lib/portfolia/fonts";
+import { reportHref } from "@/lib/portfolia/report";
 import { useMemo } from "react";
 import { Mail } from "lucide-react";
 import { DEFAULT_VIEWER, type PageStyle, type Profile, type ViewerSettings } from "@/lib/portfolia/store";
@@ -173,6 +174,7 @@ function ProfileCard({ profile, photoUrl, bannerUrl, cvUrl, cv, pageStyle }: {
           ))}
         </div>
       )}
+      <a href={reportHref()} className="mt-4 inline-block text-xs text-muted-foreground underline-offset-4 hover:underline">Report this portfolio</a>
     </div>
   );
 }

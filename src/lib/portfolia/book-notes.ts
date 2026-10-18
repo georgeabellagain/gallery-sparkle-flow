@@ -261,7 +261,9 @@ export function createBookNotes(
             const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
             covered.push({ mesh, rest: Float32Array.from(positions.array), centre: entry.group.position.clone(), seed: entry.seed, revealing: entry.incoming });
             if (entry.incoming) {
-              entry.group.visible = true;
+              // Shown only once the sheet starts to lift (see turn): before then the camera may still be panning to
+              // the spread, and a closed hardback cover sits lower than raised paper, so the note would show through.
+              entry.group.visible = false;
               const gap = (mesh.material as THREE.MeshStandardMaterial).side === THREE.BackSide ? -.0002 : .0002;
               for (let i = 0; i < positions.count; i++) positions.setZ(i, reliefAt(positions.getX(i) + entry.group.position.x, positions.getY(i) + entry.group.position.y, entry.seed) + .002 + gap);
               positions.needsUpdate = true;
@@ -299,7 +301,7 @@ export function createBookNotes(
       const reveal = Math.min(1, Math.max(0, (progress - .2) / .35));
       const revealFlatten = 1 - reveal * reveal * (3 - 2 * reveal);
       for (const { mesh, rest, centre, seed, revealing } of covered) {
-        if(mesh.parent) mesh.parent.visible = true;
+        if(mesh.parent) mesh.parent.visible = !revealing || progress > .03;
         const positions = mesh.geometry.getAttribute("position") as THREE.BufferAttribute;
         const faceGap = (mesh.material as THREE.MeshStandardMaterial).side === THREE.BackSide ? -.0002 : .0002;
         for (let i = 0; i < positions.count; i++) {

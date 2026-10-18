@@ -10,12 +10,14 @@ import { EmbedModal } from "@/components/pf/EmbedModal";
 import { PortfolioQrCode } from "@/components/pf/PortfolioQrCode";
 import { retrySync, useSyncStatus } from "@/lib/portfolia/cloud";
 import { allPortfolios, getSavedDoc, personalActive, useDoc, type Portfolio } from "@/lib/portfolia/store";
+import { shareCaption, shareLink, SOCIAL_NETWORKS, type SocialNetwork } from "@/lib/portfolia/social-share";
+import { shareImageUrl } from "@/lib/portfolia/share-image";
 
 /** Share a portfolio by link, QR code or embed. The same three ways the dashboard offers. */
 export function ShareActions({ p }: { p: Portfolio }) {
   const signedIn = useDoc().account.signedIn;
   const sync = useSyncStatus();
-  const [dialog, setDialog] = useState<null | "qr" | "embed" | "video">(null);
+  const [dialog, setDialog] = useState<null | "qr" | "embed" | "video" | "social">(null);
   const [upgrade, setUpgrade] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -25,6 +27,15 @@ export function ShareActions({ p }: { p: Portfolio }) {
   const sharePath = saved && personalActive(saved) ? `/${saved.username}` : `/p/${p.code}`;
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const published = p.status === "published";
+  const shareUrl = origin + sharePath, caption = shareCaption(p.profile.name, shareUrl);
+  const coverImage = shareImageUrl(p);
+  // Share pages open in a small window, the way the networks expect; a blocked pop-up falls back to a new tab.
+  const openShare = (e: React.MouseEvent<HTMLAnchorElement>, network: SocialNetwork) => {
+    if (network === "email") return;
+    // "noopener" in the features would make window.open return null, so the opener is cut by hand instead.
+    const win = window.open(e.currentTarget.href, `share-${network}`, "width=620,height=640");
+    if (win) { win.opener = null; e.preventDefault(); }
+  };
   const copy = async () => {
     if (!published) return;
     try {
@@ -47,11 +58,21 @@ export function ShareActions({ p }: { p: Portfolio }) {
         <Button size="sm" variant="line" disabled={!published} onClick={() => setDialog("qr")}><QrCode /> QR code</Button>
         {published && <Button size="sm" variant="line" onClick={() => setDialog("embed")}><Code2 /> Embed</Button>}
       </div>
+      {published && <div className="mt-4 border-t border-border pt-4" role="group" aria-label="Share to social networks">
+        <p className="text-sm font-medium">Share to</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {SOCIAL_NETWORKS.map(n => <Button key={n.id} size="sm" variant="line" asChild><a href={shareLink(n.id, shareUrl, caption, coverImage)} target={n.id === "email" ? undefined : "_blank"} rel="noopener noreferrer" onClick={e => openShare(e, n.id)}>{n.label}</a></Button>)}
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">Posts your link with its preview picture. Readers open your interactive flipbook from the post.</p>
+        {p.pdf && <Button size="sm" className="mt-3" disabled={!signedIn} onClick={() => personal ? setDialog("social") : setUpgrade("Sharing with a flip-through video")}><Video /> Share with a flip-through video{!personal && <span className="rounded-full bg-leaf-soft px-1.5 py-0.5 text-xxs text-leaf">Personal</span>}</Button>}
+        <p className="mt-2 text-xs text-muted-foreground">Makes a 1080p video of your book turning its pages, then shares it with your link to LinkedIn, Facebook and more.</p>
+      </div>}
       {p.pdf && <div className="mt-4 border-t border-border pt-4">
         <Button size="sm" variant="line" disabled={!signedIn} onClick={() => personal ? setDialog("video") : setUpgrade("HD flipbook video export")}><Video /> Export HD video{!personal && <span className="rounded-full bg-leaf-soft px-1.5 py-0.5 text-xxs text-leaf">Personal</span>}</Button>
         <p className="mt-2 text-xs text-muted-foreground">A 1080p video of your flipbook turning through every page, ready for Instagram, LinkedIn or a showreel.</p>
       </div>}
       {dialog === "video" && <VideoExportPanel p={p} onClose={() => setDialog(null)} />}
+      {dialog === "social" && <VideoExportPanel p={p} share={{ url: shareUrl, caption }} onClose={() => setDialog(null)} />}
       <span role="status" className="sr-only">{copied ? "Portfolio link copied" : ""}</span>
       {!published && <p className="mt-3 text-xs text-muted-foreground">Publish this portfolio before sharing it with visitors.</p>}
       {signedIn && published && <p className="mt-3 text-xs text-muted-foreground" role={sync.status === "error" ? "alert" : "status"}>

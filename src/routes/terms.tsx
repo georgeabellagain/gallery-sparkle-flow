@@ -27,7 +27,7 @@ function TermsPage() {
   return (
     <LegalPage>
       <h1 className="display-title text-3xl">Terms of Service</h1>
-      <p className="text-xs text-muted-foreground">Last updated 29 September 2026</p>
+      <p className="text-xs text-muted-foreground">Last updated 18 October 2026</p>
 
       <h2>Who you are contracting with</h2>
       <p>
@@ -73,6 +73,29 @@ function TermsPage() {
         <li>interfering with its security — for example introducing malware, probing or scanning for vulnerabilities, or scraping the service;</li>
         <li>reverse engineering the service, reselling or redistributing it, or circumventing its technical limits.</li>
       </ul>
+
+      <h2>Content rules</h2>
+      <p>Portfolios are public once published, so you must not upload or link to content that:</p>
+      <ul>
+        <li>is illegal in the UK, including child sexual abuse material, terrorist content, or content that encourages or assists serious harm;</li>
+        <li>harasses, threatens or exposes private information about another person;</li>
+        <li>infringes someone else’s copyright, trade mark or other rights;</li>
+        <li>is sexually explicit, or contains malware, phishing or deceptive links.</li>
+      </ul>
+      <p>
+        We may remove content or unpublish a portfolio that breaks these rules, and we report illegal content to
+        the authorities where the law requires it.
+      </p>
+
+      <h2>Reporting content and copyright complaints</h2>
+      <p>
+        Anyone can report a portfolio with the “Report this portfolio” link on its profile panel, or by emailing{" "}
+        <a href="mailto:hello@portfolia.site">hello@portfolia.site</a> with the portfolio’s address and what is wrong.
+        For a copyright complaint, include the work you own, where it appears on Portfolia, your contact details and a
+        statement that you are the rights holder or authorised to act for them. We review reports promptly, act on
+        content we find unlawful or in breach of these terms, and tell the creator unless that would be unsafe or
+        unlawful. A creator who thinks content was removed by mistake can reply to that message to ask us to look again.
+      </p>
 
       <h2>Our intellectual property</h2>
       <p>

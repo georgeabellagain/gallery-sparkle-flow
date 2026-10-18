@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { FoldoutCard } from "@/components/pf/FoldoutCard";
 import { PdfViewer } from "@/components/pf/PdfViewer";
@@ -8,6 +8,8 @@ import { registerPublicUrls } from "@/lib/portfolia/assets";
 
 export const Route = createFileRoute("/scrapbook-preview")({
   staticData: { sitemap: false },
+  // A development prototype: never part of the published site.
+  beforeLoad: () => { if (import.meta.env.PROD) throw notFound(); },
   head: () => ({
     meta: [
       { title: "Scrapbook prototype — Portfolia" },
