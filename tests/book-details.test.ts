@@ -166,7 +166,8 @@ test("hardback ribbon never passes through a board or lies on an open cover, and
         if (visible[index] && side.kind === "open" && v.y > -.69 && Math.sign(v.x) === (index ? 1 : -1) && Math.abs(v.x) > .02) assert.fail(`${name} (mark ${mark}): ribbon on an open cover`);
       });
     }
-    assert.equal(bands.every(b => b.visible), visible[0] && visible[1], `${name}: headbands only on an open book`);
+    // Beside a hardback cover lying open they would sit on its inside, so only spreads of paper show them.
+    assert.equal(bands.every(b => b.visible), visible[0] && visible[1] && layout.every(side => side.kind !== "open"), `${name}: headbands only between paper pages`);
   }
   binding.dispose();
 });
@@ -207,5 +208,25 @@ test("a ribbon carried by a turning page stays on top of it across its whole wid
       if (local.x > .002 && local.x < 1 && v >= 0 && v <= 1) assert.ok(local.z - pageRelief(local.x, v, 0) > .0012, `angle ${angle}: ribbon cuts into the turning page`);
     }
   }
+  binding.setRibbonTurn(null); binding.dispose();
+});
+
+test("the hanging end slides with the turn from its starting drape to its finishing one", () => {
+  const ratio = 1.4, root = new THREE.Group(), binding = createBookBinding(root, ratio), group = root.children[0]!;
+  const ribbon = group.children.find(o => o instanceof THREE.Mesh && (o.material as THREE.MeshStandardMaterial).side === THREE.DoubleSide && !(o.material instanceof THREE.MeshBasicMaterial)) as THREE.Mesh;
+  binding.set("hardback", true); binding.setLeaves(12); binding.setDetails({ ribbon: true, ribbonGutter: 4 });
+  const page = (leaf: number) => ({ kind: "page" as const, share: .5, leaf });
+  const end = () => { const p = ribbon.geometry.getAttribute("position"), i = p.count - 5; return new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i)); };
+  // Lying open, then as a tail from the left block once the marked page has turned away.
+  binding.sync([true, true], [page(3), page(4)]); const open = end();
+  binding.sync([true, true], [page(5), page(6)]); const tail = end();
+  binding.sync([true, true], [page(3), page(4)]);
+  binding.setRibbonTurn({ carried: true, sign: 1, revealing: false });
+  const flat = (u: number, v: number) => ({ position: new THREE.Vector3(u, (v - .5) * ratio, pageRelief(u, v, 0)), normal: new THREE.Vector3(0, 0, 1) });
+  const at = (progress: number) => { binding.turnRibbon(progress, flat); return end(); };
+  const start = at(0), middle = at(.5), finish = at(1);
+  assert.ok(start.distanceTo(open) < .005, "starts as it lay");
+  assert.ok(finish.distanceTo(tail) < .005, "finishes where the tail will rest");
+  assert.ok(middle.x < start.x && middle.x > finish.x, "slides between them");
   binding.setRibbonTurn(null); binding.dispose();
 });
