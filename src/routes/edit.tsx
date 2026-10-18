@@ -45,15 +45,18 @@ function EditPortfolio() {
   const dirty = portfolioDraftDirty();
   useEffect(() => { if (p?.code) beginPortfolioDraft(p.code); return () => discardPortfolioDraft(); }, [p?.code]);
   const blocker = useBlocker({ shouldBlockFn: () => portfolioDraftDirty(), enableBeforeUnload: dirty, withResolver: true });
-  const save = async (): Promise<boolean> => {
+  const save = async (skipPremium = false): Promise<boolean> => {
     if (saving) return false;
     setSaving(true); setSaveErr(null);
     try {
       const current = getDoc().portfolio;
       if (!current) return false;
       if (current.bookMarketing?.buyUrl && !bookPurchaseUrl(current.bookMarketing.buyUrl)) throw new Error("Enter a valid purchase link before saving.");
-      const premium = premiumAppearance(current);
-      if (premium.length) {
+      // Only newly added Personal options are gated: choices made while they were free stay grandfathered.
+      const saved = getSavedDoc().portfolio;
+      const legacy = saved?.code === current.code ? premiumAppearance(saved) : [];
+      const premium = premiumAppearance(current).filter(f => !legacy.includes(f));
+      if (!skipPremium && premium.length) {
         const entitlement = doc.account.signedIn ? await personalSaveEntitlement() : { personal: false };
         if (!entitlement.personal) { setUpgrade(true); throw new Error(`Choose Free options or upgrade to save: ${premium.join(", ")}. Your preview is still available.`); }
       }
