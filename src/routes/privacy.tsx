@@ -27,13 +27,21 @@ function PrivacyPage() {
   return (
     <LegalPage>
       <h1 className="display-title text-3xl">Privacy Notice</h1>
-      <p className="text-xs text-muted-foreground">Last updated 9 October 2026</p>
+      <p className="text-xs text-muted-foreground">Last updated 18 October 2026</p>
 
       <p>
         This notice explains how personal data is handled when you use Portfolia at
         portfolia.site. Portfolia is operated by <strong>George Bell</strong>, trading
-        as Portfolia, who is the data controller for this information. You can reach us
-        at <a href="mailto:hello@portfolia.site">hello@portfolia.site</a>.
+        as Portfolia, who is the data controller for this information. Postal address:
+        33 Gautrey Road, Peckham, London SE15. Email:{" "}
+        <a href="mailto:hello@portfolia.site">hello@portfolia.site</a>.
+      </p>
+
+      <h2>Age</h2>
+      <p>
+        Portfolia is not intended for children. You must be at least 13 to create an
+        account, and if you are under 18 you need permission from a parent or guardian.
+        If we learn that an account belongs to a child under 13, we will delete it.
       </p>
 
       <h2>What we collect</h2>
@@ -102,12 +110,25 @@ function PrivacyPage() {
       <h2>Who we share it with</h2>
       <ul>
         <li>
-          <strong>Service providers</strong> who host the service and help us run it
-          (for example Lovable Cloud, which runs on Google Cloud infrastructure).
+          <strong>Lovable</strong> — builds and hosts the website, and provides basic
+          visitor statistics for the site.
+        </li>
+        <li>
+          <strong>Supabase</strong> (through Lovable Cloud) — stores accounts, sign-in
+          details, portfolio details and uploaded files.
+        </li>
+        <li>
+          <strong>Cloudflare</strong> — delivers the website, runs its server code and
+          protects it from attacks; it processes IP addresses and request details.
         </li>
         <li>
           <strong>Paddle.com, our Merchant of Record</strong> — it processes payments,
           subscriptions, tax compliance and invoicing for the Personal plan.
+        </li>
+        <li>
+          <strong>Google</strong> — its favicon service shows the small icons next to
+          website links on portfolios, and receives the linked website address and the
+          visitor’s IP address when an icon loads. Google sign-in is used if you choose it.
         </li>
         <li><strong>Professional advisers</strong> such as lawyers and accountants, where needed.</li>
         <li><strong>Authorities</strong>, where we are legally required to.</li>
@@ -131,7 +152,7 @@ function PrivacyPage() {
       <h2>Cookies</h2>
       <p>
         Portfolia uses cookies and browser storage to keep
-        you signed in, remember your work and retain access to a portfolio you have unlocked. A random identifier in browser storage helps estimate unique portfolio visitors; it does not identify you by name. There are no advertising cookies. You can clear cookies and site data in your browser settings at any
+        you signed in, remember your work and retain access to a portfolio you have unlocked. A random identifier in browser storage helps estimate unique portfolio visitors; it does not identify you by name. Our hosting provider may also set a small number of cookies and load a script that counts site visits in aggregate; these do not build a profile of you or track you across other websites. There are no advertising cookies. You can clear cookies and site data in your browser settings at any
         time.
       </p>
 
