@@ -81,7 +81,7 @@ export async function loadGoogleAds() {
   const script = document.createElement("script");
   script.src = `https://www.googletagmanager.com/gtag/js?id=${GOOGLE_ADS_ID}`;
   script.async = true;
-  script.dataset.googleAds = "";
+  script.setAttribute("data-google-ads", "");
   document.head.appendChild(script);
 }
 
