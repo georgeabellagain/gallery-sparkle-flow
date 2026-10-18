@@ -66,13 +66,16 @@ export function disposeCloth(material: THREE.MeshStandardMaterial) {
   (material.userData["cloth"] as THREE.Texture[] | undefined)?.forEach(map => map.dispose());
 }
 
-/** Striped silk headband texture, the colour alternating with cream. */
+/**
+ * Headband silk: the ribbon colour with a soft, fine ribbing (a slightly lighter thread every other row, blended),
+ * so at reading size it reads as woven silk rather than hard stripes.
+ */
 export function headbandTexture(colour: string) {
   // A tiny data texture rather than a canvas, so it also works where there is no DOM (tests, workers).
-  const shade = new THREE.Color(colour), cream = new THREE.Color("#efe7d2"), data = new Uint8Array(2 * 4);
-  [shade, cream].forEach((c, i) => data.set([c.r * 255, c.g * 255, c.b * 255, 255], i * 4));
+  const shade = new THREE.Color(colour), thread = shade.clone().lerp(new THREE.Color("#ffffff"), .16), data = new Uint8Array(2 * 4);
+  [shade, thread].forEach((c, i) => data.set([c.r * 255, c.g * 255, c.b * 255, 255], i * 4));
   const texture = new THREE.DataTexture(data, 1, 2); texture.colorSpace = THREE.SRGBColorSpace;
-  texture.magFilter = THREE.NearestFilter; texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(1, 6); texture.needsUpdate = true;
+  texture.magFilter = THREE.LinearFilter; texture.minFilter = THREE.LinearFilter; texture.wrapS = texture.wrapT = THREE.RepeatWrapping; texture.repeat.set(1, 14); texture.needsUpdate = true;
   return texture;
 }
 

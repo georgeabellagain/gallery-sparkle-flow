@@ -5,6 +5,7 @@ import { clothTextures, hasHeadbands, hasRibbon, readableRibbonColour, ribbonGeo
 import { bookLayout } from "../src/lib/portfolia/book-layout";
 import { PAGE_TOP } from "../src/lib/portfolia/rigid-cover";
 import { createBookBinding } from "../src/lib/portfolia/book-binding";
+import { pageRelief } from "../src/lib/portfolia/page-relief";
 import { flatCamera, SHOOT_ELEVATION, SHOOT_PRESETS } from "../src/lib/portfolia/photo-shoot";
 
 test("ribbon and headbands belong only to bound books, with safe colour defaults", () => {
@@ -183,4 +184,28 @@ test("soft-cover ribbon never passes through a board", () => {
     for (let i = 0; i < p.count; i++) assert.ok(!boards.some(b => b.containsPoint(v.fromBufferAttribute(p, i))), `mark ${mark}: soft-cover ribbon inside a board`);
   }
   binding.dispose();
+});
+
+test("a ribbon carried by a turning page stays on top of it across its whole width", () => {
+  const ratio = 1.4, root = new THREE.Group(), binding = createBookBinding(root, ratio), group = root.children[0]!;
+  const ribbon = group.children.find(o => o instanceof THREE.Mesh && (o.material as THREE.MeshStandardMaterial).side === THREE.DoubleSide && !(o.material instanceof THREE.MeshBasicMaterial)) as THREE.Mesh;
+  binding.set("hardback", true); binding.setLeaves(12); binding.setDetails({ ribbon: true, ribbonGutter: 4 });
+  const page = (leaf: number) => ({ kind: "page" as const, share: .5, leaf });
+  binding.sync([true, true], [page(3), page(4)]);
+  binding.setRibbonTurn({ carried: true, sign: 1, revealing: false });
+  for (const angle of [.08, .3, .9, 1.6, 2.6]) {
+    // The page swings about the spine, keeping its curve.
+    const c = Math.cos(angle), s = Math.sin(angle), turn = (p: THREE.Vector3) => new THREE.Vector3(p.x * c - p.z * s, p.y, p.x * s + p.z * c);
+    const surface = (u: number, v: number) => new THREE.Vector3(u, (v - .5) * ratio, pageRelief(u, v, 0));
+    binding.turnRibbon(angle / Math.PI, (u, v) => {
+      const e = .001, p = surface(u, v), du = surface(u + e, v).sub(p), dv = surface(u, v + e).sub(p);
+      return { position: turn(p), normal: turn(new THREE.Vector3().crossVectors(du, dv).normalize()) };
+    });
+    const pos = ribbon.geometry.getAttribute("position"), back = (p: THREE.Vector3) => new THREE.Vector3(p.x * c + p.z * s, p.y, -p.x * s + p.z * c);
+    for (let i = 0; i < pos.count; i++) {
+      const local = back(new THREE.Vector3().fromBufferAttribute(pos, i)), v = local.y / ratio + .5;
+      if (local.x > .002 && local.x < 1 && v >= 0 && v <= 1) assert.ok(local.z - pageRelief(local.x, v, 0) > .0012, `angle ${angle}: ribbon cuts into the turning page`);
+    }
+  }
+  binding.setRibbonTurn(null); binding.dispose();
 });

@@ -172,7 +172,7 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
        // Lying flat, the pages rest on the floor (the block is below it), so the floor is the only thing to clear.
        const floorLocal=FLOOR_Y+.0015-new THREE.Vector3().applyMatrix4(spread.matrixWorld).y;
        const top=flat?floorLocal:PAGE_TOP-stackDepth(style,pages),board=flat?0:bookStyleProfile(style).board;
-       const path=ribbonPath({mode:"open"},ratio,1,.0025,{top,thickness:board,overhang:board>0?bookStyleProfile(style).overhang:0,table:flat?floorLocal:top-board-.0004});
+       const path=ribbonPath({mode:"open"},ratio,1,.0032,{top,thickness:board,overhang:board>0?bookStyleProfile(style).overhang:0,table:flat?floorLocal:top-board-.0004});
        const toWorld=(p:THREE.Vector3)=>p.clone().applyMatrix4(spread.matrixWorld),turn=(d:THREE.Vector3)=>d.clone().transformDirection(spread.matrixWorld);
        let points:THREE.Vector3[],facing:THREE.Vector3[],contact:number[];
        if(flat){
