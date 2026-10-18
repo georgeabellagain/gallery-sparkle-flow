@@ -2,7 +2,7 @@ import { UpgradeModal } from "@/components/pf/UpgradeModal";
 import { personalSaveEntitlement } from "@/lib/portfolia/entitlements.functions";
 import { premiumAppearance } from "@/lib/portfolia/premium-appearance";
 import { bookPurchaseUrl } from "@/lib/portfolia/book-marketing";
-import { beginPortfolioDraft, discardPortfolioDraft, savePortfolioDraft, portfolioDraftDirty, getDoc } from "@/lib/portfolia/store";
+import { beginPortfolioDraft, discardPortfolioDraft, savePortfolioDraft, portfolioDraftDirty, getDoc, getSavedDoc } from "@/lib/portfolia/store";
 import { ProfileForm } from "@/components/pf/ProfileForm";
 import { StyleForm } from "@/components/pf/StyleForm";
 import { AnalyticsPanel } from "@/components/pf/AnalyticsPanel";
@@ -45,15 +45,18 @@ function EditPortfolio() {
   const dirty = portfolioDraftDirty();
   useEffect(() => { if (p?.code) beginPortfolioDraft(p.code); return () => discardPortfolioDraft(); }, [p?.code]);
   const blocker = useBlocker({ shouldBlockFn: () => portfolioDraftDirty(), enableBeforeUnload: dirty, withResolver: true });
-  const save = async (): Promise<boolean> => {
+  const save = async (skipPremium = false): Promise<boolean> => {
     if (saving) return false;
     setSaving(true); setSaveErr(null);
     try {
       const current = getDoc().portfolio;
       if (!current) return false;
       if (current.bookMarketing?.buyUrl && !bookPurchaseUrl(current.bookMarketing.buyUrl)) throw new Error("Enter a valid purchase link before saving.");
-      const premium = premiumAppearance(current);
-      if (premium.length) {
+      // Only newly added Personal options are gated: choices made while they were free stay grandfathered.
+      const saved = getSavedDoc().portfolio;
+      const legacy = saved?.code === current.code ? premiumAppearance(saved) : [];
+      const premium = premiumAppearance(current).filter(f => !legacy.includes(f));
+      if (!skipPremium && premium.length) {
         const entitlement = doc.account.signedIn ? await personalSaveEntitlement() : { personal: false };
         if (!entitlement.personal) { setUpgrade(true); throw new Error(`Choose Free options or upgrade to save: ${premium.join(", ")}. Your preview is still available.`); }
       }
@@ -113,7 +116,7 @@ function EditPortfolio() {
       <EditReplaceModal open={dialog === "replace"} onClose={() => setDialog(null)} current={p.pdf} limitMb={uploadLimitMb(doc)} />
       <Modal open={dialog === "unpublish"} onClose={() => setDialog(null)} title="Unpublish portfolio?">
         <p className="text-muted-foreground">Its public link will stop working, but your PDF, details and address will be kept.</p>
-        <div className="mt-6 flex justify-end gap-2"><Button variant="line" onClick={() => setDialog(null)}>Cancel</Button><Button variant="destructive" onClick={() => void save().then(ok => { if (!ok) return; setSaveErr(patchPortfolio({ status: "draft" }) && savePortfolioDraft() ? null : "Couldn’t unpublish — nothing changed."); setDialog(null); })}>Unpublish</Button></div>
+        <div className="mt-6 flex justify-end gap-2"><Button variant="line" onClick={() => setDialog(null)}>Cancel</Button><Button variant="destructive" onClick={() => void save(true).then(ok => { if (!ok) return; setSaveErr(patchPortfolio({ status: "draft" }) && savePortfolioDraft() ? null : "Couldn’t unpublish — nothing changed."); setDialog(null); })}>Unpublish</Button></div>
       </Modal>
       <Modal open={dialog === "delete"} onClose={() => setDialog(null)} title="Delete portfolio?">
         <p className="text-muted-foreground">This permanently removes the PDF, details and statistics. It cannot be undone.</p>
