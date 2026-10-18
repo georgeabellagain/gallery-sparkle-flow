@@ -9,7 +9,7 @@ import { EmailChangeEmail } from '@/lib/email-templates/email-change'
 import { ReauthenticationEmail } from '@/lib/email-templates/reauthentication'
 
 // Configuration
-const SITE_NAME = "Portfolio Canvas"
+const SITE_NAME = "Portfolia"
 const SENDER_DOMAIN = "notify.portfolia.site"
 const ROOT_DOMAIN = "portfolia.site"
 const FROM_DOMAIN = "portfolia.site"
