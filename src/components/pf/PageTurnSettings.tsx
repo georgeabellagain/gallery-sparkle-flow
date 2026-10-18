@@ -30,7 +30,7 @@ export function PageTurnSettings({viewer,setViewer,pages=0}:{viewer:ViewerSettin
         <select aria-label="Page the ribbon marks" className="max-w-[10rem] rounded border border-border bg-background p-1.5 text-sm" value={viewer.ribbonPage ?? ""}
           onChange={event=>{setPreviewMode("book");setViewer({ribbonPage:event.target.value?Number(event.target.value):undefined});}}>
           <option value="">No page (tail only)</option>
-          {Array.from({length:pages},(_,i)=><option key={i+1} value={i+1}>Page {i+1}</option>)}
+          {Array.from({length:pages},(_,i)=><option key={i+1} value={i+1}>{i===0?"Page 1 (cover: marks the first spread)":`Page ${i+1}`}</option>)}
         </select>
       </label>}
       {viewer.ribbon===true && viewer.ribbonPage!==undefined && <p className="text-xs text-muted-foreground">The ribbon lies across that spread when it is open, and shows between the pages everywhere else.</p>}

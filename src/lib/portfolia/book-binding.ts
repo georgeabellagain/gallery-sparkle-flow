@@ -23,34 +23,64 @@ export function sideShare(side: 0 | 1, leaf: number, leaves: number) {
 }
 
 const TABLE_Z=-.0675;
+/** How far the ribbon lies above the paper it rests on. */
+const RIBBON_LIFT=.0025;
+export type RibbonTurn = { carried: boolean; sign: 1 | -1; revealing: boolean };
 /** The board under the side the ribbon leaves from: its top height, thickness and how far it overhangs the foot. */
-export type RibbonBoard = { top: number; thickness: number; overhang: number };
+export type RibbonBoard = { top: number; thickness: number; overhang: number; /** Where it comes to rest; the reader's table by default. */ table?: number };
+export type RibbonShapePath = { points: THREE.Vector3[]; contact: number[]; facing: THREE.Vector3[] };
+const UP = new THREE.Vector3(0, 0, 1), OUT = new THREE.Vector3(0, -1, 0);
 /**
- * The ribbon's centre line in book space and how much of it rests on paper or the table. `side` is the page it
- * leaves from; `z` is the height it leaves the block at (a tail) or the paper lift (lying open). From the foot it
- * lies over the board's overhang and round its edge before dropping, so it never passes through the cover.
+ * Where the ribbon lies down an open page, head (v 1) to foot (v 0): `x` from the spine. It ends far enough from
+ * the gutter to hang clear of the headband at the foot.
  */
-export function ribbonPath(placement:RibbonPlacement,ratio:number,side:number,z:number,board:RibbonBoard={top:PAGE_TOP-.006,thickness:0,overhang:0}){
-  const h=(ratio-.004)/2,p=(x:number,y:number,height:number)=>new THREE.Vector3(side*x,y,height);
-  const {top,thickness,overhang}=board,edge=-h-overhang;
-  // Over the board's overhang, round its edge and out across the table, short enough to stay in the reader's frame.
-  const drop=(x:number)=>[
-    // Straight over the edge: a sideways drift here would tilt its width back under the board.
-    p(x,-h-overhang*.45-.002,top+.0022),p(x,edge-.007,top+.0002),p(x,edge-.012,top-thickness*.6-.002),p(x+.002,edge-.016,top-thickness-.008),
-    p(x+.016,edge-.026,TABLE_Z+.0035),p(x+.046,edge-.056,TABLE_Z),p(x+.086,edge-.078,TABLE_Z),p(x+.111,edge-.092,TABLE_Z),
+export const RIBBON_PAGE = Array.from({ length: 9 }, (_, i) => { const v = 1 - i / 8; return { x: .0105 + .026 * Math.pow(1 - v, 1.3) + .003 * Math.sin(v * 5.2), v }; });
+/**
+ * From `foot` (where the ribbon leaves the paper): past the paper edge, hanging in front of the page block, over the
+ * board's overhang and round its edge (straight and barely twisted, so its width never swings under the board),
+ * then out across the table, short enough to stay inside the reader's frame.
+ */
+function footRun(foot: THREE.Vector3, ratio: number, board: RibbonBoard): RibbonShapePath {
+  const h = (ratio - .004) / 2, { top, thickness, overhang } = board, table = board.table ?? TABLE_Z, edge = -h - overhang, x = foot.x, s = x < 0 ? -1 : 1;
+  const v = (dx: number, y: number, z: number) => new THREE.Vector3(x + s * dx, y, z);
+  const out: RibbonShapePath = { points: [v(0, -h - .0035, foot.z)], contact: [.9], facing: [UP] };
+  if (foot.z > top + .006) { out.points.push(v(0, -h - .0048, (foot.z + top) / 2)); out.contact.push(.6); out.facing.push(OUT); }
+  // With no board to round (a photo flat lay rests its pages on the floor), it settles straight onto the floor.
+  const rest: Array<[THREE.Vector3, number, THREE.Vector3]> = thickness <= 0 ? [
+    [v(0, -h - .008, table + .0025), .7, UP],
+    [v(.012, -h - .02, table + .0012), .9, UP],
+    [v(.046, -h - .056, table), 1, UP], [v(.086, -h - .078, table), 1, UP], [v(.111, -h - .092, table), 1, UP],
+  ] : [
+    [v(0, -h - Math.max(overhang * .5, .002) - .004, top + .0022), .85, UP],
+    [v(0, edge - .007, top + .0002), .6, UP],
+    [v(0, edge - .012, Math.max(table + .004, top - thickness * .6 - .002)), .5, OUT],
+    [v(.002, edge - .016, Math.max(table + .0025, top - thickness - .008)), .5, OUT],
+    [v(.016, edge - .026, table + .0035), .85, UP],
+    [v(.046, edge - .056, table), 1, UP], [v(.086, edge - .078, table), 1, UP], [v(.111, edge - .092, table), 1, UP],
   ];
-  // Barely any twist where it rounds the board edge: a twisted edge would swing back under the board.
-  const dropContact=[.85,.6,.5,.5,.85,1,1,1];
-  if(placement.mode==="open"){
+  for (const [point, contact, facing] of rest) { out.points.push(point); out.contact.push(contact); out.facing.push(facing); }
+  return out;
+}
+/** A ribbon lying along `page` points (each with the paper's face direction), then off the foot. */
+export function ribbonFromPage(page: THREE.Vector3[], faces: THREE.Vector3[], ratio: number, board: RibbonBoard): RibbonShapePath {
+  const run = footRun(page[page.length - 1]!, ratio, board);
+  return { points: [...page, ...run.points], contact: [...page.map(() => 1), ...run.contact], facing: [...faces, ...run.facing] };
+}
+/**
+ * The ribbon's centre line in book space, how much of it rests on a surface, and which way its face turns. `side` is
+ * the page it leaves from; `z` is the paper lift (lying open) or the height it leaves the block at (a tail).
+ */
+export function ribbonPath(placement: RibbonPlacement, ratio: number, side: number, z: number, board: RibbonBoard = { top: PAGE_TOP - .006, thickness: 0, overhang: 0 }): RibbonShapePath {
+  const h = (ratio - .004) / 2;
+  if (placement.mode === "open") {
     // From under the headband, down the gutter's valley with a slight wander, then over the foot.
-    const page=Array.from({length:9},(_,i)=>{const v=1-i/8,x=.008+.016*(1-v)+.004*Math.sin(v*5.2);return p(x,-h+(2*h+.002)*v,pageRelief(x,v,0)+z);});
-    const out=.028;
-    return {points:[...page,p(out+.001,-h-.002,Math.max(top+.003,pageRelief(out,0,0)+z-.003)),...drop(out)],contact:[...page.map(()=>1),.7,...dropContact]};
+    const page = RIBBON_PAGE.map(({ x, v }) => new THREE.Vector3(side * x, -h + 2 * h * v, pageRelief(x, v, 0) + z));
+    return ribbonFromPage(page, page.map(() => UP), ratio, board);
   }
   // Held flat between the leaves until it leaves the block, so it never twists up into the page area; its inner edge
-  // stays clear of the spine, where an opposite cover board would begin.
-  const held=Math.max(z,top+.0012);
-  return {points:[p(.019,-h+.05,held),p(.021,-h+.004,held),p(.022,-h-.001,Math.max(top+.002,held-.0005)),...drop(.022)],contact:[1,1,1,...dropContact]};
+  // stays clear of the spine, where an opposite cover board would begin, and of the headband at the foot.
+  const held = Math.max(z, board.top + .0012), page = [new THREE.Vector3(side * .03, -h + .05, held), new THREE.Vector3(side * .034, -h + .004, held), new THREE.Vector3(side * .036, -h, held)];
+  return ribbonFromPage(page, page.map(() => UP), ratio, board);
 }
 /** A lightweight, renderer-owned shell below the PDF artwork. No per-frame allocations. */
 export function createBookBinding(parent:THREE.Group,ratio:number){
@@ -85,6 +115,12 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
   const ribbon=mesh(new THREE.BufferGeometry(),ribbonMaterial());ribbon.visible=false;group.add(ribbon);
   const ribbonShadow=new THREE.Mesh(new THREE.BufferGeometry(),ribbonShadowMaterial());ribbonShadow.renderOrder=1;ribbonShadow.visible=false;group.add(ribbonShadow);
   let ribbonOn=false,ribbonColour:string=readableRibbonColour(undefined),ribbonStamp="",ribbonGutter:number|undefined;
+  let ribbonTurn:RibbonTurn|null=null,ribbonBoard:RibbonBoard={top:PAGE_TOP-.006,thickness:0,overhang:0};
+  const drawRibbon=({points,contact,facing}:RibbonShapePath)=>{
+    const shape={contact,twist:.3};
+    ribbonGeometry(points,.03,facing,ribbon.geometry,72,shape);
+    ribbonShadowGeometry(points,.03,facing,ribbonShadow.geometry,72,shape);
+  };
   let style:BookStyle="flipbook",studio=false,coverColour:string|undefined,backColour:string|undefined,leaves=0;
   const colour=()=>{
     const value=coverColour??bookStyleProfile(style).colour,back=backColour??value;
@@ -156,29 +192,51 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
       const showBands=hasHeadbands(style)&&spine.visible&&visible[0]&&visible[1];
       bands.forEach((band,index)=>{band.visible=showBands;band.rotation.set(0,0,Math.PI/2);band.scale.set(.0055,.034,.0055);band.position.set(0,(index===0?1:-1)*((ratio-.004)/2+.0035),PAGE_TOP+.001);});
       // The ribbon lies across its marked spread; elsewhere it leaves the block it is held in at the foot of the gutter
-      // and drapes onto the table. Resting pages straddle a turning sheet, so a turn only ever sees a tail.
+      // and drapes onto the table. A turn that leaves or reaches the marked spread drives it frame by frame (turnRibbon).
       const showRibbon=hasRibbon(style,ribbonOn)&&spine.visible;
       const leafOf=(index:0|1)=>visible[index]?layout[index]!.leaf:undefined;
-      const placement:RibbonPlacement=hard||style==="softcover"?ribbonPlacement(ribbonGutter,leafOf(0),leafOf(1),leaves):{mode:"default"};
+      const placement:RibbonPlacement=ribbonTurn?{mode:"open"}:hard||style==="softcover"?ribbonPlacement(ribbonGutter,leafOf(0),leafOf(1),leaves):{mode:"default"};
       // The ribbon is held between paper, so it never leaves from (or lies on) a cover lying open with no pages under it.
       const paper=(index:0|1)=>visible[index]&&(!hard||layout[index]!.kind!=="open");
       let sideOf:1|-1=placement.mode==="tail"?placement.side:placement.mode==="open"?1:visible[1]?1:-1;
       if(!paper(sideOf<0?0:1)&&paper(sideOf<0?1:0))sideOf=sideOf<0?1:-1;
       const index=sideOf<0?0:1,held=sides[index]!.pages,under=sides[index]!.board;
-      const ribbonBoard:RibbonBoard={top:held.visible?PAGE_TOP-held.scale.z:under.position.z+B/2,thickness:B,overhang:B>0?profile.overhang:0};
+      ribbonBoard={top:held.visible?PAGE_TOP-held.scale.z:under.position.z+B/2,thickness:B,overhang:B>0?profile.overhang:0};
       const stamp=`${JSON.stringify(placement)}|${sideOf}|${ratio}|${held.scale.z.toFixed(4)}|${ribbonBoard.top.toFixed(4)}`;
       ribbon.visible=ribbonShadow.visible=showRibbon;
-      if(showRibbon&&stamp!==ribbonStamp){
+      if(showRibbon&&!ribbonTurn&&stamp!==ribbonStamp){
         ribbonStamp=stamp;
         const depth=placement.mode==="tail"&&paper(index)?placement.depth:0;
         // A tail always leaves from inside the paper block, just under the top leaf at least.
-        const {points,contact}=ribbonPath(placement,ratio,sideOf,placement.mode==="open"?.0025:PAGE_TOP-.0006-depth*Math.max(0,held.scale.z-.0012),ribbonBoard);
-        const shape={contact,twist:.3};
-        ribbonGeometry(points,.03,new THREE.Vector3(0,0,1),ribbon.geometry,72,shape);
-        ribbonShadowGeometry(points,.03,new THREE.Vector3(0,0,1),ribbonShadow.geometry,72,shape);
+        drawRibbon(ribbonPath(placement,ratio,sideOf,placement.mode==="open"?RIBBON_LIFT:PAGE_TOP-.0006-depth*Math.max(0,held.scale.z-.0012),ribbonBoard));
       }
     },
     /**
+     * A turn leaving or reaching the marked spread: `carried` puts the ribbon on the turning sheet (its front face,
+     * sign 1, when leaving forward; its back face, sign -1, when arriving backward); otherwise it stays on the resting
+     * right-hand page, sinking under the sheet that covers it or rising as the sheet lifts away (`revealing`).
+     */
+    setRibbonTurn(turn:RibbonTurn|null){ribbonTurn=turn;ribbonStamp="";},
+    /** Shapes the ribbon for this frame of the turn; `sample` gives the turning sheet's surface at (u, v). */
+    turnRibbon(progress:number,sample:(u:number,v:number)=>{position:THREE.Vector3;normal:THREE.Vector3}){
+      if(!ribbonTurn||!ribbon.visible)return;
+      const h=(ratio-.004)/2,smooth=(t:number)=>{const x=THREE.MathUtils.clamp(t,0,1);return x*x*(3-2*x);};
+      const page:THREE.Vector3[]=[],faces:THREE.Vector3[]=[];
+      for(const {x,v} of RIBBON_PAGE){
+        const s=sample(x,v);
+        if(ribbonTurn.carried){
+          page.push(s.position.clone().addScaledVector(s.normal,ribbonTurn.sign*RIBBON_LIFT));faces.push(s.normal.clone().multiplyScalar(ribbonTurn.sign));
+          continue;
+        }
+        // Under the sheet while it covers this page: sink into the paper (hidden) as it lands, rise as it lifts away.
+        const open=pageRelief(x,v,0)+RIBBON_LIFT,inside=PAGE_TOP-.0006;
+        const k=ribbonTurn.revealing?1-smooth((progress-.05)/.35):smooth((progress-.55)/.4);
+        let z=THREE.MathUtils.lerp(open,inside,k);
+        if(s.position.x>0)z=Math.min(z,Math.max(inside,s.position.z-.003));
+        page.push(new THREE.Vector3(x,-h+2*h*v,z));faces.push(UP);
+      }
+      drawRibbon(ribbonFromPage(page,faces,ratio,ribbonBoard));
+    },    /**
      * Shows the turning hardback board, carrying `front` (the face up at the start) and `back` (up at the end).
      * `progress` is the eased turn position; null hides it.
      */

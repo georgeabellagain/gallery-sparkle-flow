@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as THREE from "three";
-import { clothTextures, hasHeadbands, hasRibbon, readableRibbonColour, ribbonGeometry, ribbonGutterFor, ribbonPlacement, ribbonShadowGeometry, RIBBON_COLOURS, DEFAULT_RIBBON_COLOUR } from "../src/lib/portfolia/book-details";
+import { clothTextures, hasHeadbands, hasRibbon, readableRibbonColour, ribbonGeometry, ribbonGutterFor, ribbonPlacement, ribbonSpreadPage, ribbonShadowGeometry, RIBBON_COLOURS, DEFAULT_RIBBON_COLOUR } from "../src/lib/portfolia/book-details";
 import { bookLayout } from "../src/lib/portfolia/book-layout";
 import { PAGE_TOP } from "../src/lib/portfolia/rigid-cover";
 import { createBookBinding } from "../src/lib/portfolia/book-binding";
@@ -85,7 +85,9 @@ test("the marked page decides where the ribbon is", () => {
   const layout = bookLayout(12, false);
   assert.equal(ribbonGutterFor(undefined, layout), undefined);
   assert.equal(ribbonGutterFor(99, layout), undefined);
-  assert.equal(ribbonGutterFor(1, layout), 0);
+  assert.equal(ribbonGutterFor(1, layout), 2, "marking the front cover marks the first open spread");
+  assert.equal(ribbonGutterFor(12, layout), 10, "marking a lone back cover marks the last open spread");
+  assert.deepEqual([ribbonSpreadPage(1, 12), ribbonSpreadPage(12, 12), ribbonSpreadPage(11, 11), ribbonSpreadPage(5, 12), ribbonSpreadPage(undefined, 12)], [2, 11, 11, 5, undefined]);
   assert.equal(ribbonGutterFor(4, layout), 4, "page 4 is leaf 3, on spread [3,4]");
   assert.equal(ribbonGutterFor(5, layout), 4);
   const ready = bookLayout(6, true);
@@ -151,10 +153,13 @@ test("hardback ribbon never passes through a board or lies on an open cover, and
   for (const mark of [undefined, 4, 10]) for (const [visible, layout, name] of states) {
     binding.setDetails({ ribbon: true, ribbonGutter: mark });
     binding.sync(visible, layout as never); root.updateMatrixWorld(true);
-    const boards = roots.filter(r => r.visible).flatMap(r => [r.children[0]!, r.children[2]!]).filter(m => m.visible).map(m => new THREE.Box3().setFromObject(m).expandByScalar(-.0004));
+    const boards = [...roots.filter(r => r.visible).flatMap(r => [r.children[0]!, r.children[2]!]), ...bands].filter(m => m.visible).map(m => new THREE.Box3().setFromObject(m).expandByScalar(-.0004));
     const p = ribbon.geometry.getAttribute("position"), v = new THREE.Vector3();
+    const h = (1.4 - .004) / 2;
     for (let i = 0; i < p.count; i++) {
       v.fromBufferAttribute(p, i);
+      // Under the paper's edge at the foot (it overhangs the block by 2 mm) the ribbon is either on top or inside the block.
+      if (v.y < -h + .0005 && v.y > -h - .002 && Math.abs(v.x) < 1 && v.z > -.004) assert.ok(v.z > .002, `${name} (mark ${mark}): ribbon meets the paper edge at ${v.z.toFixed(4)}`);
       assert.ok(!boards.some(b => b.containsPoint(v)), `${name} (mark ${mark}): ribbon point inside a board`);
       layout.forEach((side, index) => {
         if (visible[index] && side.kind === "open" && v.y > -.69 && Math.sign(v.x) === (index ? 1 : -1) && Math.abs(v.x) > .02) assert.fail(`${name} (mark ${mark}): ribbon on an open cover`);

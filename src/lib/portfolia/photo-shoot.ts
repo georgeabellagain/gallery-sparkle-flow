@@ -1,6 +1,6 @@
 import { photoSizeError, type PhotoSize } from "./photo-export";
 import { pageBlockGeometry, coverBoardGeometry, caseSpineGeometry, visibleBookBounds } from "./book-model";
-import { COVER_HEIGHT, COVER_OVERHANG } from "./rigid-cover";
+import { COVER_HEIGHT, COVER_OVERHANG, PAGE_TOP } from "./rigid-cover";
 import * as THREE from "three";
 import { bookStyleProfile, readableBookStyle, type BookStyle } from "./book-style";
 import { sampleCoverColour } from "./cover-colour";
@@ -15,7 +15,7 @@ import { createPhotoGrounding } from "./photo-grounding";
 import { createGutterShade } from "./gutter-shade";
 import { pageRelief } from "./page-relief";
 import { applyCloth, disposeCloth, hasHeadbands, hasRibbon, headbandTexture, readableRibbonColour, ribbonGeometry, ribbonMaterial, ribbonShadowGeometry, ribbonShadowMaterial } from "./book-details";
-import { ribbonPath } from "./book-binding";
+import { ribbonPath, RIBBON_PAGE, stackDepth } from "./book-binding";
 import type { SurfaceKind } from "./surface";
 /** `lean` stands the book against the wall; `flat` lays it on the floor for a top-down flat lay. */
 export type ShootLayout="lean"|"flat";
@@ -168,12 +168,24 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
      ribbonMesh.visible=ribbonShadow.visible=showRibbon;
      if(showRibbon&&marked){
        // Down the marked spread's gutter from the headband, then off the foot onto the floor.
-       const local=ribbonPath({mode:"open"},ratio,1,.0025).points.slice(0,9),world=local.map(p=>p.applyMatrix4(spread.matrixWorld));
-       const foot=world[world.length-1]!,f=FLOOR_Y+.0015,up=new THREE.Vector3(0,1,0),page=new THREE.Vector3(0,0,1).transformDirection(spread.matrixWorld);
-       const v=(x:number,y:number,z:number)=>new THREE.Vector3(foot.x+x,y,foot.z+z);
-       const drape=flat?[v(.002,foot.y-.012,.012),v(.008,f+.006,.03),v(.03,f,.12),v(.06,f,.22),v(.07,f,.3)]:[v(.004,f+.01,.012),v(.012,f+.002,.04),v(.03,f,.13),v(.06,f,.22),v(.07,f,.3)];
-       const points=[...world,...drape],facing=points.map((_,i)=>i<world.length?page:up),contact=points.map((_,i)=>i<world.length?1:i===world.length?.1:i===world.length+1?.5:1);
-       ribbonGeometry(points,.028,facing,ribbonMesh.geometry,72,{contact,twist:.4});ribbonShadowGeometry(points,.028,facing,ribbonShadow.geometry,72,{contact});
+       // The reader's route (past the paper edge, over the board's overhang and round its edge), in the spread's own space.
+       // Lying flat, the pages rest on the floor (the block is below it), so the floor is the only thing to clear.
+       const floorLocal=FLOOR_Y+.0015-new THREE.Vector3().applyMatrix4(spread.matrixWorld).y;
+       const top=flat?floorLocal:PAGE_TOP-stackDepth(style,pages),board=flat?0:bookStyleProfile(style).board;
+       const path=ribbonPath({mode:"open"},ratio,1,.0025,{top,thickness:board,overhang:board>0?bookStyleProfile(style).overhang:0,table:flat?floorLocal:top-board-.0004});
+       const toWorld=(p:THREE.Vector3)=>p.clone().applyMatrix4(spread.matrixWorld),turn=(d:THREE.Vector3)=>d.clone().transformDirection(spread.matrixWorld);
+       let points:THREE.Vector3[],facing:THREE.Vector3[],contact:number[];
+       if(flat){
+         // Lying flat, the floor is the book's own underside, so the whole route (and the floor run) is in the spread's space.
+         points=path.points.map(toWorld);facing=path.facing.map(turn);contact=path.contact;
+       }else{
+         // Standing, the foot is at the floor: from just past the paper edge the ribbon falls forward onto the floor.
+         const keep=RIBBON_PAGE.length+1,foot=toWorld(path.points[keep-1]!),f=FLOOR_Y+.0015,up=new THREE.Vector3(0,1,0);
+         const v=(x:number,y:number,z:number)=>new THREE.Vector3(foot.x+x,y,foot.z+z);
+         const drape=[v(.002,Math.max(f+.012,foot.y-.004),.014),v(.01,f+.002,.042),v(.03,f,.13),v(.06,f,.22),v(.07,f,.3)];
+         points=[...path.points.slice(0,keep).map(toWorld),...drape];facing=[...path.facing.slice(0,keep).map(turn),...drape.map(()=>up)];contact=[...path.contact.slice(0,keep),.3,.6,1,1,1];
+       }
+       ribbonGeometry(points,.028,facing,ribbonMesh.geometry,72,{contact,twist:.3});ribbonShadowGeometry(points,.028,facing,ribbonShadow.geometry,72,{contact});
      }else if(showRibbon){
        // From between the pages at the foot of the spine, over the edge and out across the floor.
        const spineX=open?(bounds.min.x+bounds.max.x)/2:bounds.min.x+.03,f=FLOOR_Y+.0015,mid=(bounds.min.y+bounds.max.y)/2;

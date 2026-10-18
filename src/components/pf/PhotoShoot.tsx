@@ -16,7 +16,7 @@ import { loadPdfjs } from "@/lib/portfolia/pdf";
 import { BOOK_STYLES, readableBookStyle } from "@/lib/portfolia/book-style";
 import { BACKGROUND_PRESETS } from "@/lib/portfolia/background-presets";
 import { createPhotoShoot, SHOOT_ELEVATION, SHOOT_PRESETS, type ShootOptions } from "@/lib/portfolia/photo-shoot";
-import { RIBBON_COLOURS, readableRibbonColour } from "@/lib/portfolia/book-details";
+import { RIBBON_COLOURS, readableRibbonColour, ribbonSpreadPage } from "@/lib/portfolia/book-details";
 import { DEFAULT_VIEWER, type ViewerSettings, type Portfolio } from "@/lib/portfolia/store";
 
 export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }) {
@@ -273,7 +273,7 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
     setOptions((current) => ({ ...current, ...patch }));
   // The ribbon lies across the pages only on the spread the creator marked in the reader.
   useEffect(() => {
-    const marked = p.viewer?.ribbonPage;
+    const marked = ribbonSpreadPage(p.viewer?.ribbonPage, p.pdf!.pages);
     change({ ribbonMarked: marked !== undefined && selectedPage > 0 && (selectedPage === marked || (p.viewer?.spreads !== "ready" && photoSpreadPages(selectedPage, p.pdf!.pages).includes(marked))) });
   }, [selectedPage, p.viewer?.ribbonPage, p.viewer?.spreads, p.pdf?.pages]);
   const [upgrade, setUpgrade] = useState(false),

@@ -1,7 +1,7 @@
 import { rigidCoverWriter, COVER_OVERHANG, coverArtZ, type CoverRest } from "./rigid-cover";
 import { sampleCoverColour } from "./cover-colour";
 import { studioShadowSize, studioShadowRadius } from "./shadow-quality";
-import { createBookBinding, sideShare, type BindingSide } from "./book-binding";
+import { createBookBinding, sideShare, type BindingSide, type RibbonTurn } from "./book-binding";
 import { createGutterShade } from "./gutter-shade";
 import { bindingTurnCurve, bookStyleProfile, type BookStyle } from "./book-style";
 import { type TurnCurve } from "./turn-curve";
@@ -897,6 +897,19 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     });
   };
   const stickyPosition = new THREE.Vector3(), stickyNormal = new THREE.Vector3();
+  /** The gutter of a spread (leaves to its left), as ribbonPlacement counts it. */
+  const gutterOf = (faces: BookFaces) => faces[1] ? Number(faces[1].dataset["seed"]) : faces[0] ? Number(faces[0].dataset["seed"]) + 1 : NaN;
+  /**
+   * How a turn moves the ribbon lying on the marked spread: leaving forward it rides away on the turning page;
+   * arriving backward it arrives on one; otherwise it stays on the resting right-hand page as a sheet covers or uncovers it.
+   */
+  const ribbonTurnFor = (from: BookFaces, to: BookFaces, dir: 1 | -1): RibbonTurn | null => {
+    const mark = settings.ribbonGutter;
+    if (mark === undefined || !settings.ribbon || settings.bookStyle === "flipbook") return null;
+    if (gutterOf(from) === mark) return dir === 1 ? { carried: true, sign: 1, revealing: false } : { carried: false, sign: 1, revealing: false };
+    if (gutterOf(to) === mark) return dir === 1 ? { carried: false, sign: 1, revealing: true } : { carried: true, sign: -1, revealing: false };
+    return null;
+  };
   /** A hardback board turns when either face of the moving sheet is a cover. */
   const isRigidTurn = (from: BookFaces, to: BookFaces, dir: 1 | -1) =>
     settings.bookStyle==="hardback"&&[from[dir===1?1:0],to[dir===1?0:1]].some(canvas=>canvas?.dataset["coverBoard"]==="true");
@@ -945,7 +958,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     attr.needsUpdate = true;
     const stickySample = { position: stickyPosition, normal: stickyNormal, floorZ: 0 };
-    notes.turn(progress, dir, (u, v) => {
+    const sheetSample = (u: number, v: number) => {
       const x = Math.min(32, Math.max(0, u * 32)), y = Math.min(16, Math.max(0, (1 - v) * 16));
       const x0 = Math.min(31, Math.floor(x)), y0 = Math.min(15, Math.floor(y));
       const tx = x - x0, ty = y - y0;
@@ -964,7 +977,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       // Use the actual resting page's relief, including its saved seed.
       stickySample.floorZ = pageRelief(Math.abs(position.x), position.y / ratio + .5, resting.userData["seed"] as number);
       return stickySample;
-    });
+    };
+    notes.turn(progress, dir, sheetSample);
+    // The marked ribbon rides on the turning sheet or tucks under it (see binding.setRibbonTurn).
+    binding.turnRibbon(progress, (u, v) => { const s = sheetSample(u, v); return { position: s.position.clone(), normal: s.normal.clone() }; });
     if (tabPlan) tabs.turn(tabPlan, progress, dir);
     driveContact(progress);
   };
@@ -1138,6 +1154,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       contactTurn = { from: kindOf(from), to: kindOf(to), landing: (to[0] ? 1 : 0) + (to[1] ? 1 : 0) > (from[0] ? 1 : 0) + (from[1] ? 1 : 0) };
       show(dir === 1 ? [from[0], to[1]] : [to[0], from[1]], false);
       turnRestPages = [left.visible, right.visible];
+      binding.setRibbonTurn(ribbonTurnFor(from, to, dir));
       sheet.visible = true;
       // Everything this turn needs reaches the graphics card now (the pictures, the sheet in mid-turn), and the card
       // is waited for, so the first frames of the animation have nothing left to stall on.
@@ -1192,6 +1209,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       rigidTurn = null;
       binding.turnCover(null, dir, "open", "open");
       turnRestPages = null;
+      binding.setRibbonTurn(null);
       notes.endTurn(complete);
       contactTurn = null;
       if (tabPlan) {

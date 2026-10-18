@@ -97,7 +97,17 @@ export function ribbonGutterFor(page: unknown, layout: { leaves: readonly Leaf[]
   if (typeof page !== "number" || !Number.isInteger(page)) return undefined;
   const leaf = layout.leaves.findIndex(l => l.page === page);
   if (leaf < 0) return undefined;
-  return spreadGutter(layout.spreads[spreadIndex(layout.spreads as Spread[], leaf)] ?? [null, leaf]);
+  // A ribbon can only lie in an open book: marking a cover marks the first (or last) open spread beside it.
+  let index = spreadIndex(layout.spreads as Spread[], leaf);
+  const open = (i: number) => layout.spreads[i]?.[0] != null && layout.spreads[i]?.[1] != null;
+  if (!open(index)) index = open(index + 1) ? index + 1 : open(index - 1) ? index - 1 : index;
+  return spreadGutter(layout.spreads[index] ?? [null, leaf]);
+}
+/** The PDF page whose spread the photo shoot treats as marked: a cover page marks the open spread beside it. */
+export function ribbonSpreadPage(page: number | undefined, pages: number) {
+  if (page === undefined || pages < 2) return page;
+  if (page === 1) return 2;
+  return page === pages && pages % 2 === 0 ? pages - 1 : page;
 }
 /** The gutter of the spread holding `leaf`: the right leaf's index, or one past a lone left leaf. */
 export function spreadGutter(spread: readonly [number | null, number | null]) {
