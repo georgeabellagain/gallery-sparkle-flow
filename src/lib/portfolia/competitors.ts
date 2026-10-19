@@ -30,7 +30,7 @@ export const COMPETITORS: Competitor[] = [
     choose: "Choose Heyzine when multimedia or downloadable offline publications are central to the brief. Choose Portfolia when you want to present finished projects with a professional profile and compare a clean reader with a lit booklet. Start with your most image-heavy spread and test it on a phone.",
     price: "Heyzine Standard is listed at $59 billed yearly; Professional offers reader statistics. Annual and monthly options differ by plan, so compare the actual checkout total.",
     rows: [
-      { topic: "Free allowance", portfolia: "One PDF portfolio up to 10 MB.", other: "Five flipbooks, unlimited pages, 1 GB storage.", source: 0 },
+      { topic: "Free allowance", portfolia: "One PDF portfolio up to 30 MB.", other: "Five flipbooks, unlimited pages, 1 GB storage.", source: 0 },
       { topic: "Page additions", portfolia: "Website-link icons, scrapbook notes and repositionable page tabs.", other: "Links, audio, video, forms and web embeds are advertised.", source: 0 },
       { topic: "Offline delivery", portfolia: "Online viewer; optional original PDF download.", other: "Offline flipbook downloads are included in Standard.", source: 0 },
       { topic: "Reporting", portfolia: "Basic visit statistics for account and portfolio views.", other: "Reader statistics are listed on Professional.", source: 0 },
@@ -75,7 +75,7 @@ export const COMPETITORS: Competitor[] = [
     choose: "Choose Paperturn when reporting, lead collection or controlled team publishing is a requirement. Choose Portfolia when you need a portfolio link and a considered visual presentation without a business publishing workflow. Check the full annual commitment as well as the specific feature tier you need.",
     price: "Paperturn Starter is listed at $24/month billed yearly at $288, or $39/month. Growth lists website embedding. Portfolia includes embedding on Free.",
     rows: [
-      { topic: "Getting started", portfolia: "Free plan: one PDF up to 10 MB.", other: "14-day free trial; paid publication plans.", source: 0 },
+      { topic: "Getting started", portfolia: "Free plan: one PDF up to 30 MB.", other: "14-day free trial; paid publication plans.", source: 0 },
       { topic: "Website embed", portfolia: "Included on Free.", other: "Website embedding is listed under Growth.", source: 1 },
       { topic: "Team workflow", portfolia: "Individual portfolio/account editing; no team permission system.", other: "Business lists roles, permissions and activity logs.", source: 1 },
       { topic: "Lead collection", portfolia: "Link visitors to your contact page or store.", other: "Business lists lead forms and request-for-quote carts.", source: 1 },
@@ -120,7 +120,7 @@ export const COMPETITORS: Competitor[] = [
     choose: "Choose Linkjar when identifying recipients or tracking how they read a document is central to the job. Choose Portfolia when your audience needs to browse creative work in a presentation you control. Portfolia does not offer custom domains, and a visit count does not identify a reader.",
     price: "Linkjar lists Free, Starter at $6/month and Pro at $24 per user/month on monthly billing. Its page also offers annual billing; check the selected cycle and taxes.",
     rows: [
-      { topic: "Free files", portfolia: "One PDF portfolio up to 10 MB.", other: "Three documents up to 10 MB each.", source: 1 },
+      { topic: "Free files", portfolia: "One PDF portfolio up to 30 MB.", other: "Three documents up to 10 MB each.", source: 1 },
       { topic: "Reader identification", portfolia: "Basic visit totals; no per-recipient tracking links or open alerts.", other: "Free lists per-person links and open alerts.", source: 1 },
       { topic: "Detailed tracking", portfolia: "No page-by-page reading time or email gate.", other: "Pro lists page time, scroll depth and an email gate.", source: 1 },
       { topic: "Privacy controls", portfolia: "Personal supports passwords and expiring links.", other: "Starter lists passwords, expiry and custom domains.", source: 1 },
@@ -138,7 +138,7 @@ export function comparisonContent(c: Competitor): SeoContent {
     points: [
       { title: "Keep your original layout", body: "Upload the finished PDF you designed. The portfolio editor changes its presentation, with separate settings for each portfolio." },
       { title: "Choose the reading experience", body: "Offer Simple or Studio lighting alongside Flipbook, Scroll or Page by page. Add website icons, scrapbook notes and tabs." },
-      { title: "Start with a real PDF", body: `Free includes one portfolio up to 10 MB, QR codes and embedding. Personal is ${PRICE.month}/month or ${PRICE.year}/year, with up to ten portfolios and 50 MB per PDF.` },
+      { title: "Start with a real PDF", body: `Free includes one portfolio up to 30 MB, QR codes and embedding. Personal is ${PRICE.month}/month or ${PRICE.year}/year, with up to ten portfolios and 100 MB per PDF.` },
     ],
     steps: ["Export your original portfolio as a PDF.", "Upload it, test each page and choose your viewer settings.", "Publish, then replace the links and embeds you want to move."],
     faqs: [c.question, { q: `Can I import my existing ${c.name} web address?`, a: "No. Upload your original PDF to create a new Portfolia link. Third-party addresses, viewer settings, interactive overlays and analytics are not automatically imported." }],

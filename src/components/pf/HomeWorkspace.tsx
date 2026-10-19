@@ -47,7 +47,7 @@ export function HomeWorkspace() {
     if (!file || busy.current) return;
     if (!canCreate()) { setDialog("portfolios"); setError("Open an existing portfolio to replace its PDF, or choose Personal to create more portfolios."); return; }
     busy.current = true; setError(null);
-    try { accepted(await acceptPdf(file, setPhase, uploadLimitMb(getDoc()))); }
+    try { accepted(await acceptPdf(file, setPhase, uploadLimitMb(getDoc()), { allowPreview: true })); }
     catch (e) { setError(e instanceof Error ? e.message : "Couldn’t upload this PDF."); setDialog("upload"); }
     finally { busy.current = false; setPhase(null); if (input.current) input.current.value = ""; }
   };
@@ -71,7 +71,7 @@ export function HomeWorkspace() {
           <p className="max-w-md text-base leading-relaxed text-muted-foreground">Upload the portfolio you already have and share it as a beautifully lit 3D flipbook, with one link, a QR code or an embed on your own site.</p>
           <button type="button" onClick={() => input.current?.click()} disabled={Boolean(phase)} className="group flex w-full max-w-md items-center gap-4 rounded-2xl border border-dashed border-border-strong bg-canvas p-4 text-left transition-colors hover:border-foreground hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Drop a PDF here or choose a PDF to upload">
             <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border bg-white shadow-soft transition-transform group-hover:-translate-y-0.5"><Upload className="size-5" aria-hidden /></span>
-            <span className="min-w-0 flex-1"><span className="block text-sm font-medium">Drop your PDF here</span><span className="block text-xs text-muted-foreground">or click to choose · up to {uploadLimitMb(doc)} MB</span></span>
+            <span className="min-w-0 flex-1"><span className="block text-sm font-medium">Drop your PDF here</span><span className="block text-xs text-muted-foreground">or click to choose · publish up to {uploadLimitMb(doc)} MB</span></span>
             <span className="hidden rounded-full bg-foreground px-4 py-2 text-sm text-background sm:inline">Choose PDF</span>
           </button>
           <ul className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
@@ -89,7 +89,7 @@ export function HomeWorkspace() {
     </main></HomeScrollContext.Provider>
     <HomeMarketing onUpgrade={b => { setBilling(b); setUpgrade(true); }} onAccepted={accepted} limitMb={uploadLimitMb(doc)} />
     <Modal open={dialog === "upload"} onClose={closeUpload} title="Start a new portfolio">
-      {canCreate() ? <><p className="mb-4 text-sm text-muted-foreground">Upload a PDF to open its own editor. Your existing portfolios stay separate.</p><DropZone small limitMb={uploadLimitMb(doc)} onAccepted={accepted} /><p className="mt-3 text-xs text-muted-foreground">No sign-up to preview. Sign in to save and publish.</p></> : <><p className="text-sm">Your plan’s portfolio limit has been reached. Open a portfolio from My portfolios to replace its PDF, or choose Personal for more portfolios.</p><Button className="mt-5" onClick={() => { setDialog(null); setUpgrade(true); }}>View Personal</Button></>}
+      {canCreate() ? <><p className="mb-4 text-sm text-muted-foreground">Upload a PDF to open its own editor. Your existing portfolios stay separate.</p><DropZone small allowPreview limitMb={uploadLimitMb(doc)} onAccepted={accepted} /><p className="mt-3 text-xs text-muted-foreground">No sign-up to preview. Sign in to save and publish.</p></> : <><p className="text-sm">Your plan’s portfolio limit has been reached. Open a portfolio from My portfolios to replace its PDF, or choose Personal for more portfolios.</p><Button className="mt-5" onClick={() => { setDialog(null); setUpgrade(true); }}>View Personal</Button></>}
     </Modal>
     <Modal open={dialog === "portfolios"} onClose={() => setDialog(null)} title="My portfolios">
       <div className="grid gap-2">{allPortfolios(doc).map(item => <Button key={item.code} variant="line" className="justify-start" onClick={() => { if (item.code !== p?.code && !switchPortfolio(item.code)) { setError("Couldn’t open this portfolio. Please try again."); return; } setDialog(null); void navigate({ to: "/edit" }); }}>{item.name?.trim() || item.pdf?.name?.replace(/\.pdf$/i, "") || item.profile.name || "Untitled portfolio"}{item.code === p?.code ? " · Current" : ""}</Button>)}</div>

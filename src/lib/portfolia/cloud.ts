@@ -6,7 +6,7 @@ import { useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { getBlob, setCloudUser, uploadToCloud } from "./assets";
-import { allPortfolios, getDoc, getSavedDoc, replaceDoc, resetAll, setCommitHook, type Analytics, type Doc, type Portfolio } from "./store";
+import { allPortfolios, getDoc, getSavedDoc, pdfOverLimit, replaceDoc, resetAll, setCommitHook, uploadLimitMb, type Analytics, type Doc, type Portfolio } from "./store";
 
 /**
  * Keeps the browser copy of portfolios in step with the signed-in account.
@@ -72,11 +72,15 @@ async function push() {
 async function pushOnce() {
   const uid = userId;
   if (!uid) return;
-  const list = allPortfolios(getSavedDoc());
+  const saved = getSavedDoc();
+  const list = allPortfolios(saved);
   const codes = new Set(list.map((p) => p.code));
+  let tooLarge = false;
   try {
     for (const p of list) {
       if (userId !== uid) return;
+      // An oversized preview stays in this browser (the server would refuse it); its last saved version online is untouched.
+      if (pdfOverLimit(saved, p.pdf)) { tooLarge = true; continue; }
       if (!p.synced) await migrateDraftFiles(fileKeys(p), getBlob, (key, blob) => uploadToCloud(key, blob, uid));
       if (userId !== uid) return;
       const savedPortfolio = { ...p, synced: true };
@@ -119,7 +123,7 @@ async function pushOnce() {
       if (error) throw new Error("Couldn’t remove that portfolio from your account. Please try again.");
       pushed.delete(code); pendingDeletes.delete(code);
     }
-    if (userId === uid) setStatus("saved");
+    if (userId === uid) setStatus(tooLarge ? "error" : "saved", tooLarge ? `A PDF is larger than your ${uploadLimitMb(saved)} MB allowance, so it stays in this browser. Make a smaller web copy or upgrade to save it.` : "");
   } catch (e) {
     if (userId === uid) setStatus("error", e instanceof Error ? e.message : "Couldn’t save to your account.");
   }

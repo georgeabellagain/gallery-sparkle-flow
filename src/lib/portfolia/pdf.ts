@@ -1,5 +1,5 @@
-import { putBlob, uid } from "./assets";
-import { FREE_UPLOAD_LIMIT_MB, type PdfFile } from "./store";
+import { putBlob, putLocalBlob, uid } from "./assets";
+import { FREE_UPLOAD_LIMIT_MB, PREVIEW_LIMIT_MB, type PdfFile } from "./store";
 
 let pdfjsPromise: Promise<typeof import("pdfjs-dist")> | null = null;
 
@@ -30,14 +30,21 @@ export function describePdfError(e: unknown): string {
 /**
  * Validates a PDF (type, size, readable, not password protected) and stores it
  * in this browser. Nothing is changed if any step fails.
+ * With allowPreview, a PDF above the plan allowance (up to PREVIEW_LIMIT_MB) is kept in this browser only,
+ * so people can see their book first; publishing asks them to make a smaller copy or upgrade.
  */
-export async function acceptPdf(file: File, onPhase?: (p: string) => void, limitMb = FREE_UPLOAD_LIMIT_MB): Promise<PdfFile> {
+export async function acceptPdf(file: File, onPhase?: (p: string) => void, limitMb = FREE_UPLOAD_LIMIT_MB, { allowPreview = false } = {}): Promise<PdfFile> {
   if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf"))
     throw new Error("That file isn’t a PDF. Portfolia only hosts PDF portfolios.");
-  if (file.size > limitMb * 1024 * 1024)
+  const mb = (file.size / 1048576).toFixed(1);
+  const overPlan = file.size > limitMb * 1024 * 1024;
+  if (overPlan && (!allowPreview || file.size > PREVIEW_LIMIT_MB * 1024 * 1024))
     throw new Error(
-      `This PDF is ${(file.size / 1048576).toFixed(1)} MB. Your plan allows up to ${limitMb} MB — try exporting with compressed images or upgrade for a larger allowance.`,
+      allowPreview
+        ? `This PDF is ${mb} MB, too large to preview here (${PREVIEW_LIMIT_MB} MB maximum). Export a smaller web copy from your design app.`
+        : `This PDF is ${mb} MB. Your plan allows up to ${limitMb} MB. Make a smaller web copy below, or upgrade for a larger allowance.`,
     );
+  const save = overPlan ? putLocalBlob : putBlob;
   onPhase?.("Checking your PDF");
   const buf = await file.arrayBuffer();
   const pdfjs = await loadPdfjs();
@@ -59,7 +66,7 @@ export async function acceptPdf(file: File, onPhase?: (p: string) => void, limit
   onPhase?.("Saving in this browser");
   const blobKey = uid("pdf");
   try {
-    await putBlob(blobKey, new Blob([buf], { type: "application/pdf" }));
+    await save(blobKey, new Blob([buf], { type: "application/pdf" }));
   } catch {
     throw new Error("Your browser’s storage is full or blocked, so the PDF couldn’t be saved. Free some space and try again.");
   }
@@ -67,7 +74,7 @@ export async function acceptPdf(file: File, onPhase?: (p: string) => void, limit
   if (cover) {
     const key = `${blobKey}_cover.jpg`;
     // A failed preview must never prevent an otherwise valid PDF upload.
-    try { await putBlob(key, cover); coverKey = key; } catch { /* text-only share card */ }
+    try { await save(key, cover); coverKey = key; } catch { /* text-only share card */ }
   }
   return { blobKey, ...(coverKey ? { coverKey } : {}), name: file.name, bytes: file.size, pages, uploadedAt: Date.now() };
 }

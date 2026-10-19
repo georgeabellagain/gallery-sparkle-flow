@@ -5,7 +5,8 @@ import { ProfileForm } from "@/components/pf/ProfileForm";
 import { StyleForm } from "@/components/pf/StyleForm";
 import { ProfilePreview } from "@/components/pf/PortfolioPage";
 import { Button } from "@/components/ui/button";
-import { patchPortfolio, useDoc } from "@/lib/portfolia/store";
+import { patchPortfolio, pdfOverLimit, useDoc } from "@/lib/portfolia/store";
+import { OverLimitPanel } from "@/components/pf/OverLimit";
 import { retrySync, useSyncStatus } from "@/lib/portfolia/cloud";
 
 export const Route = createFileRoute("/create")({
@@ -43,8 +44,10 @@ function Create() {
     );
   }
 
-  const canPublish = p.profile.name.trim().length > 0;
+  const tooLarge = pdfOverLimit(doc);
+  const canPublish = p.profile.name.trim().length > 0 && !tooLarge;
   const publish = () => {
+    if (tooLarge) return setPubErr("Make your PDF fit your plan’s allowance before publishing.");
     if (!doc.account.signedIn) return void navigate({ to: "/signin", search: { next: "create" } });
     if (!patchPortfolio({ status: "published", publishedAt: Date.now() }))
       return setPubErr("Publishing failed — couldn’t save. Your portfolio is still a draft.");
@@ -67,13 +70,14 @@ function Create() {
           <details className="mt-6 rule-t pt-4"><summary className="cursor-pointer text-sm">Page style</summary><div className="mt-4"><StyleForm key={p.code} sidebar part="appearance" p={p} onSaveError={setSaveErr} /></div></details>
           {saveErr && <p role="alert" className="mt-4 text-sm text-destructive">{saveErr}</p>}
           <div className="mt-8 rule-t pt-5">
+            <OverLimitPanel className="mb-4" />
             <p className="text-xs text-muted-foreground">Will be published at <span className="font-mono text-foreground">/p/{p.code}</span>. Unlisted: anyone with your link can view. Your portfolio will not appear in a public directory.</p>
              {p.status === "published" ? (
                <div className="mt-4 grid gap-2"><Button asChild className="w-full"><Link to="/edit">Edit portfolio</Link></Button><Button asChild className="w-full" variant="line"><Link to="/dashboard">Back to dashboard</Link></Button></div>
             ) : (
               <Button className="mt-4 w-full" disabled={!canPublish} onClick={publish}>Publish portfolio</Button>
             )}
-            {!canPublish && <p className="mt-2 text-xs text-muted-foreground">Add your name to publish.</p>}
+            {!canPublish && !tooLarge && <p className="mt-2 text-xs text-muted-foreground">Add your name to publish.</p>}
             {!doc.account.signedIn && canPublish && <p className="mt-2 text-xs text-muted-foreground">You’ll sign in (or create a free account) to publish. Your draft comes with you.</p>}
             {sync.status === "error" && sync.message && <p role="alert" className="mt-2 text-sm text-destructive">{sync.message}</p>}
             {pubErr && <p role="alert" className="mt-2 text-sm text-destructive">{pubErr}</p>}

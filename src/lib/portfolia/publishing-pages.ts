@@ -5,7 +5,7 @@ export const PUBLISHING_PAGES: Record<string, SeoContent> = {
     path: "/free-pdf-flipbook",
     title: "Free PDF Flipbook Online — Upload & Share | Portfolia",
     description:
-      "Turn your PDF portfolio into a free online flipbook. Simple or 3D Studio viewing, a sharing link and QR code. One PDF up to 10 MB on Free.",
+      "Turn your PDF portfolio into a free online flipbook. Simple or 3D Studio viewing, a sharing link and QR code. One PDF up to 30 MB on Free.",
     h1: "Your PDF, as a free online flipbook.",
     h1Accent: "Simple to share.",
     intro:
@@ -17,7 +17,7 @@ export const PUBLISHING_PAGES: Record<string, SeoContent> = {
       },
       {
         title: "Free PDF hosting",
-        body: "The Free plan includes one PDF portfolio up to 10 MB, a permanent sharing link and a downloadable QR code.",
+        body: "The Free plan includes one PDF portfolio up to 30 MB, a permanent sharing link and a downloadable QR code.",
       },
       {
         title: "A book that fits the screen",
@@ -25,14 +25,14 @@ export const PUBLISHING_PAGES: Record<string, SeoContent> = {
       },
     ],
     steps: [
-      "Export your work as a PDF, up to 10 MB on Free.",
+      "Export your work as a PDF, up to 30 MB on Free.",
       "Upload it, add your profile and select flipbook reading.",
       "Publish and share your portfolio link or QR code.",
     ],
     faqs: [
       {
         q: "Can I make a PDF flipbook for free?",
-        a: "Yes. Portfolia hosts one PDF portfolio up to 10 MB on the Free plan. You can present it using flipbook, scroll or page-by-page reading.",
+        a: "Yes. Portfolia hosts one PDF portfolio up to 30 MB on the Free plan. You can present it using flipbook, scroll or page-by-page reading.",
       },
       {
         q: "Do I need to rebuild my PDF?",
@@ -56,7 +56,7 @@ export const PUBLISHING_PAGES: Record<string, SeoContent> = {
     h1: "An Issuu alternative",
     h1Accent: "for your PDF portfolio.",
     intro:
-      "If you are searching for an Issuu alternative to present your own work, Portfolia offers a focused workflow: upload a finished PDF, add your professional details and share one portfolio link. Start free with one PDF up to 10 MB.",
+      "If you are searching for an Issuu alternative to present your own work, Portfolia offers a focused workflow: upload a finished PDF, add your professional details and share one portfolio link. Start free with one PDF up to 30 MB.",
     points: [
       {
         title: "Focused on your portfolio",
@@ -79,11 +79,11 @@ export const PUBLISHING_PAGES: Record<string, SeoContent> = {
     faqs: [
       {
         q: "Is Portfolia a free Issuu alternative?",
-        a: "Portfolia has a Free plan for one PDF portfolio up to 10 MB. It is an option to consider when your main goal is hosting and sharing a personal PDF portfolio.",
+        a: "Portfolia has a Free plan for one PDF portfolio up to 30 MB. It is an option to consider when your main goal is hosting and sharing a personal PDF portfolio.",
       },
       {
         q: "What should I check before switching?",
-        a: "Check your PDF size, the number of portfolios you need. Free supports one PDF up to 10 MB; Personal supports up to 10 portfolios, each up to 50 MB. Check the current pricing page for plan details.",
+        a: "Check your PDF size, the number of portfolios you need. Free supports one PDF up to 30 MB; Personal supports up to 10 portfolios, each up to 100 MB. Check the current pricing page for plan details.",
       },
       {
         q: "Can Portfolia import my Issuu publications?",
@@ -126,7 +126,7 @@ export const PUBLISHING_PAGES: Record<string, SeoContent> = {
     faqs: [
       {
         q: "Can I create a professional portfolio for free?",
-        a: "Yes. The Free plan hosts one PDF up to 10 MB with a permanent link, profile and QR code. Personal adds more portfolios and larger files.",
+        a: "Yes. The Free plan hosts one PDF up to 30 MB with a permanent link, profile and QR code. Personal adds more portfolios and larger files.",
       },
       {
         q: "Who is it for?",

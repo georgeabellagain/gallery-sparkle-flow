@@ -15,7 +15,8 @@ import { DropZone } from "@/components/pf/DropZone";
 import { PdfViewer } from "@/components/pf/PdfViewer";
 import { Button } from "@/components/ui/button";
 import { deleteBlob, formatBytes } from "@/lib/portfolia/assets";
-import { deletePortfolio, patchPortfolio, replacePdf, uploadLimitMb, useDoc, type PdfFile } from "@/lib/portfolia/store";
+import { deletePortfolio, patchPortfolio, pdfOverLimit, replacePdf, uploadLimitMb, useDoc, type PdfFile } from "@/lib/portfolia/store";
+import { OverLimitPanel } from "@/components/pf/OverLimit";
 import { markPortfolioDeleted, retrySync, useSyncStatus } from "@/lib/portfolia/cloud";
 
 export const Route = createFileRoute("/edit")({
@@ -39,7 +40,7 @@ function EditPortfolio() {
   const p = doc.portfolio;
   const navigate = useNavigate();
   const [saveErr, setSaveErr] = useState<string | null>(null);
-  const [dialog, setDialog] = useState<null | "replace" | "unpublish" | "delete">(null);
+  const [dialog, setDialog] = useState<null | "replace" | "unpublish" | "delete" | "too-large">(null);
   const sync = useSyncStatus();
   const [saving, setSaving] = useState(false), [upgrade, setUpgrade] = useState(false);
   const dirty = portfolioDraftDirty();
@@ -79,6 +80,8 @@ function EditPortfolio() {
   if (!p || !p.pdf) return null;
 
   const publish = async () => {
+    // Checked before sign-in, so nobody signs up only to find the PDF can't be published.
+    if (pdfOverLimit(getDoc())) return void setDialog("too-large");
     if (!p.profile.name.trim()) return void navigate({ to: "/create" });
     if (!doc.account.signedIn) return void navigate({ to: "/signin", search: { next: "create" } });
     if (!await save()) return;
@@ -112,6 +115,10 @@ function EditPortfolio() {
           <Button variant="line" disabled={saving} onClick={() => { discardPortfolioDraft(); blocker.proceed?.(); }}>Discard & leave</Button>
           <Button variant="quiet" onClick={() => blocker.reset?.()}>Keep editing</Button>
         </div>
+      </Modal>
+      <Modal open={dialog === "too-large"} onClose={() => setDialog(null)} title="Make your PDF fit to publish">
+        <OverLimitPanel onUpgrade={() => { setDialog(null); setUpgrade(true); }} />
+        {!pdfOverLimit(doc) && <div className="mt-4 flex justify-end"><Button onClick={() => { setDialog(null); void publish(); }}>Publish now</Button></div>}
       </Modal>
       <EditReplaceModal open={dialog === "replace"} onClose={() => setDialog(null)} current={p.pdf} limitMb={uploadLimitMb(doc)} />
       <Modal open={dialog === "unpublish"} onClose={() => setDialog(null)} title="Unpublish portfolio?">

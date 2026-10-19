@@ -15,7 +15,7 @@ const c: SeoContent = {
   ],
   steps: ["Export your architecture portfolio from InDesign as a PDF.", "Upload it and add your name, qualifications and links.", "Share your link or QR code with practices and schools."],
   faqs: [
-    { q: "What file size can I upload?", a: "Up to 10 MB free, or up to 50 MB per portfolio on Personal — useful for image-heavy architecture work." },
+    { q: "What file size can I upload?", a: "Up to 30 MB free, or up to 100 MB per portfolio on Personal — useful for image-heavy architecture work. You can preview larger files first, and the upload box can make a smaller web copy." },
     { q: "Can I keep separate portfolios for different applications?", a: "Personal lets you host up to 10 portfolios, each with its own link." },
     { q: "Can I include my CV?", a: "Yes — on Personal your CV appears alongside your profile." },
     { q: "Can I print a QR code for my degree show?", a: "Yes. Every portfolio has a downloadable high-resolution QR code that opens its public page." },

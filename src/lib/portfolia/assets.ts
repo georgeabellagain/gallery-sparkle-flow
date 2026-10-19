@@ -78,6 +78,9 @@ export async function putBlob(key: string, blob: Blob): Promise<void> {
   });
 }
 
+/** Browser-only save for previews above the plan allowance; they reach the account once they fit. */
+export const putLocalBlob = (key: string, blob: Blob) => putLocal(key, blob);
+
 export async function getBlob(key: string): Promise<Blob | undefined> {
   const local = await getLocal(key).catch(() => undefined);
   if (local) return local;

@@ -364,7 +364,7 @@ export function FeatureShowcase({ onAccepted, limitMb }: { onAccepted: (pdf: Pdf
               {feature.text}
             </p>
             <div className="mt-7 [&>div]:relative lg:mt-auto lg:pt-7 lg:[&_details]:absolute lg:[&_details]:inset-x-0 lg:[&_details]:top-full">
-              <DropZone small label="Choose PDF" className="rounded-none" buttonClassName="bg-black text-white hover:bg-black/80" onAccepted={onAccepted} limitMb={limitMb} />
+              <DropZone small label="Choose PDF" className="rounded-none" buttonClassName="bg-black text-white hover:bg-black/80" onAccepted={onAccepted} limitMb={limitMb} allowPreview />
             </div>
           </div>
         </div>

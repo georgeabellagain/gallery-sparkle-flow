@@ -7,7 +7,7 @@ import type { SeoContent } from "@/components/pf/SeoLanding";
  */
 type Page = Omit<SeoContent, "path"> & { label: string };
 
-const freeFaq = { q: "Is it free?", a: "Yes. The Free plan hosts one PDF up to 10 MB with a permanent link and QR code. Personal adds up to 10 PDFs of 50 MB each." };
+const freeFaq = { q: "Is it free?", a: "Yes. The Free plan hosts one PDF up to 30 MB with a permanent link and QR code. Personal adds up to 10 PDFs of 100 MB each." };
 const previewFaq = { q: "Do I need an account?", a: "Not to try it. Drop your PDF on the homepage to preview it straight away. Sign in, free, when you want to publish your link." };
 const replaceFaq = { q: "What if I change the PDF later?", a: "Replace the file whenever you like. Your link and QR code stay the same, so anything you have already sent opens the new version." };
 const privateFaq = { q: "Can I keep it private?", a: "Unpublished PDFs are never public. With Personal you can add a password and an expiry date to a published link." };
@@ -16,7 +16,7 @@ export const TASK_PAGES: Record<string, Page> = {
   "pdf-to-link": {
     label: "PDF to link",
     title: "PDF to Link — Turn a PDF Into a Shareable Link Free | Portfolia",
-    description: "Turn your PDF into a link anyone can open on any device. Preview without signing up, then share one permanent link or QR code. Free for one PDF up to 10 MB.",
+    description: "Turn your PDF into a link anyone can open on any device. Preview without signing up, then share one permanent link or QR code. Free for one PDF up to 30 MB.",
     h1: "Turn your PDF into a link", h1Accent: "anyone can open.",
     intro: "Drop in a PDF and get a clean web link that opens in any browser, on phones and laptops, with nothing to download. Built for portfolios, books, lookbooks and catalogues, and it works for any PDF you want people to read.",
     points: [
@@ -28,7 +28,7 @@ export const TASK_PAGES: Record<string, Page> = {
       { title: "What kind of link do I get?", body: "Every published PDF gets a permanent address such as portfolia.site/p/abc12, plus a downloadable QR code. With Personal you can also claim a short personal address like portfolia.site/yourname. The link opens a fast viewer, not a file download, unless you allow downloading." },
       { title: "When a link beats an attachment", body: "Attachments get blocked, stripped or buried in downloads folders, and the recipient needs the right app. A link opens instantly, always shows your latest version and can be pasted into job applications, social bios and messages." },
     ],
-    checklist: ["Export the PDF from your design app with web-friendly image sizes.", "Keep it under 10 MB on Free (the upload box can repack larger files losslessly on your device).", "Decide whether visitors may download the original file.", "Open the link on your phone before sending it."],
+    checklist: ["Export the PDF from your design app with web-friendly image sizes.", "Keep it under 30 MB on Free (the upload box can make a smaller web copy on your device).", "Decide whether visitors may download the original file.", "Open the link on your phone before sending it."],
     steps: ["Drop your PDF on the homepage to preview it.", "Sign in free and publish.", "Copy your link or download its QR code."],
     faqs: [previewFaq, freeFaq, replaceFaq, { q: "Can people download my PDF from the link?", a: "Only if you switch downloading on. Otherwise the link shows the pages in the viewer." }, privateFaq],
   },
@@ -77,7 +77,7 @@ export const TASK_PAGES: Record<string, Page> = {
     h1: "Host your PDF online,", h1Accent: "free and permanently.",
     intro: "Need somewhere reliable to put a PDF so people can read it? Portfolia stores it privately and serves it through a viewer on a link that doesn't change.",
     points: [
-      { title: "Free hosting", body: "One PDF up to 10 MB on Free; up to 10 PDFs of 50 MB each on Personal." },
+      { title: "Free hosting", body: "One PDF up to 30 MB on Free; up to 10 PDFs of 100 MB each on Personal." },
       { title: "Read or download", body: "Visitors read in the browser. Turn on downloading if you want them to save the original file." },
       { title: "Swap files safely", body: "Replace the PDF and keep the same link; visit statistics carry on." },
     ],
@@ -149,11 +149,11 @@ export const TASK_PAGES: Record<string, Page> = {
   "send-large-pdf": {
     label: "PDF too large to email",
     title: "PDF Too Large to Email? Send It as a Link Instead | Portfolia",
-    description: "PDF too big to attach? Gmail allows 25 MB and Outlook 20 MB. Send it as a link instead: up to 50 MB with Personal, plus lossless optimisation.",
+    description: "PDF too big to attach? Gmail allows 25 MB and Outlook 20 MB. Send it as a link instead: 30 MB free, 100 MB with Personal, or a smaller web copy.",
     h1: "PDF too large to email?", h1Accent: "Send a link instead.",
     intro: "Email services cap attachments: Gmail at 25 MB and Outlook at 20 MB, and many company inboxes lower. Instead of crushing your images, upload the PDF and send a link that opens instantly.",
     points: [
-      { title: "Bigger than email allows", body: "Host PDFs up to 10 MB free, or up to 50 MB each with Personal." },
+      { title: "Bigger than email allows", body: "Host PDFs up to 30 MB free, or up to 100 MB each with Personal." },
       { title: "Lossless optimisation", body: "The upload box can repack an oversized PDF on your device without downsampling images, which often makes it smaller." },
       { title: "Full quality to read", body: "Recipients zoom into sharp pages in the viewer instead of opening a compressed copy." },
     ],
@@ -161,7 +161,7 @@ export const TASK_PAGES: Record<string, Page> = {
       { title: "Why not just compress it?", body: "Online compressors usually shrink PDFs by lowering image quality, the opposite of what a portfolio or lookbook needs. Portfolia's optimisation only repacks the file's structure, and when that isn't enough, a hosted link removes the size problem altogether." },
       { title: "If it's still too big", body: "Export a web copy from your design app with images at screen resolution (around 150–200 ppi), or split very long documents. Your print-quality file can stay on your computer." },
     ],
-    checklist: ["Check the file size before sending.", "Try Large PDF? Upload options in the upload box.", "Export a web copy if it's above 50 MB.", "Send the link in the email body."],
+    checklist: ["Check the file size before sending.", "Try Large PDF? Upload options in the upload box.", "Make a smaller web copy if it's above 100 MB.", "Send the link in the email body."],
     steps: ["Drop your PDF in the upload box (use Large PDF? options if it's over the limit).", "Publish it with a free account.", "Email the link instead of the attachment."],
     faqs: [{ q: "What is the attachment limit for Gmail and Outlook?", a: "Gmail allows attachments up to 25 MB and Outlook.com up to 20 MB in total per message. Work email systems are often stricter." }, { q: "Does optimisation reduce quality?", a: "No. It repacks the PDF's internal structure without rasterising pages or downsampling images. If it can't make the file smaller, the original is kept." }, freeFaq, replaceFaq],
   },
@@ -196,7 +196,7 @@ export const TASK_PAGES: Record<string, Page> = {
       { title: "Links still work", body: "Links in your PDF stay clickable in the scroll and page-by-page views, and you can add link icons to any page for the flipbook." },
     ],
     sections: [
-      { title: "How to export from Canva", body: "In Canva choose Share, then Download, and pick PDF Standard for a lighter file or PDF Print for the highest quality. If the PDF is over 10 MB, try PDF Standard or use Large PDF? Upload options when uploading." },
+      { title: "How to export from Canva", body: "In Canva choose Share, then Download, and pick PDF Standard for a lighter file or PDF Print for the highest quality. If the PDF is over 30 MB, try PDF Standard or use Large PDF? Upload options to make a smaller web copy." },
       { title: "When to use Portfolia instead of a Canva link", body: "Use Portfolia when you want readers to experience your design as a book: a page-turning viewer, a permanent link that survives edits, a QR code, visit statistics and an embed for your website." },
     ],
     checklist: ["Download as PDF Standard first; switch to PDF Print if detail suffers.", "Keep the cover as the first page.", "Check the page order before exporting.", "Preview on a phone after uploading."],

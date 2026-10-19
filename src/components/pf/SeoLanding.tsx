@@ -163,7 +163,7 @@ export function SeoLanding({ c: base, children, hideDefaultExample = false, hero
               backdrops. On phones, the book camera follows the current page.
             </p>
             <p className="mt-3 text-sm">
-              Start free with one PDF up to 10 MB.{" "}
+              Start free with one PDF up to 30 MB.{" "}
               <a href="/free-pdf-flipbook" className="underline underline-offset-4">
                 Explore the free PDF flipbook
               </a>{" "}
@@ -191,7 +191,7 @@ export function SeoLanding({ c: base, children, hideDefaultExample = false, hero
             </ol>
             <ul className="mt-8 space-y-1.5 text-sm">
               {[
-                "Free plan: one PDF portfolio up to 10 MB",
+                "Free plan: one PDF portfolio up to 30 MB",
                 "Permanent sharing link and downloadable QR code",
                 "Profile, email, LinkedIn and contact links",
                 "Basic visit statistics",

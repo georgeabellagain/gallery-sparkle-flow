@@ -11,8 +11,11 @@ import { deleteBlob, setAssetRetention, uid } from "./assets";
  * every change is synced to the account by cloud.ts, and files go to storage.
  */
 
-export const FREE_UPLOAD_LIMIT_MB = 10;
-export const PERSONAL_UPLOAD_LIMIT_MB = 50;
+/** Publishing allowances; the database enforces the same numbers (see supabase/migrations). */
+export const FREE_UPLOAD_LIMIT_MB = 30;
+export const PERSONAL_UPLOAD_LIMIT_MB = 100;
+/** New uploads can be previewed in the browser up to this size; the plan allowance applies when publishing. */
+export const PREVIEW_LIMIT_MB = 150;
 export const GRACE_DAYS = 30;
 export const PRICE = { month: "£3", year: "£25" };
 export const MAX_PORTFOLIOS = 10;
@@ -448,6 +451,11 @@ export function isPaid(d: Doc): boolean {
 
 export function uploadLimitMb(d: Doc): number {
   return isPaid(d) ? PERSONAL_UPLOAD_LIMIT_MB : FREE_UPLOAD_LIMIT_MB;
+}
+
+/** A previewed PDF above the plan allowance stays in this browser and cannot be published until it fits. */
+export function pdfOverLimit(d: Doc, pdf: PdfFile | null | undefined = d.portfolio?.pdf): boolean {
+  return Boolean(pdf && pdf.bytes > uploadLimitMb(d) * 1024 * 1024);
 }
 
 export function canAddPortfolio(d: Doc): boolean {

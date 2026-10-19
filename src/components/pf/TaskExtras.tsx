@@ -237,7 +237,7 @@ export function LinkVsAttachment() {
 const CANVA_STEPS = [
   { title: "Click Share", body: "Top right of the Canva editor, next to your name.", menu: ["Share", "Present", "Print"], hi: 0 },
   { title: "Choose Download", body: "It sits near the bottom of the Share panel.", menu: ["Copy link", "Download", "Present and record"], hi: 1 },
-  { title: "Pick PDF Print", body: "Sharpest images. PDF Standard makes a smaller file if yours is over 10 MB. Leave crop marks and bleed off: they show as white edges in a flipbook.", menu: ["PDF Standard", "PDF Print", "PNG"], hi: 1 },
+  { title: "Pick PDF Print", body: "Sharpest images. PDF Standard makes a smaller file if yours is over 30 MB. Leave crop marks and bleed off: they show as white edges in a flipbook.", menu: ["PDF Standard", "PDF Print", "PNG"], hi: 1 },
   { title: "Drop it in", body: "Drop the downloaded PDF into the box on this page to see it as a flipbook straight away.", menu: [], hi: -1 },
 ];
 
@@ -291,7 +291,7 @@ const UCAS_CHECKS = [
   "You have checked each university’s page limit and format",
   "Your name and contact details are on the first page",
   "Text is still readable when you open it on a phone",
-  "The file is under 10 MB (the upload box can shrink it for you)",
+  "The file is under 30 MB (the upload box can make a smaller web copy)",
 ];
 
 export function UcasChecklist() {

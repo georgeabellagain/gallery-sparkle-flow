@@ -8,14 +8,14 @@ DO $$ BEGIN
   IF public.portfolio_owner_has_personal('00000000-0000-0000-0000-000000000116') THEN RAISE EXCEPTION 'sandbox granted paid access'; END IF;
 END $$;
 SET LOCAL ROLE authenticated;
-INSERT INTO storage.objects(bucket_id,name,metadata) VALUES ('portfolio-files','00000000-0000-0000-0000-000000000116/__pf_security_test','{"size":10485760}');
+INSERT INTO storage.objects(bucket_id,name,metadata) VALUES ('portfolio-files','00000000-0000-0000-0000-000000000116/__pf_security_test','{"size":31457280}');
 DO $$ BEGIN
   BEGIN
-    INSERT INTO storage.objects(bucket_id,name,metadata) VALUES ('portfolio-files','00000000-0000-0000-0000-000000000116/__pf_security_test_large','{"size":10485761}');
+    INSERT INTO storage.objects(bucket_id,name,metadata) VALUES ('portfolio-files','00000000-0000-0000-0000-000000000116/__pf_security_test_large','{"size":31457281}');
     RAISE EXCEPTION 'free oversized insert succeeded';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN
-    UPDATE storage.objects SET metadata='{"size":10485761}' WHERE name='00000000-0000-0000-0000-000000000116/__pf_security_test';
+    UPDATE storage.objects SET metadata='{"size":31457281}' WHERE name='00000000-0000-0000-0000-000000000116/__pf_security_test';
     RAISE EXCEPTION 'free oversized replacement succeeded';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
   BEGIN
@@ -28,17 +28,17 @@ RESET ROLE;
 SET LOCAL ROLE service_role;
 DO $$ BEGIN
   BEGIN
-    INSERT INTO storage.objects(bucket_id,name,metadata) VALUES ('portfolio-files','00000000-0000-0000-0000-000000000116/__pf_security_test_internal','{"size":10485761}');
+    INSERT INTO storage.objects(bucket_id,name,metadata) VALUES ('portfolio-files','00000000-0000-0000-0000-000000000116/__pf_security_test_internal','{"size":31457281}');
     RAISE EXCEPTION 'service finalization bypassed size limit';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;
 RESET ROLE;
 UPDATE public.subscriptions SET environment='live' WHERE paddle_subscription_id='__pf_security_test_sub';
 SET LOCAL ROLE authenticated;
-UPDATE storage.objects SET metadata='{"size":52428800}' WHERE name='00000000-0000-0000-0000-000000000116/__pf_security_test';
+UPDATE storage.objects SET metadata='{"size":104857600}' WHERE name='00000000-0000-0000-0000-000000000116/__pf_security_test';
 DO $$ BEGIN
   BEGIN
-    UPDATE storage.objects SET metadata='{"size":52428801}' WHERE name='00000000-0000-0000-0000-000000000116/__pf_security_test';
+    UPDATE storage.objects SET metadata='{"size":104857601}' WHERE name='00000000-0000-0000-0000-000000000116/__pf_security_test';
     RAISE EXCEPTION 'paid oversized replacement succeeded';
   EXCEPTION WHEN insufficient_privilege THEN NULL; END;
 END $$;

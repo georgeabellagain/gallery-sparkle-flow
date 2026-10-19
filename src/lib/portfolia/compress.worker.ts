@@ -1,7 +1,10 @@
 import { compressPdfBytes } from "./compress";
-self.onmessage = async (event: MessageEvent<ArrayBuffer>) => {
+import { browserReencode, webCopyPdfBytes } from "./web-copy";
+/** "repack" keeps every image as it is; "web" also resizes large photos for screens. */
+self.onmessage = async (event: MessageEvent<ArrayBuffer | { mode: "repack" | "web"; buffer: ArrayBuffer }>) => {
   try {
-    const result = await compressPdfBytes(new Uint8Array(event.data));
+    const { mode, buffer: input } = event.data instanceof ArrayBuffer ? { mode: "repack" as const, buffer: event.data } : event.data;
+    const result = mode === "web" ? (await webCopyPdfBytes(new Uint8Array(input), browserReencode)).bytes : await compressPdfBytes(new Uint8Array(input));
     const buffer = new Uint8Array(result).buffer;
     self.postMessage({ buffer }, { transfer: [buffer] });
   } catch (error) {

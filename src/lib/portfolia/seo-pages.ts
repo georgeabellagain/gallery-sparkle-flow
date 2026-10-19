@@ -4,7 +4,7 @@ import { TASK_PAGES } from "./task-pages";
 type Page = Omit<SeoContent, "path"> & { label: string };
 
 const qrFaq = { q: "Can I share it with a QR code?", a: "Yes. Every published portfolio has a downloadable high-resolution QR code for print, cards and displays." };
-const sizeFaq = { q: "How large can my PDF be?", a: "Up to 10 MB on Free, or up to 50 MB per portfolio on Personal." };
+const sizeFaq = { q: "How large can my PDF be?", a: "Up to 30 MB on Free, or up to 100 MB per portfolio on Personal. You can preview larger files first, and the upload box can make a smaller web copy." };
 
 export const DISCIPLINE_PAGES: Record<string, Page> = {
   "book-mockup-generator": {
@@ -47,7 +47,7 @@ export const DISCIPLINE_PAGES: Record<string, Page> = {
       { title: "What is HDRI book visualisation?", body: "HDRI (high dynamic range imaging) environments capture real-world light. Used in 3D rendering, they make objects look as though they were photographed in a real room. Portfolia lights your book with these environments in the browser, so your printed design can be previewed as a believable physical object before or instead of a photo shoot. It shows your PDF exactly as designed; it does not create a 3D model of a printed binding or validate print-ready files. Personal includes downloadable HD flip-through videos and still photographs from the Photo shoot, a 3D book mockup generator." },
       { title: "Who it is for", body: "Self-published authors previewing a novel or photo book, designers presenting editorial layouts, students showing a printed portfolio, and brands sharing a lookbook or catalogue. Anyone with a book PDF can present it as an object rather than a flat document." },
     ],
-    checklist: ["Export your book as a PDF with single pages or two-page spreads.", "Keep files under 10 MB on Free or 50 MB on Personal.", "Choose a lighting environment and brightness in the editor.", "Check the result on a phone before sharing."],
+    checklist: ["Export your book as a PDF with single pages or two-page spreads.", "Keep files under 30 MB on Free or 100 MB on Personal.", "Choose a lighting environment and brightness in the editor.", "Check the result on a phone before sharing."],
     steps: ["Upload your book PDF.", "Turn on Studio and choose your HDRI lighting and backdrop.", "Publish and share your link or QR code."],
     faqs: [
       { q: "Do I need 3D software?", a: "No. Upload a PDF and the lighting and page turns run in the visitor's browser." },
@@ -76,7 +76,7 @@ export const DISCIPLINE_PAGES: Record<string, Page> = {
     steps: ["Export your marketing case studies as a PDF from your preferred design tool.", "Upload your PDF, choose a reading style and organise your named projects.", "Publish and share your marketing portfolio link or downloadable QR code."],
     faqs: [
       { q: "How do I create an online marketing portfolio?", a: "Put your introduction and campaign case studies into a PDF, upload it to Portfolia, then publish a sharing link. You can choose Flipbook, Scroll or Page by page reading and add named projects. Portfolia hosts your existing PDF rather than designing the case studies for you." },
-      { q: "Can I make a marketing portfolio for free?", a: "Yes. Portfolia's Free plan supports one PDF portfolio up to 10 MB, with a sharing link and downloadable QR code. You can preview your PDF before signing up; an account is needed to save and publish it." },
+      { q: "Can I make a marketing portfolio for free?", a: "Yes. Portfolia's Free plan supports one PDF portfolio up to 30 MB, with a sharing link and downloadable QR code. You can preview your PDF before signing up; an account is needed to save and publish it." },
       { q: "Can I use it for a social media or digital marketing portfolio?", a: "Yes. Your PDF can include social posts, campaign plans, email layouts, content samples and results. Add website-link icons in the editor to send readers to relevant published work." },
       { q: "Can I share a single marketing case study?", a: "Yes. Add a named project and its page range, then copy that project's link. It opens at the project's first page while leaving the rest of your portfolio available." },
       { q: "Can I protect confidential client work?", a: "Personal offers password protection and expiring links. These controls do not replace a client's permission to share their work or data; remove confidential information before uploading." },
@@ -202,7 +202,7 @@ export const DISCIPLINE_PAGES: Record<string, Page> = {
     h1: "Student portfolios,", h1Accent: "free and ready to send.",
     intro: "Applying to university, art school or an internship? Upload your portfolio PDF and share it with a single link — free.",
     points: [
-      { title: "Free to start", body: "One portfolio up to 10 MB on the Free plan, with a permanent link." },
+      { title: "Free to start", body: "One portfolio up to 30 MB on the Free plan, with a permanent link." },
       { title: "Works on any device", body: "Admissions tutors can open it on a phone, tablet or laptop." },
       { title: "QR for degree shows", body: "Download your QR code for end-of-year show displays." },
     ],
