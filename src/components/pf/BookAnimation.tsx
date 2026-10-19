@@ -13,12 +13,13 @@ function Face({ title, back = false }: { title: string; back?: boolean }) {
   );
 }
 
-export function BookAnimation() {
+/** cover and kicker let landing pages label the pages for their audience, e.g. "UCAS / 2027" and "PROJECT". */
+export function BookAnimation({ cover = "PORTFOLIA / 01", opening = "SELECTED WORK", kicker = "PROJECT" }: { cover?: string; opening?: string; kicker?: string }) {
   return (
     <div className="pf-hero-book" aria-hidden style={{ animationDuration: CYCLE }}>
       <div className="pf-hero-book-shadow" />
       <div className="pf-hero-book-page pf-hero-book-back-cover">
-        <Face title="PORTFOLIA / 08" />
+        <Face title={cover.replace(/\/.*$/, "/ 08")} />
       </div>
       {[3, 2, 1].map((n) => (
         <div
@@ -26,16 +27,16 @@ export function BookAnimation() {
           className={`pf-hero-book-page pf-hero-book-page-turn pf-hero-book-leaf-${n}`}
           style={{ animationDuration: CYCLE }}
         >
-          <Face title={`PROJECT / 0${n * 2}`} />
-          <Face title={`PROJECT / 0${n * 2 + 1}`} back />
+          <Face title={`${kicker} / 0${n * 2}`} />
+          <Face title={`${kicker} / 0${n * 2 + 1}`} back />
         </div>
       ))}
       <div
         className="pf-hero-book-page pf-hero-book-page-turn pf-hero-book-cover"
         style={{ animationDuration: CYCLE }}
       >
-        <Face title="PORTFOLIA / 01" />
-        <Face title="SELECTED WORK" back />
+        <Face title={cover} />
+        <Face title={opening} back />
       </div>
     </div>
   );

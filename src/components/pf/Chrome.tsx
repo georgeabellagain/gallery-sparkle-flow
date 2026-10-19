@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { getBlob } from "@/lib/portfolia/assets";
 import { cn } from "@/lib/utils";
+import { TASK_PAGES } from "@/lib/portfolia/task-pages";
 import portfoliaLogo from "@/assets/portfolia-logo.png";
 
 export function Wordmark({ className }: { className?: string }) {
@@ -28,7 +29,7 @@ export function SiteHeader({ right }: { right?: ReactNode }) {
 export function SiteFooter({ className }: { className?: string }) {
   return (
     <footer className={cn("rule-t mt-auto", className)}>
-      <div className="shell grid gap-8 py-8 sm:grid-cols-[1.2fr_1fr_1fr]">
+      <div className="shell grid gap-8 py-8 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_1fr]">
         <div><Wordmark /><p className="mt-3 max-w-xs text-sm text-muted-foreground">Your PDF. One simple link.</p><p className="mt-4 text-xs text-muted-foreground">© {new Date().getFullYear()} George Bell</p></div>
         <nav aria-label="Product resources" className="text-xs text-muted-foreground">
           <p className="mb-3 font-medium text-foreground">Explore</p>
@@ -37,11 +38,15 @@ export function SiteFooter({ className }: { className?: string }) {
             <Link to="/free-pdf-flipbook" className="hover:underline">PDF flipbooks</Link>
             <Link to="/book-marketing" className="hover:underline">Book marketing</Link>
             <a href="/portfolio-checker" className="hover:underline">PDF checker</a>
-            <a href="/pdf-to-link" className="hover:underline">PDF to link</a>
-            <a href="/pdf-qr-code" className="hover:underline">PDF QR codes</a>
-            <a href="/how-to-send-a-portfolio" className="hover:underline">How to send a portfolio</a>
             <a href="/embed-flipbook-in-squarespace" className="hover:underline">Embedding guides</a>
             <Link to="/flipbook-alternatives" className="hover:underline">Compare flipbook tools</Link>
+          </div>
+        </nav>
+        {/* Every task page is linked from every footer so search engines find them from any crawled page. */}
+        <nav aria-label="Guides" className="text-xs text-muted-foreground">
+          <p className="mb-3 font-medium text-foreground">Guides</p>
+          <div className="grid gap-2.5">
+            {Object.entries(TASK_PAGES).map(([slug, p]) => <a key={slug} href={`/${slug}`} className="hover:underline">{p.label}</a>)}
           </div>
         </nav>
         <nav aria-label="Help and legal" className="text-xs text-muted-foreground">

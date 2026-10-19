@@ -676,3 +676,46 @@
 @media (min-width: 1024px) {
   .pf-home-split .pf-workspace-demo .pf-book-viewport { height: calc(100dvh - 3.5rem); }
 }
+
+/* Task landing page artwork: short loops that end on the finished state; reduced motion shows that state still. */
+.pf-link-art { position: relative; width: 82%; height: 70%; }
+.pf-link-file, .pf-link-pill, .pf-link-qr { position: absolute; display: flex; align-items: center; gap: .75rem; border: 1px solid var(--color-border); background: var(--color-background); box-shadow: var(--shadow-lift); animation-duration: 7s; animation-timing-function: cubic-bezier(.4,0,.2,1); animation-iteration-count: infinite; }
+.pf-link-file { left: 0; top: 8%; padding: .9rem 1.1rem; border-radius: 1rem; animation-name: pf-link-file; }
+.pf-link-file span { display: flex; flex-direction: column; font-size: .8rem; }
+.pf-link-file small { color: var(--color-muted-foreground); font-size: .68rem; }
+.pf-link-pill { left: 6%; bottom: 14%; padding: .7rem 1rem; border-radius: 999px; font-size: .78rem; color: var(--color-leaf); animation-name: pf-link-pill; }
+.pf-link-copied { display: inline-flex; align-items: center; gap: .2rem; margin-left: .25rem; padding: .15rem .5rem; border-radius: 999px; background: var(--color-leaf); color: var(--color-background); font-size: .62rem; animation: pf-link-copied 7s infinite; }
+.pf-link-qr { right: 2%; top: 4%; padding: .7rem; border-radius: .9rem; color: var(--color-foreground); animation-name: pf-link-qr; }
+@keyframes pf-link-file { 0% { opacity: 0; transform: translateY(6px); } 8%, 32% { opacity: 1; transform: none; } 44%, 100% { opacity: 0; transform: translate(30px, 30px) scale(.9); } }
+@keyframes pf-link-pill { 0%, 38% { opacity: 0; transform: translateY(10px); } 50%, 90% { opacity: 1; transform: none; } 98%, 100% { opacity: 0; } }
+@keyframes pf-link-copied { 0%, 62% { opacity: 0; } 68%, 86% { opacity: 1; } 92%, 100% { opacity: 0; } }
+@keyframes pf-link-qr { 0%, 54% { opacity: 0; transform: scale(.8) rotate(-6deg); } 64%, 90% { opacity: 1; transform: none; } 98%, 100% { opacity: 0; } }
+
+.pf-mail-art { position: relative; width: 84%; padding: 1rem; border: 1px solid var(--color-border); border-radius: 1rem; background: var(--color-background); box-shadow: var(--shadow-lift); font-size: .72rem; }
+.pf-mail-row { display: flex; gap: .6rem; padding: .35rem 0; border-bottom: 1px solid var(--color-border); }
+.pf-mail-row span { width: 3.4rem; color: var(--color-muted-foreground); }
+.pf-mail-body { display: grid; gap: .45rem; padding: .9rem 0 3.2rem; }
+.pf-mail-body i { display: block; height: 6px; border-radius: 3px; background: var(--color-muted); }
+.pf-mail-attach, .pf-mail-link { position: absolute; left: 1rem; bottom: 1rem; display: inline-flex; align-items: center; gap: .4rem; padding: .45rem .7rem; border-radius: .6rem; border: 1px solid var(--color-border); animation-duration: 7s; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+.pf-mail-attach { background: var(--color-muted); animation-name: pf-mail-attach; }
+.pf-mail-warn { display: inline-flex; align-items: center; gap: .15rem; margin-left: .3rem; font-weight: 500; color: var(--color-destructive); animation: pf-mail-warn 7s infinite; }
+.pf-mail-link { color: var(--color-leaf); background: var(--color-leaf-soft); border-color: var(--color-leaf); animation-name: pf-mail-link; }
+.pf-mail-sent { position: absolute; right: 1rem; bottom: 1rem; display: inline-flex; align-items: center; gap: .3rem; padding: .45rem .8rem; border-radius: 999px; background: var(--color-leaf); color: var(--color-background); animation: pf-mail-sent 7s infinite; }
+@keyframes pf-mail-attach { 0%, 8% { opacity: 0; transform: translateY(6px); } 16%, 42% { opacity: 1; transform: none; } 50%, 100% { opacity: 0; transform: translateX(-12px); } }
+@keyframes pf-mail-warn { 0%, 24% { opacity: 0; } 30%, 100% { opacity: 1; } }
+@keyframes pf-mail-link { 0%, 50% { opacity: 0; transform: translateY(6px); } 58%, 92% { opacity: 1; transform: none; } 99%, 100% { opacity: 0; } }
+@keyframes pf-mail-sent { 0%, 70% { opacity: 0; transform: scale(.85); } 76%, 92% { opacity: 1; transform: none; } 99%, 100% { opacity: 0; } }
+
+/* The open spread is twice the book's width, so frames use a smaller book than the homepage. */
+.pf-art-book .pf-hero-book { width: min(26vw, 7.5rem); }
+.pf-art-book-lg .pf-hero-book { width: min(30vw, 9.5rem); }
+.pf-steps-art { display: flex; flex-wrap: wrap; justify-content: center; gap: .4rem; font-size: .7rem; }
+.pf-steps-art li { display: flex; align-items: center; gap: .5rem; padding: .45rem .8rem .45rem .45rem; border: 1px solid var(--color-border); border-radius: 999px; background: var(--color-background); animation: pf-step-hi 8s infinite; }
+.pf-steps-art span { display: flex; width: 1.3rem; height: 1.3rem; align-items: center; justify-content: center; border-radius: 999px; background: var(--color-muted); color: var(--color-foreground); font-size: .65rem; }
+@keyframes pf-step-hi { 0%, 26%, 100% { background: var(--color-background); color: inherit; transform: none; } 3%, 22% { background: var(--color-leaf); color: var(--color-background); transform: translateX(4px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-link-art *, .pf-mail-art *, .pf-steps-art li { animation: none !important; }
+  .pf-link-file { opacity: .45; }
+  .pf-mail-attach, .pf-mail-warn { opacity: 0; }
+}

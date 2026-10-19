@@ -6,15 +6,15 @@ import { deleteBlob } from "@/lib/portfolia/assets";
 import { getDoc, startPortfolio, uploadLimitMb, useDoc } from "@/lib/portfolia/store";
 
 /** The existing upload flow, available directly from each discipline landing page. */
-export function IndustryUpload() {
+export function IndustryUpload({ id = "upload", label = "Preview my PDF" }: { id?: string; label?: string }) {
   const doc = useDoc();
   const navigate = useNavigate();
   const [error, setError] = useState<string>();
-  return <div id="upload" className="mt-8 max-w-xl scroll-mt-6">
+  return <div id={id} className="mt-8 max-w-xl scroll-mt-6">
     {doc.portfolio?.status === "published" ? <div className="rounded-2xl border border-border bg-card p-6 text-sm">
       <p>You already have a published portfolio. Manage it or add another from your dashboard.</p>
       <Button asChild className="mt-4"><Link to="/dashboard">Open dashboard</Link></Button>
-    </div> : <DropZone small label="Preview my PDF" limitMb={uploadLimitMb(doc)} onAccepted={(pdf) => {
+    </div> : <DropZone small label={label} limitMb={uploadLimitMb(doc)} onAccepted={(pdf) => {
       setError(undefined);
       // Account sync may finish while the file is being checked. Never replace a published PDF.
       if (getDoc().portfolio?.status === "published") {

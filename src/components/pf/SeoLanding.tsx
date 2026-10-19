@@ -68,7 +68,8 @@ export function seoHead(base: SeoContent) {
 
 const OTHERS = SEO_LINKS;
 
-export function SeoLanding({ c: base, children, hideDefaultExample = false }: { c: SeoContent; children?: React.ReactNode; hideDefaultExample?: boolean }) {
+/** heroArt sits beside the heading on wide screens; after renders just before the questions, for a closing call to action. */
+export function SeoLanding({ c: base, children, hideDefaultExample = false, heroArt, uploadLabel, after }: { c: SeoContent; children?: React.ReactNode; hideDefaultExample?: boolean; heroArt?: React.ReactNode; uploadLabel?: string; after?: React.ReactNode }) {
   const c = withProfessionContent(base);
   const guide = PROFESSION_GUIDES[c.path];
   // Discipline and task pages put the upload box right under the heading: visitors arrive ready to try their PDF.
@@ -83,14 +84,15 @@ export function SeoLanding({ c: base, children, hideDefaultExample = false }: { 
         }
       />
       <main className="flex-1">
-        <section className="shell max-w-4xl pt-16 pb-14 sm:pt-24">
+        <section className={heroArt ? "shell grid max-w-6xl items-center gap-12 pt-16 pb-14 sm:pt-24 lg:grid-cols-[1.15fr_0.85fr]" : "shell max-w-4xl pt-16 pb-14 sm:pt-24"}>
+          <div>
           <h1 className="display-title text-4xl leading-[1.08] sm:text-5xl">
             {c.h1} <em className="italic">{c.h1Accent}</em>
           </h1>
           <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
             {c.intro}
           </p>
-          {industry && <IndustryUpload />}
+          {industry && <IndustryUpload label={uploadLabel} />}
           <div className="mt-8 flex flex-wrap items-center gap-4">
             {industry ? <a href="#upload" className="text-sm font-medium text-leaf underline underline-offset-4">Start with your PDF</a> : <Link
               to="/"
@@ -113,6 +115,8 @@ export function SeoLanding({ c: base, children, hideDefaultExample = false }: { 
             </Link>
             )}
           </div>
+          </div>
+          {heroArt}
         </section>
 
         {children}
@@ -207,6 +211,8 @@ export function SeoLanding({ c: base, children, hideDefaultExample = false }: { 
             </p>
           </div>
         </section>
+
+        {after}
 
         <section className="rule-t">
           <div className="shell max-w-4xl py-14">
