@@ -1,4 +1,5 @@
 import type { SeoContent } from "@/components/pf/SeoLanding";
+import { TASK_PAGES } from "./task-pages";
 
 type Page = Omit<SeoContent, "path"> & { label: string };
 
@@ -236,6 +237,7 @@ export const SEO_LINKS: { to: string; label: string }[] = [
   { to: "/free-portfolio-website", label: "Free portfolio website" },
   { to: "/architecture-portfolio", label: "Architecture portfolio" },
   ...Object.entries(DISCIPLINE_PAGES).map(([slug, p]) => ({ to: `/${slug}`, label: p.label })),
+  ...Object.entries(TASK_PAGES).map(([slug, p]) => ({ to: `/${slug}`, label: p.label })),
 ];
 
 export function disciplineContent(slug: string): SeoContent {

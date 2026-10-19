@@ -15,6 +15,7 @@ import { Route as ArchitecturePortfolioRouteImport } from './routes/architecture
 import { Route as ArtPortfolioRouteImport } from './routes/art-portfolio'
 import { Route as BookMarketingRouteImport } from './routes/book-marketing'
 import { Route as BookMockupGeneratorRouteImport } from './routes/book-mockup-generator'
+import { Route as CanvaFlipbookRouteImport } from './routes/canva-flipbook'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EditRouteImport } from './routes/edit'
@@ -32,13 +33,19 @@ import { Route as FreePortfolioWebsiteRouteImport } from './routes/free-portfoli
 import { Route as GraphicDesignPortfolioRouteImport } from './routes/graphic-design-portfolio'
 import { Route as HdriBookVisualisationRouteImport } from './routes/hdri-book-visualisation'
 import { Route as HeyzineAlternativeRouteImport } from './routes/heyzine-alternative'
+import { Route as HostPdfRouteImport } from './routes/host-pdf'
+import { Route as HowToSendAPortfolioRouteImport } from './routes/how-to-send-a-portfolio'
 import { Route as IllustrationPortfolioRouteImport } from './routes/illustration-portfolio'
 import { Route as InteriorDesignPortfolioRouteImport } from './routes/interior-design-portfolio'
 import { Route as IssuuAlternativeRouteImport } from './routes/issuu-alternative'
 import { Route as LandscapeArchitecturePortfolioRouteImport } from './routes/landscape-architecture-portfolio'
+import { Route as LookbookMakerRouteImport } from './routes/lookbook-maker'
 import { Route as MagazineFlipbookRouteImport } from './routes/magazine-flipbook'
 import { Route as MarketingPortfolioRouteImport } from './routes/marketing-portfolio'
 import { Route as PaperturnAlternativeRouteImport } from './routes/paperturn-alternative'
+import { Route as PdfQrCodeRouteImport } from './routes/pdf-qr-code'
+import { Route as PdfToLinkRouteImport } from './routes/pdf-to-link'
+import { Route as PdfToWebsiteRouteImport } from './routes/pdf-to-website'
 import { Route as PdfdeckAlternativeRouteImport } from './routes/pdfdeck-alternative'
 import { Route as PhotographyPortfolioRouteImport } from './routes/photography-portfolio'
 import { Route as PortfolioCheckerRouteImport } from './routes/portfolio-checker'
@@ -50,10 +57,13 @@ import { Route as PubluuAlternativeRouteImport } from './routes/publuu-alternati
 import { Route as RefundRouteImport } from './routes/refund'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ScrapbookPreviewRouteImport } from './routes/scrapbook-preview'
+import { Route as SendLargePdfRouteImport } from './routes/send-large-pdf'
+import { Route as SharePdfOnlineRouteImport } from './routes/share-pdf-online'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as StudentPortfolioRouteImport } from './routes/student-portfolio'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as UcasPortfolioRouteImport } from './routes/ucas-portfolio'
 import { Route as UxDesignPortfolioRouteImport } from './routes/ux-design-portfolio'
 import { Route as ZineFlipbookRouteImport } from './routes/zine-flipbook'
 import { Route as EmbedCodeRouteImport } from './routes/embed.$code'
@@ -94,6 +104,11 @@ const BookMarketingRoute = BookMarketingRouteImport.update({
 const BookMockupGeneratorRoute = BookMockupGeneratorRouteImport.update({
   id: '/book-mockup-generator',
   path: '/book-mockup-generator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CanvaFlipbookRoute = CanvaFlipbookRouteImport.update({
+  id: '/canva-flipbook',
+  path: '/canva-flipbook',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CreateRoute = CreateRouteImport.update({
@@ -182,6 +197,16 @@ const HeyzineAlternativeRoute = HeyzineAlternativeRouteImport.update({
   path: '/heyzine-alternative',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HostPdfRoute = HostPdfRouteImport.update({
+  id: '/host-pdf',
+  path: '/host-pdf',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HowToSendAPortfolioRoute = HowToSendAPortfolioRouteImport.update({
+  id: '/how-to-send-a-portfolio',
+  path: '/how-to-send-a-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IllustrationPortfolioRoute = IllustrationPortfolioRouteImport.update({
   id: '/illustration-portfolio',
   path: '/illustration-portfolio',
@@ -203,6 +228,11 @@ const LandscapeArchitecturePortfolioRoute =
     path: '/landscape-architecture-portfolio',
     getParentRoute: () => rootRouteImport,
   } as any)
+const LookbookMakerRoute = LookbookMakerRouteImport.update({
+  id: '/lookbook-maker',
+  path: '/lookbook-maker',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MagazineFlipbookRoute = MagazineFlipbookRouteImport.update({
   id: '/magazine-flipbook',
   path: '/magazine-flipbook',
@@ -216,6 +246,21 @@ const MarketingPortfolioRoute = MarketingPortfolioRouteImport.update({
 const PaperturnAlternativeRoute = PaperturnAlternativeRouteImport.update({
   id: '/paperturn-alternative',
   path: '/paperturn-alternative',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PdfQrCodeRoute = PdfQrCodeRouteImport.update({
+  id: '/pdf-qr-code',
+  path: '/pdf-qr-code',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PdfToLinkRoute = PdfToLinkRouteImport.update({
+  id: '/pdf-to-link',
+  path: '/pdf-to-link',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PdfToWebsiteRoute = PdfToWebsiteRouteImport.update({
+  id: '/pdf-to-website',
+  path: '/pdf-to-website',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PdfdeckAlternativeRoute = PdfdeckAlternativeRouteImport.update({
@@ -273,6 +318,16 @@ const ScrapbookPreviewRoute = ScrapbookPreviewRouteImport.update({
   path: '/scrapbook-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SendLargePdfRoute = SendLargePdfRouteImport.update({
+  id: '/send-large-pdf',
+  path: '/send-large-pdf',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SharePdfOnlineRoute = SharePdfOnlineRouteImport.update({
+  id: '/share-pdf-online',
+  path: '/share-pdf-online',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SigninRoute = SigninRouteImport.update({
   id: '/signin',
   path: '/signin',
@@ -291,6 +346,11 @@ const StudentPortfolioRoute = StudentPortfolioRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UcasPortfolioRoute = UcasPortfolioRouteImport.update({
+  id: '/ucas-portfolio',
+  path: '/ucas-portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const UxDesignPortfolioRoute = UxDesignPortfolioRouteImport.update({
@@ -359,6 +419,7 @@ export interface FileRoutesByFullPath {
   '/art-portfolio': typeof ArtPortfolioRoute
   '/book-marketing': typeof BookMarketingRoute
   '/book-mockup-generator': typeof BookMockupGeneratorRoute
+  '/canva-flipbook': typeof CanvaFlipbookRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
@@ -376,13 +437,19 @@ export interface FileRoutesByFullPath {
   '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
   '/hdri-book-visualisation': typeof HdriBookVisualisationRoute
   '/heyzine-alternative': typeof HeyzineAlternativeRoute
+  '/host-pdf': typeof HostPdfRoute
+  '/how-to-send-a-portfolio': typeof HowToSendAPortfolioRoute
   '/illustration-portfolio': typeof IllustrationPortfolioRoute
   '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
   '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
+  '/lookbook-maker': typeof LookbookMakerRoute
   '/magazine-flipbook': typeof MagazineFlipbookRoute
   '/marketing-portfolio': typeof MarketingPortfolioRoute
   '/paperturn-alternative': typeof PaperturnAlternativeRoute
+  '/pdf-qr-code': typeof PdfQrCodeRoute
+  '/pdf-to-link': typeof PdfToLinkRoute
+  '/pdf-to-website': typeof PdfToWebsiteRoute
   '/pdfdeck-alternative': typeof PdfdeckAlternativeRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
   '/portfolio-checker': typeof PortfolioCheckerRoute
@@ -394,10 +461,13 @@ export interface FileRoutesByFullPath {
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/scrapbook-preview': typeof ScrapbookPreviewRoute
+  '/send-large-pdf': typeof SendLargePdfRoute
+  '/share-pdf-online': typeof SharePdfOnlineRoute
   '/signin': typeof SigninRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/student-portfolio': typeof StudentPortfolioRoute
   '/terms': typeof TermsRoute
+  '/ucas-portfolio': typeof UcasPortfolioRoute
   '/ux-design-portfolio': typeof UxDesignPortfolioRoute
   '/zine-flipbook': typeof ZineFlipbookRoute
   '/embed/$code': typeof EmbedCodeRoute
@@ -417,6 +487,7 @@ export interface FileRoutesByTo {
   '/art-portfolio': typeof ArtPortfolioRoute
   '/book-marketing': typeof BookMarketingRoute
   '/book-mockup-generator': typeof BookMockupGeneratorRoute
+  '/canva-flipbook': typeof CanvaFlipbookRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
@@ -434,13 +505,19 @@ export interface FileRoutesByTo {
   '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
   '/hdri-book-visualisation': typeof HdriBookVisualisationRoute
   '/heyzine-alternative': typeof HeyzineAlternativeRoute
+  '/host-pdf': typeof HostPdfRoute
+  '/how-to-send-a-portfolio': typeof HowToSendAPortfolioRoute
   '/illustration-portfolio': typeof IllustrationPortfolioRoute
   '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
   '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
+  '/lookbook-maker': typeof LookbookMakerRoute
   '/magazine-flipbook': typeof MagazineFlipbookRoute
   '/marketing-portfolio': typeof MarketingPortfolioRoute
   '/paperturn-alternative': typeof PaperturnAlternativeRoute
+  '/pdf-qr-code': typeof PdfQrCodeRoute
+  '/pdf-to-link': typeof PdfToLinkRoute
+  '/pdf-to-website': typeof PdfToWebsiteRoute
   '/pdfdeck-alternative': typeof PdfdeckAlternativeRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
   '/portfolio-checker': typeof PortfolioCheckerRoute
@@ -452,10 +529,13 @@ export interface FileRoutesByTo {
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/scrapbook-preview': typeof ScrapbookPreviewRoute
+  '/send-large-pdf': typeof SendLargePdfRoute
+  '/share-pdf-online': typeof SharePdfOnlineRoute
   '/signin': typeof SigninRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/student-portfolio': typeof StudentPortfolioRoute
   '/terms': typeof TermsRoute
+  '/ucas-portfolio': typeof UcasPortfolioRoute
   '/ux-design-portfolio': typeof UxDesignPortfolioRoute
   '/zine-flipbook': typeof ZineFlipbookRoute
   '/embed/$code': typeof EmbedCodeRoute
@@ -476,6 +556,7 @@ export interface FileRoutesById {
   '/art-portfolio': typeof ArtPortfolioRoute
   '/book-marketing': typeof BookMarketingRoute
   '/book-mockup-generator': typeof BookMockupGeneratorRoute
+  '/canva-flipbook': typeof CanvaFlipbookRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
   '/edit': typeof EditRoute
@@ -493,13 +574,19 @@ export interface FileRoutesById {
   '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
   '/hdri-book-visualisation': typeof HdriBookVisualisationRoute
   '/heyzine-alternative': typeof HeyzineAlternativeRoute
+  '/host-pdf': typeof HostPdfRoute
+  '/how-to-send-a-portfolio': typeof HowToSendAPortfolioRoute
   '/illustration-portfolio': typeof IllustrationPortfolioRoute
   '/interior-design-portfolio': typeof InteriorDesignPortfolioRoute
   '/issuu-alternative': typeof IssuuAlternativeRoute
   '/landscape-architecture-portfolio': typeof LandscapeArchitecturePortfolioRoute
+  '/lookbook-maker': typeof LookbookMakerRoute
   '/magazine-flipbook': typeof MagazineFlipbookRoute
   '/marketing-portfolio': typeof MarketingPortfolioRoute
   '/paperturn-alternative': typeof PaperturnAlternativeRoute
+  '/pdf-qr-code': typeof PdfQrCodeRoute
+  '/pdf-to-link': typeof PdfToLinkRoute
+  '/pdf-to-website': typeof PdfToWebsiteRoute
   '/pdfdeck-alternative': typeof PdfdeckAlternativeRoute
   '/photography-portfolio': typeof PhotographyPortfolioRoute
   '/portfolio-checker': typeof PortfolioCheckerRoute
@@ -511,10 +598,13 @@ export interface FileRoutesById {
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/scrapbook-preview': typeof ScrapbookPreviewRoute
+  '/send-large-pdf': typeof SendLargePdfRoute
+  '/share-pdf-online': typeof SharePdfOnlineRoute
   '/signin': typeof SigninRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/student-portfolio': typeof StudentPortfolioRoute
   '/terms': typeof TermsRoute
+  '/ucas-portfolio': typeof UcasPortfolioRoute
   '/ux-design-portfolio': typeof UxDesignPortfolioRoute
   '/zine-flipbook': typeof ZineFlipbookRoute
   '/embed/$code': typeof EmbedCodeRoute
@@ -536,6 +626,7 @@ export interface FileRouteTypes {
     | '/art-portfolio'
     | '/book-marketing'
     | '/book-mockup-generator'
+    | '/canva-flipbook'
     | '/create'
     | '/dashboard'
     | '/edit'
@@ -553,13 +644,19 @@ export interface FileRouteTypes {
     | '/graphic-design-portfolio'
     | '/hdri-book-visualisation'
     | '/heyzine-alternative'
+    | '/host-pdf'
+    | '/how-to-send-a-portfolio'
     | '/illustration-portfolio'
     | '/interior-design-portfolio'
     | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
+    | '/lookbook-maker'
     | '/magazine-flipbook'
     | '/marketing-portfolio'
     | '/paperturn-alternative'
+    | '/pdf-qr-code'
+    | '/pdf-to-link'
+    | '/pdf-to-website'
     | '/pdfdeck-alternative'
     | '/photography-portfolio'
     | '/portfolio-checker'
@@ -571,10 +668,13 @@ export interface FileRouteTypes {
     | '/refund'
     | '/reset-password'
     | '/scrapbook-preview'
+    | '/send-large-pdf'
+    | '/share-pdf-online'
     | '/signin'
     | '/sitemap.xml'
     | '/student-portfolio'
     | '/terms'
+    | '/ucas-portfolio'
     | '/ux-design-portfolio'
     | '/zine-flipbook'
     | '/embed/$code'
@@ -594,6 +694,7 @@ export interface FileRouteTypes {
     | '/art-portfolio'
     | '/book-marketing'
     | '/book-mockup-generator'
+    | '/canva-flipbook'
     | '/create'
     | '/dashboard'
     | '/edit'
@@ -611,13 +712,19 @@ export interface FileRouteTypes {
     | '/graphic-design-portfolio'
     | '/hdri-book-visualisation'
     | '/heyzine-alternative'
+    | '/host-pdf'
+    | '/how-to-send-a-portfolio'
     | '/illustration-portfolio'
     | '/interior-design-portfolio'
     | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
+    | '/lookbook-maker'
     | '/magazine-flipbook'
     | '/marketing-portfolio'
     | '/paperturn-alternative'
+    | '/pdf-qr-code'
+    | '/pdf-to-link'
+    | '/pdf-to-website'
     | '/pdfdeck-alternative'
     | '/photography-portfolio'
     | '/portfolio-checker'
@@ -629,10 +736,13 @@ export interface FileRouteTypes {
     | '/refund'
     | '/reset-password'
     | '/scrapbook-preview'
+    | '/send-large-pdf'
+    | '/share-pdf-online'
     | '/signin'
     | '/sitemap.xml'
     | '/student-portfolio'
     | '/terms'
+    | '/ucas-portfolio'
     | '/ux-design-portfolio'
     | '/zine-flipbook'
     | '/embed/$code'
@@ -652,6 +762,7 @@ export interface FileRouteTypes {
     | '/art-portfolio'
     | '/book-marketing'
     | '/book-mockup-generator'
+    | '/canva-flipbook'
     | '/create'
     | '/dashboard'
     | '/edit'
@@ -669,13 +780,19 @@ export interface FileRouteTypes {
     | '/graphic-design-portfolio'
     | '/hdri-book-visualisation'
     | '/heyzine-alternative'
+    | '/host-pdf'
+    | '/how-to-send-a-portfolio'
     | '/illustration-portfolio'
     | '/interior-design-portfolio'
     | '/issuu-alternative'
     | '/landscape-architecture-portfolio'
+    | '/lookbook-maker'
     | '/magazine-flipbook'
     | '/marketing-portfolio'
     | '/paperturn-alternative'
+    | '/pdf-qr-code'
+    | '/pdf-to-link'
+    | '/pdf-to-website'
     | '/pdfdeck-alternative'
     | '/photography-portfolio'
     | '/portfolio-checker'
@@ -687,10 +804,13 @@ export interface FileRouteTypes {
     | '/refund'
     | '/reset-password'
     | '/scrapbook-preview'
+    | '/send-large-pdf'
+    | '/share-pdf-online'
     | '/signin'
     | '/sitemap.xml'
     | '/student-portfolio'
     | '/terms'
+    | '/ucas-portfolio'
     | '/ux-design-portfolio'
     | '/zine-flipbook'
     | '/embed/$code'
@@ -711,6 +831,7 @@ export interface RootRouteChildren {
   ArtPortfolioRoute: typeof ArtPortfolioRoute
   BookMarketingRoute: typeof BookMarketingRoute
   BookMockupGeneratorRoute: typeof BookMockupGeneratorRoute
+  CanvaFlipbookRoute: typeof CanvaFlipbookRoute
   CreateRoute: typeof CreateRoute
   DashboardRoute: typeof DashboardRoute
   EditRoute: typeof EditRoute
@@ -728,13 +849,19 @@ export interface RootRouteChildren {
   GraphicDesignPortfolioRoute: typeof GraphicDesignPortfolioRoute
   HdriBookVisualisationRoute: typeof HdriBookVisualisationRoute
   HeyzineAlternativeRoute: typeof HeyzineAlternativeRoute
+  HostPdfRoute: typeof HostPdfRoute
+  HowToSendAPortfolioRoute: typeof HowToSendAPortfolioRoute
   IllustrationPortfolioRoute: typeof IllustrationPortfolioRoute
   InteriorDesignPortfolioRoute: typeof InteriorDesignPortfolioRoute
   IssuuAlternativeRoute: typeof IssuuAlternativeRoute
   LandscapeArchitecturePortfolioRoute: typeof LandscapeArchitecturePortfolioRoute
+  LookbookMakerRoute: typeof LookbookMakerRoute
   MagazineFlipbookRoute: typeof MagazineFlipbookRoute
   MarketingPortfolioRoute: typeof MarketingPortfolioRoute
   PaperturnAlternativeRoute: typeof PaperturnAlternativeRoute
+  PdfQrCodeRoute: typeof PdfQrCodeRoute
+  PdfToLinkRoute: typeof PdfToLinkRoute
+  PdfToWebsiteRoute: typeof PdfToWebsiteRoute
   PdfdeckAlternativeRoute: typeof PdfdeckAlternativeRoute
   PhotographyPortfolioRoute: typeof PhotographyPortfolioRoute
   PortfolioCheckerRoute: typeof PortfolioCheckerRoute
@@ -746,10 +873,13 @@ export interface RootRouteChildren {
   RefundRoute: typeof RefundRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ScrapbookPreviewRoute: typeof ScrapbookPreviewRoute
+  SendLargePdfRoute: typeof SendLargePdfRoute
+  SharePdfOnlineRoute: typeof SharePdfOnlineRoute
   SigninRoute: typeof SigninRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StudentPortfolioRoute: typeof StudentPortfolioRoute
   TermsRoute: typeof TermsRoute
+  UcasPortfolioRoute: typeof UcasPortfolioRoute
   UxDesignPortfolioRoute: typeof UxDesignPortfolioRoute
   ZineFlipbookRoute: typeof ZineFlipbookRoute
   EmbedCodeRoute: typeof EmbedCodeRoute
@@ -805,6 +935,13 @@ declare module '@tanstack/react-router' {
       path: '/book-mockup-generator'
       fullPath: '/book-mockup-generator'
       preLoaderRoute: typeof BookMockupGeneratorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/canva-flipbook': {
+      id: '/canva-flipbook'
+      path: '/canva-flipbook'
+      fullPath: '/canva-flipbook'
+      preLoaderRoute: typeof CanvaFlipbookRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/create': {
@@ -926,6 +1063,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HeyzineAlternativeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/host-pdf': {
+      id: '/host-pdf'
+      path: '/host-pdf'
+      fullPath: '/host-pdf'
+      preLoaderRoute: typeof HostPdfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how-to-send-a-portfolio': {
+      id: '/how-to-send-a-portfolio'
+      path: '/how-to-send-a-portfolio'
+      fullPath: '/how-to-send-a-portfolio'
+      preLoaderRoute: typeof HowToSendAPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/illustration-portfolio': {
       id: '/illustration-portfolio'
       path: '/illustration-portfolio'
@@ -954,6 +1105,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LandscapeArchitecturePortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lookbook-maker': {
+      id: '/lookbook-maker'
+      path: '/lookbook-maker'
+      fullPath: '/lookbook-maker'
+      preLoaderRoute: typeof LookbookMakerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/magazine-flipbook': {
       id: '/magazine-flipbook'
       path: '/magazine-flipbook'
@@ -973,6 +1131,27 @@ declare module '@tanstack/react-router' {
       path: '/paperturn-alternative'
       fullPath: '/paperturn-alternative'
       preLoaderRoute: typeof PaperturnAlternativeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pdf-qr-code': {
+      id: '/pdf-qr-code'
+      path: '/pdf-qr-code'
+      fullPath: '/pdf-qr-code'
+      preLoaderRoute: typeof PdfQrCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pdf-to-link': {
+      id: '/pdf-to-link'
+      path: '/pdf-to-link'
+      fullPath: '/pdf-to-link'
+      preLoaderRoute: typeof PdfToLinkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pdf-to-website': {
+      id: '/pdf-to-website'
+      path: '/pdf-to-website'
+      fullPath: '/pdf-to-website'
+      preLoaderRoute: typeof PdfToWebsiteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pdfdeck-alternative': {
@@ -1052,6 +1231,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ScrapbookPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/send-large-pdf': {
+      id: '/send-large-pdf'
+      path: '/send-large-pdf'
+      fullPath: '/send-large-pdf'
+      preLoaderRoute: typeof SendLargePdfRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/share-pdf-online': {
+      id: '/share-pdf-online'
+      path: '/share-pdf-online'
+      fullPath: '/share-pdf-online'
+      preLoaderRoute: typeof SharePdfOnlineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signin': {
       id: '/signin'
       path: '/signin'
@@ -1078,6 +1271,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ucas-portfolio': {
+      id: '/ucas-portfolio'
+      path: '/ucas-portfolio'
+      fullPath: '/ucas-portfolio'
+      preLoaderRoute: typeof UcasPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ux-design-portfolio': {
@@ -1167,6 +1367,7 @@ const rootRouteChildren: RootRouteChildren = {
   ArtPortfolioRoute: ArtPortfolioRoute,
   BookMarketingRoute: BookMarketingRoute,
   BookMockupGeneratorRoute: BookMockupGeneratorRoute,
+  CanvaFlipbookRoute: CanvaFlipbookRoute,
   CreateRoute: CreateRoute,
   DashboardRoute: DashboardRoute,
   EditRoute: EditRoute,
@@ -1184,13 +1385,19 @@ const rootRouteChildren: RootRouteChildren = {
   GraphicDesignPortfolioRoute: GraphicDesignPortfolioRoute,
   HdriBookVisualisationRoute: HdriBookVisualisationRoute,
   HeyzineAlternativeRoute: HeyzineAlternativeRoute,
+  HostPdfRoute: HostPdfRoute,
+  HowToSendAPortfolioRoute: HowToSendAPortfolioRoute,
   IllustrationPortfolioRoute: IllustrationPortfolioRoute,
   InteriorDesignPortfolioRoute: InteriorDesignPortfolioRoute,
   IssuuAlternativeRoute: IssuuAlternativeRoute,
   LandscapeArchitecturePortfolioRoute: LandscapeArchitecturePortfolioRoute,
+  LookbookMakerRoute: LookbookMakerRoute,
   MagazineFlipbookRoute: MagazineFlipbookRoute,
   MarketingPortfolioRoute: MarketingPortfolioRoute,
   PaperturnAlternativeRoute: PaperturnAlternativeRoute,
+  PdfQrCodeRoute: PdfQrCodeRoute,
+  PdfToLinkRoute: PdfToLinkRoute,
+  PdfToWebsiteRoute: PdfToWebsiteRoute,
   PdfdeckAlternativeRoute: PdfdeckAlternativeRoute,
   PhotographyPortfolioRoute: PhotographyPortfolioRoute,
   PortfolioCheckerRoute: PortfolioCheckerRoute,
@@ -1202,10 +1409,13 @@ const rootRouteChildren: RootRouteChildren = {
   RefundRoute: RefundRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ScrapbookPreviewRoute: ScrapbookPreviewRoute,
+  SendLargePdfRoute: SendLargePdfRoute,
+  SharePdfOnlineRoute: SharePdfOnlineRoute,
   SigninRoute: SigninRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   StudentPortfolioRoute: StudentPortfolioRoute,
   TermsRoute: TermsRoute,
+  UcasPortfolioRoute: UcasPortfolioRoute,
   UxDesignPortfolioRoute: UxDesignPortfolioRoute,
   ZineFlipbookRoute: ZineFlipbookRoute,
   EmbedCodeRoute: EmbedCodeRoute,

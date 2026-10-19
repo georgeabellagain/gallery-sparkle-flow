@@ -4,6 +4,7 @@ import { ProfessionExample } from "./ProfessionExample";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight, Check } from "lucide-react";
 import { DISCIPLINE_PAGES, SEO_LINKS } from "@/lib/portfolia/seo-pages";
+import { TASK_PAGES } from "@/lib/portfolia/task-pages";
 import { SiteHeader, SiteFooter } from "@/components/pf/Chrome";
 
 export interface SeoContent {
@@ -70,7 +71,8 @@ const OTHERS = SEO_LINKS;
 export function SeoLanding({ c: base, children, hideDefaultExample = false }: { c: SeoContent; children?: React.ReactNode; hideDefaultExample?: boolean }) {
   const c = withProfessionContent(base);
   const guide = PROFESSION_GUIDES[c.path];
-  const industry = ["/architecture-portfolio", "/zine-flipbook", "/magazine-flipbook"].includes(c.path) || Boolean(DISCIPLINE_PAGES[c.path.slice(1)]);
+  // Discipline and task pages put the upload box right under the heading: visitors arrive ready to try their PDF.
+  const industry = ["/architecture-portfolio", "/zine-flipbook", "/magazine-flipbook"].includes(c.path) || Boolean(DISCIPLINE_PAGES[c.path.slice(1)] || TASK_PAGES[c.path.slice(1)]);
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader

@@ -37,6 +37,9 @@ export function SiteFooter({ className }: { className?: string }) {
             <Link to="/free-pdf-flipbook" className="hover:underline">PDF flipbooks</Link>
             <Link to="/book-marketing" className="hover:underline">Book marketing</Link>
             <a href="/portfolio-checker" className="hover:underline">PDF checker</a>
+            <a href="/pdf-to-link" className="hover:underline">PDF to link</a>
+            <a href="/pdf-qr-code" className="hover:underline">PDF QR codes</a>
+            <a href="/how-to-send-a-portfolio" className="hover:underline">How to send a portfolio</a>
             <a href="/embed-flipbook-in-squarespace" className="hover:underline">Embedding guides</a>
             <Link to="/flipbook-alternatives" className="hover:underline">Compare flipbook tools</Link>
           </div>
