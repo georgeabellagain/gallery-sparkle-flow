@@ -7,7 +7,7 @@ import * as THREE from "three";
  * book itself is moved (the photo shoot); the reader's book never moves, so it keeps the identity.
  */
 export function createGutterShade() {
-  const amount = { value: 0 }, space = { value: new THREE.Matrix4() };
+  const amount = { value: 0 }, width = { value: .16 }, space = { value: new THREE.Matrix4() };
   return {
     apply(material: THREE.Material) {
       if (material.userData["gutterShade"]) return;
@@ -17,24 +17,28 @@ export function createGutterShade() {
         previous.call(material, shader, renderer);
         shader.uniforms["gutterAmount"] = amount;
         shader.uniforms["gutterSpace"] = space;
+        shader.uniforms["gutterWidth"] = width;
         shader.vertexShader = "uniform mat4 gutterSpace;\nvarying float gutterDistance;\n" + shader.vertexShader.replace(
           "#include <project_vertex>",
           "#include <project_vertex>\nvec4 gutterBook = gutterSpace * modelMatrix * vec4(transformed, 1.0);\ngutterDistance = length(gutterBook.xz);",
         );
-        shader.fragmentShader = "uniform float gutterAmount;\nvarying float gutterDistance;\n" + shader.fragmentShader.replace(
+        // Simple draws the artwork through the emissive channel (unlit), so the shade darkens both.
+        shader.fragmentShader = "uniform float gutterAmount;\nuniform float gutterWidth;\nvarying float gutterDistance;\n" + shader.fragmentShader.replace(
           "#include <color_fragment>",
           `#include <color_fragment>
+          float gutterShadeK = 1.0;
           if (gutterAmount > 0.0) {
-            float gutter = 1.0 - smoothstep(0.0, 0.16, gutterDistance);
-            diffuseColor.rgb *= 1.0 - gutterAmount * gutter * gutter;
+            float gutter = 1.0 - smoothstep(0.0, gutterWidth, gutterDistance);
+            gutterShadeK = 1.0 - gutterAmount * gutter * gutter;
+            diffuseColor.rgb *= gutterShadeK;
           }`,
-        );
+        ).replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance *= gutterShadeK;");
       };
       material.customProgramCacheKey = () => key() + "_gutter";
       material.needsUpdate = true;
     },
-    /** 0 switches it off; Studio uses a gentle value, Simple keeps the artwork untouched. */
-    set(value: number) { amount.value = Math.max(0, Math.min(1, value)); },
+    /** 0 switches it off. Width is how far from the spine (book units) the shade fades out. */
+    set(value: number, fade = .16) { amount.value = Math.max(0, Math.min(1, value)); width.value = Math.max(.01, fade); },
     /** World-to-book transform, for a book that has been moved or tilted. */
     setSpace(worldToBook: THREE.Matrix4) { space.value.copy(worldToBook); },
   };

@@ -265,7 +265,7 @@ export function BackgroundSettings({
       <label className="flex items-center gap-2">
         <input
           type="checkbox"
-          checked={viewer.backgroundLighting ?? false}
+          checked={viewer.backgroundLighting ?? true}
           onChange={(e) => {
             setViewer({ backgroundLighting: e.target.checked, background3D: false });
             setPreviewLook("studio");

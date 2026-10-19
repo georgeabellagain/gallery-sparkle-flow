@@ -67,6 +67,7 @@ export interface ViewerSettings {
   /** Retention of HDRI detail versus its solid average colour, 0..1. */
   studioLightingStrength?: number;
   /** Illuminate uploaded backgrounds with the same Studio scene. */
+  /** Studio lights the background with the HDRI unless this is explicitly false. */
   backgroundLighting?: boolean;
   /** Opt-in surface normal/roughness lighting for Studio backgrounds. */
   background3D?: boolean;

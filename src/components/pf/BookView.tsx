@@ -692,7 +692,7 @@ export function BookView({
   }, [narrow, zoom, focus, busy, ready, settings]);
 
   useEffect(() => {
-    scene.current?.setBackdrop(backgroundUrl, viewer.backgroundFit, settings.studio && Boolean(viewer.backgroundLighting || viewer.background3D), colour, Boolean(viewer.background3D));
+    scene.current?.setBackdrop(backgroundUrl, viewer.backgroundFit, settings.studio && Boolean((viewer.backgroundLighting ?? true) || viewer.background3D), colour, Boolean(viewer.background3D));
   }, [backgroundUrl, viewer.backgroundFit, viewer.backgroundLighting, viewer.background3D, settings.studio, ready, colour]);
 
   // On a touch screen: tap the left or right of the book to turn that way, and pinch to zoom the book itself

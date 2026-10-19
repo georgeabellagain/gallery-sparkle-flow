@@ -764,8 +764,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     light.castShadow = next.studio && (!pattern || mix.hdri === 0);
     if (variantChanged) variant = nextVariant;
     airDust.setIntensity(next.studio ? next.imperfections ?? 0 : 0);
-    // Bound pages darken softly into the spine; Simple reproduces the artwork exactly.
-    gutter.set(next.studio && next.bookStyle !== "flipbook" ? .32 : next.studio ? .18 : 0);
+    // Bound pages darken softly into the spine. Simple gets only a slim, light seam so artwork stays true.
+    if (next.studio) gutter.set(next.bookStyle !== "flipbook" ? .32 : .18);
+    else gutter.set(.14, .07);
     for (const m of pageMaterials) {
       setNaturalImperfections(m,next.studio ? next.imperfections ?? 0 : 0);
       const stickyMatte = Boolean(m.userData["stickyMatte"]);
