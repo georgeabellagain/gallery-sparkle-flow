@@ -1,3 +1,4 @@
+import { canExportPhoto } from "@/lib/portfolia/photo-export.functions";
 import { coverLeaf } from "@/lib/portfolia/rigid-cover";
 import { photoLighting, photoSpreadPages } from "@/lib/portfolia/photo-settings";
 import { StudioLightingSettings, PaperSettings } from "./StudioAppearanceSettings";
@@ -284,6 +285,9 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
     setSaving(true);
     setError("");
     try {
+      const check = await canExportPhoto().catch(() => null);
+      if (!check) { setError("Sign in to download your photo shoot."); return; }
+      if (!check.allowed) { setUpgrade(true); return; }
       stage.current.setSize(size);
       const blob = await stage.current.png();
       if (!stage.current) return;

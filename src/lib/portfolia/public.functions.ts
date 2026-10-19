@@ -49,7 +49,7 @@ export const getPublicPortfolio = createServerFn({ method: "GET" })
       if (access.policy?.password_hash || access.policy?.expires_at) {
         for (const key of signedKeys) urls[key] = `/api/public/portfolio-file/${encodeURIComponent(row.code)}?asset=${encodeURIComponent(key)}`;
       } else {
-      const { data: signed, error: signingError } = await supabaseAdmin.storage.from("portfolio-files").createSignedUrls(signedKeys.map((k) => `${row.owner_id}/${k}`), 3600);
+      const { data: signed, error: signingError } = await supabaseAdmin.storage.from("portfolio-files").createSignedUrls(signedKeys.map((k) => `${row.owner_id}/${k}`), 300);
       if (signingError) throw new Error("Couldn’t load the portfolio files. Please try again.");
       for (const s of signed ?? []) if (s.signedUrl && s.path) urls[s.path.split("/").slice(1).join("/")] = s.signedUrl;
       }
