@@ -1,6 +1,6 @@
 import { renderedKeys, type RenderedStudio } from "./rendered-studio";
 import type { Leaf } from "./book-layout";
-import { readablePageLinks } from "./page-extras";
+import { readablePageLinks, readablePageVideos } from "./page-extras";
 export const NOTE_FONT_IDS = ["serif", "sans", "mono", "hand", "neat", "script", "marker"] as const;
 export type NoteFont = (typeof NOTE_FONT_IDS)[number];
 export const NOTE_ALIGNS = ["left", "center", "right", "justify"] as const;
@@ -173,7 +173,7 @@ export function readableFoldouts(value: unknown, pages: number): Foldout[] {
     .slice(0, MAX_FOLDOUTS);
 }
 export function foldoutKeys(
-  pdf?: { foldouts?: Foldout[]; links?: unknown; renderedStudio?: RenderedStudio; pages: number } | null,
+  pdf?: { foldouts?: Foldout[]; links?: unknown; videos?: unknown; renderedStudio?: RenderedStudio; pages: number } | null,
 ): string[] {
   return [
     ...new Set([
@@ -187,8 +187,13 @@ export function foldoutKeys(
       ...readablePageLinks(pdf?.links, pdf?.pages ?? 0)
         .map((l) => l.iconKey)
         .filter((k): k is string => !!k),
+      // Page videos and their stills follow the same lifecycle.
+      ...pageVideoKeys(pdf),
     ]),
   ];
+}
+export function pageVideoKeys(pdf?: { videos?: unknown; pages: number } | null): string[] {
+  return readablePageVideos(pdf?.videos, pdf?.pages ?? 0).flatMap((v) => [v.blobKey, v.posterKey]);
 }
 export function foldoutsForLeaf(items: Foldout[], leaf: Leaf): Foldout[] {
   return items.filter(

@@ -1,5 +1,5 @@
 import { validateFoldout } from "./foldouts";
-import { validatePageTag, validatePageLink } from "./page-extras";
+import { validatePageTag, validatePageLink, validatePageVideo, type PageVideo } from "./page-extras";
 import type { ExtraKind, Extra } from "./scrapbook-transform";
 import { backgroundKeys } from "./background-settings";
 import { foldoutKeys } from "./foldouts";
@@ -141,6 +141,8 @@ export interface PdfFile {
   tags?: import("./page-extras").PageTag[];
   /** Clickable website links placed on pages. */
   links?: import("./page-extras").PageLink[];
+  /** Videos printed on pages (Personal). */
+  videos?: import("./page-extras").PageVideo[];
   /** Optional derived JPEG used in public link previews. */
   coverKey?: string;
   renderedStudio?: import("./rendered-studio").RenderedStudio;
@@ -353,12 +355,18 @@ export function patchPortfolio(patch: Partial<Portfolio>): boolean {
   });
 }
 
+function validateExtra(kind:ExtraKind,item:Extra,pages:number):string|null{
+  if(kind==="foldouts")return validateFoldout(item as import("./foldouts").Foldout,pages);
+  if(kind==="tags")return validatePageTag(item as import("./page-extras").PageTag,pages);
+  if(kind==="videos")return validatePageVideo(item as PageVideo,pages);
+  return validatePageLink(item as import("./page-extras").PageLink,pages);
+}
+
 /** Live pointer edits are scoped to the original portfolio and PDF. */
 export function patchPortfolioExtra(code:string,blobKey:string,kind:ExtraKind,id:string,next:Extra):boolean {
   const portfolio=allPortfolios(getDoc()).find(p=>p.code===code);
   if(next.id!==id || !portfolio?.pdf || portfolio.pdf.blobKey!==blobKey || !portfolio.pdf[kind]?.some(item=>item.id===id))return false;
-  const error=kind==='foldouts'?validateFoldout(next as import('./foldouts').Foldout,portfolio.pdf.pages):kind==='tags'?validatePageTag(next as import('./page-extras').PageTag,portfolio.pdf.pages):validatePageLink(next as import('./page-extras').PageLink,portfolio.pdf.pages);
-  if(error)return false;
+  if(validateExtra(kind,next,portfolio.pdf.pages))return false;
   return update(d=>{
     const p=allPortfolios(d).find(p=>p.code===code)!;
     p.pdf={...p.pdf!,[kind]:p.pdf![kind]!.map(item=>item.id===id?next:item)};
@@ -370,9 +378,9 @@ export function patchPortfolioExtra(code:string,blobKey:string,kind:ExtraKind,id
 export function addPortfolioExtra(code:string,blobKey:string,kind:ExtraKind,item:Extra,limit:number):boolean {
   const portfolio=allPortfolios(getDoc()).find(p=>p.code===code);
   if(!portfolio?.pdf || portfolio.pdf.blobKey!==blobKey || (portfolio.pdf[kind]?.length ?? 0)>=limit || portfolio.pdf[kind]?.some(existing=>existing.id===item.id))return false;
-  const pages=portfolio.pdf.pages;
-  const error=kind==="foldouts"?validateFoldout(item as import("./foldouts").Foldout,pages):kind==="tags"?validatePageTag(item as import("./page-extras").PageTag,pages):validatePageLink(item as import("./page-extras").PageLink,pages);
-  if(error)return false;
+  if(validateExtra(kind,item,portfolio.pdf.pages))return false;
+  // One moving video per page side.
+  if(kind==="videos"&&portfolio.pdf.videos?.some(v=>v.page===(item as PageVideo).page&&v.half===(item as PageVideo).half))return false;
   return update(d=>{
     const p=allPortfolios(d).find(p=>p.code===code)!;
     p.pdf={...p.pdf!,[kind]:[...(p.pdf![kind] ?? []),item]};

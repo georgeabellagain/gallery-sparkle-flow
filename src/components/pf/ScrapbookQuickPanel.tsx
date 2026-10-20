@@ -1,12 +1,13 @@
-import { useState } from "react";
-import { ExternalLink, Plus, StickyNote, Tag, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { ExternalLink, Film, Plus, StickyNote, Tag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ScrapbookPanel } from "./FoldoutSettings";
 import type { ScrapbookSelection } from "./live-scrapbook-context";
-import { uid } from "@/lib/portfolia/assets";
+import { deleteBlob, putBlob, uid } from "@/lib/portfolia/assets";
 import { MAX_FOLDOUTS, MAX_NOTE_ROTATION, newFoldout, noteRotation, readableFoldouts, rotateFoldout, type Foldout } from "@/lib/portfolia/foldouts";
-import { LINK_SIZE, MAX_LINKS, MAX_TAGS, TAG_COLOURS, hostOf, normaliseUrl, readablePageLinks, readablePageTags, type PageLink, type PageTag } from "@/lib/portfolia/page-extras";
-import { addPortfolioExtra, patchPortfolioExtra, removePortfolioExtra, type Portfolio } from "@/lib/portfolia/store";
+import { LINK_SIZE, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, TAG_COLOURS, VIDEO_MAX_MB, VIDEO_WIDTH, hostOf, normaliseUrl, placeVideo, readablePageLinks, readablePageTags, readablePageVideos, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { readVideo, videoFileProblem, videoMime } from "@/lib/portfolia/page-video-file";
+import { addPortfolioExtra, deleteUnusedPortfolioAsset, isPaid, patchPortfolioExtra, removePortfolioExtra, useDoc, type Portfolio } from "@/lib/portfolia/store";
 
 type Shown = { page: number; half?: "left" | "right" };
 /**
@@ -52,13 +53,52 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
     report(ok, `Use up to ${MAX_LINKS} links.`);
     if (ok) { setUrl(""); onSelect({ kind: "links", id: link.id }); }
   };
+  const doc = useDoc();
+  const videoInput = useRef<HTMLInputElement>(null);
+  const [videoPhase, setVideoPhase] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState("");
+  const pageVideos = readablePageVideos(pdf.videos, pdf.pages);
+  const sideHasVideo = pageVideos.some(v => v.page === page.page && v.half === half);
+  const addVideo = async (file?: File) => {
+    if (!file || videoPhase) return;
+    const problem = videoFileProblem(file);
+    if (problem) return setVideoError(problem);
+    if (pageVideos.length >= MAX_VIDEOS) return setVideoError(`Use up to ${MAX_VIDEOS} videos per portfolio.`);
+    if (sideHasVideo) return setVideoError("This page already has a video. Remove it first, or add this one to another page.");
+    setVideoError("");
+    const blobKey = uid("video"), posterKey = `${blobKey}_poster.jpg`;
+    try {
+      setVideoPhase("Reading the video");
+      const { aspect, poster } = await readVideo(file);
+      setVideoPhase("Saving the video");
+      await putBlob(blobKey, file);
+      await putBlob(posterKey, poster);
+      // Placed at a typical page shape; the page in view corrects the height to its own shape straight away.
+      const base: PageVideo = { id: uid("vid"), page: page.page, half, x: 0, y: 0, width: VIDEO_WIDTH.default, height: 0.3, aspect, blobKey, posterKey, mime: videoMime(file), bytes: file.size, name: file.name.slice(0, 120) };
+      const video = placeVideo(base, (1 - VIDEO_WIDTH.default) / 2, 0.3, VIDEO_WIDTH.default);
+      const ok = addPortfolioExtra(p.code, pdf.blobKey, "videos", video, MAX_VIDEOS);
+      if (!ok) { void deleteBlob(blobKey).catch(() => {}); void deleteBlob(posterKey).catch(() => {}); return setVideoError("The video could not be added. Please try again."); }
+      onSelect({ kind: "videos", id: video.id });
+    } catch (e) {
+      void deleteBlob(blobKey).catch(() => {}); void deleteBlob(posterKey).catch(() => {});
+      setVideoError(e instanceof Error ? e.message : "The video could not be added.");
+    } finally {
+      setVideoPhase(null);
+      if (videoInput.current) videoInput.current.value = "";
+    }
+  };
+  const video = selected?.kind === "videos" ? pageVideos.find(v => v.id === selected.id) : undefined;
   const note = selected?.kind === "foldouts" ? readableFoldouts(pdf.foldouts, pdf.pages).find(f => f.id === selected.id) : undefined;
   const tab = selected?.kind === "tags" ? readablePageTags(pdf.tags, pdf.pages).find(t => t.id === selected.id) : undefined;
   const link = selected?.kind === "links" ? readablePageLinks(pdf.links, pdf.pages).find(l => l.id === selected.id) : undefined;
   const patchNote = (next: Foldout) => report(patchPortfolioExtra(p.code, pdf.blobKey, "foldouts", next.id, next), "That change could not be saved. Check the text length.");
   const remove = () => {
     if (!selected) return;
-    report(removePortfolioExtra(p.code, pdf.blobKey, selected.kind, selected.id), "The item could not be removed. Please try again.");
+    const removed = selected.kind === "videos" ? pageVideos.find(v => v.id === selected.id) : undefined;
+    const ok = removePortfolioExtra(p.code, pdf.blobKey, selected.kind, selected.id);
+    report(ok, "The item could not be removed. Please try again.");
+    // A removed video's files are cleared unless the saved version still uses them.
+    if (ok && removed) { void deleteUnusedPortfolioAsset(removed.blobKey); void deleteUnusedPortfolioAsset(removed.posterKey); }
     onSelect(null);
   };
   const field = "mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm";
@@ -92,7 +132,26 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
           </div>
           {urlError && <p role="alert" className="mt-1 text-xs text-destructive">{urlError}</p>}
         </div>
+        <div className="rounded-xl border border-border p-3">
+          <p className="flex items-center justify-between font-medium">Video on the page{!isPaid(doc) && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-normal">Personal</span>}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Plays inside the paper as if printed on it. Starts muted; readers tap it for sound. MP4 or WebM up to {VIDEO_MAX_MB} MB, one per page.</p>
+          <input ref={videoInput} type="file" accept="video/mp4,video/webm,.mp4,.m4v,.webm" className="sr-only" tabIndex={-1} aria-hidden onChange={e => void addVideo(e.target.files?.[0])} />
+          <Button size="sm" variant="line" className="mt-2 w-full" disabled={Boolean(videoPhase) || sideHasVideo} onClick={() => videoInput.current?.click()}>
+            <Film className="size-4" />{videoPhase ? `${videoPhase}…` : sideHasVideo ? "This page has a video" : "Choose a video"}
+          </Button>
+          {videoError && <p role="alert" className="mt-1 text-xs text-destructive">{videoError}</p>}
+        </div>
       </section>
+      {video && (
+        <section aria-label="Selected video" className="space-y-3 border-t border-border pt-3">
+          <div className="flex items-center justify-between">
+            <p className="font-medium">Video</p>
+            <Button size="xs" variant="quiet" onClick={remove} aria-label="Delete selected video"><Trash2 className="size-4" />Delete</Button>
+          </div>
+          <p className="text-xs text-muted-foreground">{video.name ?? "Video"} · {(video.bytes / 1048576).toFixed(1)} MB · page {video.page}</p>
+          <p className="text-xs text-muted-foreground">Drag it on the page; pull the corner to resize. It keeps its shape.{!isPaid(doc) && " Saving a portfolio with videos needs Personal."}</p>
+        </section>
+      )}
       {(note || tab || link) && (
         <section aria-label="Selected item" className="space-y-3 border-t border-border pt-3">
           <div className="flex items-center justify-between">

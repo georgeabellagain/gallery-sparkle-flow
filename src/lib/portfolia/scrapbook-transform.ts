@@ -1,7 +1,7 @@
 import { transformFoldout, type Foldout, type ResizeCorner } from "./foldouts";
-import { placeLink, type PageLink, type PageTag } from "./page-extras";
-export type ExtraKind = "foldouts" | "links" | "tags";
-export type Extra = Foldout | PageLink | PageTag;
+import { placeLink, placeVideo, type PageLink, type PageTag, type PageVideo } from "./page-extras";
+export type ExtraKind = "foldouts" | "links" | "tags" | "videos";
+export type Extra = Foldout | PageLink | PageTag | PageVideo;
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 export function transformExtra(
   kind: ExtraKind,
@@ -17,6 +17,13 @@ export function transformExtra(
     return handle === "move"
       ? { ...tag, position: clamp((tag.position ?? 0.5) + dy, 0.08, 0.92) }
       : { ...tag, scale: clamp((tag.scale ?? 1) + dy * 8, 0.5, 2) };
+  }
+  if (kind === "videos") {
+    // A video keeps its own shape: the bottom-right handle changes its width, the height follows.
+    const video = item as PageVideo;
+    return handle === "move"
+      ? placeVideo(video, video.x + dx, video.y + dy, video.width, ratio)
+      : placeVideo(video, video.x, video.y, video.width + Math.max(dx, dy * video.aspect * ratio), ratio);
   }
   const link = item as PageLink;
   return placeLink(

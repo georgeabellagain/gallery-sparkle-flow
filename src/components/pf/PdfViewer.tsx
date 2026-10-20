@@ -14,7 +14,8 @@ import { createRenderQueue } from "@/lib/portfolia/render-queue";
 import { cachedReaderArtwork, copyReaderArtwork, prepareReaderArtwork } from "@/lib/portfolia/reader-artwork";
 import { READER_SLIDE_MS, READER_SLIDE_DISTANCE } from "@/lib/portfolia/reader-slide";
 import type { Foldout } from "@/lib/portfolia/foldouts";
-import { linksForPage, type PageLink, type PageTag } from "@/lib/portfolia/page-extras";
+import { linksForPage, videosForPage, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { PageVideoHtml } from "./PageVideoHtml";
 import { coverWithSpreads } from "@/lib/portfolia/mixed-layout";
 import { createPortal } from "react-dom";
 import { PageLinkAnchor } from "./PageLinks";
@@ -75,6 +76,7 @@ export function PdfViewer({
   foldouts,
   tags,
   links,
+  videos,
   projectCode,
   profile,
   bookMarketing,
@@ -116,6 +118,8 @@ export function PdfViewer({
   foldouts?: Foldout[];
   tags?: PageTag[];
   links?: PageLink[];
+  /** Page videos (Personal); the public route already removes them for unpaid owners. */
+  videos?: PageVideo[];
   /** Enables hash links on public readers. Editor previews never read the URL hash. */
   projectCode?: string;
   /** The person's details, shown from a small profile icon. */
@@ -151,6 +155,7 @@ export function PdfViewer({
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
   const mixedSpreads = useMemo(() => coverWithSpreads(sizes), [sizes]);
   const pageLinks = (page: number) => linksForPage(links ?? [], page, mixedSpreads ? page > 1 : view.spreads === "ready");
+  const pageVideos = (page: number) => videosForPage(videos ?? [], page, mixedSpreads ? page > 1 : view.spreads === "ready");
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -757,7 +762,7 @@ export function PdfViewer({
       {mode === "book" && activeLook === "studio" && renderedStudio && !renderFailed && !compact ? (
         <RenderedBook fill={full || immersive} pack={renderedStudio} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} onReady={bookReadyChanged} onFallback={() => setRenderFailed(true)} />
       ) : mode === "book" ? (
-        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={!showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
+        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={!showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} videos={videos} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>
@@ -767,7 +772,7 @@ export function PdfViewer({
             >
               {sizes[current - 1] && (
                 <div className="shrink-0" style={{ width: `calc(min(100%, max(1px, calc((${pagedHeight} - ${topGap + 24}px) * ${sizes[current - 1]!.w / sizes[current - 1]!.h}))) * ${zoom})` }}>
-                <PdfPage links={pageLinks(current)} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={studio ? pageLighting : null} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
+                <PdfPage links={pageLinks(current)} videos={pageVideos(current)} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={studio ? pageLighting : null} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
                 </div>
               )}
             </div>
@@ -786,7 +791,7 @@ export function PdfViewer({
             style={{ paddingTop: topGap, width: `calc(min(100%, ${compact ? 900 : 1100}px) * ${zoom})` }}
           >
             {sizes.map((s, i) => (
-              <PdfPage links={pageLinks(i + 1)} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} onVisible={setCurrent} eager renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
+              <PdfPage links={pageLinks(i + 1)} videos={pageVideos(i + 1)} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} onVisible={setCurrent} eager renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
             ))}
           </div>
         </div>
@@ -898,8 +903,10 @@ function PdfPage({
   onPrepared,
   pageSizes,
   links,
+  videos,
 }: {
   links?: PageLink[];
+  videos?: PageVideo[];
   pageSizes?: { w: number; h: number }[];
   renderQueue?: ReturnType<typeof createRenderQueue>;
   retainArtwork?: boolean;
@@ -1138,6 +1145,8 @@ function PdfPage({
       {!thumb && linkLayer && createPortal(
         <div className="pointer-events-none absolute inset-0 z-10">
           {linkLayer.links.map((link) => <PageLinkAnchor key={link.id} link={link} />)}
+          {/* Inside the drawn page layer, which replaces the page's children whenever it redraws. */}
+          {videos && videos.length > 0 && <PageVideoHtml videos={videos} />}
         </div>, linkLayer.element,
       )}
       {failed && (

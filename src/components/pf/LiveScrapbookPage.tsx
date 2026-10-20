@@ -10,7 +10,21 @@ import {
   type Foldout,
   type ResizeCorner,
 } from "@/lib/portfolia/foldouts";
-import { linksForLeaf, tabSlots, type PageLink, type PageTag } from "@/lib/portfolia/page-extras";
+import { linksForLeaf, placeVideo, readablePageVideos, tabSlots, videoHeight, videosForLeaf, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { useBlob } from "./Chrome";
+
+/** The video's still in the editor; the moving picture plays in the reader. */
+function VideoPoster({ video }: { video: PageVideo }) {
+  const blob = useBlob(video.posterKey);
+  const [url, setUrl] = useState<string>();
+  useEffect(() => {
+    if (!blob) return setUrl(undefined);
+    const next = URL.createObjectURL(blob);
+    setUrl(next);
+    return () => URL.revokeObjectURL(next);
+  }, [blob]);
+  return url ? <img src={url} alt="" className="absolute inset-0 h-full w-full object-cover" draggable={false} /> : <span className="absolute inset-0 bg-black/70" />;
+}
 import { tabSlot } from "@/lib/portfolia/tab-geometry";
 import type { Leaf } from "@/lib/portfolia/book-layout";
 import { patchPortfolioExtra, removePortfolioExtra } from "@/lib/portfolia/store";
@@ -43,7 +57,15 @@ export function LiveScrapbookPage({
     next: Extra;
     centre?: { x: number; y: number };
   } | null>(null);
-  useEffect(() => setDraft(null), [pdf.foldouts, pdf.links, pdf.tags]);
+  useEffect(() => setDraft(null), [pdf.foldouts, pdf.links, pdf.tags, pdf.videos]);
+  const leafVideos = videosForLeaf(readablePageVideos(pdf.videos, pdf.pages), leaf);
+  // A new video is placed at a typical page shape; fit its height to this page's real shape once it is seen.
+  useEffect(() => {
+    for (const v of leafVideos) {
+      if (Math.abs(v.height - videoHeight(v, ratio)) > 0.002) commit("videos", placeVideo(v, v.x, v.y, v.width, ratio));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(leafVideos), ratio]);
   const commit = (kind: ExtraKind, item: Extra) =>
     context.onError(
       patchPortfolioExtra(context.portfolio.code, pdf.blobKey, kind, item.id, item)
@@ -146,7 +168,7 @@ export function LiveScrapbookPage({
       <button
         key={corner}
         type="button"
-        aria-label={`Resize ${kind === "foldouts" ? "note" : kind === "tags" ? "tab" : "link"} ${corner}`}
+        aria-label={`Resize ${kind === "foldouts" ? "note" : kind === "tags" ? "tab" : kind === "videos" ? "video" : "link"} ${corner}`}
         {...controls(kind, item, corner as ResizeCorner)}
         className={`pointer-events-auto absolute z-20 size-3 touch-none border border-white bg-blue-600 ${corner.includes("n") ? "-top-1.5" : "-bottom-1.5"} ${corner.includes("w") ? "-left-1.5" : "-right-1.5"}`}
         style={{ cursor: corner === "nw" || corner === "se" ? "nwse-resize" : "nesw-resize" }}
@@ -185,6 +207,27 @@ export function LiveScrapbookPage({
               className="pointer-events-auto absolute -top-7 left-1/2 z-20 size-4 -translate-x-1/2 touch-none cursor-grab rounded-full border-2 border-white bg-blue-600 shadow"
             />
             <span aria-hidden className="pointer-events-none absolute -top-3 left-1/2 h-3 w-px -translate-x-1/2 bg-blue-600" />
+          </div>
+        );
+      })}
+      {leafVideos.map((original) => {
+        const v = live(original);
+        return (
+          <div
+            key={v.id}
+            data-selected={selected === v.id || undefined}
+            className="absolute pointer-events-auto overflow-visible ring-1 ring-blue-500/60 data-[selected]:ring-2 data-[selected]:ring-blue-600"
+            style={{ left: `${v.x * 100}%`, top: `${v.y * 100}%`, width: `${v.width * 100}%`, height: `${v.height * 100}%` }}
+          >
+            <VideoPoster video={v} />
+            <span aria-hidden className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">Video</span>
+            <button
+              type="button"
+              aria-label={`Move video ${v.name ?? ""}`}
+              {...controls("videos", v, "move")}
+              className="absolute inset-0 touch-none cursor-move bg-transparent"
+            />
+            {resize("videos", v)}
           </div>
         );
       })}

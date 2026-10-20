@@ -41,6 +41,8 @@ export function setCloudUser(id: string | null) {
 export function registerPublicUrls(urls: Record<string, string>) {
   for (const [k, v] of Object.entries(urls)) publicUrls.set(k, v);
 }
+/** A visitor's streaming link for a published file (page videos play from it without a full download). */
+export const publicAssetUrl = (key: string) => publicUrls.get(key);
 
 export async function uploadToCloud(key: string, blob: Blob, expectedUser = cloudUser): Promise<void> {
   if (expectedUser !== cloudUser) throw new Error("Your account changed. Please reload before saving.");

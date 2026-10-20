@@ -103,7 +103,7 @@ function EditPortfolio() {
           onDialog={setDialog}
           onPublish={publish}
           onUnpublish={() => setDialog("unpublish")}
-          preview={<PortfolioPage bookMarketing={p.bookMarketing} showCredit={p.plan === "free"} profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.style} viewer={p.viewer} projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} cvBlobKey={p.profile.cv?.blobKey} compact />}
+          preview={<PortfolioPage bookMarketing={p.bookMarketing} showCredit={p.plan === "free"} profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.style} viewer={p.viewer} projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} videos={p.pdf.videos} cvBlobKey={p.profile.cv?.blobKey} compact />}
         />
         {saveErr && <p role="alert" className="fixed bottom-4 left-1/2 z-50 w-[min(90vw,32rem)] -translate-x-1/2 rounded-xl border border-destructive/20 bg-background p-3 text-sm text-destructive shadow-soft">{saveErr}</p>}
       </main>

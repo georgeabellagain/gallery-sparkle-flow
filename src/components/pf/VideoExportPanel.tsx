@@ -96,7 +96,7 @@ export function VideoExportPanel({ p, onClose, share }: { p: Portfolio; onClose:
       {shareNote && <p role="status" className="mt-2 text-xs">{shareNote}</p>}
     </section>}
     <div className="pf-render-capture pointer-events-none fixed left-[-10000px] top-0" style={{ width: 960, height: 540, "--pf-render-height": "540px" } as React.CSSProperties} aria-hidden="true" inert>
-      {pdf && <PdfViewer key={generation} source={source.current} fileName={p.pdf?.name ?? "portfolio.pdf"} viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "studio", looks: ["studio"], modes: ["book"] }} backgroundUrl={backgroundUrl} backdrop={p.style?.backdrop} foldouts={p.pdf?.foldouts} tags={p.pdf?.tags} links={p.pdf?.links} controls={false} onExporter={receive} renderCapture onLoadError={setError} />}
+      {pdf && <PdfViewer key={generation} source={source.current} fileName={p.pdf?.name ?? "portfolio.pdf"} viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "studio", looks: ["studio"], modes: ["book"] }} backgroundUrl={backgroundUrl} backdrop={p.style?.backdrop} foldouts={p.pdf?.foldouts} tags={p.pdf?.tags} links={p.pdf?.links} videos={p.pdf?.videos} controls={false} onExporter={receive} renderCapture onLoadError={setError} />}
     </div>
   </dialog>, document.body);
 }

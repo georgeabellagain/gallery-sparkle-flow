@@ -17,7 +17,11 @@ import { PageLinkAnchor } from "./PageLinks";
 import { loadLinkIcons, paintPageLinks, type LinkIcons } from "@/lib/portfolia/link-paint";
 import { PageTabButtons } from "./PageTabs";
 import { planTabs, tabEdge } from "@/lib/portfolia/tab-geometry";
-import { linksForLeaf, readablePageLinks, readablePageTags, tabSlots, type PageLink, type PageTag } from "@/lib/portfolia/page-extras";
+import { linksForLeaf, readablePageLinks, readablePageTags, readablePageVideos, tabSlots, videosForLeaf, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { getBlob, publicAssetUrl, resolveAssetUrl } from "@/lib/portfolia/assets";
+import { videoUvRect } from "@/lib/portfolia/page-video";
+import { createPageVideoPlayer, type PageVideoPlayer } from "@/lib/portfolia/page-video-player";
+import { PageVideoSound } from "./PageVideoSound";
 import { foldoutsForLeaf, readableFoldouts, type Foldout, type PageBounds } from "@/lib/portfolia/foldouts";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -87,8 +91,17 @@ function pageLoader(
   notes: Foldout[] = [],
   links: PageLink[] = [],
   previewTextureCap = 1600,
+  videos: PageVideo[] = [],
 ) {
   const linkIcons: LinkIcons = new Map();
+  /** Each video's still, printed into its box: what shows before it plays, where motion is off, and in captures. */
+  const loadPosters = async (page: number) => {
+    const out = new Map<string, ImageBitmap>();
+    await Promise.all(videos.filter((v) => v.page === page).map(async (v) => {
+      try { const blob = await getBlob(v.posterKey); if (blob) out.set(v.id, await createImageBitmap(blob)); } catch { /* the box stays dark until the video plays */ }
+    }));
+    return out;
+  };
   const faces = new Map<number, HTMLCanvasElement>();
   const pending = new Map<number, Promise<void>>();
   const tasks = new Set<RenderTask>();
@@ -143,7 +156,7 @@ function pageLoader(
     // Enough pages stay in memory to turn through the book; the rest are prepared as they are needed.
     keep = Math.max(6, Math.min(count, Math.floor(CPU_BYTES[tier] / ((4 * long * long) / leafRatio))));
   })();
-  const compose = (raw: HTMLCanvasElement, leaf: Leaf, index: number, noteImages: Awaited<ReturnType<typeof loadNoteImages>>) => {
+  const compose = (raw: HTMLCanvasElement, leaf: Leaf, index: number, noteImages: Awaited<ReturnType<typeof loadNoteImages>>, posters: Map<string, ImageBitmap>) => {
     const canvas = document.createElement("canvas");
     canvas.width = leaf.half ? Math.floor(raw.width / 2) : raw.width;
     canvas.height = Math.round(canvas.width * ratio);
@@ -171,6 +184,12 @@ function pageLoader(
       w,
       h,
     );
+    for (const v of videosForLeaf(videos, leaf)) {
+      const poster = posters.get(v.id);
+      ctx.fillStyle = "#111";
+      ctx.fillRect(v.x * canvas.width, v.y * canvas.height, v.width * canvas.width, v.height * canvas.height);
+      if (poster) ctx.drawImage(poster, v.x * canvas.width, v.y * canvas.height, v.width * canvas.width, v.height * canvas.height);
+    }
     paintClosedNotes(canvas, foldoutsForLeaf(notes, leaf), noteImages);
     // Links are printed on the page itself, so they curve, turn and catch the light with it.
     paintPageLinks(ctx, canvas.width, canvas.height, linksForLeaf(links, leaf), linkIcons);
@@ -202,16 +221,17 @@ function pageLoader(
         tasks.delete(task);
       }
       if (closed) throw new Error("Viewer closed");
-      const [, , images] = await Promise.all([
+      const [, , images, posters] = await Promise.all([
         loadLinkIcons(links.filter((l) => l.page === page), linkIcons),
         loadNoteFonts(notes.filter(f => f.page === page).map(f => foldoutSurfaces(f).outside)),
         loadNoteImages(notes.filter(f => f.page === page).flatMap(f => { const key = foldoutSurfaces(f).outside.imageKey; return key ? [key] : []; })),
+        loadPosters(page),
       ]);
       try {
         await new Promise<void>(resolve => preparation.schedule(page, resolve));
         if (closed) throw new Error("Viewer closed");
-        for (const index of leavesOf.get(page) ?? []) faces.set(index, compose(raw, layout.leaves[index]!, index, images));
-      } finally { images.forEach(image => image.close()); }
+        for (const index of leavesOf.get(page) ?? []) faces.set(index, compose(raw, layout.leaves[index]!, index, images, posters));
+      } finally { images.forEach(image => image.close()); posters.forEach(image => image.close()); }
       // The faces hold the pixels now; release the full-size render straight away.
       raw.width = raw.height = 0;
       while (faces.size > keep) faces.delete(faces.keys().next().value!);
@@ -315,6 +335,7 @@ export function BookView({
   foldouts,
   tags,
   links,
+  videos,
   showPageNumber = true,
   showNavigation = true,
 }: {
@@ -367,6 +388,8 @@ export function BookView({
   tags?: PageTag[];
   /** Website links placed on pages. */
   links?: PageLink[];
+  /** Videos printed on pages (Personal; already removed for unpaid owners). */
+  videos?: PageVideo[];
 }) {
   // A portrait first page followed only by landscape pages is a front cover and then two-page spreads.
   // The flipbook shows it that way whatever "My PDF contains" says; the other reading modes are unaffected.
@@ -418,6 +441,11 @@ export function BookView({
   const linksSignature = JSON.stringify(editingExtras ? [] : links ?? []);
   const pageTags = useMemo(() => readablePageTags(JSON.parse(tagsSignature), doc.numPages), [tagsSignature, doc.numPages]);
   const pageLinks = useMemo(() => readablePageLinks(JSON.parse(linksSignature), doc.numPages), [linksSignature, doc.numPages]);
+  // While editing, the live editor shows each video's still on top; the book itself stays plain.
+  const videosSignature = JSON.stringify(editingExtras ? [] : videos ?? []);
+  const pageVideos = useMemo(() => readablePageVideos(JSON.parse(videosSignature), doc.numPages), [videosSignature, doc.numPages]);
+  const videoPlayer = useRef<PageVideoPlayer | null>(null);
+  const [videoSound, setVideoSound] = useState<string | null>(null);
   const noteClosers = useRef(new Map<string, () => Promise<void> | null>());
   /**
    * Any open scrapbook note folds shut before the page turns away from it. Called before the book is marked busy
@@ -483,6 +511,42 @@ export function BookView({
   const prefetchToken = useRef(0);
   const index = spreadIndex(layout.spreads, leaf);
   const spread = layout.spreads[index]!;
+  // Page videos: one player per book. The scene asks which video belongs to each page picture and shows it inside
+  // the paper; until a frame is ready (and where motion is off) the printed still shows.
+  useEffect(() => {
+    const s = scene.current;
+    if (!s || !pageVideos.length) return;
+    const player = createPageVideoPlayer({
+      urlFor: async (key) => publicAssetUrl(key) ?? (await resolveAssetUrl({ id: key, blobKey: key })),
+      onFrame: () => scene.current?.videoFrame(),
+      onSound: setVideoSound,
+    });
+    videoPlayer.current = player;
+    s.setVideoLookup((canvas) => {
+      const at = layout.leaves[Number(canvas.dataset["seed"])];
+      const v = at ? videosForLeaf(pageVideos, at)[0] : undefined;
+      return v ? { video: player.element(v), rect: videoUvRect(v) } : null;
+    });
+    const motion = matchMedia("(prefers-reduced-motion: reduce)");
+    const still = () => s.setVideoStill(motion.matches);
+    still();
+    motion.addEventListener("change", still);
+    return () => {
+      motion.removeEventListener("change", still);
+      s.setVideoLookup(() => null);
+      player.dispose();
+      videoPlayer.current = null;
+      setVideoSound(null);
+    };
+  }, [ready, pageVideos, layout]);
+  // Only the videos on the pages in view play (at most two); the rest pause, and all pause in a hidden tab.
+  const videosInView = useMemo(() => spread.filter((n): n is number => n !== null).flatMap((n) => videosForLeaf(pageVideos, layout.leaves[n]!).map((v) => v.id)), [spread, pageVideos, layout]);
+  useEffect(() => {
+    const apply = () => videoPlayer.current?.setInView(videosInView);
+    apply();
+    document.addEventListener("visibilitychange", apply);
+    return () => document.removeEventListener("visibilitychange", apply);
+  }, [videosInView, ready]);
   const focus = bookFocus(spread, leaf, narrow);
   const atStart = narrow ? leaf === 0 : index === 0;
   const atEnd = narrow ? leaf === layout.leaves.length - 1 : index === layout.spreads.length - 1;
@@ -548,7 +612,7 @@ export function BookView({
     setNarrow(!fullSpread && element.clientWidth < 720);
     // The detail of the images inside the PDF is read once, in the background; pages wait for it before drawing.
     const density = lightweight ? Promise.resolve(0) : loadPdfjs().then((pdfjs) => detectDensity(doc, pdfjs.OPS as never)).catch(() => 0);
-    const source = pageLoader(doc, ratio, layout, density, () => scene.current?.maxTextureSize ?? 4096, lightweight, additions, pageLinks, previewTextureCap);
+    const source = pageLoader(doc, ratio, layout, density, () => scene.current?.maxTextureSize ?? 4096, lightweight, additions, pageLinks, previewTextureCap, pageVideos);
     loader.current = source;
     // The newly built scene starts its actual selected lighting in parallel.
     let lightingPreparation: Promise<void> | undefined;
@@ -656,7 +720,7 @@ export function BookView({
       scene.current?.dispose();
       scene.current = null;
     };
-  }, [doc, ratio, layout, lightweight, previewTextureCap, captureQuality, fullSpread, additions, pageLinks]);
+  }, [doc, ratio, layout, lightweight, previewTextureCap, captureQuality, fullSpread, additions, pageLinks, pageVideos]);
 
   const faces = useCallback(
     async (value: Spread): Promise<BookFaces> => {
@@ -1140,6 +1204,8 @@ export function BookView({
       try {
         await document.fonts.ready;
         const cover=await loader.current?.face(0);if(cover)renderer.setCoverColour(cover);
+        // Captures show each page video's printed still, never whatever frame happened to be playing.
+        renderer.setVideoStill(true);
         await renderer.captureReady();
         renderer.setFrameSink(draw);
         renderer.setInset(0);
@@ -1201,7 +1267,7 @@ export function BookView({
         }
         signal.throwIfAborted();if(scene.current!==renderer)throw new Error("The graphics renderer changed. Please try again.");
         return {version:1,signature,createdAt:Date.now(),width:output.width,height:output.height,states,bytes};
-      } finally { renderer.setCaptureClock(); renderer.setFrameSink(); lock.current=false; if(alive.current) { await renderer.setNotes(currentNoteSpecs); renderer.show(await faces(spread)); renderer.viewport(narrow,zoom,bookFocus(spread,leafRef.current,narrow)); } }
+      } finally { renderer.setCaptureClock(); renderer.setFrameSink(); renderer.setVideoStill(typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches); lock.current=false; if(alive.current) { await renderer.setNotes(currentNoteSpecs); renderer.show(await faces(spread)); renderer.viewport(narrow,zoom,bookFocus(spread,leafRef.current,narrow)); } }
     };
     onExporter({ render, video: async (progress, signal) => {
       let result: Blob | undefined;
@@ -1289,6 +1355,7 @@ export function BookView({
           return <div key={`${n}:${settings.studio}`} className="pointer-events-none absolute z-30" style={{ left: `${bounds.x}%`, top: `${bounds.y}%`, width: `${bounds.width}%`, height: `${bounds.height}%` }}>
             {editingExtras && <LiveScrapbookPage leaf={layout.leaves[n]!} side={side===0?'left':'right'} ratio={ratio}/>}
             {onLeaf.map(link => <PageLinkAnchor key={link.id} link={link} />)}
+            {videosForLeaf(pageVideos, layout.leaves[n]!).map(v => <PageVideoSound key={v.id} video={v} on={videoSound === v.id} onToggle={() => videoPlayer.current?.toggleSound(v.id)} />)}
             {visible.map(item => <StoredFoldout key={`${item.id}:${(preparedNotesReady || litNotesKey === notesKey)}:${JSON.stringify(item)}`} item={item} demoAnimate={demoNotes} baked={item.style !== "sticky"} sceneRendered={(preparedNotesReady || litNotesKey === notesKey)} onProgress={p => {
               noteProgresses.current.set(item.id, p);
               setOpenNote([...noteProgresses.current.values()].some(value => value > .001));

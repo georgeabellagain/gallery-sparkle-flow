@@ -10,6 +10,7 @@ export function premiumAppearance(p: Portfolio): string[] {
   const choices = [p.viewer, ...Object.values(p.viewer?.backgrounds ?? {})];
   if (choices.some(c => c?.backgroundKey || (c?.backgroundPreset && personalBackground(c.backgroundPreset)))) features.push("Personal backgrounds");
   if (p.profile.cv) features.push("Downloadable CV");
+  if (p.pdf?.videos?.length) features.push("Videos on pages");
   if (p.style && Object.entries(p.style).some(([key, value]) => value !== undefined && value !== DEFAULT_STYLE[key as keyof typeof DEFAULT_STYLE])) features.push("Custom profile styling");
   return features;
 }
