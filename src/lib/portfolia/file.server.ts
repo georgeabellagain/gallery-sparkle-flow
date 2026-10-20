@@ -1,4 +1,5 @@
 import { publicAssetKeys } from "./public-assets";
+import { safeAssetKey } from "./page-images";
 import { ownerHasPersonal } from "./entitlements.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requestAccess } from "./access.server";
@@ -27,7 +28,7 @@ export async function servePortfolioFile(code: string, url: string, db: any = su
     catch { return new Response(null, { status: 503, headers }); }
   }
   const allowed = publicAssetKeys(p, personal);
-  if (!key || !/^[a-zA-Z0-9_.-]+$/.test(key) || !allowed.includes(key)) return missing();
+  if (!key || !safeAssetKey(key) || !allowed.includes(key)) return missing();
   // The viewer reads PDFs a range at a time: storage streams just that part through a link that lasts a minute.
   if (range && /^bytes=\d*-\d*$/.test(range.trim())) {
     const { data: signed, error: signError } = await db.storage.from("portfolio-files").createSignedUrl(`${row.owner_id}/${key}`, 60);

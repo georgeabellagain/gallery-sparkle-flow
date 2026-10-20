@@ -4,7 +4,8 @@ import type { ExtraKind, Extra } from "./scrapbook-transform";
 import { backgroundKeys } from "./background-settings";
 import { foldoutKeys } from "./foldouts";
 import { useSyncExternalStore } from "react";
-import { deleteBlob, setAssetRetention, uid } from "./assets";
+import { deleteBlob, deleteBlobs, setAssetRetention, uid } from "./assets";
+import { pageImageKeys, type PageImages } from "./page-images";
 
 /**
  * Portfolio store. A localStorage copy keeps the UI instant; once signed in,
@@ -146,6 +147,8 @@ export interface PdfFile {
   /** Optional derived JPEG used in public link previews. */
   coverKey?: string;
   renderedStudio?: import("./rendered-studio").RenderedStudio;
+  /** Pre-made page pictures visitors open on (page-images.ts); drawn after publishing, bound to this exact PDF. */
+  pageImages?: PageImages;
   name: string;
   bytes: number;
   pages: number;
@@ -205,7 +208,7 @@ const empty = (): Doc => ({ v: 1, account: { signedIn: false }, portfolio: null,
 let state: Doc = empty();
 let portfolioDraft: Portfolio | null = null;
 let draftView: Doc | null = null;
-const assetKeys = (p: Portfolio | null) => p ? [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey, p.style?.bannerKey, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf)].filter((key): key is string => Boolean(key)) : [];
+const assetKeys = (p: Portfolio | null) => p ? [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey, p.style?.bannerKey, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf), ...pageImageKeys(p.pdf)].filter((key): key is string => Boolean(key)) : [];
 const notify = () => { draftView = null; listeners.forEach(l => l()); };
 export function getSavedDoc(): Doc { load(); return state; }
 export function beginPortfolioDraft(code: string) {
@@ -221,7 +224,8 @@ export function savePortfolioDraft(): boolean {
   const oldKeys = assetKeys(state.portfolio);
   const next = { ...state, portfolio: structuredClone(portfolioDraft) };
   if (!commit(next)) return false;
-  oldKeys.filter(key => !assetKeys(portfolioDraft).includes(key)).forEach(key => void deleteBlob(key).catch(() => {}));
+  const kept = new Set(assetKeys(portfolioDraft));
+  void deleteBlobs(oldKeys.filter(key => !kept.has(key))).catch(() => {});
   return true;
 }
 export function discardPortfolioDraft() {
@@ -411,7 +415,7 @@ export function patchPortfolioAppearance(code: string, patch: { viewer?: Partial
 /** Older portfolios can share an asset key; changing one must not erase another's picture. */
 export function portfolioUsesAsset(key: string): boolean {
   return [...allPortfolios(getDoc()), ...allPortfolios(getSavedDoc())].some(p => [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey,
-    p.style?.bannerKey, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf)].includes(key));
+    p.style?.bannerKey, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf), ...pageImageKeys(p.pdf)].includes(key));
 }
 export async function deleteUnusedPortfolioAsset(key?: string) {
   if (key && !portfolioUsesAsset(key)) await deleteBlob(key);
@@ -431,6 +435,7 @@ export async function replacePdf(pdf: PdfFile): Promise<boolean> {
     await Promise.all(foldoutKeys(old).map(key => deleteBlob(key).catch(() => {})));
     await deleteBlob(old.blobKey).catch(() => {});
     if (old.coverKey) await deleteBlob(old.coverKey).catch(() => {});
+    await deleteBlobs(pageImageKeys(old)).catch(() => {});
   }
   return ok;
 }
@@ -440,12 +445,27 @@ export async function deletePortfolio(): Promise<void> {
   await Promise.all(foldoutKeys(p?.pdf).map(key => deleteBlob(key).catch(() => {})));
   if (p?.pdf) await deleteBlob(p.pdf.blobKey).catch(() => {});
   if (p?.pdf?.coverKey) await deleteBlob(p.pdf.coverKey).catch(() => {});
+  await deleteBlobs(pageImageKeys(p?.pdf)).catch(() => {});
   if (p?.profile.photoKey) await deleteBlob(p.profile.photoKey).catch(() => {});
   if (p?.profile.cv) await deleteBlob(p.profile.cv.blobKey).catch(() => {});
   update((d) => {
     const [next, ...rest] = d.others;
     return next ? { ...d, portfolio: next.portfolio, analytics: next.analytics, others: rest } : { ...d, portfolio: null, analytics: { visits: [], downloads: [] } };
   });
+}
+
+/**
+ * Records finished page pictures on the saved portfolio, and on an open editor draft of it, without making the
+ * draft look edited. Only the exact PDF they were drawn from receives them.
+ */
+export function attachPageImages(code: string, pdfKey: string, pageImages: PageImages): boolean {
+  load();
+  const next = structuredClone(state);
+  const target = allPortfolios(next).find(p => p.code === code && p.pdf?.blobKey === pdfKey);
+  if (!target?.pdf || !state.account.signedIn) return false;
+  target.pdf = { ...target.pdf, pageImages };
+  if (portfolioDraft?.code === code && portfolioDraft.pdf?.blobKey === pdfKey) portfolioDraft = { ...portfolioDraft, pdf: { ...portfolioDraft.pdf, pageImages } };
+  return commit(next);
 }
 
 /* ---------- Multiple portfolios (paid) ---------- */

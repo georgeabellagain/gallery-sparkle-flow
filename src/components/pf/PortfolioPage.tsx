@@ -1,5 +1,6 @@
 import { bookPurchaseUrl } from "@/lib/portfolia/book-marketing";
-import type { Portfolio } from "@/lib/portfolia/store";
+import type { PdfFile, Portfolio } from "@/lib/portfolia/store";
+import { readablePageImages } from "@/lib/portfolia/page-images";
 import type { RenderedStudio } from "@/lib/portfolia/rendered-studio";
 import type { Foldout } from "@/lib/portfolia/foldouts";
 import type { PageLink, PageTag, PageVideo } from "@/lib/portfolia/page-extras";
@@ -125,15 +126,22 @@ export function prettyUrl(u: string) {
   return u.replace(/^https?:\/\//i, "").replace(/\/$/, "");
 }
 
-/** Loads the stored PDF + photo for display: the creator's own copy, or a published PDF streamed by link. */
-export function useStoredMedia(pdfKey?: string, photoKey?: string) {
+/**
+ * Loads the stored PDF + photo for display: the creator's own copy, or a published PDF streamed by link. A visitor
+ * of a portfolio with page pictures opens on those, with the PDF streamed behind them.
+ */
+export function useStoredMedia(pdfKey?: string, photoKey?: string, pdfFile?: PdfFile | null) {
   const [pdf, setPdf] = useState<Awaited<ReturnType<typeof getPdfSource>> | null>(null);
+  const pictures = pdfFile?.blobKey === pdfKey ? readablePageImages(pdfFile) : null;
+  const picturesId = pictures ? `${pictures.pdfKey}:${pictures.createdAt}` : "";
   useEffect(() => {
     let live = true;
     setPdf(null);
-    if (pdfKey) void getPdfSource(pdfKey).then((source) => live && setPdf(source ?? null));
+    if (pdfKey) void getPdfSource(pdfKey, pictures).then((source) => live && setPdf(source ?? null));
     return () => { live = false; };
-  }, [pdfKey]);
+    // The manifest object is recreated on every render; its identity is the PDF and when it was made.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pdfKey, picturesId]);
   const photoBlob = useBlob(photoKey);
   const photoUrl = useObjectUrl(photoBlob);
   return { pdf: pdf ?? null, photoUrl };

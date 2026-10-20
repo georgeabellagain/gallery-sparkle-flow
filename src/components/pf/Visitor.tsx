@@ -18,7 +18,7 @@ export function SampleVisitor({ demo: _demo }: { demo?: "book" }) {
 }
 
 export function OwnVisitor({ p, preview, trackActivity = true }: { p: Portfolio; preview: boolean; trackActivity?: boolean }) {
-  const { pdf, photoUrl } = useStoredMedia(p.pdf?.blobKey, p.profile.photoKey);
+  const { pdf, photoUrl } = useStoredMedia(p.pdf?.blobKey, p.profile.photoKey, p.pdf);
   // A portfolio opened by scanning its QR code opens full screen on a phone.
   const fromQr = useOpenedFromQr();
   useEffect(() => {
@@ -118,7 +118,7 @@ export function EmbeddedVisitor({ data, startPage, mode, background }: { data: N
   registerPublicUrls(data.urls);
   usePublicUrlRefresh(data.portfolio.code);
   const p = data.portfolio;
-  const { pdf } = useStoredMedia(p.pdf?.blobKey);
+  const { pdf } = useStoredMedia(p.pdf?.blobKey, undefined, p.pdf);
   useEffect(() => recordVisit(p.code), [p.code]);
   // A background chosen for the embed replaces the owner's own colour or picture.
   const pageStyle = p.plan === "personal" ? (background && p.style ? { ...p.style, backdrop: "" } : p.style) : undefined;

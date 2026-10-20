@@ -18,6 +18,8 @@ import { deleteBlob, formatBytes } from "@/lib/portfolia/assets";
 import { deletePortfolio, patchPortfolio, pdfOverLimit, replacePdf, uploadLimitMb, useDoc, type PdfFile } from "@/lib/portfolia/store";
 import { OverLimitPanel } from "@/components/pf/OverLimit";
 import { markPortfolioDeleted, retrySync, useSyncStatus } from "@/lib/portfolia/cloud";
+import { usePageImageBackfill } from "@/lib/portfolia/make-page-images";
+import { PageImagesNote } from "@/components/pf/PageImagesNote";
 
 export const Route = createFileRoute("/edit")({
   staticData: { sitemap: false },
@@ -67,6 +69,8 @@ function EditPortfolio() {
     finally { setSaving(false); }
   };
   const { pdf, photoUrl } = useStoredMedia(p?.pdf?.blobKey, p?.profile.photoKey);
+  // After publishing or replacing the PDF, its page pictures are drawn here in the background.
+  usePageImageBackfill();
 
   // The saved portfolio only appears once the page has hydrated; redirecting before then sent a reload of
   // the editor to the dashboard even when a portfolio was saved on this device.
@@ -105,6 +109,7 @@ function EditPortfolio() {
           onUnpublish={() => setDialog("unpublish")}
           preview={<PortfolioPage bookMarketing={p.bookMarketing} showCredit={p.plan === "free"} profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.style} viewer={p.viewer} projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} videos={p.pdf.videos} cvBlobKey={p.profile.cv?.blobKey} compact />}
         />
+        <PageImagesNote p={p} className="fixed bottom-4 left-4 z-40 max-w-[min(90vw,22rem)] rounded-xl border border-border bg-background/95 p-2.5 shadow-soft" />
         {saveErr && <p role="alert" className="fixed bottom-4 left-1/2 z-50 w-[min(90vw,32rem)] -translate-x-1/2 rounded-xl border border-destructive/20 bg-background p-3 text-sm text-destructive shadow-soft">{saveErr}</p>}
       </main>
       <UpgradeModal open={upgrade} onClose={() => setUpgrade(false)} />

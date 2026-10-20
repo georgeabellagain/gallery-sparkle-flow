@@ -14,6 +14,8 @@ export type RemotePdf = {
   url: string;
   /** A fresh link once the signed one has expired (signed links last an hour). */
   refresh?: () => Promise<string | undefined>;
+  /** Pictures made at publishing: the readers open on these, and the PDF is streamed only for text and deep zoom. */
+  pageImages?: import("./page-image-doc").PageImageSource;
 };
 
 type Pdfjs = {

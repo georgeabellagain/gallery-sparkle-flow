@@ -20,6 +20,8 @@ import { getPaddleEnvironment } from "@/lib/paddle";
 import { submitFeedback } from "@/lib/feedback.functions";
 import { deleteAccount } from "@/lib/account.functions";
 import { accountExportFile } from "@/lib/portfolia/data-export";
+import { usePageImageBackfill } from "@/lib/portfolia/make-page-images";
+import { PageImagesNote } from "@/components/pf/PageImagesNote";
 import {
   allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, personalActive, switchPortfolio,
   getDoc, resetAll, startPortfolio, update, uploadLimitMb, useDoc, DEFAULT_VIEWER, type Portfolio,
@@ -55,6 +57,8 @@ function Dashboard() {
   const profile = p?.profile ?? all[0]?.profile;
   const profilePhoto = useBlob(profile?.photoKey);
   const profilePhotoUrl = useObjectUrl(profilePhoto);
+  // Portfolios published before page pictures existed get them here, on the owner's device.
+  usePageImageBackfill();
 
   if (!hydrated || loading) return <div className="flex min-h-screen flex-col"><SiteHeader /><main className="shell flex-1 py-16" aria-busy="true"><h1 className="display-title text-3xl">Your portfolios</h1><p role="status" className="mt-4 text-sm text-muted-foreground">Loading your workspace…</p></main></div>;
 
@@ -149,6 +153,7 @@ function Dashboard() {
                 <div className="pt-4">
                   <h3 className="truncate text-sm font-medium">{portfolio.name?.trim() || portfolio.pdf?.name?.replace(/\.pdf$/i, "") || portfolio.profile.name || "Untitled portfolio"}</h3>
                   <p className="mt-1 truncate text-xs text-muted-foreground">{personalActive(portfolio) ? `/${portfolio.username}` : `/p/${portfolio.code}`}</p>
+                  <PageImagesNote p={portfolio} className="mt-1" />
                   <div className="mt-4 flex flex-wrap gap-2">
                     <Button size="sm" variant="line" onClick={() => openFor(portfolio.code, "share")}><Share2 /> Share</Button>
                     <Button size="sm" variant="line" asChild><Link to="/p/$slug" params={{ slug: portfolio.code }} search={{ preview: "1" }}><Eye /> Preview</Link></Button>

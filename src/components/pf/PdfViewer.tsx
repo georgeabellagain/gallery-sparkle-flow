@@ -28,6 +28,7 @@ import { BookOpen, ChevronLeft, ChevronRight, Download, FileText, LayoutGrid, Ma
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { downloadLink, isStreamedPdf, markStreamedPdf, openRemotePdf, PDF_RANGE_CHUNK, type RemotePdf } from "@/lib/portfolia/remote-pdf";
+import { artworkVersion, createPageImageDocument, isPageImageDocument, pageImageText, whenFullPdf } from "@/lib/portfolia/page-image-doc";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { getPreviewLook, pinPreviewLook, subscribePreviewLook } from "@/lib/portfolia/preview-look";
@@ -205,35 +206,55 @@ export function PdfViewer({
       objUrl = URL.createObjectURL(source.blob);
       setDownloadUrl(objUrl);
     } else setDownloadUrl(downloadLink(source.url, fileName));
+    // A published PDF is read range by range, so the opening pages show before the rest has arrived.
+    const open = async (quiet = false) => {
+      const pdfjs = await loadPdfjs();
+      const remote = "blob" in source ? null : await openRemotePdf(pdfjs, source, {
+        signal: reading.signal,
+        // Behind page pictures the PDF only adds text and zoom detail, so a failed range never hides the pages.
+        onError: () => { if (!cancelled && !quiet) setError("Part of this portfolio couldn’t be loaded. Please check your connection and reload."); },
+      });
+      if (cancelled) throw new Error("Viewer closed");
+      const loading = pdfjs.getDocument(
+        "blob" in source ? { data: new Uint8Array(await source.blob.arrayBuffer()) }
+          : remote?.kind === "range" ? { range: remote.transport, length: remote.length, rangeChunkSize: PDF_RANGE_CHUNK, disableAutoFetch: true, disableStream: true }
+          : remote?.kind === "data" ? { data: remote.data }
+          : { url: source.url },
+      );
+      task = loading;
+      if (!quiet) loading.onProgress = ({ loaded: l, total }: { loaded: number; total: number }) => {
+        if (total) setProgress(Math.min(95, Math.round((l / total) * 90)));
+      };
+      const opened = await loading.promise;
+      if (cancelled) { void opened.destroy(); throw new Error("Viewer closed"); }
+      if (remote?.kind === "range") markStreamedPdf(opened);
+      return opened;
+    };
+    // Pictures made at publishing: every page size is in the manifest, so the readers start without the PDF.
+    if (!("blob" in source) && source.pageImages) {
+      const pictures = createPageImageDocument(source.pageImages, () => open(true));
+      markStreamedPdf(pictures);
+      setSizes(source.pageImages.manifest.pages.map((p) => ({ w: p.w, h: p.h })));
+      setDoc(pictures);
+      setProgress(100);
+      return () => {
+        cancelled = true;
+        reading.abort();
+        // The PDF behind the pictures may still be opening; its loading task is ended with the reader.
+        void task?.destroy();
+        void pictures.destroy();
+      };
+    }
     (async () => {
       try {
-        const pdfjs = await loadPdfjs();
-        // A published PDF is read range by range, so the opening pages show before the rest has arrived.
-        const remote = "blob" in source ? null : await openRemotePdf(pdfjs, source, {
-          signal: reading.signal,
-          onError: () => { if (!cancelled) setError("Part of this portfolio couldn’t be loaded. Please check your connection and reload."); },
-        });
-        if (cancelled) return;
-        const loading = pdfjs.getDocument(
-          "blob" in source ? { data: new Uint8Array(await source.blob.arrayBuffer()) }
-            : remote?.kind === "range" ? { range: remote.transport, length: remote.length, rangeChunkSize: PDF_RANGE_CHUNK, disableAutoFetch: true, disableStream: true }
-            : remote?.kind === "data" ? { data: remote.data }
-            : { url: source.url },
-        );
-        task = loading;
-        loading.onProgress = ({ loaded: l, total }: { loaded: number; total: number }) => {
-          if (total) setProgress(Math.min(95, Math.round((l / total) * 90)));
-        };
-        loaded = await loading.promise;
-        if (cancelled) return void loaded.destroy();
-        if (remote?.kind === "range") markStreamedPdf(loaded);
+        loaded = await open();
         const document = loaded;
         const dimensions = async (i: number) => {
           const vp = (await document.getPage(i)).getViewport({ scale: 1 });
           return { w: vp.width, h: vp.height };
         };
         // Reading a page's size from a streamed file can wait on a small range request, so more run at once.
-        const metadata = createRenderQueue(remote?.kind === "range" ? 12 : 4);
+        const metadata = createRenderQueue(isStreamedPdf(document) ? 12 : 4);
         const s = await Promise.all(Array.from({ length: document.numPages }, (_, i) => metadata.enqueue(() => dimensions(i + 1))));
         if (cancelled) return;
         setSizes(s);
@@ -482,6 +503,12 @@ export function PdfViewer({
   useEffect(() => {
     setZoom(1);
   }, [mode]);
+  // Zooming in on page pictures streams the PDF behind them; pages redraw from it, sharper, once it is open.
+  const [fullDetail, setFullDetail] = useState(0);
+  useEffect(() => {
+    if (!doc || zoom <= 1 || mode === "book" || !isPageImageDocument(doc)) return;
+    return whenFullPdf(doc, () => setFullDetail((v) => v + 1));
+  }, [doc, zoom > 1, mode]);
   const openingPage = () => {
     const project = projectCode ? projectFromHash(window.location.hash, sections) : undefined;
     return project?.startPage ?? Math.min(total, Math.max(1, Number.isFinite(startPage) ? Math.floor(startPage) : 1));
@@ -804,7 +831,7 @@ export function PdfViewer({
             >
               {sizes[current - 1] && (
                 <div className="shrink-0" style={{ width: `calc(min(100%, max(1px, calc((${pagedHeight} - ${topGap + 24}px) * ${sizes[current - 1]!.w / sizes[current - 1]!.h}))) * ${zoom})` }}>
-                <PdfPage links={pageLinks(current)} videos={pageVideos(current)} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={studio ? pageLighting : null} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
+                <PdfPage links={pageLinks(current)} videos={pageVideos(current)} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={noop} eager onRendered={markReady} />
                 </div>
               )}
             </div>
@@ -823,7 +850,7 @@ export function PdfViewer({
             style={{ paddingTop: topGap, width: `calc(min(100%, ${compact ? 900 : 1100}px) * ${zoom})` }}
           >
             {sizes.map((s, i) => (
-              <PdfPage links={pageLinks(i + 1)} videos={pageVideos(i + 1)} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} onVisible={setCurrent} eager={!streamedDoc} renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
+              <PdfPage links={pageLinks(i + 1)} videos={pageVideos(i + 1)} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={setCurrent} eager={!streamedDoc} renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
             ))}
           </div>
         </div>
@@ -936,9 +963,12 @@ function PdfPage({
   pageSizes,
   links,
   videos,
+  detail = 0,
 }: {
   links?: PageLink[];
   videos?: PageVideo[];
+  /** Bumped when a page-picture document can draw from its PDF, so a zoomed page redraws sharper. */
+  detail?: number;
   pageSizes?: { w: number; h: number }[];
   renderQueue?: ReturnType<typeof createRenderQueue>;
   retainArtwork?: boolean;
@@ -1163,7 +1193,21 @@ function PdfPage({
       cancelled = true;
       task?.cancel();
     };
-  }, [near, doc, n, size.w, zoom, renderWidth, renderQueue, retainArtwork, linksSignature]);
+  }, [near, doc, n, size.w, zoom, renderWidth, renderQueue, retainArtwork, linksSignature, detail]);
+
+  // A page drawn from its picture gets its selectable text from the streamed PDF, after the picture is on screen.
+  useEffect(() => {
+    if (thumb || !linkLayer || !renderWidth || !isPageImageDocument(doc)) return;
+    let live = true;
+    const layer = linkLayer.element;
+    void pageImageText(doc, n, renderWidth / size.w).then((text) => {
+      if (!live || !text || !layer.isConnected) return;
+      const placeholder = layer.querySelector(":scope > .textLayer");
+      if (placeholder) placeholder.replaceWith(text);
+      else layer.firstElementChild?.after(text);
+    }, () => undefined);
+    return () => { live = false; };
+  }, [linkLayer, doc, n, renderWidth, size.w, thumb]);
 
   return (
     <div

@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { RemotePdf } from "./remote-pdf";
+import { pageImageKeys, type PageImages } from "./page-images";
 
 /**
  * Asset bytes are cached in IndexedDB and, once signed in, stored in the
@@ -39,16 +40,18 @@ const publicUrls = new Map<string, string>();
 export function setCloudUser(id: string | null) {
   cloudUser = id;
 }
+/** The signed-in account whose folder files are saved to, if any. */
+export const cloudUserId = () => cloudUser;
 export function registerPublicUrls(urls: Record<string, string>) {
   for (const [k, v] of Object.entries(urls)) publicUrls.set(k, v);
 }
 /** A visitor's streaming link for a published file (page videos play from it without a full download). */
 export const publicAssetUrl = (key: string) => publicUrls.get(key);
 
-export async function uploadToCloud(key: string, blob: Blob, expectedUser = cloudUser): Promise<void> {
+export async function uploadToCloud(key: string, blob: Blob, expectedUser = cloudUser, cacheControl?: string): Promise<void> {
   if (expectedUser !== cloudUser) throw new Error("Your account changed. Please reload before saving.");
   if (!expectedUser) return;
-  const { error } = await supabase.storage.from(BUCKET).upload(`${expectedUser}/${key}`, blob, { upsert: true, contentType: blob.type || undefined });
+  const { error } = await supabase.storage.from(BUCKET).upload(`${expectedUser}/${key}`, blob, { upsert: true, contentType: blob.type || undefined, ...(cacheControl ? { cacheControl } : {}) });
   if (expectedUser !== cloudUser) throw new Error("Your account changed. Please reload before saving.");
   if (error) throw new Error("Couldn’t upload the file. Please check your connection and try again.");
 }
@@ -110,17 +113,23 @@ export function setPublicUrlRefresher(refresh: (() => Promise<Record<string, str
  * The PDF for the viewer: this browser's own copy when it has one (the creator), otherwise the published file's
  * link, which the viewer reads range by range so a visitor sees the first pages without downloading the whole file.
  */
-export async function getPdfSource(key: string): Promise<{ blob: Blob } | RemotePdf | undefined> {
+export async function getPdfSource(key: string, pageImages?: PageImages | null): Promise<{ blob: Blob } | RemotePdf | undefined> {
   const local = await getLocal(key).catch(() => undefined);
   if (local) return { blob: local };
   const signed = publicUrls.get(key);
+  let refreshing: Promise<void> | null = null;
+  const refreshAll = () => (refreshing ??= (async () => {
+    if (publicUrlRefresher) registerPublicUrls(await publicUrlRefresher());
+  })().finally(() => { refreshing = null; }));
+  // Visitors open on the pictures made at publishing when every one of them has a link; the PDF follows.
+  const pictures = pageImages && typeof createImageBitmap === "function" && pageImageKeys({ pageImages }).every((k) => publicUrls.has(k)) ? pageImages : null;
   if (signed) return {
     url: signed,
     refresh: async () => {
-      if (!publicUrlRefresher) return undefined;
-      registerPublicUrls(await publicUrlRefresher());
+      await refreshAll();
       return publicUrls.get(key);
     },
+    ...(pictures ? { pageImages: { manifest: pictures, url: (k: string) => publicUrls.get(k), refresh: refreshAll } } : {}),
   };
   const blob = await getBlob(key);
   return blob ? { blob } : undefined;
@@ -138,6 +147,25 @@ export async function deleteBlob(key: string): Promise<void> {
   await new Promise<void>((resolve) => {
     const tx = db.transaction(STORE, "readwrite");
     tx.objectStore(STORE).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => resolve();
+  });
+}
+
+/** Removes many files in one storage request (a PDF's page pictures), keeping any another portfolio still uses. */
+export async function deleteBlobs(keys: string[]): Promise<void> {
+  const doomed = [...new Set(keys)].filter((key) => !retainAsset?.(key));
+  if (!doomed.length) return;
+  if (cloudUser) {
+    for (let i = 0; i < doomed.length; i += 500) {
+      await supabase.storage.from(BUCKET).remove(doomed.slice(i, i + 500).map((key) => `${cloudUser}/${key}`)).catch(() => {});
+    }
+  }
+  const db = await openDb().catch(() => null);
+  if (!db) return;
+  await new Promise<void>((resolve) => {
+    const tx = db.transaction(STORE, "readwrite");
+    for (const key of doomed) tx.objectStore(STORE).delete(key);
     tx.oncomplete = () => resolve();
     tx.onerror = () => resolve();
   });

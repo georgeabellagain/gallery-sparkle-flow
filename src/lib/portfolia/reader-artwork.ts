@@ -2,10 +2,12 @@ import type { PDFDocumentProxy } from "pdfjs-dist";
 import { loadPdfjs } from "./pdf";
 import { createPreparedCache } from "./prepared-cache";
 import { createRenderQueue } from "./render-queue";
+import { artworkVersion } from "./page-image-doc";
 
 export type ReaderArtwork = { canvas: HTMLCanvasElement; text: HTMLDivElement; links: HTMLDivElement; scale: number };
 const documents = new WeakMap<PDFDocumentProxy, ReturnType<typeof readerCache>>();
-const keyFor = (page: number, width: number) => `${page}:${width}:${Math.min(window.devicePixelRatio || 1, 2)}`;
+// A page-picture document draws zoomed pages from its PDF once that is open, so those are prepared afresh.
+const keyFor = (doc: PDFDocumentProxy, page: number, width: number) => `${page}:${width}:${Math.min(window.devicePixelRatio || 1, 2)}:${artworkVersion(doc)}`;
 function readerCache() {
   const memory = (navigator as { deviceMemory?: number }).deviceMemory ?? 8;
   return {
@@ -19,14 +21,14 @@ function state(doc: PDFDocumentProxy) {
   return value;
 }
 export function cachedReaderArtwork(doc: PDFDocumentProxy, page: number, width: number) {
-  return documents.get(doc)?.cache.get(keyFor(page, width));
+  return documents.get(doc)?.cache.get(keyFor(doc, page, width));
 }
 
 /** Unlit HD artwork plus its selectable text and clickable links, prepared once. */
 export function prepareReaderArtwork(doc: PDFDocumentProxy, n: number, size: { w: number; h: number }, cssWidth: number) {
   const store = state(doc);
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  return store.cache.load(`${n}:${cssWidth}:${dpr}`, () => store.queue.enqueue(async () => {
+  return store.cache.load(keyFor(doc, n, cssWidth), () => store.queue.enqueue(async () => {
     const pdfjs = await loadPdfjs();
     const page = await doc.getPage(n);
     const scale = cssWidth / size.w;

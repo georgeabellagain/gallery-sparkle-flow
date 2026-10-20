@@ -49,9 +49,12 @@ export const getPublicPortfolio = createServerFn({ method: "GET" })
       if (access.policy?.password_hash || access.policy?.expires_at) {
         for (const key of signedKeys) urls[key] = `/api/public/portfolio-file/${encodeURIComponent(row.code)}?asset=${encodeURIComponent(key)}`;
       } else {
-      const { data: signed, error: signingError } = await supabaseAdmin.storage.from("portfolio-files").createSignedUrls(signedKeys.map((k) => `${row.owner_id}/${k}`), 300);
-      if (signingError) throw new Error("Couldn’t load the portfolio files. Please try again.");
-      for (const s of signed ?? []) if (s.signedUrl && s.path) urls[s.path.split("/").slice(1).join("/")] = s.signedUrl;
+      // Page pictures add two links a page, so a long book is signed in a few batches.
+      for (let i = 0; i < signedKeys.length; i += 500) {
+        const { data: signed, error: signingError } = await supabaseAdmin.storage.from("portfolio-files").createSignedUrls(signedKeys.slice(i, i + 500).map((k) => `${row.owner_id}/${k}`), 3600);
+        if (signingError) throw new Error("Couldn’t load the portfolio files. Please try again.");
+        for (const s of signed ?? []) if (s.signedUrl && s.path) urls[s.path.split("/").slice(1).join("/")] = s.signedUrl;
+      }
       }
     }
     if (p.pdf && !urls[p.pdf.blobKey]) throw new Error("The portfolio PDF is unavailable. Please try again later.");

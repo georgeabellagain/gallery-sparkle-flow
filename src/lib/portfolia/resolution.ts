@@ -7,6 +7,7 @@
  */
 
 import { isStreamedPdf } from "./remote-pdf";
+import { presetDensity } from "./page-image-doc";
 
 export type DeviceTier ="phone" | "small" | "standard" | "large";
 
@@ -91,6 +92,9 @@ interface DocLike {
  * on the pages looked at. 0 when there are no pictures (a vector-only file looks sharp at any size) or this can't be read.
  */
 export async function detectDensity(doc: DocLike, OPS: OperatorNames, maxPages = 6): Promise<number> {
+  // Pages drawn from pictures made at publishing have exactly the pictures' detail; the manifest says what it is.
+  const preset = presetDensity(doc);
+  if (preset !== undefined) return preset;
   // A streamed PDF looks only at its opening pages, which are drawn first anyway, so no distant page is downloaded early.
   const streamed = isStreamedPdf(doc);
   const count = Math.min(streamed ? 3 : maxPages, doc.numPages);
