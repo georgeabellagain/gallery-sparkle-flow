@@ -17,6 +17,16 @@ test("a failed or invalid page cannot reveal an incomplete portfolio", () => {
   assert.deepEqual(gate.mark(2, false), { completed: 1, failed: 2, ready: false });
   assert.equal(gate.mark(2, true).ready, false);
 });
+test("a streamed PDF opens once the pages in view are ready, and a distant failure does not block it", () => {
+  const gate = createPageReadiness(40, [30, 31]);
+  assert.equal(gate.mark(1, true).ready, false);
+  assert.equal(gate.mark(2, false).failed, null);
+  assert.equal(gate.mark(30, true).ready, false);
+  assert.deepEqual(gate.mark(31, true), { completed: 3, failed: null, ready: true });
+  const last = createPageReadiness(3, [3, 4]);
+  assert.equal(last.mark(3, true).ready, true);
+  assert.equal(createPageReadiness(3, [3]).mark(3, false).failed, 3);
+});
 test("a new document gate cannot inherit readiness from an earlier document", () => {
   const old = createPageReadiness(1);
   assert.equal(old.mark(1, true).ready, true);

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { RemotePdf } from "./remote-pdf";
 
 /**
  * Asset bytes are cached in IndexedDB and, once signed in, stored in the
@@ -99,6 +100,30 @@ export async function getBlob(key: string): Promise<Blob | undefined> {
     }
   }
   return undefined;
+}
+
+let publicUrlRefresher: (() => Promise<Record<string, string>>) | null = null;
+/** How a visitor's page asks for new signed links once the hour-long ones expire. */
+export function setPublicUrlRefresher(refresh: (() => Promise<Record<string, string>>) | null) { publicUrlRefresher = refresh; }
+
+/**
+ * The PDF for the viewer: this browser's own copy when it has one (the creator), otherwise the published file's
+ * link, which the viewer reads range by range so a visitor sees the first pages without downloading the whole file.
+ */
+export async function getPdfSource(key: string): Promise<{ blob: Blob } | RemotePdf | undefined> {
+  const local = await getLocal(key).catch(() => undefined);
+  if (local) return { blob: local };
+  const signed = publicUrls.get(key);
+  if (signed) return {
+    url: signed,
+    refresh: async () => {
+      if (!publicUrlRefresher) return undefined;
+      registerPublicUrls(await publicUrlRefresher());
+      return publicUrls.get(key);
+    },
+  };
+  const blob = await getBlob(key);
+  return blob ? { blob } : undefined;
 }
 
 /** Local-only read, used when moving browser files into an account. */

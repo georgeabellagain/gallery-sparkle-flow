@@ -40,6 +40,7 @@ import { getPreviewLook, subscribePreviewLook, type PreviewLook } from "@/lib/po
 import { coverThenSpreads, coverWithSpreads } from "@/lib/portfolia/mixed-layout";
 import { useTouchGestures } from "@/components/pf/touch-gestures";
 import { CPU_BYTES, deviceTier, detectDensity, longSideCap, longSideFor } from "@/lib/portfolia/resolution";
+import { isStreamedPdf } from "@/lib/portfolia/remote-pdf";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -247,7 +248,8 @@ function pageLoader(
      */
     async preload(onProgress: (done: number, total: number) => void): Promise<void> {
       await plan;
-      const total = Math.min(doc.numPages, Math.floor(keep / perPage));
+      // A streamed PDF prepares only the next couple of spreads ahead; later pages download as the reader nears them.
+      const total = Math.min(doc.numPages, Math.floor(keep / perPage), isStreamedPdf(doc) ? 7 : Infinity);
       // Open on a prepared cover/nearby spread; remaining work continues and pauses during turns.
       const gate = Math.min(lightweight ? 2 : 3, total);
       return new Promise<void>((resolve) => {

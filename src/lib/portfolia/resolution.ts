@@ -6,7 +6,9 @@
  * spread keeps the sheet's detail across both pages.
  */
 
-export type DeviceTier = "phone" | "small" | "standard" | "large";
+import { isStreamedPdf } from "./remote-pdf";
+
+export type DeviceTier ="phone" | "small" | "standard" | "large";
 
 /** Graphics memory page pictures may hold at once (mipmaps included). Beyond it the browser may take the 3D view away. */
 export const GPU_BYTES: Record<DeviceTier, number> = {
@@ -89,8 +91,12 @@ interface DocLike {
  * on the pages looked at. 0 when there are no pictures (a vector-only file looks sharp at any size) or this can't be read.
  */
 export async function detectDensity(doc: DocLike, OPS: OperatorNames, maxPages = 6): Promise<number> {
-  const count = Math.min(maxPages, doc.numPages);
-  const picks = [...new Set(Array.from({ length: count }, (_, i) => Math.round(1 + (i * (doc.numPages - 1)) / Math.max(1, count - 1))))];
+  // A streamed PDF looks only at its opening pages, which are drawn first anyway, so no distant page is downloaded early.
+  const streamed = isStreamedPdf(doc);
+  const count = Math.min(streamed ? 3 : maxPages, doc.numPages);
+  const picks = streamed
+    ? Array.from({ length: count }, (_, i) => i + 1)
+    : [...new Set(Array.from({ length: count }, (_, i) => Math.round(1 + (i * (doc.numPages - 1)) / Math.max(1, count - 1))))];
   const inspect = async (number: number) => {
     let best = 0;
     try {

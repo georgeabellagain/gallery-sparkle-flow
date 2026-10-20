@@ -27,6 +27,7 @@ import { projectFromHash, projectPath, readableProjects, type PortfolioProject }
 import { BookOpen, ChevronLeft, ChevronRight, Download, FileText, LayoutGrid, Maximize2, Minimize2, ScrollText, User, ZoomIn, ZoomOut } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
+import { downloadLink, isStreamedPdf, markStreamedPdf, openRemotePdf, PDF_RANGE_CHUNK, type RemotePdf } from "@/lib/portfolia/remote-pdf";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { getPreviewLook, pinPreviewLook, subscribePreviewLook } from "@/lib/portfolia/preview-look";
@@ -39,7 +40,7 @@ import { BackdropLayer, IconButton, LogoMark, Panel, Segmented, ToolbarDivider, 
 
 import type { PageStudioRenderer, PageStudioSettings } from "@/lib/portfolia/page-studio";
 
-type Source = { blob: Blob } | { url: string };
+type Source = { blob: Blob } | RemotePdf;
 
 const noop = () => {};
 
@@ -198,27 +199,41 @@ export function PdfViewer({
     setError(null);
     setProgress(0);
     let objUrl: string | undefined;
+    const reading = new AbortController();
+    let task: { destroy: () => Promise<void> } | null = null;
     if ("blob" in source) {
       objUrl = URL.createObjectURL(source.blob);
       setDownloadUrl(objUrl);
-    } else setDownloadUrl(source.url);
+    } else setDownloadUrl(downloadLink(source.url, fileName));
     (async () => {
       try {
         const pdfjs = await loadPdfjs();
-        const task = pdfjs.getDocument(
-          "blob" in source ? { data: new Uint8Array(await source.blob.arrayBuffer()) } : { url: source.url },
+        // A published PDF is read range by range, so the opening pages show before the rest has arrived.
+        const remote = "blob" in source ? null : await openRemotePdf(pdfjs, source, {
+          signal: reading.signal,
+          onError: () => { if (!cancelled) setError("Part of this portfolio couldn’t be loaded. Please check your connection and reload."); },
+        });
+        if (cancelled) return;
+        const loading = pdfjs.getDocument(
+          "blob" in source ? { data: new Uint8Array(await source.blob.arrayBuffer()) }
+            : remote?.kind === "range" ? { range: remote.transport, length: remote.length, rangeChunkSize: PDF_RANGE_CHUNK, disableAutoFetch: true, disableStream: true }
+            : remote?.kind === "data" ? { data: remote.data }
+            : { url: source.url },
         );
-        task.onProgress = ({ loaded: l, total }: { loaded: number; total: number }) => {
+        task = loading;
+        loading.onProgress = ({ loaded: l, total }: { loaded: number; total: number }) => {
           if (total) setProgress(Math.min(95, Math.round((l / total) * 90)));
         };
-        loaded = await task.promise;
+        loaded = await loading.promise;
         if (cancelled) return void loaded.destroy();
+        if (remote?.kind === "range") markStreamedPdf(loaded);
         const document = loaded;
         const dimensions = async (i: number) => {
           const vp = (await document.getPage(i)).getViewport({ scale: 1 });
           return { w: vp.width, h: vp.height };
         };
-        const metadata = createRenderQueue(4);
+        // Reading a page's size from a streamed file can wait on a small range request, so more run at once.
+        const metadata = createRenderQueue(remote?.kind === "range" ? 12 : 4);
         const s = await Promise.all(Array.from({ length: document.numPages }, (_, i) => metadata.enqueue(() => dimensions(i + 1))));
         if (cancelled) return;
         setSizes(s);
@@ -230,8 +245,10 @@ export function PdfViewer({
     })();
     return () => {
       cancelled = true;
+      reading.abort();
       if (objUrl) URL.revokeObjectURL(objUrl);
-      void loaded?.destroy();
+      if (loaded) void loaded.destroy();
+      else void task?.destroy();
     };
   }, [source, lightweight]);
 
@@ -465,14 +482,19 @@ export function PdfViewer({
   useEffect(() => {
     setZoom(1);
   }, [mode]);
+  const openingPage = () => {
+    const project = projectCode ? projectFromHash(window.location.hash, sections) : undefined;
+    return project?.startPage ?? Math.min(total, Math.max(1, Number.isFinite(startPage) ? Math.floor(startPage) : 1));
+  };
+  const currentLive = useRef(current);
+  currentLive.current = current;
   useEffect(() => {
     if (!total) return;
     // Apply after page elements mount, in all three reading modes. Hashes remain
     // intact through password entry and work on both permanent and personal URLs.
     let frame = 0;
     const open = () => {
-      const project = projectCode ? projectFromHash(window.location.hash, sections) : undefined;
-      const page = project?.startPage ?? Math.min(total, Math.max(1, Number.isFinite(startPage) ? Math.floor(startPage) : 1));
+      const page = openingPage();
       setCurrent(page);
       setJump({ page, t: Date.now() });
       if (modeLive.current === "scroll" && page > 1) {
@@ -544,7 +566,17 @@ export function PdfViewer({
   const fade = shown ? "opacity-100" : "pointer-events-none opacity-0";
 
   const scrollQueue = useMemo(() => createRenderQueue(2), [doc, mode]);
-  const scrollGate = useMemo(() => createPageReadiness(total), [doc, total, mode, studio, studio ? pageLighting : null, studio && pageLightingReady, studio && pageLightingFailed]);
+  // A streamed PDF opens once the pages in view are ready; the rest are drawn as the reader scrolls towards them.
+  const streamedDoc = doc ? isStreamedPdf(doc) : false;
+  const gatedDoc = useRef<PDFDocumentProxy | null>(null);
+  const scrollGate = useMemo(() => {
+    if (!streamedDoc || !total) return createPageReadiness(total);
+    // A new document opens where the link points; a change of reading mode keeps the reader's page.
+    const first = gatedDoc.current === doc ? currentLive.current : openingPage();
+    gatedDoc.current = doc;
+    return createPageReadiness(total, [first, first + 1]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc, total, mode, studio, studio ? pageLighting : null, studio && pageLightingReady, studio && pageLightingFailed]);
   useLayoutEffect(() => { if (mode === "scroll") setContentReady(false); }, [scrollGate, mode]);
   const scrollPrepared = useCallback((page: number, success: boolean) => {
     if (mode !== "scroll" || (success && studio && !pageLightingReady && !pageLightingFailed)) return;
@@ -733,7 +765,7 @@ export function PdfViewer({
                       className={cn("rounded-md p-0.5 text-xxs text-muted-foreground", current === i + 1 ? "ring-2 ring-primary" : "hover:ring-1 hover:ring-border")}
                     >
                       <div className="pointer-events-none w-full">
-                        <PdfPage doc={doc} n={i + 1} size={s} zoom={0} onVisible={noop} eager thumb />
+                        <PdfPage doc={doc} n={i + 1} size={s} zoom={0} onVisible={noop} eager={!streamedDoc} thumb />
                       </div>
                       <span className="block pt-0.5 tabular-nums">{i + 1}</span>
                     </button>
@@ -791,7 +823,7 @@ export function PdfViewer({
             style={{ paddingTop: topGap, width: `calc(min(100%, ${compact ? 900 : 1100}px) * ${zoom})` }}
           >
             {sizes.map((s, i) => (
-              <PdfPage links={pageLinks(i + 1)} videos={pageVideos(i + 1)} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} onVisible={setCurrent} eager renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
+              <PdfPage links={pageLinks(i + 1)} videos={pageVideos(i + 1)} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} onVisible={setCurrent} eager={!streamedDoc} renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
             ))}
           </div>
         </div>

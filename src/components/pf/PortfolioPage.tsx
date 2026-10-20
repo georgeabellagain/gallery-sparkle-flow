@@ -6,7 +6,8 @@ import type { PageLink, PageTag, PageVideo } from "@/lib/portfolia/page-extras";
 import type { PortfolioProject } from "@/lib/portfolia/projects";
 import { usePortfolioFont } from "@/lib/portfolia/fonts";
 import { reportHref } from "@/lib/portfolia/report";
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
+import { getPdfSource } from "@/lib/portfolia/assets";
 import { Mail } from "lucide-react";
 import { DEFAULT_VIEWER, type PageStyle, type Profile, type ViewerSettings } from "@/lib/portfolia/store";
 import { PdfViewer } from "./PdfViewer";
@@ -124,13 +125,18 @@ export function prettyUrl(u: string) {
   return u.replace(/^https?:\/\//i, "").replace(/\/$/, "");
 }
 
-/** Loads the creator's stored PDF + photo for display. */
+/** Loads the stored PDF + photo for display: the creator's own copy, or a published PDF streamed by link. */
 export function useStoredMedia(pdfKey?: string, photoKey?: string) {
-  const pdfBlob = useBlob(pdfKey);
+  const [pdf, setPdf] = useState<Awaited<ReturnType<typeof getPdfSource>> | null>(null);
+  useEffect(() => {
+    let live = true;
+    setPdf(null);
+    if (pdfKey) void getPdfSource(pdfKey).then((source) => live && setPdf(source ?? null));
+    return () => { live = false; };
+  }, [pdfKey]);
   const photoBlob = useBlob(photoKey);
   const photoUrl = useObjectUrl(photoBlob);
-  const pdf = useMemo(() => (pdfBlob ? { blob: pdfBlob } : null), [pdfBlob]);
-  return { pdf, photoUrl };
+  return { pdf: pdf ?? null, photoUrl };
 }
 
 

@@ -7,9 +7,9 @@ import { Link, useHydrated } from "@tanstack/react-router";
 import { Eye } from "lucide-react";
 import { PortfolioPage, useStoredMedia } from "./PortfolioPage";
 import { Modal, Wordmark } from "./Chrome";
-import { registerPublicUrls } from "@/lib/portfolia/assets";
+import { registerPublicUrls, setPublicUrlRefresher } from "@/lib/portfolia/assets";
 import { useOpenedFromQr } from "@/lib/portfolia/scan";
-import type { PublicPortfolio } from "@/lib/portfolia/public.functions";
+import { getPublicPortfolio, type PublicPortfolio } from "@/lib/portfolia/public.functions";
 import { type ViewerSettings, DEFAULT_VIEWER, findPortfolio, switchPortfolio, recordDownload, recordVisit, useDoc, type Portfolio } from "@/lib/portfolia/store";
 
 /** The same owner-selected published lookbook used on the homepage. */
@@ -80,8 +80,17 @@ export function useOwn(test: (p: Portfolio) => boolean) {
 export const LOCAL_MISSING = "Nothing is published at this address. Check the link, or ask the owner to publish it again.";
 
 /** A published portfolio loaded from the server. */
+/** Signed file links last an hour; a reader left open longer fetches new ones as the PDF needs more pages. */
+function usePublicUrlRefresh(code: string) {
+  useEffect(() => {
+    setPublicUrlRefresher(() => getPublicPortfolio({ data: { by: "code", value: code } }).then((fresh) => fresh?.urls ?? {}));
+    return () => setPublicUrlRefresher(null);
+  }, [code]);
+}
+
 export function CloudVisitor({ data }: { data: NonNullable<PublicPortfolio> }) {
   registerPublicUrls(data.urls);
+  usePublicUrlRefresh(data.portfolio.code);
   const hydrated = useHydrated();
   const own = useOwn((p) => p.code === data.portfolio.code);
   const [editError, setEditError] = useState(false);
@@ -107,6 +116,7 @@ export function CloudVisitor({ data }: { data: NonNullable<PublicPortfolio> }) {
 /** Compact published viewer for embedding on another website. */
 export function EmbeddedVisitor({ data, startPage, mode, background }: { data: NonNullable<PublicPortfolio>; startPage?: number; mode?: "scroll" | "paged" | "book"; background?: ViewerSettings["background"] }) {
   registerPublicUrls(data.urls);
+  usePublicUrlRefresh(data.portfolio.code);
   const p = data.portfolio;
   const { pdf } = useStoredMedia(p.pdf?.blobKey);
   useEffect(() => recordVisit(p.code), [p.code]);
