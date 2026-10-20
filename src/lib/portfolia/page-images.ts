@@ -25,6 +25,19 @@ export interface PageImagePage {
   /** Pixel width and height of each picture, in the order of PageImages.sizes. */
   px: [number, number][];
   links?: PageImageLink[];
+  /** The page has selectable text, stored beside its pictures (<n>-text.json). */
+  text?: true;
+}
+
+/** A page's selectable text as pdf.js's TextLayer reads it, plus the PDF page box it is measured in. */
+export interface StoredPageText {
+  v: 1;
+  /** The page's view box in PDF points [x0, y0, x1, y1] and its rotation. */
+  view: [number, number, number, number];
+  rotate: number;
+  items: unknown[];
+  styles: Record<string, unknown>;
+  lang: string | null;
 }
 
 export interface PageImages {
@@ -34,11 +47,13 @@ export interface PageImages {
   format: PageImageFormat;
   sizes: PageImageSize[];
   pages: PageImagePage[];
+  /** Text files were made for this book: a page without `text` has none, so the PDF is never opened for it. */
+  text?: true;
   createdAt: number;
 }
 
 const KEY = /^[a-zA-Z0-9_.-]+$/;
-const PAGE_KEY = /^[a-zA-Z0-9_.-]+_pages\/[1-9][0-9]{0,3}-(1600|2560)\.(webp|jpg)$/;
+const PAGE_KEY = /^[a-zA-Z0-9_.-]+_pages\/[1-9][0-9]{0,3}-((1600|2560)\.(webp|jpg)|text\.json)$/;
 
 /** Stored file keys are flat names, except page pictures, which live in their PDF's own folder. */
 export function safeAssetKey(key: string): boolean {
@@ -48,6 +63,7 @@ export function safeAssetKey(key: string): boolean {
 export const pageImagesFolder = (pdfKey: string) => `${pdfKey}_pages`;
 export const pageImageKey = (pdfKey: string, page: number, size: PageImageSize, format: PageImageFormat) =>
   `${pageImagesFolder(pdfKey)}/${page}-${size}.${format}`;
+export const pageTextKey = (pdfKey: string, page: number) => `${pageImagesFolder(pdfKey)}/${page}-text.json`;
 
 /**
  * Where each picture is drawn, so its long side is `size` pixels. A landscape page is usually a two-page spread
@@ -67,11 +83,13 @@ export function readablePageImages(pdf?: { blobKey: string; pages: number; pageI
   const m = pdf?.pageImages as Partial<PageImages> | undefined;
   if (!pdf || !m || m.v !== 1 || m.pdfKey !== pdf.blobKey || !KEY.test(pdf.blobKey)) return null;
   if (m.format !== "webp" && m.format !== "jpg") return null;
+  if (m.text !== undefined && m.text !== true) return null;
   if (!Array.isArray(m.sizes) || !m.sizes.length || m.sizes.some((s) => !PAGE_IMAGE_SIZES.includes(s)) || new Set(m.sizes).size !== m.sizes.length) return null;
   if (!Array.isArray(m.pages) || m.pages.length !== pdf.pages || !m.pages.length || m.pages.length > MAX_IMAGE_PAGES) return null;
   for (const page of m.pages) {
     if (!page || !finite(page.w, 1, 20000) || !finite(page.h, 1, 20000)) return null;
     if (!Array.isArray(page.px) || page.px.length !== m.sizes.length || page.px.some((p) => !Array.isArray(p) || !finite(p[0], 1, PAGE_IMAGE_MAX_SIDE) || !finite(p[1], 1, PAGE_IMAGE_MAX_SIDE))) return null;
+    if (page.text !== undefined && page.text !== true) return null;
     if (page.links !== undefined && (!Array.isArray(page.links) || page.links.length > 200 || page.links.some((l) => !l || !safeUrl(l.url) || ![l.x, l.y, l.w, l.h].every((v) => finite(v, -0.01, 1.01))))) return null;
   }
   return m as PageImages;
@@ -83,7 +101,10 @@ export function pageImageKeys(pdf?: { pageImages?: unknown } | null): string[] {
   if (!m || typeof m.pdfKey !== "string" || !KEY.test(m.pdfKey) || (m.format !== "webp" && m.format !== "jpg") || !Array.isArray(m.sizes) || !Array.isArray(m.pages)) return [];
   const sizes = m.sizes.filter((s): s is PageImageSize => PAGE_IMAGE_SIZES.includes(s));
   const count = Math.min(m.pages.length, MAX_IMAGE_PAGES);
-  return Array.from({ length: count }, (_, i) => sizes.map((s) => pageImageKey(m.pdfKey!, i + 1, s, m.format!))).flat();
+  return Array.from({ length: count }, (_, i) => [
+    ...sizes.map((s) => pageImageKey(m.pdfKey!, i + 1, s, m.format!)),
+    ...((m.pages![i] as PageImagePage | undefined)?.text === true ? [pageTextKey(m.pdfKey!, i + 1)] : []),
+  ]).flat();
 }
 
 /** The pictures a visitor may load: only those of the PDF that is published now. */

@@ -1,18 +1,7 @@
 import * as THREE from "three";
 
-/** Average radiance over a sphere, retaining the selected environment's colour and energy. */
-export function averageEnvironment(rgb: Float32Array, width: number, height: number): [number, number, number] {
-  const sums = [0, 0, 0]; let total = 0;
-  for (let y = 0; y < height; y++) {
-    const weight = Math.sin(Math.PI * (y + .5) / height);
-    for (let x = 0; x < width; x++) {
-      const offset = (y * width + x) * 3;
-      for (let c = 0; c < 3; c++) sums[c]! += Math.min(60000, Math.max(0, rgb[offset + c]!)) * weight;
-      total += weight;
-    }
-  }
-  return sums.map(value => value / Math.max(1e-9, total)) as [number, number, number];
-}
+/** Average radiance over a sphere (kept with the lighting preparation, which also runs in a worker). */
+export { averageEnvironment } from "./environment-pixels";
 
 /** Blend prefiltered HDRI radiance towards its solid average colour on the GPU. */
 export function createEnvironmentDiffuser(renderer: THREE.WebGLRenderer) {

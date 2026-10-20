@@ -28,7 +28,7 @@ import { BookOpen, ChevronLeft, ChevronRight, Download, FileText, LayoutGrid, Ma
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { downloadLink, isStreamedPdf, markStreamedPdf, openRemotePdf, PDF_RANGE_CHUNK, type RemotePdf } from "@/lib/portfolia/remote-pdf";
-import { artworkVersion, createPageImageDocument, isPageImageDocument, pageImageText, whenFullPdf } from "@/lib/portfolia/page-image-doc";
+import { artworkVersion, createPageImageDocument, isPageImageDocument, pageImageText, warmPageImages, whenFullPdf } from "@/lib/portfolia/page-image-doc";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { getPreviewLook, pinPreviewLook, subscribePreviewLook } from "@/lib/portfolia/preview-look";
@@ -237,6 +237,12 @@ export function PdfViewer({
       setSizes(source.pageImages.manifest.pages.map((p) => ({ w: p.w, h: p.h })));
       setDoc(pictures);
       setProgress(100);
+      // The flipbook opens on the cover and first spread (and shows the back board's colour), but builds its 3D
+      // scene first; these pictures download meanwhile. Phones draw pages at 1600 px, larger screens at 2560.
+      if (modeLive.current === "book") {
+        const last = source.pageImages.manifest.pages.length;
+        warmPageImages(pictures, [1, 2, 3, last], window.innerWidth < 720 ? 1600 : 2560);
+      }
       return () => {
         cancelled = true;
         reading.abort();
@@ -454,6 +460,16 @@ export function PdfViewer({
   const activeLook = liveScrapbook?.enabled ? "clean" : enabledLooks.includes(requestedLook) ? requestedLook : openingLook(view, mode);
   const changeLook = (look: "clean" | "studio") => { setSelectedLook(look); if (compact) pinPreviewLook(look); };
   const studio = activeLook === "studio";
+  // Studio's lighting downloads and is prepared (in a worker) while the pages and the 3D code load, instead of
+  // after them. The small preview comes first; the book scene and page lighting share these results.
+  const studioLighting = studio ? view.studioLighting ?? "4" : null;
+  useEffect(() => {
+    if (!studioLighting) return;
+    void import("@/lib/portfolia/prepared-environment").then((m) => {
+      void m.loadPreparedEnvironment(studioLighting, "preview").catch(() => {});
+      void m.loadPreparedEnvironment(studioLighting, "full").catch(() => {});
+    });
+  }, [studioLighting]);
   // Each look (in Flipbook) and reading style can carry its own background.
   const backgroundContext = mode === "book" ? (studio ? "studio" : "clean") : mode;
   const bgOverride = view.backgrounds?.[backgroundContext];

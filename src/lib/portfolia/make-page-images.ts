@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { cloudUserId, deleteBlobs, getBlob, getLocalBlob, uploadToCloud } from "./assets";
-import { pageImageKey, pageImageKeys, readablePageImages, PAGE_IMAGE_SIZES, type PageImageFormat, type PageImages, type PageImagePage } from "./page-images";
+import { pageImageKey, pageImageKeys, pageTextKey, readablePageImages, PAGE_IMAGE_SIZES, type PageImageFormat, type PageImages, type PageImagePage } from "./page-images";
 import type { RenderedPageImages } from "./page-image-render";
 import { allPortfolios, attachPageImages, getSavedDoc, pdfOverLimit, portfolioUsesAsset, useDoc } from "./store";
 
@@ -101,11 +101,16 @@ async function make(code: string, pdfKey: string, owner: string | null) {
       if (!ownsCurrent(code, pdfKey)) throw new Error("The portfolio changed.");
       if (!("page" in item)) { format = item.format; total = item.pages; setProgress(code, { done: 0, total }); continue; }
       const page = item;
-      pages[page.page - 1] = { w: page.w, h: page.h, px: page.images.map((i) => [i.width, i.height]), ...(page.links.length ? { links: page.links } : {}) };
+      pages[page.page - 1] = { w: page.w, h: page.h, px: page.images.map((i) => [i.width, i.height]), ...(page.links.length ? { links: page.links } : {}), ...(page.text ? { text: true as const } : {}) };
       const work = (async () => {
         for (const image of page.images) {
           const key = pageImageKey(pdfKey, page.page, image.size, format);
           await upload(key, image.blob, owner);
+          uploaded.push(key);
+        }
+        if (page.text) {
+          const key = pageTextKey(pdfKey, page.page);
+          await upload(key, page.text, owner);
           uploaded.push(key);
         }
         setProgress(code, { done: ++completed, total });
@@ -117,7 +122,7 @@ async function make(code: string, pdfKey: string, owner: string | null) {
     }
     await Promise.all(uploads);
     if (pages.length !== total || pages.some((p) => !p)) throw new Error("Some pages couldn’t be prepared.");
-    const manifest: PageImages = { v: 1, pdfKey, format, sizes: [...PAGE_IMAGE_SIZES], pages, createdAt: Date.now() };
+    const manifest: PageImages = { v: 1, pdfKey, format, sizes: [...PAGE_IMAGE_SIZES], pages, text: true, createdAt: Date.now() };
     const before = savedPortfolio(code, pdfKey)?.pdf?.pageImages;
     if (!readablePageImages({ blobKey: pdfKey, pages: total, pageImages: manifest })) throw new Error("The page pictures couldn’t be checked.");
     if (!ownsCurrent(code, pdfKey) || savedPortfolio(code, pdfKey)?.pdf?.pages !== total || !attachPageImages(code, pdfKey, manifest)) throw new Error("The portfolio changed.");

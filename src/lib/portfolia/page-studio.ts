@@ -8,6 +8,7 @@ import { createFrameCommits } from "./frame-commits";
 import * as THREE from "three";
 import { HDRI_PRESETS, studioLightMix, studioTopLight, presetDirectLight, studioExposure, type HdriId } from "./lighting";
 import { loadPreparedEnvironment } from "./prepared-environment";
+import type { PreparedEnvironment } from "./environment-pixels";
 import { dappleTexture } from "./dapple-light";
 import { type SurfaceKind } from "./surface";
 import { createLitBackdrop } from "./lit-backdrop";
@@ -220,19 +221,38 @@ export function createPageStudioRenderer(host: HTMLElement, viewport: HTMLElemen
   const lost = (event: Event) => { event.preventDefault(); fallback(); };
   renderer.domElement.addEventListener("webglcontextlost", lost);
   let environmentGenerator: THREE.PMREMGenerator | undefined;
+  const prefilter = (id: HdriId, { width, height, pixels, colour }: PreparedEnvironment) => {
+    environmentColours.set(id, colour);
+    const hdr = new THREE.DataTexture(pixels, width, height, THREE.RGBAFormat, THREE.HalfFloatType);
+    hdr.mapping = THREE.EquirectangularReflectionMapping;
+    hdr.minFilter = hdr.magFilter = THREE.LinearFilter; hdr.needsUpdate = true;
+    const pmrem = environmentGenerator ??= new THREE.PMREMGenerator(renderer);
+    try { return pmrem.fromEquirectangular(hdr); }
+    finally { hdr.dispose(); }
+  };
   const environment = (id: HdriId) => {
     let pending = environments.get(id);
     if (!pending) {
+      // The small preview lights the pages first; the full photograph replaces it when it arrives.
+      const full = loadPreparedEnvironment(id, "full");
       pending = (async () => {
-        const { width, height, pixels, colour } = await loadPreparedEnvironment(id);
+        const first = await Promise.any([
+          full.then((prepared) => ({ prepared, final: true })),
+          loadPreparedEnvironment(id, "preview").then((prepared) => ({ prepared, final: false })),
+        ]);
         if (disposed) throw new Error("Reader closed");
-        environmentColours.set(id, colour);
-        const hdr = new THREE.DataTexture(pixels, width, height, THREE.RGBAFormat, THREE.HalfFloatType);
-        hdr.mapping = THREE.EquirectangularReflectionMapping;
-        hdr.minFilter = hdr.magFilter = THREE.LinearFilter; hdr.needsUpdate = true;
-        const pmrem = environmentGenerator ??= new THREE.PMREMGenerator(renderer);
-        try { return pmrem.fromEquirectangular(hdr); }
-        finally { hdr.dispose(); }
+        const target = prefilter(id, first.prepared);
+        if (!first.final) void full.then((prepared) => {
+          if (disposed) return;
+          const better = prefilter(id, prepared);
+          environments.set(id, Promise.resolve(better));
+          if (settings?.hdri === id) {
+            scene.environment = diffuser.apply(better, studioLightMix(settings.strength).hdri, environmentColours.get(id));
+            requestPaint();
+          }
+          target.dispose();
+        }, () => {});
+        return target;
       })();
       environments.set(id, pending);
       pending.catch(() => { if (environments.get(id) === pending) environments.delete(id); });

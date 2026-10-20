@@ -26,6 +26,7 @@ import * as THREE from "three";
 import { createLitBackdrop } from "./lit-backdrop";
 import { paperFinish, type SurfaceKind } from "./surface";
 import { loadPreparedEnvironment } from "./prepared-environment";
+import type { PreparedEnvironment } from "./environment-pixels";
 import { DEFAULT_SIMPLE_SHADOW_OPACITY, HDRI_PRESETS, studioLightMix, studioTopLight, presetDirectLight, studioExposure, type HdriId } from "./lighting";
 import { GPU_BYTES, deviceTier, gpuBytesOf } from "./resolution";
 
@@ -138,17 +139,40 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     return evenLight;
   };
+  const install = (id: HdriId, { width, height, pixels, colour }: PreparedEnvironment) => {
+    environmentColours.set(id, colour);
+    const target = toEnvironment(pixels, width, height);
+    environments.set(id, target);
+    return target;
+  };
+  /** The full photograph replaces its preview only while no page is turning, so a turn never stalls on it. */
+  const upgradeEnvironment = (id: HdriId, prepared: PreparedEnvironment) => {
+    if (disposed) return;
+    if (turning) { setTimeout(() => upgradeEnvironment(id, prepared), 250); return; }
+    const previous = environments.get(id);
+    const target = install(id, prepared);
+    if (settings.studio && settings.hdri === id) {
+      scene.environment = diffuser.apply(target, studioLightMix(settings.strength).hdri, environmentColours.get(id));
+      requestPaint(false);
+    }
+    if (previous && previous !== target) previous.dispose();
+  };
   const loadEnvironment = (id: HdriId): Promise<THREE.WebGLRenderTarget | null> => {
     const hit = environments.get(id);
     if (hit) return Promise.resolve(hit);
     let promise = loading.get(id);
     if (!promise) {
-      promise = loadPreparedEnvironment(id)
-        .then(({ width, height, pixels: half, colour }) => {
+      // The small preview (about 130 KB) lights the paper first; the full photograph follows. Whichever is
+      // ready first is used, so a full file prepared earlier is never replaced by its preview.
+      const full = loadPreparedEnvironment(id, "full");
+      promise = Promise.any([
+        full.then((prepared) => ({ prepared, final: true })),
+        loadPreparedEnvironment(id, "preview").then((prepared) => ({ prepared, final: false })),
+      ])
+        .then(({ prepared, final }) => {
           if (disposed) return null;
-          environmentColours.set(id, colour);
-          const target = toEnvironment(half, width, height);
-          environments.set(id, target);
+          const target = install(id, prepared);
+          if (!final) void full.then((better) => upgradeEnvironment(id, better), () => {});
           return target;
         })
         .catch(() => null)
@@ -442,6 +466,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let pendingDragShape: (() => void) | null = null;
   const paint = () => {
     if (disposed) return;
+    // Held while shaders compile (see warm); the finished compile asks for this frame again.
+    if (shadersPending && !turning && !captureClock && !frameSink && !fixedQuality) return;
     // A direct animation draw supersedes an input/contact-shadow draw queued
     // for the same frame. Avoid shading the fullscreen surface twice.
     if (paintQueued) { cancelAnimationFrame(paintQueued); paintQueued = 0; }
@@ -662,11 +688,19 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     applyContact();
   };
 
+  /**
+   * Shaders still being compiled. They compile in parallel, off the main thread where the browser supports it
+   * (KHR_parallel_shader_compile), so the pictures keep decoding meanwhile; a draw before then would wait for
+   * them, so drawing is held (never during a turn or a capture) and resumes once they are ready.
+   */
+  let compiling: Promise<unknown> = Promise.resolve();
+  let shadersPending = false;
   /** Compiles the page shaders now so the first turn does not stall. */
   const warm = () => {
     const before: [boolean, boolean, boolean] = [left.visible, right.visible, sheet.visible];
     const sides: [THREE.Side, THREE.Side] = [frontMat.side, backMat.side];
     left.visible = right.visible = sheet.visible = true;
+    const jobs: Promise<unknown>[] = [];
     try {
       // Forward and backward turns use different shader variants for the sheet.
       for (const dir of [1, -1] as const) {
@@ -674,10 +708,19 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         backMat.side = dir === 1 ? THREE.BackSide : THREE.FrontSide;
         frontMat.needsUpdate = true;
         backMat.needsUpdate = true;
-        renderer.compile(scene, camera);
+        // Each call requests the programs for the state it sees, so the variants are fixed before the sides change.
+        jobs.push(renderer.compileAsync(scene, camera).catch(() => undefined));
       }
     } catch {
       /* shaders will compile on first draw instead */
+    }
+    if (jobs.length) {
+      shadersPending = true;
+      const all: Promise<unknown> = (compiling = Promise.all([compiling, ...jobs]).then(() => {
+        if (compiling !== all || disposed) return;
+        shadersPending = false;
+        requestPaint();
+      }));
     }
     frontMat.side = sides[0];
     backMat.side = sides[1];
@@ -1041,6 +1084,14 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     configure,
     show,
     prefetchTurn(from: BookFaces, to: BookFaces, dir: 1 | -1) { if (!disposed && !turning) posesForTurn(from, to, dir); },
+    /** Resolves once the shaders compiling in the background are ready, so the book can be shown already drawn. */
+    async shadersReady() {
+      for (let current = compiling; ; current = compiling) {
+        await current;
+        if (current === compiling) break;
+      }
+      if (!disposed) paint();
+    },
     /** Uploads a page to the GPU ahead of time so a later turn does not stall. */
     /**
      * Gets everything the first turn and the Simple/Studio switch will need: with `bothLooks` the shaders for
@@ -1055,7 +1106,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         configure(current);
       }
       const ids = [...new Set([...(bothLooks || settings.studio ? [settings.hdri] : []), ...lightingCycle])];
-      return Promise.all([paperTextures.ready(), ...ids.map(loadEnvironment)]).then(() => {
+      return Promise.all([paperTextures.ready(), compiling, ...ids.map(loadEnvironment)]).then(() => {
         if (disposed || !lightingCycle.length) return;
         // Compile projected window/slat lighting before the demonstration is visible.
         const current = settings;

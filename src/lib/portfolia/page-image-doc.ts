@@ -1,11 +1,12 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { pageImageDensity, pageImageKey, pickPageImage, type PageImages } from "./page-images";
+import { pageImageDensity, pageImageKey, pageTextKey, pickPageImage, type PageImages, type StoredPageText } from "./page-images";
 
 /**
  * A published portfolio opens on its page pictures. This document stands in for pdf.js in the three readers: its
  * pages report the PDF's own sizes, draw the picture that suits the requested size, and carry the PDF's links from
- * the manifest. Nothing of the PDF is downloaded to show a page. The real PDF is streamed afterwards, only when
- * a reader wants selectable text (scroll and page by page) or zooms in beyond the pictures' detail.
+ * the manifest, and selectable text from small text files beside the pictures. Nothing of the PDF is downloaded to
+ * show a page. The real PDF is streamed only to zoom beyond the pictures' detail, to draw a page whose picture is
+ * missing, or for the text of books made before text files existed.
  */
 
 export type PageImageSource = {
@@ -25,6 +26,10 @@ type Doc = {
   openPdf: () => PDFDocumentProxy | null;
   onPdf: (listener: () => void) => () => void;
   texts: Map<string, Promise<HTMLDivElement | null>>;
+  /** The page's stored text file, or null when it has none or it can't be read. */
+  storedText: (n: number) => Promise<StoredPageText | null>;
+  bitmap: (n: number, width: number, height: number) => Promise<ImageBitmap>;
+  warm: (pages: number[], needLong: number) => void;
 };
 const documents = new WeakMap<object, Doc>();
 
@@ -34,6 +39,25 @@ export const presetDensity = (doc: object): number | undefined => {
   const d = documents.get(doc);
   return d ? pageImageDensity(d.manifest) : undefined;
 };
+/** Pixels per PDF point of a page's most detailed picture: more detail than this can't be drawn from them. */
+export const pictureDensity = (doc: object, page: number): number | undefined => {
+  const d = documents.get(doc);
+  return d ? pageImageDensity(d.manifest, page) : undefined;
+};
+/**
+ * A page's picture decoded at `width`×`height` (decoding and scaling happen off the main thread), for the
+ * flipbook to compose its page faces from directly, without drawing it into a full-size canvas first.
+ */
+export function pageImageBitmap(doc: object, n: number, width: number, height: number): Promise<ImageBitmap> | null {
+  return documents.get(doc)?.bitmap(n, width, height) ?? null;
+}
+/**
+ * Starts downloading pages' pictures now (at the size that covers `needLong` pixels), so they arrive while the
+ * flipbook builds its 3D scene instead of after it. Later draws reuse the downloaded bytes.
+ */
+export function warmPageImages(doc: object, pages: number[], needLong: number) {
+  documents.get(doc)?.warm(pages, needLong);
+}
 /** 0 while pages come from pictures only; 1 once the PDF is open and deep zoom can draw from it. */
 export const artworkVersion = (doc: object) => (documents.get(doc)?.openPdf() ? 1 : 0);
 /** Asks for the PDF (for zoom beyond the pictures) and calls back once it is open. */
@@ -47,7 +71,10 @@ export function whenFullPdf(doc: object, listener: () => void): () => void {
 /** Text waits this long after the first pictures, so the PDF's opening requests never compete with them. */
 const TEXT_DELAY_MS = 800;
 
-/** The page's selectable text from the streamed PDF, drawn at `scale`; null when the PDF cannot be read. */
+/**
+ * The page's selectable text, drawn at `scale`. Books made with text files read it from the small file beside
+ * the pictures (a page without one has no text); older ones stream it from the PDF. Null when there is none.
+ */
 export async function pageImageText(doc: object, n: number, scale: number): Promise<HTMLDivElement | null> {
   const d = documents.get(doc);
   if (!d) return null;
@@ -55,15 +82,29 @@ export async function pageImageText(doc: object, n: number, scale: number): Prom
   let made = d.texts.get(id);
   if (!made) {
     made = (async () => {
+      // Loaded here, not at the top: resolution.ts reads this module in unit tests, which have no browser.
+      const pdfjs = () => import("./pdf").then((m) => m.loadPdfjs());
+      const div = document.createElement("div");
+      div.className = "textLayer";
+      if (d.manifest.text) {
+        const stored = await d.storedText(n);
+        if (!stored) return null;
+        const [x0, y0, x1, y1] = stored.view;
+        const rawDims = { pageWidth: x1 - x0, pageHeight: y1 - y0, pageX: x0, pageY: y0 };
+        await new (await pdfjs()).TextLayer({ textContentSource: { items: stored.items, styles: stored.styles, lang: stored.lang } as never, container: div, viewport: { scale, rotation: stored.rotate, rawDims } as never }).render();
+        // TextLayer sizes its box only for pdf.js's own viewport class, which isn't exported; this matches it.
+        const turned = stored.rotate % 180 !== 0;
+        div.style.width = `calc(var(--scale-factor) * ${turned ? rawDims.pageHeight : rawDims.pageWidth}px)`;
+        div.style.height = `calc(var(--scale-factor) * ${turned ? rawDims.pageWidth : rawDims.pageHeight}px)`;
+        div.setAttribute("data-main-rotation", String(stored.rotate));
+        return div;
+      }
       if (!d.openPdf()) await new Promise((resolve) => setTimeout(resolve, TEXT_DELAY_MS));
       const pdf = await d.pdf().catch(() => null);
       if (!pdf) return null;
-      // Loaded here, not at the top: resolution.ts reads this module in unit tests, which have no browser.
-      const [pdfjs, page] = await Promise.all([import("./pdf").then((m) => m.loadPdfjs()), pdf.getPage(n)]);
+      const [lib, page] = await Promise.all([pdfjs(), pdf.getPage(n)]);
       const viewport = page.getViewport({ scale });
-      const div = document.createElement("div");
-      div.className = "textLayer";
-      await new pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: div, viewport }).render();
+      await new lib.TextLayer({ textContentSource: page.streamTextContent(), container: div, viewport }).render();
       return div;
     })().catch(() => null);
     d.texts.set(id, made);
@@ -225,7 +266,24 @@ export function createPageImageDocument(source: PageImageSource, openPdf: () => 
       await opened?.destroy();
     },
   };
-  documents.set(doc, { manifest, pdf, openPdf: () => opened, onPdf: (l) => (listeners.add(l), () => listeners.delete(l)), texts: new Map() });
+  const storedText = async (n: number): Promise<StoredPageText | null> => {
+    if (!manifest.pages[n - 1]?.text) return null;
+    const stored = (await (await picture(pageTextKey(manifest.pdfKey, n))).text().then(JSON.parse).catch(() => null)) as StoredPageText | null;
+    return stored?.v === 1 && Array.isArray(stored.items) && Array.isArray(stored.view) ? stored : null;
+  };
+  const bitmap = async (n: number, width: number, height: number) => {
+    const info = manifest.pages[n - 1];
+    if (!info) throw new Error("Invalid page request.");
+    const blob = await picture(pageImageKey(manifest.pdfKey, n, manifest.sizes[pickPageImage(info, Math.max(width, height))]!, manifest.format));
+    return createImageBitmap(blob, { resizeWidth: width, resizeHeight: height, resizeQuality: "high" }).catch(() => createImageBitmap(blob));
+  };
+  const warm = (list: number[], needLong: number) => {
+    for (const n of new Set(list)) {
+      const info = manifest.pages[n - 1];
+      if (info) void picture(pageImageKey(manifest.pdfKey, n, manifest.sizes[pickPageImage(info, needLong)]!, manifest.format)).catch(() => {});
+    }
+  };
+  documents.set(doc, { manifest, pdf, openPdf: () => opened, bitmap, warm, onPdf: (l) => (listeners.add(l), () => listeners.delete(l)), texts: new Map(), storedText: (n) => storedText(n).catch(() => null) });
   // Readers use it exactly as they use a pdf.js document.
   return doc as unknown as PDFDocumentProxy;
 }

@@ -41,6 +41,7 @@ import { coverThenSpreads, coverWithSpreads } from "@/lib/portfolia/mixed-layout
 import { useTouchGestures } from "@/components/pf/touch-gestures";
 import { CPU_BYTES, deviceTier, detectDensity, longSideCap, longSideFor } from "@/lib/portfolia/resolution";
 import { isStreamedPdf } from "@/lib/portfolia/remote-pdf";
+import { isPageImageDocument, pageImageBitmap, pictureDensity } from "@/lib/portfolia/page-image-doc";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,8 @@ const lookFrom = (viewer: ViewerSettings): Look => ({
 
 /** The most turns that can be queued up by clicking quickly. */
 const MAX_QUEUE = 12;
+/** Page faces kept decoded for a book drawn from page pictures: the open spread, the ones either side, and spare. */
+const PICTURE_FACES = 10;
 
 
 /**
@@ -142,13 +145,19 @@ function pageLoader(
   const leafLongPt = (page: number, width: number, height: number) => Math.max(isSplit(page) ? width / 2 : width, height);
   let nativeDensity = 0;
   let keep = 8;
-  const longFor = (page: number, width: number, height: number) =>
-    longSideFor({
+  // Pages drawn from pictures made at publishing cannot hold more detail than those pictures, so a large screen
+  // never spends memory on enlarging them.
+  const pictures = isPageImageDocument(doc);
+  const longFor = (page: number, width: number, height: number) => {
+    const long = longSideFor({
       screenLong,
       density: nativeDensity,
       leafLongPt: leafLongPt(page, width, height),
       cap: lightweight ? previewTextureCap : Math.min(tier === "phone" ? 1600 : Infinity, longSideCap({ leafRatio, tier, maxTexture: maxTexture() })),
     });
+    const detail = pictures ? pictureDensity(doc, page) : undefined;
+    return detail ? Math.min(long, Math.max(1, Math.round(detail * leafLongPt(page, width, height)))) : long;
+  };
 
   const plan = (async () => {
     nativeDensity = await density.catch(() => 0);
@@ -156,8 +165,11 @@ function pageLoader(
     const long = longFor(1, first.width, first.height);
     // Enough pages stay in memory to turn through the book; the rest are prepared as they are needed.
     keep = Math.max(6, Math.min(count, Math.floor(CPU_BYTES[tier] / ((4 * long * long) / leafRatio))));
+    // A page made from a picture is decoded again from its small file in milliseconds, so only the spreads
+    // around the reader stay decoded in memory; PDF pages are slow to draw and keep the larger budget.
+    if (pictures) keep = Math.min(keep, PICTURE_FACES);
   })();
-  const compose = (raw: HTMLCanvasElement, leaf: Leaf, index: number, noteImages: Awaited<ReturnType<typeof loadNoteImages>>, posters: Map<string, ImageBitmap>) => {
+  const compose = (raw: HTMLCanvasElement | ImageBitmap, leaf: Leaf, index: number, noteImages: Awaited<ReturnType<typeof loadNoteImages>>, posters: Map<string, ImageBitmap>) => {
     const canvas = document.createElement("canvas");
     canvas.width = leaf.half ? Math.floor(raw.width / 2) : raw.width;
     canvas.height = Math.round(canvas.width * ratio);
@@ -208,20 +220,29 @@ function pageLoader(
       // The scale that gives one leaf (a whole page, or half of a spread) its long side, so a spread's two
       // halves together carry the whole sheet's detail.
       const viewport = pdfPage.getViewport({ scale: longFor(page, original.width, original.height) / leafLongPt(page, original.width, original.height) });
-      const raw = document.createElement("canvas");
-      raw.width = Math.ceil(viewport.width);
-      raw.height = Math.ceil(viewport.height);
-      const task = pdfPage.render({ canvasContext: raw.getContext("2d")!, viewport });
-      // PDF.js yields between chunks. Hold speculative chunks during motion;
-      // a face explicitly requested by navigation bypasses the hold.
-      task.onContinue = (continuation: () => void) => preparation.schedule(page, () => { if (!closed) continuation(); });
-      tasks.add(task);
-      try {
-        await task.promise;
-      } finally {
-        tasks.delete(task);
+      const width = Math.ceil(viewport.width), height = Math.ceil(viewport.height);
+      // A picture is decoded straight to its final size off the main thread and the faces are composed from it:
+      // no full-size drawing canvas, and nothing for pdf.js to do.
+      let raw: HTMLCanvasElement | ImageBitmap | null = pictures ? ((await pageImageBitmap(doc, page, width, height)?.catch(() => null)) ?? null) : null;
+      if (closed) { if (raw instanceof ImageBitmap) raw.close(); throw new Error("Viewer closed"); }
+      if (!raw) {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const task = pdfPage.render({ canvasContext: canvas.getContext("2d")!, viewport });
+        // PDF.js yields between chunks. Hold speculative chunks during motion;
+        // a face explicitly requested by navigation bypasses the hold.
+        task.onContinue = (continuation: () => void) => preparation.schedule(page, () => { if (!closed) continuation(); });
+        tasks.add(task);
+        try {
+          await task.promise;
+        } finally {
+          tasks.delete(task);
+        }
+        raw = canvas;
       }
       if (closed) throw new Error("Viewer closed");
+      const source = raw;
       const [, , images, posters] = await Promise.all([
         loadLinkIcons(links.filter((l) => l.page === page), linkIcons),
         loadNoteFonts(notes.filter(f => f.page === page).map(f => foldoutSurfaces(f).outside)),
@@ -231,10 +252,13 @@ function pageLoader(
       try {
         await new Promise<void>(resolve => preparation.schedule(page, resolve));
         if (closed) throw new Error("Viewer closed");
-        for (const index of leavesOf.get(page) ?? []) faces.set(index, compose(raw, layout.leaves[index]!, index, images, posters));
-      } finally { images.forEach(image => image.close()); posters.forEach(image => image.close()); }
-      // The faces hold the pixels now; release the full-size render straight away.
-      raw.width = raw.height = 0;
+        for (const index of leavesOf.get(page) ?? []) faces.set(index, compose(source, layout.leaves[index]!, index, images, posters));
+      } finally {
+        images.forEach(image => image.close()); posters.forEach(image => image.close());
+        // The faces hold the pixels now; release the full-size render straight away.
+        if (source instanceof HTMLCanvasElement) source.width = source.height = 0;
+        else source.close();
+      }
       while (faces.size > keep) faces.delete(faces.keys().next().value!);
     })().finally(() => pending.delete(page));
     pending.set(page, promise);
@@ -637,6 +661,8 @@ export function BookView({
       } catch {
         /* turning is allowed anyway */
       }
+      // Shaders compile in parallel with the pages; the book appears once its first frame is really drawn.
+      await scene.current?.shadersReady().catch(() => undefined);
       if (!cancelled) setWarm(true);
     }).catch(() => { if (!cancelled) setError("The PDF pages could not be prepared. Please reload and try again."); });
     // 3D that keeps working. Failing to start, or the browser taking the graphics context back, is not the end

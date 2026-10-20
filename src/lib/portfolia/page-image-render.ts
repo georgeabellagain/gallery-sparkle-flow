@@ -1,9 +1,10 @@
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { pageImagePixels, PAGE_IMAGE_SIZES, type PageImageFormat, type PageImageLink, type PageImageSize } from "./page-images";
+import { pageImagePixels, PAGE_IMAGE_SIZES, type PageImageFormat, type PageImageLink, type PageImageSize, type StoredPageText } from "./page-images";
 
 /**
  * Draws PDF pages as page pictures. Runs in a worker with OffscreenCanvas (page-images.worker.ts), or on the main
- * thread where a worker cannot run pdf.js. The largest size is drawn once and the smaller one is scaled from it.
+ * thread where a worker cannot run pdf.js. The largest size is drawn once and the smaller one is scaled from it,
+ * and the page's text is saved too, so a visitor needs the PDF only to zoom in beyond the pictures.
  */
 
 export type RenderedPageImages = {
@@ -12,6 +13,8 @@ export type RenderedPageImages = {
   h: number;
   links: PageImageLink[];
   images: { size: PageImageSize; width: number; height: number; blob: Blob }[];
+  /** The page's selectable text (StoredPageText as JSON), or null when it has none. */
+  text: Blob | null;
 };
 
 type AnyCanvas = OffscreenCanvas | HTMLCanvasElement;
@@ -106,6 +109,22 @@ async function pageLinks(page: Awaited<ReturnType<PDFDocumentProxy["getPage"]>>,
   return links;
 }
 
+const short = (n: unknown) => (typeof n === "number" ? Math.round(n * 1000) / 1000 : n);
+
+/**
+ * The page's selectable text, kept beside its pictures so visitors never download the PDF for it. Null when the
+ * page has none (a scanned or picture-only page).
+ */
+async function pageText(page: Awaited<ReturnType<PDFDocumentProxy["getPage"]>>): Promise<Blob | null> {
+  const content = await page.getTextContent().catch(() => null);
+  if (!content || !content.items.some((item) => "str" in item && item.str.trim())) return null;
+  const items = content.items.map((item) => "str" in item
+    ? { str: item.str, dir: item.dir, width: short(item.width), height: short(item.height), transform: item.transform.map(short), fontName: item.fontName, hasEOL: item.hasEOL }
+    : item);
+  const stored: StoredPageText = { v: 1, view: page.view.map((v) => short(v) as number) as StoredPageText["view"], rotate: page.rotate, items, styles: content.styles as Record<string, unknown>, lang: content.lang ?? null };
+  return new Blob([JSON.stringify(stored)], { type: "application/json" });
+}
+
 /** Draws one page at every size. `format` comes from chooseFormat(). */
 export async function renderPageImages(doc: PDFDocumentProxy, n: number, format: PageImageFormat, sizes: readonly PageImageSize[] = PAGE_IMAGE_SIZES): Promise<RenderedPageImages> {
   const page = await doc.getPage(n);
@@ -132,7 +151,7 @@ export async function renderPageImages(doc: PDFDocumentProxy, n: number, format:
       if (target !== big) target.canvas.width = target.canvas.height = 0;
     }
     big.canvas.width = big.canvas.height = 0;
-    return { page: n, w: base.width, h: base.height, links: await pageLinks(page, base), images: images.sort((a, b) => a.size - b.size) };
+    return { page: n, w: base.width, h: base.height, links: await pageLinks(page, base), images: images.sort((a, b) => a.size - b.size), text: await pageText(page) };
   } finally {
     page.cleanup();
   }

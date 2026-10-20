@@ -1,19 +1,23 @@
-Page pictures: public portfolios open on small pre-made page images
+Page pictures + faster Studio: public portfolios open on small pre-made page images
 
 APPLY AFTER "upload-faster-first-page" (which itself goes after "upload-video-on-page").
 These files contain both of those changes plus this work.
 
-Drag "src", "tests" and AGENTS.md from this folder onto the GitHub repo
-(georgeabellagain/gallery-sparkle-flow) and commit. They replace files in place.
+Drag "src", "tests", "scripts", "public" and AGENTS.md from this folder onto the GitHub repo
+(georgeabellagain/gallery-sparkle-flow) and commit. They replace or add files in place.
 
 New files:
   src/lib/portfolia/page-images.ts          manifest, keys, checks (shared with the server)
-  src/lib/portfolia/page-image-render.ts    draws one page as WebP/JPEG pictures
+  src/lib/portfolia/page-image-render.ts    draws one page as WebP/JPEG pictures + its text
   src/lib/portfolia/page-images.worker.ts   runs that in a worker (pdf.js + OffscreenCanvas)
   src/lib/portfolia/make-page-images.ts     publish/replace/backfill: draw, upload, save manifest
   src/lib/portfolia/page-image-doc.ts       the viewer's picture document (stands in for pdf.js)
   src/components/pf/PageImagesNote.tsx      "Preparing quick-opening pages" status / button
-  tests/page-images.test.ts, tests/page-images-store.test.ts
+  src/lib/portfolia/environment-pixels.ts   Studio lighting preparation (no three.js)
+  src/lib/portfolia/environment.worker.ts   prepares Studio lighting off the main thread
+  scripts/make-lighting-previews.ts         makes the small lighting previews below
+  public/studio/hdri/lighting-N-preview.hdr 15 small (128 KB) previews of the lighting files
+  tests/page-images.test.ts, tests/page-images-store.test.ts, tests/lighting-preview.test.ts
 
 Not included on purpose: routeTree.gen.ts, dev routes, package.json, lockfiles.
 No database migration and no new packages. Page pictures do not count toward the plan
