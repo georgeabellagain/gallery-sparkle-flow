@@ -67,6 +67,25 @@ export interface PageSpotlight {
   /** Optional words shown under the enlarged detail. */
   caption?: string;
 }
+/**
+ * A box on a page that takes the reader to another page: typically one per line of a contents page. In the book
+ * it turns straight there; in the other reading styles it scrolls or steps to that page.
+ */
+export interface PageJump {
+  id: string;
+  page: number;
+  /** Which half of a spread-sheet page the box sits on. */
+  half: "left" | "right";
+  /** Top-left corner and size as fractions of the page. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** The 1-based PDF page it goes to. */
+  target: number;
+}
+export const MAX_JUMPS = 60;
+export const JUMP_SIZE = { min: 0.02, default: { width: 0.6, height: 0.05 } };
 /** Spotlights per portfolio: a few on Free, plenty on Personal. */
 export const SPOTLIGHT_LIMITS = { free: 3, personal: 24 } as const;
 export const SPOTLIGHT_CAPTION_LIMIT = 140;
@@ -209,6 +228,28 @@ export function spotlightRegion(s: Pick<PageSpotlight, "half" | "x" | "y" | "wid
   return split
     ? { x: (s.half === "right" ? 0.5 : 0) + s.x / 2, y: s.y, width: s.width / 2, height: s.height }
     : { x: s.x, y: s.y, width: s.width, height: s.height };
+}
+export function validatePageJump(j: PageJump, pages: number): string | null {
+  if (!j || typeof j !== "object" || !key.test(j.id)) return "Choose a valid page link.";
+  if (!Number.isInteger(j.page) || j.page < 1 || j.page > pages) return "Choose a page in this PDF.";
+  if (!Number.isInteger(j.target) || j.target < 1 || j.target > pages) return `Choose a page from 1 to ${pages} to go to.`;
+  if (j.half !== "left" && j.half !== "right") return "Choose a page half.";
+  if (![j.x, j.y, j.width, j.height].every(Number.isFinite)) return "Choose a valid box.";
+  if (j.width < JUMP_SIZE.min - 1e-9 || j.height < JUMP_SIZE.min - 1e-9 || j.width > 1.0001 || j.height > 1.0001) return "Choose a valid box size.";
+  if (j.x < -1e-9 || j.y < -1e-9 || j.x + j.width > 1.0001 || j.y + j.height > 1.0001) return "Keep the box on the page.";
+  return null;
+}
+export const readablePageJumps = (value: unknown, pages: number): PageJump[] => readable<PageJump>(value, MAX_JUMPS, (j) => !validatePageJump(j, pages));
+export const jumpsForLeaf = (jumps: PageJump[], leaf: { page: number; half?: "left" | "right" }) =>
+  jumps.filter((j) => j.page === leaf.page && (!leaf.half || j.half === leaf.half));
+/** The same leaf-relative box on the full PDF page, for Scroll and Page-by-page. */
+export function jumpsForPage(jumps: PageJump[], page: number, split: boolean): PageJump[] {
+  return jumps.filter((j) => j.page === page).map((j) => split ? { ...j, x: (j.half === "right" ? 0.5 : 0) + j.x / 2, width: j.width / 2 } : j);
+}
+/** Keeps a page link's box on its page while it is moved or resized. Its shape is free. */
+export function placeJump(j: PageJump, x: number, y: number, width: number, height: number): PageJump {
+  const w = Math.min(Math.max(JUMP_SIZE.min, width), 1), h = Math.min(Math.max(JUMP_SIZE.min, height), 1);
+  return { ...j, width: w, height: h, x: Math.min(Math.max(0, x), 1 - w), y: Math.min(Math.max(0, y), 1 - h) };
 }
 function readable<T extends { id: string }>(value: unknown, max: number, ok: (v: T) => boolean): T[] {
   if (!Array.isArray(value)) return [];

@@ -10,8 +10,8 @@ import {
   type Foldout,
   type ResizeCorner,
 } from "@/lib/portfolia/foldouts";
-import { linksForLeaf, placeVideo, readablePageSpotlights, readablePageVideos, spotlightsForLeaf, tabSlots, videoHeight, videosForLeaf, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
-import { Search } from "lucide-react";
+import { jumpsForLeaf, linksForLeaf, placeVideo, readablePageJumps, readablePageSpotlights, readablePageVideos, spotlightsForLeaf, tabSlots, videoHeight, videosForLeaf, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { CornerDownRight, Search } from "lucide-react";
 import { useBlob } from "./Chrome";
 
 /** The video's still in the editor; the moving picture plays in the reader. */
@@ -58,7 +58,7 @@ export function LiveScrapbookPage({
     next: Extra;
     centre?: { x: number; y: number };
   } | null>(null);
-  useEffect(() => setDraft(null), [pdf.foldouts, pdf.links, pdf.tags, pdf.videos, pdf.spotlights]);
+  useEffect(() => setDraft(null), [pdf.foldouts, pdf.links, pdf.tags, pdf.videos, pdf.spotlights, pdf.jumps]);
   const leafVideos = videosForLeaf(readablePageVideos(pdf.videos, pdf.pages), leaf);
   // A new video is placed at a typical page shape; fit its height to this page's real shape once it is seen.
   useEffect(() => {
@@ -169,7 +169,7 @@ export function LiveScrapbookPage({
       <button
         key={corner}
         type="button"
-        aria-label={`Resize ${kind === "foldouts" ? "note" : kind === "tags" ? "tab" : kind === "videos" ? "video" : kind === "spotlights" ? "spotlight" : "link"} ${corner}`}
+        aria-label={`Resize ${kind === "foldouts" ? "note" : kind === "tags" ? "tab" : kind === "videos" ? "video" : kind === "spotlights" ? "spotlight" : kind === "jumps" ? "page link" : "link"} ${corner}`}
         {...controls(kind, item, corner as ResizeCorner)}
         className={`pointer-events-auto absolute z-20 size-3 touch-none border border-white bg-blue-600 ${corner.includes("n") ? "-top-1.5" : "-bottom-1.5"} ${corner.includes("w") ? "-left-1.5" : "-right-1.5"}`}
         style={{ cursor: corner === "nw" || corner === "se" ? "nwse-resize" : "nesw-resize" }}
@@ -229,6 +229,28 @@ export function LiveScrapbookPage({
               className="absolute inset-0 touch-none cursor-move bg-transparent"
             />
             {resize("videos", v)}
+          </div>
+        );
+      })}
+      {jumpsForLeaf(readablePageJumps(pdf.jumps, pdf.pages), leaf).map((original) => {
+        const j = live(original);
+        return (
+          <div
+            key={j.id}
+            data-selected={selected === j.id || undefined}
+            className="absolute pointer-events-auto border-2 border-dashed border-emerald-600/80 bg-emerald-500/10 data-[selected]:border-solid data-[selected]:bg-emerald-500/15"
+            style={{ left: `${j.x * 100}%`, top: `${j.y * 100}%`, width: `${j.width * 100}%`, height: `${j.height * 100}%` }}
+          >
+            <span aria-hidden className="pointer-events-none absolute right-0.5 top-1/2 inline-flex -translate-y-1/2 items-center gap-0.5 rounded bg-emerald-600 px-1 py-px text-[9px] leading-tight text-white">
+              <CornerDownRight className="size-2.5" />p. {j.target}
+            </span>
+            <button
+              type="button"
+              aria-label={`Move page link to page ${j.target}`}
+              {...controls("jumps", j, "move")}
+              className="absolute inset-0 touch-none cursor-move bg-transparent"
+            />
+            {resize("jumps", j)}
           </div>
         );
       })}

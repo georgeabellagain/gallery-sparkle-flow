@@ -33,6 +33,13 @@ test("tab plans follow the spreads", () => {
   assert.deepEqual(plan.map((p) => [p.from, p.to, p.sheet]), [["right", "right", false], ["left", "left", false], ["right", "left", true]]);
   assert.ok(planTabs(tabs, [1, 2], [3, 4], [2, 3], true).every((p) => p.from === "right" && !p.sheet));
 });
+test("a jump over several sheets carries the tabs of every page passed over", () => {
+  const tabs = [{ id: "front", leaf: 2 }, { id: "passed", leaf: 5 }, { id: "back", leaf: 7 }, { id: "ahead", leaf: 9 }, { id: "behind", leaf: 0 }];
+  const plan = planTabs(tabs, [1, 2], [7, 8], [2, 7], false);
+  assert.deepEqual(plan.map((p) => [p.id, p.sheet]), [["front", true], ["passed", true], ["back", true], ["ahead", false], ["behind", false]]);
+  // Backwards the sheet's leaves are listed the other way round; the same pages ride.
+  assert.ok(planTabs(tabs, [7, 8], [1, 2], [7, 2], false).filter((p) => p.sheet).length === 3);
+});
 test("tab meshes are built, posed and released", () => {
   const original = globalThis.document;
   globalThis.document = {

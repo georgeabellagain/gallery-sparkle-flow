@@ -60,7 +60,10 @@ export function tabEdge(leaf: number, spread: Array<number | null>, narrow: bool
   if (shown.includes(leaf)) return spread[0] === leaf ? "left" : "right";
   return leaf < Math.min(...shown) ? "left" : "right";
 }
-/** Where each tab is during a turn, from the spread before and after it and the sheet's two leaves. */
+/**
+ * Where each tab is during a turn, from the spread before and after it and the turning sheet's two leaves. A jump
+ * turns several sheets as one, so every leaf from the sheet's front to its back (the pages passed over) rides it.
+ */
 export function planTabs(
   tabs: Array<{ id: string; leaf: number }>,
   from: Array<number | null>,
@@ -68,10 +71,12 @@ export function planTabs(
   sheetLeaves: Array<number | null>,
   narrow: boolean,
 ): TabPlan[] {
+  const ends = sheetLeaves.filter((n): n is number => n !== null);
+  const low = Math.min(...ends), high = Math.max(...ends);
   return tabs.map((t) => ({
     id: t.id,
     from: tabEdge(t.leaf, from, narrow),
     to: tabEdge(t.leaf, to, narrow),
-    sheet: !narrow && sheetLeaves.includes(t.leaf),
+    sheet: !narrow && ends.length > 0 && t.leaf >= low && t.leaf <= high,
   }));
 }

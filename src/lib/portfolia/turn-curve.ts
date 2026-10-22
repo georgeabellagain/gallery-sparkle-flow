@@ -32,6 +32,61 @@ export function softFold(u: number, v: number, progress: number): { x: number; z
   if (s < wrap) { const angle = s / radius; return { x: fold + radius * Math.sin(angle), z: radius * (1 - Math.cos(angle)) }; }
   return { x: fold - (s - wrap), z: 2 * radius };
 }
+/**
+ * Soft fold under the reader's pointer, as competitors' page turns behave. The point grabbed on the outer edge,
+ * (1, grabY), follows the pointer; the paper folds along the line halfway between them, at right angles to the
+ * line joining them, rolling over a small cylinder there. Coordinates are page units: x from the spine (0) to the
+ * outer edge (1), y from the foot (0) up to `ratio`. Pure numbers.
+ */
+export type FoldPoint = { x: number; y: number };
+/** How far a pointer turn has got: 0 with the grabbed point at home, 1 once it lies on the far side. */
+export const pointerFoldProgress = (p: FoldPoint) => Math.max(0, Math.min(1, (1 - p.x) / 2));
+/**
+ * The fold for a pointer at `pointer`: its direction (towards the grabbed point), a point on it, and the roll's
+ * radius. The line sits half a roll nearer the pointer than halfway, because the roll itself uses up paper; that
+ * way the grabbed point lands exactly under the pointer.
+ */
+function foldLine(grabY: number, pointer: FoldPoint) {
+  const nx0 = 1 - pointer.x, ny0 = grabY - pointer.y, length = Math.hypot(nx0, ny0);
+  if (length < 1e-5) return null;
+  const nx = nx0 / length, ny = ny0 / length;
+  const radius = 0.085 * Math.pow(Math.sin(Math.PI * pointerFoldProgress(pointer)), 0.7), wrap = Math.PI * radius;
+  const shift = Math.min(wrap, length) / 2;
+  return { nx, ny, mx: (1 + pointer.x) / 2 - nx * shift, my: (grabY + pointer.y) / 2 - ny * shift, radius, wrap };
+}
+/** Keeps the pointer where paper bound at the spine could actually reach, so the fold never crosses the spine. */
+export function constrainFoldPointer(grabY: number, pointer: FoldPoint, ratio: number): FoldPoint {
+  let px = Math.max(-1, Math.min(1, pointer.x)), py = Math.max(-ratio * 0.25, Math.min(ratio * 1.25, pointer.y));
+  // The grabbed point stays within a page width of the spine at its own height.
+  const dy0 = py - grabY, d = Math.hypot(px, dy0);
+  if (d > 1) { px /= d; py = grabY + dy0 / d; }
+  // Steep folds are eased back towards level until the fold line stays on the page side of the spine.
+  for (let i = 0; i < 24; i++) {
+    const line = foldLine(grabY, { x: px, y: py });
+    if (!line || line.nx < 1e-6) break;
+    const xAt = (y: number) => line.mx - ((y - line.my) * line.ny) / line.nx;
+    if (Math.min(xAt(0), xAt(ratio)) >= 0) break;
+    py = grabY + (py - grabY) * 0.75;
+    if (Math.abs(py - grabY) < 1e-4) { px = Math.max(px, -1); break; }
+  }
+  return { x: px, y: py };
+}
+export function pointerFold(x: number, y: number, grabY: number, pointer: FoldPoint): { x: number; y: number; z: number } {
+  const line = foldLine(grabY, pointer);
+  if (!line) return { x, y, z: 0 };
+  const { nx, ny, mx, my, radius } = line;
+  // Distance past the fold line, towards the grabbed point. The spine side stays where it is.
+  const s = (x - mx) * nx + (y - my) * ny;
+  if (s <= 0) return { x, y, z: 0 };
+  if (radius < 1e-5) return { x: x - 2 * s * nx, y: y - 2 * s * ny, z: 0 };
+  const wrap = line.wrap;
+  if (s < wrap) {
+    const a = s / radius, back = s - radius * Math.sin(a);
+    return { x: x - nx * back, y: y - ny * back, z: radius * (1 - Math.cos(a)) };
+  }
+  const back = 2 * s - wrap;
+  return { x: x - nx * back, y: y - ny * back, z: 2 * radius };
+}
 export function turnCurl(curve: TurnCurve, u: number, v: number) {
   const arch = Math.sin(Math.PI*u);
   if (curve === "firm") return .08*arch;

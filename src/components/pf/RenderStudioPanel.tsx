@@ -261,6 +261,6 @@ export function RenderedStudioPreview({ p, onClose }: { p: Portfolio; onClose: (
     {pdf ? <PdfViewer source={source.current} fileName={p.pdf?.name ?? "portfolio.pdf"}
       viewer={{...DEFAULT_VIEWER,...p.viewer,mode:"book",look:"studio",looks:["clean","studio"],modes:["book"]}}
       initialLook="studio" renderedStudio={pack} backgroundUrl={backgroundUrl} backdrop={p.style?.backdrop}
-      foldouts={p.pdf?.foldouts} tags={p.pdf?.tags} links={p.pdf?.links} videos={p.pdf?.videos} spotlights={p.pdf?.spotlights} fullSpread /> : <p>Loading portfolio…</p>}
+      foldouts={p.pdf?.foldouts} tags={p.pdf?.tags} links={p.pdf?.links} videos={p.pdf?.videos} spotlights={p.pdf?.spotlights} jumps={p.pdf?.jumps} fullSpread /> : <p>Loading portfolio…</p>}
   </dialog>, document.body);
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { ExternalLink } from "lucide-react";
-import { hostOf, linkName, siteIconUrl, type PageLink } from "@/lib/portfolia/page-extras";
+import { CornerDownRight, ExternalLink } from "lucide-react";
+import { hostOf, linkName, siteIconUrl, type PageJump, type PageLink } from "@/lib/portfolia/page-extras";
 import { useBlob, useObjectUrl } from "./Chrome";
 
 /** A website's logo on a tile: the creator's own picture if they chose one, otherwise the site's own icon. */
@@ -29,6 +29,34 @@ export function LinkLogo({ link, className = "" }: { link: Pick<PageLink, "url" 
         </span>
       )}
     </span>
+  );
+}
+
+/**
+ * A contents line that takes the reader to another page. It is invisible over the printed line until pointed at,
+ * when the line is softly highlighted with a "go to page" hint; touches and clicks never turn the page underneath.
+ */
+export function PageJumpLink({ jump, onGo }: { jump: PageJump; onGo: (page: number) => void }) {
+  const label = `Go to page ${jump.target}`;
+  const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      data-page-jump
+      className="group pointer-events-auto absolute cursor-pointer touch-manipulation rounded-[3px] outline-none transition-colors hover:bg-amber-300/20 hover:ring-1 hover:ring-amber-500/40 focus-visible:bg-amber-300/20 focus-visible:ring-2 focus-visible:ring-amber-500/60"
+      style={{ left: `${jump.x * 100}%`, top: `${jump.y * 100}%`, width: `${jump.width * 100}%`, height: `${jump.height * 100}%` }}
+      onPointerDown={stop}
+      onTouchStart={stop}
+      onTouchMove={stop}
+      onTouchEnd={stop}
+      onClick={(e) => { e.stopPropagation(); onGo(jump.target); }}
+    >
+      <span aria-hidden className="pointer-events-none absolute -right-1 top-1/2 flex -translate-y-1/2 translate-x-full items-center gap-0.5 whitespace-nowrap rounded-md bg-foreground px-1.5 py-0.5 text-[10px] leading-none text-background opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+        <CornerDownRight className="size-2.5" />p. {jump.target}
+      </span>
+    </button>
   );
 }
 

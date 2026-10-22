@@ -3,6 +3,7 @@ import { chooseHomeExample } from "@/lib/portfolia/homepage-examples";
 import { FIELD_NOTES_CODE, fieldNotesExample } from "@/lib/portfolia/field-notes-example";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PdfViewer } from "./PdfViewer";
+import { LookCompare } from "./LookCompare";
 import { BookLoader } from "./book-loader";
 import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
 import type { PublicPortfolio } from "@/lib/portfolia/public.functions";
@@ -79,27 +80,55 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
   const p = data?.portfolio;
   const url = p?.pdf && data?.urls[p.pdf.blobKey];
   const source = useMemo(() => url ? { url } : null, [url]);
-  const stop = () => setInteracted(true);
+  // Homepage only: Simple and Studio side by side, split by a line that sweeps across until the reader takes over.
+  const [comparing, setComparing] = useState(workspace);
+  const [simpleReady, setSimpleReady] = useState(false);
+  const simpleChanged = useCallback((ready: boolean) => { if (ready) setSimpleReady(true); }, []);
+  const showCompare = comparing && rendered && simpleReady && state === "ready";
+  const insideSlider = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest("[data-compare-slider]"));
+  const stop = (e: { target: EventTarget | null }) => {
+    // Dragging the line is comparing; anything else with the book means the reader is reading.
+    if (insideSlider(e.target)) return;
+    setInteracted(true);
+    setComparing(false);
+  };
   return <figure ref={figure} onPointerDownCapture={stop} onKeyDownCapture={stop} onWheelCapture={stop} className={className ?? "mx-auto w-full max-w-5xl"}>
     <div className={workspace ? "pf-workspace-demo relative h-full overflow-hidden" : "pf-home-demo relative overflow-hidden rounded-3xl border border-border shadow-lift [&_.pf-book-viewport]:h-[28rem] sm:[&_.pf-book-viewport]:h-[36rem] lg:[&_.pf-book-viewport]:h-[40rem]"} style={{ background: p?.viewer?.backgroundColor ?? "#02011e" }}>
       {state === "ready" && p?.pdf && source && <div style={{ opacity: rendered ? 1 : 0, pointerEvents: rendered ? "auto" : "none" }} aria-hidden={!rendered} inert={!rendered}>
       <PdfViewer
         source={source}
         fileName={p.pdf.name}
-        viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "studio", studioBrightness: Math.min(1, (p.viewer?.studioBrightness ?? 0.5) + 0.14), modes: workspace ? ["book", "scroll", "paged"] : ["book"], looks: ["clean", "studio"] }}
+        viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "studio", studioBrightness: Math.min(1, (p.viewer?.studioBrightness ?? 0.5) + 0.14), modes: workspace ? ["book", "scroll", "paged"] : ["book"], looks: comparing ? ["studio"] : ["clean", "studio"] }}
+        startPage={workspace ? 2 : undefined}
         backgroundUrl={p.viewer?.backgroundKey ? data?.urls[p.viewer.backgroundKey] : undefined}
         controls
         homepageExample={workspace}
         allowDownload={p.allowDownload}
-        projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} videos={p.pdf.videos} spotlights={p.pdf.spotlights} projectCode={p.code}
+        projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} videos={p.pdf.videos} spotlights={p.pdf.spotlights} jumps={p.pdf.jumps} projectCode={p.code}
         lightweight={!workspace}
         initialLook="studio"
         fullSpread
         autoTurnDelay={1600}
-        autoTurn={rendered && visible && motionAllowed && !interacted}
+        autoTurn={rendered && visible && motionAllowed && !interacted && !comparing}
         onBookReadyChange={readyChanged}
         onLoadError={loadError}
       /></div>}
+      {comparing && state === "ready" && p?.pdf && source && <LookCompare show={showCompare} sweep={visible && motionAllowed}>
+        {/* The same book in the Simple look, framed identically and showing the same spread; it only ever shows, never takes input. */}
+        <PdfViewer
+          source={source}
+          fileName={p.pdf.name}
+          viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "clean", modes: ["book"], looks: ["clean"] }}
+          startPage={2}
+          controls={false}
+          pageNumber={false}
+          homepageExample
+          projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} spotlights={p.pdf.spotlights} jumps={p.pdf.jumps}
+          initialLook="clean"
+          fullSpread
+          onBookReadyChange={simpleChanged}
+        />
+      </LookCompare>}
       {(!rendered || state === "error") && <div role="status" className={`absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950/80 px-6 text-center text-sm text-white/90`}>
         {state !== "error" && <BookLoader tone="dark" label="" />}
         {(state === "error" || slow) && <p>{state === "error" ? "The example is temporarily unavailable." : "This is taking longer than usual. You can wait or try again."}</p>}

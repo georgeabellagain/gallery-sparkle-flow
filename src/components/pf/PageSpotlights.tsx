@@ -35,8 +35,8 @@ export function SpotlightTarget({ spotlight, onOpen }: { spotlight: PageSpotligh
         onOpen();
       }}
     >
-      <span aria-hidden className="absolute right-1 top-1 flex size-7 items-center justify-center rounded-full bg-slate-950/75 text-white shadow-md ring-1 ring-white/40 backdrop-blur-sm transition-transform duration-150 group-hover:scale-110">
-        <Search className="size-3.5" />
+      <span aria-hidden className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-slate-950/70 text-white shadow ring-1 ring-white/40 backdrop-blur-sm transition-transform duration-150 group-hover:scale-110">
+        <Search className="size-2.5" />
       </span>
     </button>
   );

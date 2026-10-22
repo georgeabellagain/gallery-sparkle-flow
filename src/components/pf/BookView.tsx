@@ -1,4 +1,3 @@
-import { tabTurnPlan } from "@/lib/portfolia/tab-turns";
 import { ribbonGutterFor } from "@/lib/portfolia/book-details";
 import { coverLeaf } from "@/lib/portfolia/rigid-cover";
 import { createPreparationGate } from "@/lib/portfolia/preparation-gate";
@@ -13,11 +12,11 @@ import { foldoutSurfaces } from "@/lib/portfolia/foldouts";
 import { StoredFoldout } from "./FoldoutCard";
 import { BookLoader } from "./book-loader";
 import { getBookInset, subscribeBookInset } from "@/lib/portfolia/book-framing";
-import { PageLinkAnchor } from "./PageLinks";
+import { PageJumpLink, PageLinkAnchor } from "./PageLinks";
 import { loadLinkIcons, paintPageLinks, type LinkIcons } from "@/lib/portfolia/link-paint";
 import { PageTabButtons } from "./PageTabs";
 import { planTabs, tabEdge } from "@/lib/portfolia/tab-geometry";
-import { linksForLeaf, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, spotlightRegion, spotlightsForLeaf, tabSlots, videosForLeaf, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { jumpsForLeaf, linksForLeaf, readablePageJumps, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, spotlightRegion, spotlightsForLeaf, tabSlots, videosForLeaf, type PageJump, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { SpotlightLightbox, SpotlightTarget, type SpotlightView } from "./PageSpotlights";
 import { getBlob, publicAssetUrl, resolveAssetUrl } from "@/lib/portfolia/assets";
 import { videoUvRect } from "@/lib/portfolia/page-video";
@@ -364,6 +363,7 @@ export function BookView({
   links,
   videos,
   spotlights,
+  jumps,
   showPageNumber = true,
   showNavigation = true,
 }: {
@@ -420,6 +420,8 @@ export function BookView({
   videos?: PageVideo[];
   /** Details readers can open large. */
   spotlights?: PageSpotlight[];
+  /** Contents links: boxes that turn straight to another page. */
+  jumps?: PageJump[];
 }) {
   // A portrait first page followed only by landscape pages is a front cover and then two-page spreads.
   // The flipbook shows it that way whatever "My PDF contains" says; the other reading modes are unaffected.
@@ -480,6 +482,8 @@ export function BookView({
     .sort((a, b) => a.page - b.page || (a.half === b.half ? 0 : a.half === "left" ? -1 : 1))
     .map((s) => ({ spotlight: s, region: spotlightRegion(s, layout.leaves.some((l) => l.page === s.page && l.half)) })), [spotlightsSignature, doc.numPages, layout]);
   const [openSpotlight, setOpenSpotlight] = useState<number | null>(null);
+  const jumpsSignature = JSON.stringify(editingExtras ? [] : jumps ?? []);
+  const pageJumps = useMemo(() => readablePageJumps(JSON.parse(jumpsSignature), doc.numPages), [jumpsSignature, doc.numPages]);
   const videoPlayer = useRef<PageVideoPlayer | null>(null);
   const [videoSound, setVideoSound] = useState<string | null>(null);
   const noteClosers = useRef(new Map<string, () => Promise<void> | null>());
@@ -539,7 +543,9 @@ export function BookView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewer.bookStyle, viewer.ribbon, viewer.ribbonColour, viewer.ribbonPage, layout, viewer.turnCurve, viewer.turnStyle, viewer.turnSpeed, viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioTopLight, viewer.studioImperfections, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.studioLightingStrength, previewLook, editingExtras]);
   const touch = useRef<{ x: number; y: number } | null>(null);
-  const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; from: number; progress: number; prepared: Promise<void>; moved: boolean } | null>(null);
+  const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; from: number; progress: number; prepared: Promise<void>; moved: boolean;
+    /** Last pointer position, and whether the scene shapes this turn from the pointer itself (a soft turn). */
+    lastX: number; lastY: number; pointer: boolean } | null>(null);
   const [openNote, setOpenNote] = useState(false);
   const noteProgresses = useRef(new Map<string, number>());
   const canPan = zoom > 1 || openNote;
@@ -944,7 +950,8 @@ export function BookView({
   };
 
   const move = useCallback(
-    async (direction: 1 | -1, chained = false, pace?: number) => {
+    /** Turns one sheet in `direction`, or, given `toLeaf`, turns once straight to that leaf's spread (a jump). */
+    async (direction: 1 | -1, chained = false, pace?: number, toLeaf?: number) => {
       if (wait || (jumping.current && !chained)) return;
       // A turn is in progress: keep the click and run it the moment the book is free.
       if (lock.current) {
@@ -964,9 +971,11 @@ export function BookView({
       if (direction === 1 ? isEnd : isStart) return;
       // Turns that follow one another run faster so the pages keep up with the clicks.
       const quick = chained || queued.current !== 0;
-      const nextIndex = narrow ? spreadIndex(layout.spreads, fromLeaf + direction) : fromIndex + direction;
+      const jumpLeaf = toLeaf !== undefined && toLeaf >= 0 && toLeaf < layout.leaves.length ? toLeaf : null;
+      const nextIndex = jumpLeaf !== null ? spreadIndex(layout.spreads, jumpLeaf) : narrow ? spreadIndex(layout.spreads, fromLeaf + direction) : fromIndex + direction;
       const nextSpread = layout.spreads[nextIndex]!;
-      const nextLeaf = narrow ? fromLeaf + direction : nextSpread.find((n) => n !== null)!;
+      const nextLeaf = jumpLeaf !== null ? (narrow || nextSpread.includes(jumpLeaf) ? jumpLeaf : nextSpread.find((n) => n !== null)!) : narrow ? fromLeaf + direction : nextSpread.find((n) => n !== null)!;
+      if (jumpLeaf !== null && (narrow ? jumpLeaf === fromLeaf : nextIndex === fromIndex)) return;
       const target = bookFocus(nextSpread, nextLeaf, narrow);
       lock.current = true;
       setBusy(true);
@@ -1037,8 +1046,9 @@ export function BookView({
     [wait, narrow, layout, faces, fallback, onZoomChange, ready, goTo, closeNotes, tabPlanFor, demoTurnDurationScale],
   );
   /**
-   * A page tab turns the pages one after another, quickly, to reach its page (see tabTurnPlan). Another tab
-   * pressed on the way becomes the new destination; arrows and clicks wait until it arrives.
+   * A page tab (or a contents link) turns once, straight to its page: the pages in between go over together as
+   * one sheet. Another destination chosen on the way gets one more turn when this one lands; arrows and clicks
+   * wait until it arrives.
    */
   const jumpTo = useCallback(
     async (targetLeaf: number) => {
@@ -1053,11 +1063,10 @@ export function BookView({
       const position = () => (narrow ? leafRef.current : spreadIndex(layout.spreads, leafRef.current));
       const goal = () => (narrow ? run.target : spreadIndex(layout.spreads, run.target));
       try {
-        const plan = tabTurnPlan(position(), goal());
-        if (plan.skip !== null) await place(narrow ? plan.skip : layout.spreads[plan.skip]!.find((n) => n !== null)!);
-        for (let guard = 0; alive.current && position() !== goal() && guard < layout.leaves.length; guard++) {
-          const before = position();
-          await move(goal() > before ? 1 : -1, true, tabTurnPlan(before, goal()).speed);
+        for (let guard = 0; alive.current && position() !== goal() && guard < 3; guard++) {
+          const before = position(), distance = Math.abs(goal() - before);
+          // A long jump turns a little quicker than a single page, never slower.
+          await move(goal() > before ? 1 : -1, true, distance > 1 ? 0.8 : 1, run.target);
           if (position() === before) break;
         }
         if (alive.current && !narrow && layout.spreads[spreadIndex(layout.spreads, leafRef.current)]!.includes(run.target)) goTo(run.target);
@@ -1112,6 +1121,7 @@ export function BookView({
     const gesture = {
       id: e.pointerId, x: e.clientX, y: e.clientY,
       dir: direction, from: fromIndex, progress: 0, moved: false,
+      lastX: e.clientX, lastY: e.clientY, pointer: false,
       prepared: Promise.resolve(),
     };
     drag.current = gesture;
@@ -1123,7 +1133,11 @@ export function BookView({
       onZoomChange(1);
       await scene.current.prepareNotes(notesForSpread(fromSpread), notesForSpread(nextSpread));
       await scene.current.prepareTurn(from, to, direction, target, 1, tabPlanFor(fromSpread, nextSpread, direction), true);
-      if (drag.current === gesture) scene.current.dragTurn(gesture.progress);
+      // A soft turn follows the pointer from the exact point pressed; other turns follow how far it has moved.
+      gesture.pointer = scene.current.beginPointerTurn(gesture.x, gesture.y);
+      if (drag.current !== gesture) return;
+      if (gesture.pointer) gesture.progress = scene.current.dragTurnPointer(gesture.lastX, gesture.lastY) ?? gesture.progress;
+      else scene.current.dragTurn(gesture.progress);
     })();
   };
 
@@ -1394,6 +1408,7 @@ export function BookView({
             {editingExtras && <LiveScrapbookPage leaf={layout.leaves[n]!} side={side===0?'left':'right'} ratio={ratio}/>}
             {onLeaf.map(link => <PageLinkAnchor key={link.id} link={link} />)}
             {videosForLeaf(pageVideos, layout.leaves[n]!).filter(v => !v.silent).map(v => <PageVideoSound key={v.id} video={v} on={videoSound === v.id} onToggle={() => videoPlayer.current?.toggleSound(v.id)} />)}
+            {jumpsForLeaf(pageJumps, layout.leaves[n]!).map(j => <PageJumpLink key={j.id} jump={j} onGo={(page) => void jumpTo(layout.leaves.findIndex((l) => l.page === page))} />)}
             {spotlightsForLeaf(spotlightViews.map(v => v.spotlight), layout.leaves[n]!).map(s => <SpotlightTarget key={s.id} spotlight={s} onOpen={() => setOpenSpotlight(spotlightViews.findIndex(v => v.spotlight.id === s.id))} />)}
             {visible.map(item => <StoredFoldout key={`${item.id}:${(preparedNotesReady || litNotesKey === notesKey)}:${JSON.stringify(item)}`} item={item} demoAnimate={demoNotes} baked={item.style !== "sticky"} sceneRendered={(preparedNotesReady || litNotesKey === notesKey)} onProgress={p => {
               noteProgresses.current.set(item.id, p);
@@ -1443,6 +1458,10 @@ export function BookView({
                 const gesture = drag.current;
                 if (!gesture || gesture.id !== e.pointerId) return;
                 if (Math.abs(e.clientX - gesture.x) > 4 || Math.abs(e.clientY - gesture.y) > 4) gesture.moved = true;
+                gesture.lastX = e.clientX;
+                gesture.lastY = e.clientY;
+                const followed = gesture.pointer ? scene.current?.dragTurnPointer(e.clientX, e.clientY) : null;
+                if (followed != null) { gesture.progress = followed; return; }
                 const width = e.currentTarget.clientWidth || 1;
                 gesture.progress = Math.min(1, Math.max(0, gesture.dir * (gesture.x - e.clientX) / width));
                 scene.current?.dragTurn(gesture.progress);

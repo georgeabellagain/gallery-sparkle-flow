@@ -14,6 +14,13 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { startCloudSync } from "../lib/portfolia/cloud";
 
+/**
+ * Whether this page was opened from a password-reset email. Read as early as possible: the sign-in library clears
+ * the link's details from the address once it has used them. If the auth service can't return the reader to the
+ * reset page it sends them to the home page instead, so any page may be where the link lands.
+ */
+const openedFromResetLink = typeof window !== "undefined" && /(?:^|[#&?])type=recovery(?:&|$)/.test(`${window.location.hash}&${window.location.search}`);
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -132,7 +139,19 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const router = useRouter();
   useEffect(() => startCloudSync(), []);
+  // A reset link that lands anywhere goes on to the page where the new password is chosen.
+  useEffect(() => {
+    const toReset = () => { if (window.location.pathname !== "/reset-password") void router.navigate({ to: "/reset-password" }); };
+    if (openedFromResetLink) toReset();
+    let unsubscribe = () => {};
+    void import("@/integrations/supabase/client").then(({ supabase }) => {
+      const { data } = supabase.auth.onAuthStateChange((event) => { if (event === "PASSWORD_RECOVERY") toReset(); });
+      unsubscribe = () => data.subscription.unsubscribe();
+    });
+    return () => unsubscribe();
+  }, [router]);
 
   return (
     <QueryClientProvider client={queryClient}>

@@ -1,4 +1,4 @@
-import { readableTurnCurve, deepTurnCurl, softFold, turnCurl, turnCornerLead, type TurnCurve } from "./turn-curve";
+import { readableTurnCurve, deepTurnCurl, pointerFold, pointerFoldProgress, softFold, turnCurl, turnCornerLead, type FoldPoint, type TurnCurve } from "./turn-curve";
 import * as THREE from "three";
 import {pageRelief} from "./page-relief";
 import {turnClearance,turnSheetHeight} from "./turn-motion";
@@ -87,6 +87,23 @@ export function turnGeometryWriter(template:THREE.BufferGeometry, ratio:number, 
       positions.setXYZ(i,x,(v-.5)*ratio,turnSheetHeight(z+relief+clearance,floor,gap,progress));
     }
   };
+}
+
+/**
+ * Writes the sheet for a soft turn that follows the pointer (see pointerFold). Unlike the baked turns it depends on
+ * where the pointer is, not only how far the turn has got, so it is computed live; the sheet has 561 vertices.
+ */
+export function writePointerFold(output: THREE.BufferGeometry, ratio: number, dir: 1 | -1, grabY: number, pointer: FoldPoint, restingSeeds: readonly number[], gap: number) {
+  const uv = output.getAttribute("uv"), positions = output.getAttribute("position") as THREE.BufferAttribute;
+  const progress = pointerFoldProgress(pointer), clearance = turnClearance(progress, gap);
+  for (let i = 0; i < uv.count; i++) {
+    const f = pointerFold(uv.getX(i), uv.getY(i) * ratio, grabY, pointer), x = dir * f.x, y = f.y - ratio / 2;
+    const floor = pageRelief(Math.min(1, Math.abs(x)), Math.min(1, Math.max(0, y / ratio + .5)), restingSeeds[x < 0 ? 0 : 1]!);
+    positions.setXYZ(i, x, y, turnSheetHeight(f.z + clearance, floor, gap, progress));
+  }
+  positions.needsUpdate = true;
+  output.computeVertexNormals();
+  return progress;
 }
 
 /** Match the resting mesh's triangulation and world-space normals on either side of the spine. */

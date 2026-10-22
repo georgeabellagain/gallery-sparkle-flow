@@ -67,6 +67,12 @@ const portfolio: Portfolio = {
       { id: "link_insta", page: 11, half: "right", url: "https://www.instagram.com/", size: 0.11, x: 0.4413, y: 0.3857 },
       { id: "link_behance", page: 11, half: "right", url: "https://www.behance.net/", size: 0.11, x: 0.7228, y: 0.3857 },
     ],
+    // Every row of the contents page (page 2) goes to its article. Rows are 38.5 pt apart from y = 550 pt on a
+    // 540 × 720 pt page; each box spans the row's number, title and description.
+    jumps: [3, 4, 6, 7, 8, 10, 11, 12, 13, 14, 15].map((target, k) => ({
+      id: `jump_contents_${target}`, page: 2, half: "left" as const,
+      x: 48 / 540, y: 1 - (550 - 38.5 * k + 20) / 720, width: 444 / 540, height: 37 / 720, target,
+    })),
     // The turntable clip fills the picture frame on page 10; it has no sound.
     videos: [{
       id: "vid_turntable", page: 10, half: "left", x: 48 / 540, y: 0.29888, width: 444 / 540, height: 0.25694, aspect: 2.4,

@@ -3,7 +3,7 @@ import type { PdfFile, Portfolio } from "@/lib/portfolia/store";
 import { readablePageImages } from "@/lib/portfolia/page-images";
 import type { RenderedStudio } from "@/lib/portfolia/rendered-studio";
 import type { Foldout } from "@/lib/portfolia/foldouts";
-import type { PageLink, PageSpotlight, PageTag, PageVideo } from "@/lib/portfolia/page-extras";
+import type { PageJump, PageLink, PageSpotlight, PageTag, PageVideo } from "@/lib/portfolia/page-extras";
 import type { PortfolioProject } from "@/lib/portfolia/projects";
 import { usePortfolioFont } from "@/lib/portfolia/fonts";
 import { reportHref } from "@/lib/portfolia/report";
@@ -41,6 +41,7 @@ export function PortfolioPage({
   links,
   videos,
   spotlights,
+  jumps,
   projectCode,
   startFullscreen,
 }: {
@@ -65,6 +66,7 @@ export function PortfolioPage({
   links?: PageLink[];
   videos?: PageVideo[];
   spotlights?: PageSpotlight[];
+  jumps?: PageJump[];
   projectCode?: string;
   /** Open full screen on a phone or tablet (a portfolio opened from its QR code). */
   startFullscreen?: boolean;
@@ -106,7 +108,7 @@ export function PortfolioPage({
           viewer={view}
           startPage={startPage}
           projects={projects}
-          foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights}
+          foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} jumps={jumps}
           projectCode={projectCode}
           startFullscreen={startFullscreen}
           bookMarketing={bookDetails}

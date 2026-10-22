@@ -52,9 +52,11 @@ function SignIn() {
   const forgot = async () => {
     setErr(null); setInfo(null);
     if (!email) return setErr("Enter your email above first.");
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` });
+    // The auth service only returns readers to addresses it knows, so a request from a local copy returns to the site.
+    const local = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${local ? "https://portfolia.site" : window.location.origin}/reset-password` });
     if (error) return setErr(error.message);
-    setInfo("If an account exists for that email, a reset link is on its way.");
+    setInfo("If an account exists for that email, a reset link is on its way. Signed up with Google? You can simply use Continue with Google below; the link lets you add a password as well.");
   };
 
   const done = () => {

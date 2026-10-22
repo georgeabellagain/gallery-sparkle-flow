@@ -3,15 +3,16 @@ import { sampleCoverColour } from "./cover-colour";
 import { studioShadowSize, studioShadowRadius } from "./shadow-quality";
 import { createBookBinding, sideShare, type BindingSide, type RibbonTurn } from "./book-binding";
 import { createGutterShade } from "./gutter-shade";
+import { createTurnShade } from "./turn-shade";
 import { createPageVideo, type PageVideoSource } from "./page-video";
 import { bindingTurnCurve, bookStyleProfile, type BookStyle } from "./book-style";
-import { type TurnCurve } from "./turn-curve";
+import { constrainFoldPointer, pointerFoldProgress, type FoldPoint, type TurnCurve } from "./turn-curve";
 import { createCachedLightMask } from "./cached-light-mask";
 import { createSettledPaperCache } from "./settled-paper";
 import { presetShadow } from "./lighting";
 import { updatePaperTangents } from "./paper-tangents";
 import { createPaperTextures } from "./paper-textures";
-import { applyTurnPose, bakeTurnGeometry, createTurnGeometryCache, turnGeometryWriter, restingTurnNormals, type TurnPose } from "./turn-geometry-cache";
+import { applyTurnPose, bakeTurnGeometry, createTurnGeometryCache, turnGeometryWriter, restingTurnNormals, writePointerFold, type TurnPose } from "./turn-geometry-cache";
 import { createRestingPageShadows } from "./resting-page-shadows";
 import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
 import { turnEase, captureFrames, turnRestVisible, styledTurnEase, turnDurationScale, readableTurnStyle, type TurnStyle } from "./turn-motion";
@@ -369,6 +370,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   };
   const left = new THREE.Mesh(new THREE.PlaneGeometry(1, ratio, 32, 16), material());
   const right = new THREE.Mesh(new THREE.PlaneGeometry(1, ratio, 32, 16), material());
+  // Simple's shadow on the page under a turning sheet (Studio's comes from the light itself).
+  const turnShade = createTurnShade();
+  turnShade.apply(left.material as THREE.Material);
+  turnShade.apply(right.material as THREE.Material);
   shapePage(left, -1, 0);
   shapePage(right, 1, 0);
   left.position.set(-0.5, 0, 0);
@@ -419,7 +424,26 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const turnGeometryCache = createTurnGeometryCache(compact ? 4 : 8);
   let bakedTurn: TurnPose[] | null = null;
   let turnRestPages: [boolean, boolean] | null = null;
-  let draggedTurn: { from: BookFaces; to: BookFaces; dir: 1 | -1; destinationFocus: number; originalFocus: number; progress: number; speed: number; style: TurnStyle; rigid:boolean } | null = null;
+  let draggedTurn: { from: BookFaces; to: BookFaces; dir: 1 | -1; destinationFocus: number; originalFocus: number; progress: number; speed: number; style: TurnStyle; rigid:boolean;
+    /** A soft turn dragged by the reader follows the pointer: the height grabbed and where the pointer is, in page units. */
+    pointer?: { allowed: boolean; grabY: number; at: FoldPoint; seeds: number[] } } | null = null;
+  // Pointer to book-plane conversion for turns that follow the pointer.
+  const pointerRay = new THREE.Raycaster(), pointerNdc = new THREE.Vector2(), pointerInverse = new THREE.Matrix4();
+  const pointerOrigin = new THREE.Vector3(), pointerDirection = new THREE.Vector3();
+  /** Where a screen point falls on the book's page plane, in book units (spine at 0, page edges at ±1). */
+  const bookPoint = (clientX: number, clientY: number) => {
+    const r = renderer.domElement.getBoundingClientRect();
+    if (!r.width || !r.height) return null;
+    pointerNdc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+    pointerRay.setFromCamera(pointerNdc, camera);
+    book.updateMatrixWorld();
+    pointerInverse.copy(book.matrixWorld).invert();
+    pointerOrigin.copy(pointerRay.ray.origin).applyMatrix4(pointerInverse);
+    pointerDirection.copy(pointerRay.ray.direction).transformDirection(pointerInverse);
+    if (Math.abs(pointerDirection.z) < 1e-6) return null;
+    const t = -pointerOrigin.z / pointerDirection.z;
+    return { x: pointerOrigin.x + pointerDirection.x * t, y: pointerOrigin.y + pointerDirection.y * t };
+  };
 
   // Pages kept on the graphics card are limited by count and by memory, so the browser never has a reason to take the context away.
   // The most graphics memory page pictures may hold at once depends on the device (see resolution.ts); beyond it the
@@ -815,6 +839,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // Bound pages darken softly into the spine. Simple gets only a slim, light seam so artwork stays true.
     if (next.studio) gutter.set(next.bookStyle !== "flipbook" ? .32 : .18);
     else gutter.set(.14, .07);
+    turnShade.enable(!next.studio);
     for (const m of pageMaterials) {
       setNaturalImperfections(m,next.studio ? next.imperfections ?? 0 : 0);
       const stickyMatte = Boolean(m.userData["stickyMatte"]);
@@ -972,7 +997,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       ? bakeTurnGeometry(geometry,rigidCoverWriter(geometry,ratio,dir,coverArtZ(coverRestOf(from),boardDepth()),coverArtZ(coverRestOf(to),boardDepth())),128)
       : bakeTurnGeometry(geometry,turnGeometryWriter(geometry,ratio,dir,seeds,restingSeeds,SHEET_CLEARANCE,curve as TurnCurve),128,[restingTurnNormals(geometry,ratio,dir,seeds[0]!,dir),restingTurnNormals(geometry,ratio,-dir as 1|-1,seeds[1]!,-dir)]));
   };
-  const shape = (progress: number, dir: 1 | -1) => {
+  /** Poses the turning sheet at `progress`: from the baked turn, or with `write` (a soft turn following the pointer). */
+  const shape = (progress: number, dir: 1 | -1, write?: () => void) => {
     shadowsDirty = true;
     if (turnRestPages) {
       [left, right].forEach((mesh, i) => {
@@ -980,7 +1006,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         if (mesh.visible !== visible) { mesh.visible = visible; shadowsDirty = true; }
       });
     }
-    if (bakedTurn) applyTurnPose(bakedTurn, progress, geometry);
+    if (write) write();
+    else if (bakedTurn) applyTurnPose(bakedTurn, progress, geometry);
     else return;
     // A hardback cover is drawn by its own rigid board; the paper sheet only carries notes and tabs.
     front.visible = back.visible = !rigidTurn;
@@ -1030,8 +1057,15 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     notes.turn(progress, dir, sheetSample);
     // The marked ribbon rides on the turning sheet or tucks under it (see binding.setRibbonTurn).
     binding.turnRibbon(progress, (u, v) => { const s = sheetSample(u, v); return { position: s.position.clone(), normal: s.normal.clone() }; });
-    if (tabPlan) tabs.turn(tabPlan, progress, dir);
+    if (tabPlan) tabs.turn(tabPlan, progress, dir, (v) => {
+      // The sampler reuses its vectors, so read each sample before taking the next.
+      const inner = sheetSample(31 / 32, v).position, ix = inner.x, iz = inner.z;
+      const outer = sheetSample(1, v).position, x = outer.x, y = outer.y, z = outer.z;
+      const tx = x - ix, tz = z - iz, length = Math.hypot(tx, tz) || 1;
+      return { x, y, z, tx: tx / length, tz: tz / length };
+    });
     driveContact(progress);
+    turnShade.drive(progress, dir);
   };
   const notes = createBookNotes(book, ratio, pageMaterials, () => right.material as THREE.MeshStandardMaterial, requestPaint);
   const tabs = createBookTabs(book, ratio, pageMaterials, () => right.material as THREE.MeshStandardMaterial, requestPaint, (x,y)=>pageRelief(Math.abs(x),y/ratio+.5,(x<0?left:right).userData["seed"] as number));
@@ -1228,7 +1262,36 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       } catch {
         /* not available: the turn simply starts */
       }
-      draggedTurn = { from, to, dir, destinationFocus, originalFocus, progress: 0, speed, style, rigid:settings.bookStyle==="hardback"&&[from[dir===1?1:0],to[dir===1?0:1]].some(canvas=>canvas?.dataset["coverBoard"]==="true") };
+      const rigid = settings.bookStyle==="hardback"&&[from[dir===1?1:0],to[dir===1?0:1]].some(canvas=>canvas?.dataset["coverBoard"]==="true");
+      // Only a dragged soft paper turn follows the pointer; boards and the other curves keep their baked shapes.
+      const followsPointer = dragging && !rigid && bindingTurnCurve(settings.bookStyle, settings.turnCurve, from, to) === "soft";
+      const restingSeeds = [seedFor(dir === 1 ? from[0] : to[0]), seedFor(dir === 1 ? to[1] : from[1])];
+      draggedTurn = { from, to, dir, destinationFocus, originalFocus, progress: 0, speed, style, rigid,
+        pointer: followsPointer ? { allowed: true, grabY: ratio / 2, at: { x: 1, y: ratio / 2 }, seeds: restingSeeds } : undefined };
+    },
+    /** Starts a pointer-following turn at the point the reader pressed. False when this turn doesn't follow the pointer. */
+    beginPointerTurn(clientX: number, clientY: number): boolean {
+      const turn = draggedTurn, pointer = turn?.pointer;
+      if (!turn || !pointer || disposed) return false;
+      const p = bookPoint(clientX, clientY);
+      if (!p) return false;
+      pointer.grabY = THREE.MathUtils.clamp(p.y + ratio / 2, 0, ratio);
+      pointer.at = { x: 1, y: pointer.grabY };
+      return true;
+    },
+    /** Moves a pointer-following turn; returns how far it has got, or null when this turn doesn't follow the pointer. */
+    dragTurnPointer(clientX: number, clientY: number): number | null {
+      const turn = draggedTurn, pointer = turn?.pointer;
+      if (!turn || !pointer || disposed) return null;
+      const p = bookPoint(clientX, clientY);
+      if (!p) return turn.progress;
+      // Book space to the turning side's own page units (x from the spine, y from the foot).
+      pointer.at = constrainFoldPointer(pointer.grabY, { x: turn.dir * p.x, y: p.y + ratio / 2 }, ratio);
+      turn.progress = pointerFoldProgress(pointer.at);
+      const at = pointer.at;
+      pendingDragShape = () => shape(turn.progress, turn.dir, () => writePointerFold(geometry, ratio, turn.dir, pointer.grabY, at, pointer.seeds, SHEET_CLEARANCE));
+      requestPaint();
+      return turn.progress;
     },
     /** How far the turn in progress has got (0 to 1), or null when no page is turning. */
     turnProgress(): number | null {
@@ -1236,7 +1299,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     },
     dragTurn(progress: number) {
       const turn = draggedTurn;
-      if (!turn || disposed) return;
+      // A turn following the pointer is shaped by dragTurnPointer alone.
+      if (!turn || disposed || turn.pointer) return;
       turn.progress = THREE.MathUtils.clamp(progress, 0, 1);
       // Coalesce geometry and normal updates as well as the actual draw.
       pendingDragShape = () => shape(turn.progress, turn.dir);
@@ -1250,6 +1314,22 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const start = turn.progress;
       const startFocus = focus;
       const end = complete ? 1 : 0;
+      const pointer = turn.pointer;
+      if (pointer) {
+        // The grabbed point carries on to the far side (or goes home), straightening as it goes, so the release
+        // continues the very shape under the reader's hand. Both ends are exactly flat.
+        const from0 = pointer.at, goal = { x: complete ? -1 : 1, y: pointer.grabY };
+        await animate(Math.max(160 * speed, 760 * speed * Math.abs(end - start)), (t) => {
+          const at = { x: THREE.MathUtils.lerp(from0.x, goal.x, t), y: THREE.MathUtils.lerp(from0.y, goal.y, t) };
+          turn.progress = pointerFoldProgress(at);
+          shape(turn.progress, dir, () => writePointerFold(geometry, ratio, dir, pointer.grabY, at, pointer.seeds, SHEET_CLEARANCE));
+          if (narrow && complete) {
+            focus = THREE.MathUtils.lerp(startFocus, destinationFocus, turn.progress);
+            frameCamera();
+          }
+        }, (t) => 1 - (1 - t) * (1 - t) * (1 - t));
+        turn.progress = end;
+      } else
       await animate(Math.max(138 * speed, 805 * speed * Math.abs(end - start)), (t) => {
         const progress = THREE.MathUtils.lerp(start, end, t);
         turn.progress = progress;
@@ -1275,6 +1355,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       binding.setRibbonTurn(null);
       notes.endTurn(complete);
       contactTurn = null;
+      turnShade.clear();
       if (tabPlan) {
         tabs.setRest(Object.fromEntries(tabPlan.map((p) => [p.id, complete ? p.to : p.from])));
         tabPlan = null;

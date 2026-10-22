@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
-import { ExternalLink, Film, Plus, Search, StickyNote, Tag, Trash2 } from "lucide-react";
+import { CornerDownRight, ExternalLink, Film, Plus, Search, StickyNote, Tag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ScrapbookPanel } from "./FoldoutSettings";
 import type { ScrapbookSelection } from "./live-scrapbook-context";
 import { deleteBlob, putBlob, uid } from "@/lib/portfolia/assets";
 import { MAX_FOLDOUTS, MAX_NOTE_ROTATION, newFoldout, noteRotation, readableFoldouts, rotateFoldout, type Foldout } from "@/lib/portfolia/foldouts";
-import { LINK_SIZE, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, SPOTLIGHT_CAPTION_LIMIT, SPOTLIGHT_LIMITS, SPOTLIGHT_SIZE, TAG_COLOURS, VIDEO_MAX_MB, VIDEO_WIDTH, hostOf, normaliseUrl, placeVideo, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { JUMP_SIZE, LINK_SIZE, MAX_JUMPS, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, SPOTLIGHT_CAPTION_LIMIT, SPOTLIGHT_LIMITS, SPOTLIGHT_SIZE, TAG_COLOURS, VIDEO_MAX_MB, VIDEO_WIDTH, hostOf, normaliseUrl, placeJump, placeVideo, readablePageJumps, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { readVideo, videoFileProblem, videoMime } from "@/lib/portfolia/page-video-file";
 import { gifFileProblem, gifToVideo, isGif } from "@/lib/portfolia/gif-to-video";
 import { addPortfolioExtra, deleteUnusedPortfolioAsset, isPaid, patchPortfolioExtra, removePortfolioExtra, useDoc, type Portfolio } from "@/lib/portfolia/store";
@@ -107,6 +107,19 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
     if (ok) onSelect({ kind: "spotlights", id: s.id });
   };
   const spotlight = selected?.kind === "spotlights" ? spotlights.find(s => s.id === selected.id) : undefined;
+  // Contents links: one box per line of a contents page, each going to its own page.
+  const jumps = readablePageJumps(pdf.jumps, pdf.pages);
+  const addJump = () => {
+    const onPage = jumps.filter(j => j.page === page.page && j.half === half);
+    // Each new box lands just below the last one on this page, ready for the next line of the contents.
+    const below = onPage.reduce((y, j) => Math.max(y, j.y + j.height), 0.25);
+    const { width, height } = JUMP_SIZE.default;
+    const j = placeJump({ id: uid("jump"), page: page.page, half, x: (1 - width) / 2, y: onPage.length ? below + 0.01 : 0.3, width, height, target: Math.min(pdf.pages, page.page + 1) }, (1 - width) / 2, onPage.length ? below + 0.01 : 0.3, width, height);
+    const ok = addPortfolioExtra(p.code, pdf.blobKey, "jumps", j, MAX_JUMPS);
+    report(ok, `Use up to ${MAX_JUMPS} page links.`);
+    if (ok) onSelect({ kind: "jumps", id: j.id });
+  };
+  const jump = selected?.kind === "jumps" ? jumps.find(j => j.id === selected.id) : undefined;
   const video = selected?.kind === "videos" ? pageVideos.find(v => v.id === selected.id) : undefined;
   const note = selected?.kind === "foldouts" ? readableFoldouts(pdf.foldouts, pdf.pages).find(f => f.id === selected.id) : undefined;
   const tab = selected?.kind === "tags" ? readablePageTags(pdf.tags, pdf.pages).find(t => t.id === selected.id) : undefined;
@@ -168,7 +181,28 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
             <Search className="size-4" />Add a spotlight
           </Button>
         </div>
+        <div className="rounded-xl border border-border p-3">
+          <p className="flex items-center justify-between font-medium">Contents links<span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-normal tabular-nums">{jumps.length}</span></p>
+          <p className="mt-1 text-xs text-muted-foreground">Put a box over each line of your contents page and choose the page it opens. Readers click the line to go straight there, in every reading style.</p>
+          <Button size="sm" variant="line" className="mt-2 w-full" disabled={jumps.length >= MAX_JUMPS} onClick={addJump}>
+            <CornerDownRight className="size-4" />Add a contents link
+          </Button>
+        </div>
       </section>
+      {jump && (
+        <section aria-label="Selected contents link" className="space-y-3 border-t border-border pt-3">
+          <div className="flex items-center justify-between">
+            <p className="font-medium">Contents link</p>
+            <Button size="xs" variant="quiet" onClick={remove} aria-label="Delete selected contents link"><Trash2 className="size-4" />Delete</Button>
+          </div>
+          <label className="flex items-center justify-between gap-3 text-xs">Goes to page
+            <input type="number" min={1} max={pdf.pages} value={jump.target} className="w-20 rounded-lg border border-border bg-background p-2 text-sm tabular-nums"
+              onChange={e => { const target = Math.round(Number(e.target.value)); if (Number.isInteger(target) && target >= 1 && target <= pdf.pages) report(patchPortfolioExtra(p.code, pdf.blobKey, "jumps", jump.id, { ...jump, target }), `Choose a page from 1 to ${pdf.pages}.`); }} />
+          </label>
+          <p className="text-xs text-muted-foreground">Drag the box over its line and pull the corner to fit. Add the next one and it appears just below, ready for the next line.</p>
+          <Button size="sm" variant="line" className="w-full" disabled={jumps.length >= MAX_JUMPS} onClick={addJump}><CornerDownRight className="size-4" />Add the next line</Button>
+        </section>
+      )}
       {spotlight && (
         <section aria-label="Selected spotlight" className="space-y-3 border-t border-border pt-3">
           <div className="flex items-center justify-between">

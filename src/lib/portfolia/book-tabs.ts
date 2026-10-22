@@ -16,6 +16,8 @@ export interface TabSpec {
   position?: number;
   scale?: number;
 }
+/** The turning sheet's outer edge at height `v`: the point, and the direction pointing outward along the sheet. */
+export type SheetEdgeAt = (v: number) => { x: number; y?: number; z: number; tx: number; tz: number };
 const COLS = 4;
 const LIFT = 0.001;
 /** Paper tabs that are part of the book: they sit on the page edge, travel with the sheet they belong to, and are lit like the paper. */
@@ -122,7 +124,7 @@ export function createBookTabs(
     });
     pose(null, 0, 1);
   };
-  const pose = (plans: TabPlan[] | null, progress: number, dir: 1 | -1) => {
+  const pose = (plans: TabPlan[] | null, progress: number, dir: 1 | -1, edge?: SheetEdgeAt) => {
     const s = size();
     for (const e of entries) {
       const plan = plans?.find((p) => p.id === e.spec.id) ?? {
@@ -130,7 +132,8 @@ export function createBookTabs(
         to: rest[e.spec.id] ?? "right",
         sheet: false,
       };
-      const frame = tabFrame(plan, progress, dir, e.v);
+      // A tab on the turning sheet hangs from that sheet's real edge, whatever shape the turn gives it.
+      const frame = plan.sheet && edge ? edge(e.v) : tabFrame(plan, progress, dir, e.v);
       const geometries = [e.front, e.back];
       for (const g of geometries) {
         const pos = g.getAttribute("position") as THREE.BufferAttribute;
@@ -139,7 +142,8 @@ export function createBookTabs(
           for (let r = 0; r < 2; r++) {
             const x = frame.x + frame.tx * dist;
             const lift = frame.z + frame.tz * dist;
-            const yy = e.y + (r === 0 ? -1 : 1) * (e.height / 2);
+            // A fold that follows the pointer can slant the edge, moving the tab up or down with it.
+            const yy = ("y" in frame && typeof frame.y === "number" ? frame.y : e.y) + (r === 0 ? -1 : 1) * (e.height / 2);
             const z = lift + (relief ? relief(x, yy) : pageRelief(Math.min(1, Math.abs(frame.x)), e.v, 0)) * nearPage(lift) + LIFT;
             pos.setXYZ(c * 2 + r, x, yy, z);
           }
@@ -159,9 +163,9 @@ export function createBookTabs(
       rest = edges;
       pose(null, 0, 1);
     },
-    /** Moves tabs for a turn in progress. */
-    turn(plans: TabPlan[], progress: number, dir: 1 | -1) {
-      pose(plans, progress, dir);
+    /** Moves tabs for a turn in progress. `edge` reads the turning sheet's outer edge from its live geometry. */
+    turn(plans: TabPlan[], progress: number, dir: 1 | -1, edge?: SheetEdgeAt) {
+      pose(plans, progress, dir, edge);
     },
     /** Where each tab lies when at rest, in book units: used to place the invisible buttons over them. */
     rects() {
