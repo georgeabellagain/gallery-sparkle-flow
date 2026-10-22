@@ -148,6 +148,9 @@ export interface PdfFile {
   bytes: number;
   pages: number;
   uploadedAt: number;
+  videos?: import("./page-video").PageVideo[];
+  spotlights?: import("./page-extras").PageSpotlight[];
+  pageImages?: import("./page-images").PageImageManifest;
 }
 
 export interface Profile {
