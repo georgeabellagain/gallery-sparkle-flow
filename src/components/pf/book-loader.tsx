@@ -4,10 +4,14 @@ import type { Tone } from "@/components/pf/viewer-ui";
 /** One page turn's share of the loop; three pages turn a third of a loop apart, so one is always moving. */
 const LOOP_S = 2.7;
 const LEAVES = [0, 1, 2];
+/** A short rest before the first turn, so the loader appears as a closed, settled book. */
+const FIRST_TURN_S = 0.2;
 
 /**
  * A small open book, tilted towards the reader, whose pages turn one after another without pause. Each page curls
  * as it lifts (two hinged halves), catches the light at the top of its arc and casts a soft shadow on the page below.
+ * The book is flattened in depth (scaleZ), so a turning page rolls over close to the paper instead of standing
+ * clear of it, which at this size read as a page floating off the book.
  * Only transform and opacity animate, so the browser runs it on the compositor and it stays smooth while the
  * portfolio itself is being prepared on the main thread. A landed page looks exactly like the page beneath it, so
  * it returns to the right-hand stack unseen. Holds still for reduced motion.
@@ -20,7 +24,7 @@ export function BookLoader({ tone, label = "Preparing your portfolio…", detail
     <div role="status" aria-live="polite" aria-label={label || "Loading portfolio"} className="flex flex-col items-center gap-4" style={{ "--pf-ink": ink, "--pf-paper": paper, "--pf-line": line, "--pf-loop": `${LOOP_S}s` } as CSSProperties}>
       <style>{`
         .pf-lb { position: relative; width: 76px; height: 52px; perspective: 260px; perspective-origin: 50% 0%; }
-        .pf-lb-book { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(38deg) rotateZ(-14deg); }
+        .pf-lb-book { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(38deg) rotateZ(-14deg) scaleZ(.5); }
         .pf-lb-floor { position: absolute; left: -10%; right: -10%; bottom: -28%; height: 40%; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,0,0,.22), rgba(0,0,0,0)); transform: translateZ(-2px); }
         /* Text lines inside the margins, paper everywhere: two background layers with their own boxes. */
         .pf-lb-page, .pf-lb-half { box-sizing: border-box; background: repeating-linear-gradient(to bottom, transparent 0 4px, var(--pf-line) 4px 5px) content-box no-repeat, var(--pf-paper); }
@@ -69,7 +73,8 @@ export function BookLoader({ tone, label = "Preparing your portfolio…", detail
           <span className="pf-lb-page pf-lb-right" />
           <span className="pf-lb-gutter" />
           {LEAVES.map((i) => {
-            const delay = { animationDelay: `${(-i * LOOP_S) / LEAVES.length}s` };
+            // Positive delays: on the very first frame every page lies on the book, and the turns begin one by one.
+            const delay = { animationDelay: `${FIRST_TURN_S + (i * LOOP_S) / LEAVES.length}s` };
             return (
               <span key={i} className="pf-lb-set">
                 <span className="pf-lb-shade pf-lb-shade-r" style={delay} />
