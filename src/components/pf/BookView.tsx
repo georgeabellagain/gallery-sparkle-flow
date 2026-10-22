@@ -17,7 +17,8 @@ import { PageLinkAnchor } from "./PageLinks";
 import { loadLinkIcons, paintPageLinks, type LinkIcons } from "@/lib/portfolia/link-paint";
 import { PageTabButtons } from "./PageTabs";
 import { planTabs, tabEdge } from "@/lib/portfolia/tab-geometry";
-import { linksForLeaf, readablePageLinks, readablePageTags, readablePageVideos, tabSlots, videosForLeaf, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { linksForLeaf, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, spotlightRegion, spotlightsForLeaf, tabSlots, videosForLeaf, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { SpotlightLightbox, SpotlightTarget, type SpotlightView } from "./PageSpotlights";
 import { getBlob, publicAssetUrl, resolveAssetUrl } from "@/lib/portfolia/assets";
 import { videoUvRect } from "@/lib/portfolia/page-video";
 import { createPageVideoPlayer, type PageVideoPlayer } from "@/lib/portfolia/page-video-player";
@@ -362,6 +363,7 @@ export function BookView({
   tags,
   links,
   videos,
+  spotlights,
   showPageNumber = true,
   showNavigation = true,
 }: {
@@ -416,6 +418,8 @@ export function BookView({
   links?: PageLink[];
   /** Videos printed on pages (Personal; already removed for unpaid owners). */
   videos?: PageVideo[];
+  /** Details readers can open large. */
+  spotlights?: PageSpotlight[];
 }) {
   // A portrait first page followed only by landscape pages is a front cover and then two-page spreads.
   // The flipbook shows it that way whatever "My PDF contains" says; the other reading modes are unaffected.
@@ -470,6 +474,12 @@ export function BookView({
   // While editing, the live editor shows each video's still on top; the book itself stays plain.
   const videosSignature = JSON.stringify(editingExtras ? [] : videos ?? []);
   const pageVideos = useMemo(() => readablePageVideos(JSON.parse(videosSignature), doc.numPages), [videosSignature, doc.numPages]);
+  const spotlightsSignature = JSON.stringify(editingExtras ? [] : spotlights ?? []);
+  // In portfolio order, each mapped onto its full PDF page (a spread sheet's halves are separate leaves).
+  const spotlightViews = useMemo<SpotlightView[]>(() => readablePageSpotlights(JSON.parse(spotlightsSignature), doc.numPages)
+    .sort((a, b) => a.page - b.page || (a.half === b.half ? 0 : a.half === "left" ? -1 : 1))
+    .map((s) => ({ spotlight: s, region: spotlightRegion(s, layout.leaves.some((l) => l.page === s.page && l.half)) })), [spotlightsSignature, doc.numPages, layout]);
+  const [openSpotlight, setOpenSpotlight] = useState<number | null>(null);
   const videoPlayer = useRef<PageVideoPlayer | null>(null);
   const [videoSound, setVideoSound] = useState<string | null>(null);
   const noteClosers = useRef(new Map<string, () => Promise<void> | null>());
@@ -1383,7 +1393,8 @@ export function BookView({
           return <div key={`${n}:${settings.studio}`} className="pointer-events-none absolute z-30" style={{ left: `${bounds.x}%`, top: `${bounds.y}%`, width: `${bounds.width}%`, height: `${bounds.height}%` }}>
             {editingExtras && <LiveScrapbookPage leaf={layout.leaves[n]!} side={side===0?'left':'right'} ratio={ratio}/>}
             {onLeaf.map(link => <PageLinkAnchor key={link.id} link={link} />)}
-            {videosForLeaf(pageVideos, layout.leaves[n]!).map(v => <PageVideoSound key={v.id} video={v} on={videoSound === v.id} onToggle={() => videoPlayer.current?.toggleSound(v.id)} />)}
+            {videosForLeaf(pageVideos, layout.leaves[n]!).filter(v => !v.silent).map(v => <PageVideoSound key={v.id} video={v} on={videoSound === v.id} onToggle={() => videoPlayer.current?.toggleSound(v.id)} />)}
+            {spotlightsForLeaf(spotlightViews.map(v => v.spotlight), layout.leaves[n]!).map(s => <SpotlightTarget key={s.id} spotlight={s} onOpen={() => setOpenSpotlight(spotlightViews.findIndex(v => v.spotlight.id === s.id))} />)}
             {visible.map(item => <StoredFoldout key={`${item.id}:${(preparedNotesReady || litNotesKey === notesKey)}:${JSON.stringify(item)}`} item={item} demoAnimate={demoNotes} baked={item.style !== "sticky"} sceneRendered={(preparedNotesReady || litNotesKey === notesKey)} onProgress={p => {
               noteProgresses.current.set(item.id, p);
               setOpenNote([...noteProgresses.current.values()].some(value => value > .001));
@@ -1392,6 +1403,9 @@ export function BookView({
             }} closers={noteClosers} />)}
           </div>;
         })}
+        {openSpotlight !== null && spotlightViews[openSpotlight] && (
+          <SpotlightLightbox doc={doc} views={spotlightViews} index={openSpotlight} onIndex={setOpenSpotlight} onClose={() => setOpenSpotlight(null)} />
+        )}
         {bookReady && !fallback && tabRects.length > 0 && (
           <PageTabButtons
             rects={tabRects}

@@ -60,6 +60,10 @@ export function warmPageImages(doc: object, pages: number[], needLong: number) {
 }
 /** 0 while pages come from pictures only; 1 once the PDF is open and deep zoom can draw from it. */
 export const artworkVersion = (doc: object) => (documents.get(doc)?.openPdf() ? 1 : 0);
+/** The streamed PDF behind a page-picture document, opening it if needed (spotlights draw sharp from it). */
+export function fullPdf(doc: object): Promise<PDFDocumentProxy | null> | null {
+  return documents.get(doc)?.pdf() ?? null;
+}
 /** Asks for the PDF (for zoom beyond the pictures) and calls back once it is open. */
 export function whenFullPdf(doc: object, listener: () => void): () => void {
   const d = documents.get(doc);

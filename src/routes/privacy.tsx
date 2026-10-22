@@ -103,6 +103,8 @@ function PrivacyPage() {
 
       <p>Optional portfolio passwords are stored as salted hashes. Access cookies remember an unlocked portfolio for up to twelve hours, bounded by its expiry. Short-lived hashed network identifiers are used to limit repeated password attempts. The PDF checker processes the selected file on your device without uploading it.</p>
 
+      <p>If a portfolio owner on the Personal plan turns on “Email me when someone opens it”, opening their published portfolio sends them an email saying when it was opened, the country your network reports and whether you used a phone, tablet or computer. Your IP address, name and visitor identifier are not included, and we keep only a count of opens and when the last email was sent, so the owner gets at most one email every few hours.</p>
+
       <h2>Where your data lives</h2>
       <p>
         Unsaved previews are kept in your browser. When you sign in and save, portfolio files and details are synced to your account in private cloud storage, with a browser cache for editing. Publishing permits visitor access through the portfolio link, subject to any password or expiry you set. Sign-in and billing information is also stored online by our service providers.

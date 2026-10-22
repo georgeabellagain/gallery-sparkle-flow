@@ -12,7 +12,27 @@ import { ShareActions } from "@/components/pf/ShareActions";
 import { StyleForm } from "@/components/pf/StyleForm";
 import { Segmented } from "@/components/pf/viewer-ui";
 import { formatBytes } from "@/lib/portfolia/assets";
-import { DEFAULT_VIEWER, patchPortfolio, type Portfolio } from "@/lib/portfolia/store";
+import { DEFAULT_VIEWER, isPaid, patchPortfolio, useDoc, type Portfolio } from "@/lib/portfolia/store";
+import { OPEN_EMAIL_GAP_HOURS } from "@/lib/portfolia/open-notify";
+
+/** Opt-in "someone opened your portfolio" email (Personal, signed in: it goes to the account's address). */
+function OpenEmailSetting({ p, onSaveError }: { p: Portfolio; onSaveError: (message: string | null) => void }) {
+  const doc = useDoc();
+  const allowed = isPaid(doc) && doc.account.signedIn;
+  return (
+    <label className="flex items-start justify-between gap-3 text-sm">
+      <span>
+        <span className="flex items-center gap-2">Email me when someone opens it{!isPaid(doc) && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px]">Personal</span>}</span>
+        <span className="block text-xs text-muted-foreground">
+          {allowed
+            ? `Sent to your account email with the time, country and device. At most one every ${OPEN_EMAIL_GAP_HOURS} hours; opens in between are added to the next. Your own visits don’t count.`
+            : isPaid(doc) ? "Sign in to get these emails at your account’s address." : "Personal emails you when someone opens your published portfolio."}
+        </span>
+      </span>
+      <input type="checkbox" className="mt-1" disabled={!allowed} checked={allowed && Boolean(p.notifyOnOpen)} onChange={(e) => onSaveError(patchPortfolio({ notifyOnOpen: e.target.checked }) ? null : "Couldn’t save that setting.")} />
+    </label>
+  );
+}
 import { getPreviewLook, pinPreviewLook, subscribePreviewLook, type PreviewLook } from "@/lib/portfolia/preview-look";
 import { setBookInset } from "@/lib/portfolia/book-framing";
 import { readablePageLinks, readablePageTags } from "@/lib/portfolia/page-extras";
@@ -253,7 +273,7 @@ export function EditorStage({
           </div>
           {tool === "customise" && <div className="space-y-2">
             <label className="mb-3 block text-xs">Portfolio name<input aria-label="Portfolio name" className="mt-1 w-full rounded-lg border bg-background p-2 text-sm" value={p.name ?? ""} maxLength={120} placeholder={p.pdf?.name ?? "My portfolio"} onChange={e=>patchPortfolio({name:e.target.value})} /></label>
-            {([["reading", "Visual style"], ["look", "Lighting"], ["paper", "Paper"], ["background", "Background"], ["scrapbook", "Notes, tabs & website links"], ["book", "Book marketing"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="line" size="sm" onClick={() => setTool(id)}>{label}</Button>)}
+            {([["reading", "Visual style"], ["look", "Lighting"], ["paper", "Paper"], ["background", "Background"], ["scrapbook", "Notes, tabs, links & spotlights"], ["book", "Book marketing"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="line" size="sm" onClick={() => setTool(id)}>{label}</Button>)}
             <details className="pt-3"><summary className="cursor-pointer text-sm">More options</summary><div className="mt-3 grid gap-2">{([["profile", "Profile details"], ["projects", "Named projects"], ["publish", "File & publishing"], ["statistics", "Statistics"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="quiet" size="sm" onClick={() => setTool(id)}>{label}</Button>)}</div></details>
           </div>}
           {tool === "profile" && profile}
@@ -293,6 +313,7 @@ export function EditorStage({
                   </span>
                   <input type="checkbox" className="mt-1" checked={Boolean(p.searchIndexing)} onChange={(e) => onSaveError(patchPortfolio({ searchIndexing: e.target.checked }) ? null : "Couldn’t save that setting.")} />
                 </label>
+                <OpenEmailSetting p={p} onSaveError={onSaveError} />
               </div>
               <div className="grid gap-2 border-t border-border pt-4">
                 {!home && <Button asChild variant="line" size="sm"><Link to="/dashboard">Back to dashboard</Link></Button>}

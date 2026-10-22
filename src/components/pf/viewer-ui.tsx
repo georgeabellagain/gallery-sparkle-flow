@@ -61,8 +61,8 @@ export const iconClass = (tone: Tone, large = false, flat = false) =>
   );
 
 /** A hairline between groups of toolbar buttons. */
-export function ToolbarDivider() {
-  return <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-current opacity-20" />;
+export function ToolbarDivider({ className }: { className?: string }) {
+  return <span aria-hidden className={cn("mx-1 h-5 w-px shrink-0 bg-current opacity-20", className)} />;
 }
 
 export function IconButton({

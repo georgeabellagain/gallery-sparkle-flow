@@ -1,7 +1,7 @@
 import { transformFoldout, type Foldout, type ResizeCorner } from "./foldouts";
-import { placeLink, placeVideo, type PageLink, type PageTag, type PageVideo } from "./page-extras";
-export type ExtraKind = "foldouts" | "links" | "tags" | "videos";
-export type Extra = Foldout | PageLink | PageTag | PageVideo;
+import { placeLink, placeSpotlight, placeVideo, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "./page-extras";
+export type ExtraKind = "foldouts" | "links" | "tags" | "videos" | "spotlights";
+export type Extra = Foldout | PageLink | PageTag | PageVideo | PageSpotlight;
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 export function transformExtra(
   kind: ExtraKind,
@@ -24,6 +24,13 @@ export function transformExtra(
     return handle === "move"
       ? placeVideo(video, video.x + dx, video.y + dy, video.width, ratio)
       : placeVideo(video, video.x, video.y, video.width + Math.max(dx, dy * video.aspect * ratio), ratio);
+  }
+  if (kind === "spotlights") {
+    // A spotlight is any shape: the bottom-right handle changes width and height freely.
+    const s = item as PageSpotlight;
+    return handle === "move"
+      ? placeSpotlight(s, s.x + dx, s.y + dy, s.width, s.height)
+      : placeSpotlight(s, s.x, s.y, s.width + dx, s.height + dy);
   }
   const link = item as PageLink;
   return placeLink(

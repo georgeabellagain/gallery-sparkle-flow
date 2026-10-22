@@ -54,7 +54,7 @@ function OneVideo({ video }: { video: PageVideo }) {
         className="pointer-events-none absolute object-cover"
         style={{ left: `${video.x * 100}%`, top: `${video.y * 100}%`, width: `${video.width * 100}%`, height: `${video.height * 100}%` }}
       />
-      <PageVideoSound video={video} on={sound} onToggle={() => {
+      {!video.silent && <PageVideoSound video={video} on={sound} onToggle={() => {
         const v = el.current;
         if (!v) return;
         const next = !sound;
@@ -63,7 +63,7 @@ function OneVideo({ video }: { video: PageVideo }) {
         // The element is the source of truth; onVolumeChange updates the speaker icon.
         v.muted = !next;
         if (next) void v.play().then(() => started(v)).catch(() => {});
-      }} />
+      }} />}
     </>
   );
 }

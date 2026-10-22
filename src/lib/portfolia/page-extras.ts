@@ -50,7 +50,27 @@ export interface PageVideo {
   mime: "video/mp4" | "video/webm";
   bytes: number;
   name?: string;
+  /** Made from a GIF: it has no sound, so readers get no speaker button. */
+  silent?: true;
 }
+/** A detail the creator marked on a page. Readers see a magnifier there and can open it large, sharp from the PDF. */
+export interface PageSpotlight {
+  id: string;
+  page: number;
+  /** Which half of a spread-sheet page the box sits on. */
+  half: "left" | "right";
+  /** Top-left corner and size as fractions of the page. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Optional words shown under the enlarged detail. */
+  caption?: string;
+}
+/** Spotlights per portfolio: a few on Free, plenty on Personal. */
+export const SPOTLIGHT_LIMITS = { free: 3, personal: 24 } as const;
+export const SPOTLIGHT_CAPTION_LIMIT = 140;
+export const SPOTLIGHT_SIZE = { min: 0.05, default: 0.35 };
 export const MAX_VIDEOS = 6;
 export const VIDEO_MAX_MB = 40;
 export const VIDEO_WIDTH = { min: 0.1, max: 1, default: 0.6 };
@@ -125,6 +145,7 @@ export function validatePageVideo(v: PageVideo, pages: number): string | null {
   if (v.mime !== "video/mp4" && v.mime !== "video/webm") return "Use an MP4 or WebM video.";
   if (!Number.isFinite(v.bytes) || v.bytes <= 0 || v.bytes > VIDEO_MAX_MB * 1048576) return `Use a video up to ${VIDEO_MAX_MB} MB.`;
   if (v.name !== undefined && (typeof v.name !== "string" || v.name.length > 120)) return "Choose a shorter file name.";
+  if (v.silent !== undefined && v.silent !== true) return "Choose a valid video.";
   if (![v.x, v.y, v.width, v.height, v.aspect].every(Number.isFinite) || v.aspect < 0.2 || v.aspect > 5) return "Choose a valid video shape.";
   if (v.width < VIDEO_WIDTH.min - 1e-9 || v.width > VIDEO_WIDTH.max + 1e-9 || v.height <= 0 || v.height > 1.0001) return "Choose a valid video size.";
   if (v.x < -1e-9 || v.y < -1e-9 || v.x + v.width > 1.0001 || v.y + v.height > 1.0001) return "Keep the video on the page.";
@@ -154,6 +175,40 @@ export function placeVideo(v: PageVideo, x: number, y: number, width: number, ra
   const w = Math.min(Math.max(VIDEO_WIDTH.min, width), VIDEO_WIDTH.max, v.aspect * ratio);
   const h = videoHeight({ width: w, aspect: v.aspect }, ratio);
   return { ...v, width: w, height: h, x: Math.min(Math.max(0, x), 1 - w), y: Math.min(Math.max(0, y), Math.max(0, 1 - h)) };
+}
+export function validatePageSpotlight(s: PageSpotlight, pages: number): string | null {
+  if (!s || typeof s !== "object" || !key.test(s.id)) return "Choose a valid spotlight.";
+  if (!Number.isInteger(s.page) || s.page < 1 || s.page > pages) return "Choose a page in this PDF.";
+  if (s.half !== "left" && s.half !== "right") return "Choose a page half.";
+  if (s.caption !== undefined && (typeof s.caption !== "string" || s.caption.length > SPOTLIGHT_CAPTION_LIMIT)) return `Keep the caption to ${SPOTLIGHT_CAPTION_LIMIT} characters.`;
+  if (![s.x, s.y, s.width, s.height].every(Number.isFinite)) return "Choose a valid spotlight size.";
+  if (s.width < SPOTLIGHT_SIZE.min - 1e-9 || s.height < SPOTLIGHT_SIZE.min - 1e-9 || s.width > 1.0001 || s.height > 1.0001) return "Choose a valid spotlight size.";
+  if (s.x < -1e-9 || s.y < -1e-9 || s.x + s.width > 1.0001 || s.y + s.height > 1.0001) return "Keep the spotlight on the page.";
+  return null;
+}
+export const readablePageSpotlights = (value: unknown, pages: number): PageSpotlight[] =>
+  readable<PageSpotlight>(value, SPOTLIGHT_LIMITS.personal, (s) => !validatePageSpotlight(s, pages));
+export const spotlightsForLeaf = (spotlights: PageSpotlight[], leaf: { page: number; half?: "left" | "right" }) =>
+  spotlights.filter((s) => s.page === leaf.page && (!leaf.half || s.half === leaf.half));
+/** The same leaf-relative box on the full PDF page, for Scroll and Page-by-page. */
+export function spotlightsForPage(spotlights: PageSpotlight[], page: number, split: boolean): PageSpotlight[] {
+  return spotlights.filter((s) => s.page === page).map((s) => split
+    ? { ...s, x: (s.half === "right" ? 0.5 : 0) + s.x / 2, width: s.width / 2 }
+    : s);
+}
+/** Keeps a spotlight box on its page while it is moved or resized. Its shape is free. */
+export function placeSpotlight(s: PageSpotlight, x: number, y: number, width: number, height: number): PageSpotlight {
+  const w = Math.min(Math.max(SPOTLIGHT_SIZE.min, width), 1), h = Math.min(Math.max(SPOTLIGHT_SIZE.min, height), 1);
+  return { ...s, width: w, height: h, x: Math.min(Math.max(0, x), 1 - w), y: Math.min(Math.max(0, y), 1 - h) };
+}
+/**
+ * The part of the full PDF page a spotlight shows, as fractions of that page. A spotlight on a
+ * spread-sheet page is stored relative to its half, so it is mapped back onto the whole sheet.
+ */
+export function spotlightRegion(s: Pick<PageSpotlight, "half" | "x" | "y" | "width" | "height">, split: boolean) {
+  return split
+    ? { x: (s.half === "right" ? 0.5 : 0) + s.x / 2, y: s.y, width: s.width / 2, height: s.height }
+    : { x: s.x, y: s.y, width: s.width, height: s.height };
 }
 function readable<T extends { id: string }>(value: unknown, max: number, ok: (v: T) => boolean): T[] {
   if (!Array.isArray(value)) return [];

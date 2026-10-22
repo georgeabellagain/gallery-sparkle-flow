@@ -1,12 +1,13 @@
 import { useRef, useState } from "react";
-import { ExternalLink, Film, Plus, StickyNote, Tag, Trash2 } from "lucide-react";
+import { ExternalLink, Film, Plus, Search, StickyNote, Tag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ScrapbookPanel } from "./FoldoutSettings";
 import type { ScrapbookSelection } from "./live-scrapbook-context";
 import { deleteBlob, putBlob, uid } from "@/lib/portfolia/assets";
 import { MAX_FOLDOUTS, MAX_NOTE_ROTATION, newFoldout, noteRotation, readableFoldouts, rotateFoldout, type Foldout } from "@/lib/portfolia/foldouts";
-import { LINK_SIZE, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, TAG_COLOURS, VIDEO_MAX_MB, VIDEO_WIDTH, hostOf, normaliseUrl, placeVideo, readablePageLinks, readablePageTags, readablePageVideos, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { LINK_SIZE, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, SPOTLIGHT_CAPTION_LIMIT, SPOTLIGHT_LIMITS, SPOTLIGHT_SIZE, TAG_COLOURS, VIDEO_MAX_MB, VIDEO_WIDTH, hostOf, normaliseUrl, placeVideo, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { readVideo, videoFileProblem, videoMime } from "@/lib/portfolia/page-video-file";
+import { gifFileProblem, gifToVideo, isGif } from "@/lib/portfolia/gif-to-video";
 import { addPortfolioExtra, deleteUnusedPortfolioAsset, isPaid, patchPortfolioExtra, removePortfolioExtra, useDoc, type Portfolio } from "@/lib/portfolia/store";
 
 type Shown = { page: number; half?: "left" | "right" };
@@ -59,22 +60,31 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
   const [videoError, setVideoError] = useState("");
   const pageVideos = readablePageVideos(pdf.videos, pdf.pages);
   const sideHasVideo = pageVideos.some(v => v.page === page.page && v.half === half);
-  const addVideo = async (file?: File) => {
-    if (!file || videoPhase) return;
-    const problem = videoFileProblem(file);
+  const addVideo = async (chosen?: File) => {
+    if (!chosen || videoPhase) return;
+    const gif = isGif(chosen);
+    const problem = gif ? gifFileProblem(chosen) : videoFileProblem(chosen);
     if (problem) return setVideoError(problem);
     if (pageVideos.length >= MAX_VIDEOS) return setVideoError(`Use up to ${MAX_VIDEOS} videos per portfolio.`);
     if (sideHasVideo) return setVideoError("This page already has a video. Remove it first, or add this one to another page.");
     setVideoError("");
     const blobKey = uid("video"), posterKey = `${blobKey}_poster.jpg`;
     try {
+      // A GIF becomes a looping silent video first, then joins the page like any video.
+      let file = chosen;
+      if (gif) {
+        setVideoPhase("Turning the GIF into video");
+        file = await gifToVideo(chosen, (done) => setVideoPhase(`Turning the GIF into video · ${Math.round(done * 100)}%`));
+        const converted = videoFileProblem(file);
+        if (converted) throw new Error(converted);
+      }
       setVideoPhase("Reading the video");
       const { aspect, poster } = await readVideo(file);
       setVideoPhase("Saving the video");
       await putBlob(blobKey, file);
       await putBlob(posterKey, poster);
       // Placed at a typical page shape; the page in view corrects the height to its own shape straight away.
-      const base: PageVideo = { id: uid("vid"), page: page.page, half, x: 0, y: 0, width: VIDEO_WIDTH.default, height: 0.3, aspect, blobKey, posterKey, mime: videoMime(file), bytes: file.size, name: file.name.slice(0, 120) };
+      const base: PageVideo = { id: uid("vid"), page: page.page, half, x: 0, y: 0, width: VIDEO_WIDTH.default, height: 0.3, aspect, blobKey, posterKey, mime: videoMime(file), bytes: file.size, name: file.name.slice(0, 120), ...(gif ? { silent: true as const } : {}) };
       const video = placeVideo(base, (1 - VIDEO_WIDTH.default) / 2, 0.3, VIDEO_WIDTH.default);
       const ok = addPortfolioExtra(p.code, pdf.blobKey, "videos", video, MAX_VIDEOS);
       if (!ok) { void deleteBlob(blobKey).catch(() => {}); void deleteBlob(posterKey).catch(() => {}); return setVideoError("The video could not be added. Please try again."); }
@@ -87,6 +97,16 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
       if (videoInput.current) videoInput.current.value = "";
     }
   };
+  const spotlights = readablePageSpotlights(pdf.spotlights, pdf.pages);
+  const spotlightLimit = isPaid(doc) ? SPOTLIGHT_LIMITS.personal : SPOTLIGHT_LIMITS.free;
+  const addSpotlight = () => {
+    const size = SPOTLIGHT_SIZE.default;
+    const s: PageSpotlight = { id: uid("spot"), page: page.page, half, x: (1 - size) / 2, y: 0.3, width: size, height: size * 0.75 };
+    const ok = addPortfolioExtra(p.code, pdf.blobKey, "spotlights", s, spotlightLimit);
+    report(ok, isPaid(doc) ? `Use up to ${spotlightLimit} spotlights.` : `Free includes ${spotlightLimit} spotlights. Personal adds up to ${SPOTLIGHT_LIMITS.personal}.`);
+    if (ok) onSelect({ kind: "spotlights", id: s.id });
+  };
+  const spotlight = selected?.kind === "spotlights" ? spotlights.find(s => s.id === selected.id) : undefined;
   const video = selected?.kind === "videos" ? pageVideos.find(v => v.id === selected.id) : undefined;
   const note = selected?.kind === "foldouts" ? readableFoldouts(pdf.foldouts, pdf.pages).find(f => f.id === selected.id) : undefined;
   const tab = selected?.kind === "tags" ? readablePageTags(pdf.tags, pdf.pages).find(t => t.id === selected.id) : undefined;
@@ -105,7 +125,7 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
   return (
     <div className="space-y-4 text-sm">
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Add notes, tabs and links to the page in view, then drag them on the page. Pull a corner to resize, the round handle to rotate a note. Press Save above to keep your changes.
+        Add notes, tabs, links and spotlights to the page in view, then drag them on the page. Pull a corner to resize, the round handle to rotate a note. Press Save above to keep your changes.
       </p>
       <section aria-label="Add to this page" className="space-y-2">
         {shown.length > 1 && (
@@ -133,15 +153,34 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
           {urlError && <p role="alert" className="mt-1 text-xs text-destructive">{urlError}</p>}
         </div>
         <div className="rounded-xl border border-border p-3">
-          <p className="flex items-center justify-between font-medium">Video on the page{!isPaid(doc) && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-normal">Personal</span>}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Plays inside the paper as if printed on it. Starts muted; readers tap it for sound. MP4 or WebM up to {VIDEO_MAX_MB} MB, one per page.</p>
-          <input ref={videoInput} type="file" accept="video/mp4,video/webm,.mp4,.m4v,.webm" className="sr-only" tabIndex={-1} aria-hidden onChange={e => void addVideo(e.target.files?.[0])} />
+          <p className="flex items-center justify-between font-medium">Video or GIF on the page{!isPaid(doc) && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-normal">Personal</span>}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Plays inside the paper as if printed on it. Starts muted; readers tap it for sound. MP4, WebM or animated GIF up to {VIDEO_MAX_MB} MB, one per page. A GIF is turned into a looping video on your device.</p>
+          <input ref={videoInput} type="file" accept="video/mp4,video/webm,image/gif,.mp4,.m4v,.webm,.gif" className="sr-only" tabIndex={-1} aria-hidden onChange={e => void addVideo(e.target.files?.[0])} />
           <Button size="sm" variant="line" className="mt-2 w-full" disabled={Boolean(videoPhase) || sideHasVideo} onClick={() => videoInput.current?.click()}>
-            <Film className="size-4" />{videoPhase ? `${videoPhase}…` : sideHasVideo ? "This page has a video" : "Choose a video"}
+            <Film className="size-4" />{videoPhase ? `${videoPhase}…` : sideHasVideo ? "This page has a video" : "Choose a video or GIF"}
           </Button>
           {videoError && <p role="alert" className="mt-1 text-xs text-destructive">{videoError}</p>}
         </div>
+        <div className="rounded-xl border border-border p-3">
+          <p className="flex items-center justify-between font-medium">Spotlight<span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-normal tabular-nums">{spotlights.length} of {spotlightLimit}</span></p>
+          <p className="mt-1 text-xs text-muted-foreground">Mark a detail worth a closer look. Readers see a magnifier there and can open it large and sharp, with your caption.</p>
+          <Button size="sm" variant="line" className="mt-2 w-full" disabled={spotlights.length >= spotlightLimit} onClick={addSpotlight}>
+            <Search className="size-4" />Add a spotlight
+          </Button>
+        </div>
       </section>
+      {spotlight && (
+        <section aria-label="Selected spotlight" className="space-y-3 border-t border-border pt-3">
+          <div className="flex items-center justify-between">
+            <p className="font-medium">Spotlight</p>
+            <Button size="xs" variant="quiet" onClick={remove} aria-label="Delete selected spotlight"><Trash2 className="size-4" />Delete</Button>
+          </div>
+          <label className="block text-xs">Caption (optional)
+            <textarea className={field} rows={2} maxLength={SPOTLIGHT_CAPTION_LIMIT} value={spotlight.caption ?? ""} onChange={e => report(patchPortfolioExtra(p.code, pdf.blobKey, "spotlights", spotlight.id, { ...spotlight, caption: e.target.value || undefined }), `Keep the caption to ${SPOTLIGHT_CAPTION_LIMIT} characters.`)} />
+          </label>
+          <p className="text-xs text-muted-foreground">Drag the box over the detail; pull its corner to fit it. Readers see exactly what's inside the box, drawn sharp from your PDF.</p>
+        </section>
+      )}
       {video && (
         <section aria-label="Selected video" className="space-y-3 border-t border-border pt-3">
           <div className="flex items-center justify-between">

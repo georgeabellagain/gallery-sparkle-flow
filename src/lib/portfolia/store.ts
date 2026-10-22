@@ -1,5 +1,5 @@
 import { validateFoldout } from "./foldouts";
-import { validatePageTag, validatePageLink, validatePageVideo, type PageVideo } from "./page-extras";
+import { validatePageTag, validatePageLink, validatePageVideo, validatePageSpotlight, type PageVideo } from "./page-extras";
 import type { ExtraKind, Extra } from "./scrapbook-transform";
 import { backgroundKeys } from "./background-settings";
 import { foldoutKeys } from "./foldouts";
@@ -144,6 +144,8 @@ export interface PdfFile {
   links?: import("./page-extras").PageLink[];
   /** Videos printed on pages (Personal). */
   videos?: import("./page-extras").PageVideo[];
+  /** Details readers can open large (spotlight zoom). */
+  spotlights?: import("./page-extras").PageSpotlight[];
   /** Optional derived JPEG used in public link previews. */
   coverKey?: string;
   renderedStudio?: import("./rendered-studio").RenderedStudio;
@@ -175,6 +177,8 @@ export interface Portfolio {
   allowDownload: boolean;
   /** Opt-in: allow search engines to index this portfolio. Off by default. */
   searchIndexing?: boolean;
+  /** Opt-in (Personal): email the account when someone opens the published portfolio. Never sent to visitors. */
+  notifyOnOpen?: boolean;
   plan: "free" | "personal";
   billing?: "month" | "year";
   username?: string;
@@ -363,6 +367,7 @@ function validateExtra(kind:ExtraKind,item:Extra,pages:number):string|null{
   if(kind==="foldouts")return validateFoldout(item as import("./foldouts").Foldout,pages);
   if(kind==="tags")return validatePageTag(item as import("./page-extras").PageTag,pages);
   if(kind==="videos")return validatePageVideo(item as PageVideo,pages);
+  if(kind==="spotlights")return validatePageSpotlight(item as import("./page-extras").PageSpotlight,pages);
   return validatePageLink(item as import("./page-extras").PageLink,pages);
 }
 
@@ -623,7 +628,12 @@ export function recordVisit(code: string) {
 
 async function logEvent(code: string, kind: "visit" | "download", visitor?: string) {
   const { supabase } = await import("@/integrations/supabase/client");
-  await supabase.from("portfolio_events").insert({ portfolio_code: code, kind, visitor }).then(() => {}, () => {});
+  const { error } = await supabase.from("portfolio_events").insert({ portfolio_code: code, kind, visitor }).then((r) => r, () => ({ error: true }));
+  // Once the visit is stored, the server may tell an owner who asked to hear about opens (it checks everything itself).
+  if (!error && kind === "visit" && visitor) {
+    const { portfolioOpened } = await import("./open-notify.functions");
+    await portfolioOpened({ data: { code, visitor } }).catch(() => {});
+  }
 }
 
 export function recordDownload(code?: string) {

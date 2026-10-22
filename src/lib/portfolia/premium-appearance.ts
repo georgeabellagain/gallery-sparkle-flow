@@ -1,5 +1,6 @@
 import { DEFAULT_STYLE } from "./store";
 import type { Portfolio } from "./store";
+import { SPOTLIGHT_LIMITS } from "./page-extras";
 export const FREE_HDRIS = ["1", "2", "3", "4"];
 export const FREE_BACKGROUNDS = ["wood_floor", "concrete_floor_02"];
 export const personalHdri = (id: string) => !FREE_HDRIS.includes(id);
@@ -11,6 +12,7 @@ export function premiumAppearance(p: Portfolio): string[] {
   if (choices.some(c => c?.backgroundKey || (c?.backgroundPreset && personalBackground(c.backgroundPreset)))) features.push("Personal backgrounds");
   if (p.profile.cv) features.push("Downloadable CV");
   if (p.pdf?.videos?.length) features.push("Videos on pages");
+  if ((p.pdf?.spotlights?.length ?? 0) > SPOTLIGHT_LIMITS.free) features.push(`More than ${SPOTLIGHT_LIMITS.free} spotlights`);
   if (p.style && Object.entries(p.style).some(([key, value]) => value !== undefined && value !== DEFAULT_STYLE[key as keyof typeof DEFAULT_STYLE])) features.push("Custom profile styling");
   return features;
 }

@@ -10,7 +10,8 @@ import {
   type Foldout,
   type ResizeCorner,
 } from "@/lib/portfolia/foldouts";
-import { linksForLeaf, placeVideo, readablePageVideos, tabSlots, videoHeight, videosForLeaf, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { linksForLeaf, placeVideo, readablePageSpotlights, readablePageVideos, spotlightsForLeaf, tabSlots, videoHeight, videosForLeaf, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { Search } from "lucide-react";
 import { useBlob } from "./Chrome";
 
 /** The video's still in the editor; the moving picture plays in the reader. */
@@ -57,7 +58,7 @@ export function LiveScrapbookPage({
     next: Extra;
     centre?: { x: number; y: number };
   } | null>(null);
-  useEffect(() => setDraft(null), [pdf.foldouts, pdf.links, pdf.tags, pdf.videos]);
+  useEffect(() => setDraft(null), [pdf.foldouts, pdf.links, pdf.tags, pdf.videos, pdf.spotlights]);
   const leafVideos = videosForLeaf(readablePageVideos(pdf.videos, pdf.pages), leaf);
   // A new video is placed at a typical page shape; fit its height to this page's real shape once it is seen.
   useEffect(() => {
@@ -168,7 +169,7 @@ export function LiveScrapbookPage({
       <button
         key={corner}
         type="button"
-        aria-label={`Resize ${kind === "foldouts" ? "note" : kind === "tags" ? "tab" : kind === "videos" ? "video" : "link"} ${corner}`}
+        aria-label={`Resize ${kind === "foldouts" ? "note" : kind === "tags" ? "tab" : kind === "videos" ? "video" : kind === "spotlights" ? "spotlight" : "link"} ${corner}`}
         {...controls(kind, item, corner as ResizeCorner)}
         className={`pointer-events-auto absolute z-20 size-3 touch-none border border-white bg-blue-600 ${corner.includes("n") ? "-top-1.5" : "-bottom-1.5"} ${corner.includes("w") ? "-left-1.5" : "-right-1.5"}`}
         style={{ cursor: corner === "nw" || corner === "se" ? "nwse-resize" : "nesw-resize" }}
@@ -228,6 +229,28 @@ export function LiveScrapbookPage({
               className="absolute inset-0 touch-none cursor-move bg-transparent"
             />
             {resize("videos", v)}
+          </div>
+        );
+      })}
+      {spotlightsForLeaf(readablePageSpotlights(pdf.spotlights, pdf.pages), leaf).map((original) => {
+        const s = live(original);
+        return (
+          <div
+            key={s.id}
+            data-selected={selected === s.id || undefined}
+            className="absolute pointer-events-auto border-2 border-dashed border-blue-600/80 bg-blue-500/10 data-[selected]:border-solid data-[selected]:bg-blue-500/15"
+            style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${s.width * 100}%`, height: `${s.height * 100}%` }}
+          >
+            <span aria-hidden className="pointer-events-none absolute right-1 top-1 inline-flex items-center gap-1 rounded bg-blue-600 px-1.5 py-0.5 text-[10px] text-white">
+              <Search className="size-3" />Spotlight
+            </span>
+            <button
+              type="button"
+              aria-label={`Move spotlight ${s.caption ?? ""}`}
+              {...controls("spotlights", s, "move")}
+              className="absolute inset-0 touch-none cursor-move bg-transparent"
+            />
+            {resize("spotlights", s)}
           </div>
         );
       })}
