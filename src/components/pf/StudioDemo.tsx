@@ -1,5 +1,6 @@
 import { registerPublicUrls } from "@/lib/portfolia/assets";
 import { chooseHomeExample } from "@/lib/portfolia/homepage-examples";
+import { FIELD_NOTES_CODE, fieldNotesExample } from "@/lib/portfolia/field-notes-example";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PdfViewer } from "./PdfViewer";
 import { BookLoader } from "./book-loader";
@@ -14,6 +15,8 @@ export const FEATURED_CREDIT = "Property of Scarlett Bushell 2026";
 const demoRequests = new Map<string, { at: number; promise: Promise<PublicPortfolio> }>();
 function loadDemoPortfolio(code: string, refresh = false) {
   void loadPdfjs().catch(() => {});
+  // The site's own example ships with the site: nothing to fetch from an account.
+  if (code === FIELD_NOTES_CODE) return Promise.resolve<PublicPortfolio>(fieldNotesExample());
   let request = demoRequests.get(code);
   if (refresh || !request || Date.now() - request.at > 60000) {
     const promise = getPublicPortfolio({ data: { by: "code", value: code } });
@@ -88,7 +91,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
         controls
         homepageExample={workspace}
         allowDownload={p.allowDownload}
-        projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} projectCode={p.code}
+        projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} videos={p.pdf.videos} spotlights={p.pdf.spotlights} projectCode={p.code}
         lightweight={!workspace}
         initialLook="studio"
         fullSpread
