@@ -1,10 +1,10 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {HOME_EXAMPLE_CODES,chooseHomeExample} from "../src/lib/portfolia/homepage-examples";
-import {FIELD_NOTES_CODE,fieldNotesExample} from "../src/lib/portfolia/field-notes-example";
+import {FIELD_NOTES_PUBLISHED_CODE,HOME_EXAMPLE_CODES,chooseHomeExample} from "../src/lib/portfolia/homepage-examples";
+import {fieldNotesExample} from "../src/lib/portfolia/field-notes-example";
 import {readablePageJumps,readablePageLinks,readablePageSpotlights,readablePageTags,readablePageVideos} from "../src/lib/portfolia/page-extras";
 import {readableFoldouts} from "../src/lib/portfolia/foldouts";
-test("homepage consistently shows only the site's own Field Notes example",()=>{assert.deepEqual(HOME_EXAMPLE_CODES,[FIELD_NOTES_CODE]);for(let i=0;i<20;i++)assert.equal(chooseHomeExample(),FIELD_NOTES_CODE);});
+test("homepage consistently shows the published Field Notes",()=>{assert.deepEqual(HOME_EXAMPLE_CODES,[FIELD_NOTES_PUBLISHED_CODE]);assert.equal(FIELD_NOTES_PUBLISHED_CODE,"67wkw");for(let i=0;i<20;i++)assert.equal(chooseHomeExample(),FIELD_NOTES_PUBLISHED_CODE);});
 test("every feature on the Field Notes example is valid and has its file",()=>{
   const {portfolio,urls}=fieldNotesExample(),pdf=portfolio.pdf!;
   assert.equal(readablePageTags(pdf.tags,pdf.pages).length,5);

@@ -1,5 +1,5 @@
 import { registerPublicUrls } from "@/lib/portfolia/assets";
-import { chooseHomeExample } from "@/lib/portfolia/homepage-examples";
+import { FIELD_NOTES_PUBLISHED_CODE, chooseHomeExample } from "@/lib/portfolia/homepage-examples";
 import { FIELD_NOTES_CODE, fieldNotesExample } from "@/lib/portfolia/field-notes-example";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PdfViewer } from "./PdfViewer";
@@ -20,7 +20,9 @@ function loadDemoPortfolio(code: string, refresh = false) {
   if (code === FIELD_NOTES_CODE) return Promise.resolve<PublicPortfolio>(fieldNotesExample());
   let request = demoRequests.get(code);
   if (refresh || !request || Date.now() - request.at > 60000) {
-    const promise = getPublicPortfolio({ data: { by: "code", value: code } });
+    const published = getPublicPortfolio({ data: { by: "code", value: code } });
+    // The published Field Notes falls back to the copy shipped with the site, so the homepage always has its example.
+    const promise = code === FIELD_NOTES_PUBLISHED_CODE ? published.then((result) => result ?? fieldNotesExample(), () => fieldNotesExample()) : published;
     request = { at: Date.now(), promise }; demoRequests.set(code, request);
     void promise.catch(() => { if (demoRequests.get(code)?.promise === promise) demoRequests.delete(code); });
   }
