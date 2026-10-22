@@ -19,9 +19,13 @@ export function readableTurnCurve(value: unknown): TurnCurve {
  */
 export function softFold(u: number, v: number, progress: number): { x: number; z: number } {
   const p = Math.max(0, Math.min(1, progress)), wave = Math.sin(Math.PI * p);
-  const radius = .085 * Math.pow(wave, .7);
-  // The lower outside corner leads, as when a reader pulls the page from the bottom corner.
-  const fold = Math.max(0, 1 - p - .14 * (.5 - v) * wave);
+  // The roll is fuller near the pulled bottom corner and tighter at the head, so the turned flap isn't one flat slab.
+  const radius = .085 * Math.pow(wave, .7) * (.85 + .3 * (1 - v));
+  // The lower outside corner leads, as when a reader pulls the page from the bottom corner. A soft sheet doesn't
+  // fold along a ruler: the middle trails behind that diagonal, and a faint ripple travels up the fold as it turns,
+  // so the turning edge bows and moves like paper.
+  const lead = .14 * (.5 - v), bow = .05 * Math.sin(Math.PI * v), ripple = .012 * Math.sin(2 * Math.PI * v + 1.5 * Math.PI * p);
+  const fold = Math.max(0, 1 - p - (lead - bow + ripple) * wave);
   const s = u - fold;
   if (s <= 0 || radius < 1e-5) return s <= 0 ? { x: u, z: 0 } : { x: 2 * fold - u, z: 0 };
   const wrap = Math.PI * radius;

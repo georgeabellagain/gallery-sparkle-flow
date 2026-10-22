@@ -1,10 +1,11 @@
 import { validateFoldout } from "./foldouts";
-import { validatePageTag, validatePageLink } from "./page-extras";
+import { validatePageTag, validatePageLink, validatePageVideo, validatePageSpotlight, type PageVideo } from "./page-extras";
 import type { ExtraKind, Extra } from "./scrapbook-transform";
 import { backgroundKeys } from "./background-settings";
 import { foldoutKeys } from "./foldouts";
 import { useSyncExternalStore } from "react";
-import { deleteBlob, setAssetRetention, uid } from "./assets";
+import { deleteBlob, deleteBlobs, setAssetRetention, uid } from "./assets";
+import { pageImageKeys, type PageImages } from "./page-images";
 
 /**
  * Portfolio store. A localStorage copy keeps the UI instant; once signed in,
@@ -141,16 +142,19 @@ export interface PdfFile {
   tags?: import("./page-extras").PageTag[];
   /** Clickable website links placed on pages. */
   links?: import("./page-extras").PageLink[];
+  /** Videos printed on pages (Personal). */
+  videos?: import("./page-extras").PageVideo[];
+  /** Details readers can open large (spotlight zoom). */
+  spotlights?: import("./page-extras").PageSpotlight[];
   /** Optional derived JPEG used in public link previews. */
   coverKey?: string;
   renderedStudio?: import("./rendered-studio").RenderedStudio;
+  /** Pre-made page pictures visitors open on (page-images.ts); drawn after publishing, bound to this exact PDF. */
+  pageImages?: PageImages;
   name: string;
   bytes: number;
   pages: number;
   uploadedAt: number;
-  videos?: import("./page-video").PageVideo[];
-  spotlights?: import("./page-extras").PageSpotlight[];
-  pageImages?: import("./page-images").PageImageManifest;
 }
 
 export interface Profile {
@@ -173,6 +177,8 @@ export interface Portfolio {
   allowDownload: boolean;
   /** Opt-in: allow search engines to index this portfolio. Off by default. */
   searchIndexing?: boolean;
+  /** Opt-in (Personal): email the account when someone opens the published portfolio. Never sent to visitors. */
+  notifyOnOpen?: boolean;
   plan: "free" | "personal";
   billing?: "month" | "year";
   username?: string;
@@ -206,7 +212,7 @@ const empty = (): Doc => ({ v: 1, account: { signedIn: false }, portfolio: null,
 let state: Doc = empty();
 let portfolioDraft: Portfolio | null = null;
 let draftView: Doc | null = null;
-const assetKeys = (p: Portfolio | null) => p ? [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey, p.style?.bannerKey, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf)].filter((key): key is string => Boolean(key)) : [];
+const assetKeys = (p: Portfolio | null) => p ? [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey, p.style?.bannerKey, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf), ...pageImageKeys(p.pdf)].filter((key): key is string => Boolean(key)) : [];
 const notify = () => { draftView = null; listeners.forEach(l => l()); };
 export function getSavedDoc(): Doc { load(); return state; }
 export function beginPortfolioDraft(code: string) {
@@ -222,7 +228,8 @@ export function savePortfolioDraft(): boolean {
   const oldKeys = assetKeys(state.portfolio);
   const next = { ...state, portfolio: structuredClone(portfolioDraft) };
   if (!commit(next)) return false;
-  oldKeys.filter(key => !assetKeys(portfolioDraft).includes(key)).forEach(key => void deleteBlob(key).catch(() => {}));
+  const kept = new Set(assetKeys(portfolioDraft));
+  void deleteBlobs(oldKeys.filter(key => !kept.has(key))).catch(() => {});
   return true;
 }
 export function discardPortfolioDraft() {
@@ -356,12 +363,19 @@ export function patchPortfolio(patch: Partial<Portfolio>): boolean {
   });
 }
 
+function validateExtra(kind:ExtraKind,item:Extra,pages:number):string|null{
+  if(kind==="foldouts")return validateFoldout(item as import("./foldouts").Foldout,pages);
+  if(kind==="tags")return validatePageTag(item as import("./page-extras").PageTag,pages);
+  if(kind==="videos")return validatePageVideo(item as PageVideo,pages);
+  if(kind==="spotlights")return validatePageSpotlight(item as import("./page-extras").PageSpotlight,pages);
+  return validatePageLink(item as import("./page-extras").PageLink,pages);
+}
+
 /** Live pointer edits are scoped to the original portfolio and PDF. */
 export function patchPortfolioExtra(code:string,blobKey:string,kind:ExtraKind,id:string,next:Extra):boolean {
   const portfolio=allPortfolios(getDoc()).find(p=>p.code===code);
   if(next.id!==id || !portfolio?.pdf || portfolio.pdf.blobKey!==blobKey || !portfolio.pdf[kind]?.some(item=>item.id===id))return false;
-  const error=kind==='foldouts'?validateFoldout(next as import('./foldouts').Foldout,portfolio.pdf.pages):kind==='tags'?validatePageTag(next as import('./page-extras').PageTag,portfolio.pdf.pages):validatePageLink(next as import('./page-extras').PageLink,portfolio.pdf.pages);
-  if(error)return false;
+  if(validateExtra(kind,next,portfolio.pdf.pages))return false;
   return update(d=>{
     const p=allPortfolios(d).find(p=>p.code===code)!;
     p.pdf={...p.pdf!,[kind]:p.pdf![kind]!.map(item=>item.id===id?next:item)};
@@ -373,9 +387,9 @@ export function patchPortfolioExtra(code:string,blobKey:string,kind:ExtraKind,id
 export function addPortfolioExtra(code:string,blobKey:string,kind:ExtraKind,item:Extra,limit:number):boolean {
   const portfolio=allPortfolios(getDoc()).find(p=>p.code===code);
   if(!portfolio?.pdf || portfolio.pdf.blobKey!==blobKey || (portfolio.pdf[kind]?.length ?? 0)>=limit || portfolio.pdf[kind]?.some(existing=>existing.id===item.id))return false;
-  const pages=portfolio.pdf.pages;
-  const error=kind==="foldouts"?validateFoldout(item as import("./foldouts").Foldout,pages):kind==="tags"?validatePageTag(item as import("./page-extras").PageTag,pages):validatePageLink(item as import("./page-extras").PageLink,pages);
-  if(error)return false;
+  if(validateExtra(kind,item,portfolio.pdf.pages))return false;
+  // One moving video per page side.
+  if(kind==="videos"&&portfolio.pdf.videos?.some(v=>v.page===(item as PageVideo).page&&v.half===(item as PageVideo).half))return false;
   return update(d=>{
     const p=allPortfolios(d).find(p=>p.code===code)!;
     p.pdf={...p.pdf!,[kind]:[...(p.pdf![kind] ?? []),item]};
@@ -406,7 +420,7 @@ export function patchPortfolioAppearance(code: string, patch: { viewer?: Partial
 /** Older portfolios can share an asset key; changing one must not erase another's picture. */
 export function portfolioUsesAsset(key: string): boolean {
   return [...allPortfolios(getDoc()), ...allPortfolios(getSavedDoc())].some(p => [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey,
-    p.style?.bannerKey, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf)].includes(key));
+    p.style?.bannerKey, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf), ...pageImageKeys(p.pdf)].includes(key));
 }
 export async function deleteUnusedPortfolioAsset(key?: string) {
   if (key && !portfolioUsesAsset(key)) await deleteBlob(key);
@@ -426,6 +440,7 @@ export async function replacePdf(pdf: PdfFile): Promise<boolean> {
     await Promise.all(foldoutKeys(old).map(key => deleteBlob(key).catch(() => {})));
     await deleteBlob(old.blobKey).catch(() => {});
     if (old.coverKey) await deleteBlob(old.coverKey).catch(() => {});
+    await deleteBlobs(pageImageKeys(old)).catch(() => {});
   }
   return ok;
 }
@@ -435,12 +450,27 @@ export async function deletePortfolio(): Promise<void> {
   await Promise.all(foldoutKeys(p?.pdf).map(key => deleteBlob(key).catch(() => {})));
   if (p?.pdf) await deleteBlob(p.pdf.blobKey).catch(() => {});
   if (p?.pdf?.coverKey) await deleteBlob(p.pdf.coverKey).catch(() => {});
+  await deleteBlobs(pageImageKeys(p?.pdf)).catch(() => {});
   if (p?.profile.photoKey) await deleteBlob(p.profile.photoKey).catch(() => {});
   if (p?.profile.cv) await deleteBlob(p.profile.cv.blobKey).catch(() => {});
   update((d) => {
     const [next, ...rest] = d.others;
     return next ? { ...d, portfolio: next.portfolio, analytics: next.analytics, others: rest } : { ...d, portfolio: null, analytics: { visits: [], downloads: [] } };
   });
+}
+
+/**
+ * Records finished page pictures on the saved portfolio, and on an open editor draft of it, without making the
+ * draft look edited. Only the exact PDF they were drawn from receives them.
+ */
+export function attachPageImages(code: string, pdfKey: string, pageImages: PageImages): boolean {
+  load();
+  const next = structuredClone(state);
+  const target = allPortfolios(next).find(p => p.code === code && p.pdf?.blobKey === pdfKey);
+  if (!target?.pdf || !state.account.signedIn) return false;
+  target.pdf = { ...target.pdf, pageImages };
+  if (portfolioDraft?.code === code && portfolioDraft.pdf?.blobKey === pdfKey) portfolioDraft = { ...portfolioDraft, pdf: { ...portfolioDraft.pdf, pageImages } };
+  return commit(next);
 }
 
 /* ---------- Multiple portfolios (paid) ---------- */
@@ -598,7 +628,12 @@ export function recordVisit(code: string) {
 
 async function logEvent(code: string, kind: "visit" | "download", visitor?: string) {
   const { supabase } = await import("@/integrations/supabase/client");
-  await supabase.from("portfolio_events").insert({ portfolio_code: code, kind, visitor }).then(() => {}, () => {});
+  const { error } = await supabase.from("portfolio_events").insert({ portfolio_code: code, kind, visitor }).then((r) => r, () => ({ error: true }));
+  // Once the visit is stored, the server may tell an owner who asked to hear about opens (it checks everything itself).
+  if (!error && kind === "visit" && visitor) {
+    const { portfolioOpened } = await import("./open-notify.functions");
+    await portfolioOpened({ data: { code, visitor } }).catch(() => {});
+  }
 }
 
 export function recordDownload(code?: string) {

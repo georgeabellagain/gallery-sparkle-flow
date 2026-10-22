@@ -14,7 +14,9 @@ import { createRenderQueue } from "@/lib/portfolia/render-queue";
 import { cachedReaderArtwork, copyReaderArtwork, prepareReaderArtwork } from "@/lib/portfolia/reader-artwork";
 import { READER_SLIDE_MS, READER_SLIDE_DISTANCE } from "@/lib/portfolia/reader-slide";
 import type { Foldout } from "@/lib/portfolia/foldouts";
-import { linksForPage, type PageLink, type PageTag } from "@/lib/portfolia/page-extras";
+import { linksForPage, readablePageSpotlights, spotlightRegion, spotlightsForPage, videosForPage, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { SpotlightLightbox, SpotlightTarget, type SpotlightView } from "./PageSpotlights";
+import { PageVideoHtml } from "./PageVideoHtml";
 import { coverWithSpreads } from "@/lib/portfolia/mixed-layout";
 import { createPortal } from "react-dom";
 import { PageLinkAnchor } from "./PageLinks";
@@ -26,6 +28,8 @@ import { projectFromHash, projectPath, readableProjects, type PortfolioProject }
 import { BookOpen, ChevronLeft, ChevronRight, Download, FileText, LayoutGrid, Maximize2, Minimize2, ScrollText, User, ZoomIn, ZoomOut } from "lucide-react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
+import { downloadLink, isStreamedPdf, markStreamedPdf, openRemotePdf, PDF_RANGE_CHUNK, type RemotePdf } from "@/lib/portfolia/remote-pdf";
+import { artworkVersion, createPageImageDocument, isPageImageDocument, pageImageText, warmPageImages, whenFullPdf } from "@/lib/portfolia/page-image-doc";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { getPreviewLook, pinPreviewLook, subscribePreviewLook } from "@/lib/portfolia/preview-look";
@@ -38,7 +42,7 @@ import { BackdropLayer, IconButton, LogoMark, Panel, Segmented, ToolbarDivider, 
 
 import type { PageStudioRenderer, PageStudioSettings } from "@/lib/portfolia/page-studio";
 
-type Source = { blob: Blob } | { url: string };
+type Source = { blob: Blob } | RemotePdf;
 
 const noop = () => {};
 
@@ -46,6 +50,8 @@ const noop = () => {};
 // Three.js and the book scene only load when a book is actually shown, so scroll/paged readers and the landing page stay light.
 const BookView = lazy(() => import("@/components/pf/BookView").then((m) => ({ default: m.BookView })));
 const SHOW_LOADER = true;
+/** How long the controls stay on screen when a reader first arrives, before they rest out of sight. */
+const ARRIVAL_CONTROLS_MS = 4500;
 
 const MODES = [
   ["scroll", "Scroll", ScrollText],
@@ -75,6 +81,8 @@ export function PdfViewer({
   foldouts,
   tags,
   links,
+  videos,
+  spotlights,
   projectCode,
   profile,
   bookMarketing,
@@ -116,6 +124,10 @@ export function PdfViewer({
   foldouts?: Foldout[];
   tags?: PageTag[];
   links?: PageLink[];
+  /** Page videos (Personal); the public route already removes them for unpaid owners. */
+  videos?: PageVideo[];
+  /** Details readers can open large, on every plan (the public route keeps a Free owner's first few). */
+  spotlights?: PageSpotlight[];
   /** Enables hash links on public readers. Editor previews never read the URL hash. */
   projectCode?: string;
   /** The person's details, shown from a small profile icon. */
@@ -151,6 +163,16 @@ export function PdfViewer({
   const [sizes, setSizes] = useState<{ w: number; h: number }[]>([]);
   const mixedSpreads = useMemo(() => coverWithSpreads(sizes), [sizes]);
   const pageLinks = (page: number) => linksForPage(links ?? [], page, mixedSpreads ? page > 1 : view.spreads === "ready");
+  const pageVideos = (page: number) => videosForPage(videos ?? [], page, mixedSpreads ? page > 1 : view.spreads === "ready");
+  const spreadSheet = (page: number) => (mixedSpreads ? page > 1 : view.spreads === "ready");
+  const spotlightViews = useMemo<SpotlightView[]>(() => readablePageSpotlights(spotlights, doc?.numPages ?? 0)
+    .sort((a, b) => a.page - b.page || (a.half === b.half ? 0 : a.half === "left" ? -1 : 1))
+    .map((s) => ({ spotlight: s, region: spotlightRegion(s, spreadSheet(s.page)) })),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [JSON.stringify(spotlights ?? []), doc, mixedSpreads, view.spreads]);
+  const pageSpotlights = (page: number) => spotlightsForPage(spotlightViews.map((v) => v.spotlight), page, spreadSheet(page));
+  const [openSpotlight, setOpenSpotlight] = useState<number | null>(null);
+  const openSpotlightById = (id: string) => setOpenSpotlight(spotlightViews.findIndex((v) => v.spotlight.id === id));
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -193,27 +215,67 @@ export function PdfViewer({
     setError(null);
     setProgress(0);
     let objUrl: string | undefined;
+    const reading = new AbortController();
+    let task: { destroy: () => Promise<void> } | null = null;
     if ("blob" in source) {
       objUrl = URL.createObjectURL(source.blob);
       setDownloadUrl(objUrl);
-    } else setDownloadUrl(source.url);
+    } else setDownloadUrl(downloadLink(source.url, fileName));
+    // A published PDF is read range by range, so the opening pages show before the rest has arrived.
+    const open = async (quiet = false) => {
+      const pdfjs = await loadPdfjs();
+      const remote = "blob" in source ? null : await openRemotePdf(pdfjs, source, {
+        signal: reading.signal,
+        // Behind page pictures the PDF only adds text and zoom detail, so a failed range never hides the pages.
+        onError: () => { if (!cancelled && !quiet) setError("Part of this portfolio couldn’t be loaded. Please check your connection and reload."); },
+      });
+      if (cancelled) throw new Error("Viewer closed");
+      const loading = pdfjs.getDocument(
+        "blob" in source ? { data: new Uint8Array(await source.blob.arrayBuffer()) }
+          : remote?.kind === "range" ? { range: remote.transport, length: remote.length, rangeChunkSize: PDF_RANGE_CHUNK, disableAutoFetch: true, disableStream: true }
+          : remote?.kind === "data" ? { data: remote.data }
+          : { url: source.url },
+      );
+      task = loading;
+      if (!quiet) loading.onProgress = ({ loaded: l, total }: { loaded: number; total: number }) => {
+        if (total) setProgress(Math.min(95, Math.round((l / total) * 90)));
+      };
+      const opened = await loading.promise;
+      if (cancelled) { void opened.destroy(); throw new Error("Viewer closed"); }
+      if (remote?.kind === "range") markStreamedPdf(opened);
+      return opened;
+    };
+    // Pictures made at publishing: every page size is in the manifest, so the readers start without the PDF.
+    if (!("blob" in source) && source.pageImages) {
+      const pictures = createPageImageDocument(source.pageImages, () => open(true));
+      markStreamedPdf(pictures);
+      setSizes(source.pageImages.manifest.pages.map((p) => ({ w: p.w, h: p.h })));
+      setDoc(pictures);
+      setProgress(100);
+      // The flipbook opens on the cover and first spread (and shows the back board's colour), but builds its 3D
+      // scene first; these pictures download meanwhile. Phones draw pages at 1600 px, larger screens at 2560.
+      if (modeLive.current === "book") {
+        const last = source.pageImages.manifest.pages.length;
+        warmPageImages(pictures, [1, 2, 3, last], window.innerWidth < 720 ? 1600 : 2560);
+      }
+      return () => {
+        cancelled = true;
+        reading.abort();
+        // The PDF behind the pictures may still be opening; its loading task is ended with the reader.
+        void task?.destroy();
+        void pictures.destroy();
+      };
+    }
     (async () => {
       try {
-        const pdfjs = await loadPdfjs();
-        const task = pdfjs.getDocument(
-          "blob" in source ? { data: new Uint8Array(await source.blob.arrayBuffer()) } : { url: source.url },
-        );
-        task.onProgress = ({ loaded: l, total }: { loaded: number; total: number }) => {
-          if (total) setProgress(Math.min(95, Math.round((l / total) * 90)));
-        };
-        loaded = await task.promise;
-        if (cancelled) return void loaded.destroy();
+        loaded = await open();
         const document = loaded;
         const dimensions = async (i: number) => {
           const vp = (await document.getPage(i)).getViewport({ scale: 1 });
           return { w: vp.width, h: vp.height };
         };
-        const metadata = createRenderQueue(4);
+        // Reading a page's size from a streamed file can wait on a small range request, so more run at once.
+        const metadata = createRenderQueue(isStreamedPdf(document) ? 12 : 4);
         const s = await Promise.all(Array.from({ length: document.numPages }, (_, i) => metadata.enqueue(() => dimensions(i + 1))));
         if (cancelled) return;
         setSizes(s);
@@ -225,8 +287,10 @@ export function PdfViewer({
     })();
     return () => {
       cancelled = true;
+      reading.abort();
       if (objUrl) URL.revokeObjectURL(objUrl);
-      void loaded?.destroy();
+      if (loaded) void loaded.destroy();
+      else void task?.destroy();
     };
   }, [source, lightweight]);
 
@@ -411,6 +475,16 @@ export function PdfViewer({
   const activeLook = liveScrapbook?.enabled ? "clean" : enabledLooks.includes(requestedLook) ? requestedLook : openingLook(view, mode);
   const changeLook = (look: "clean" | "studio") => { setSelectedLook(look); if (compact) pinPreviewLook(look); };
   const studio = activeLook === "studio";
+  // Studio's lighting downloads and is prepared (in a worker) while the pages and the 3D code load, instead of
+  // after them. The small preview comes first; the book scene and page lighting share these results.
+  const studioLighting = studio ? view.studioLighting ?? "4" : null;
+  useEffect(() => {
+    if (!studioLighting) return;
+    void import("@/lib/portfolia/prepared-environment").then((m) => {
+      void m.loadPreparedEnvironment(studioLighting, "preview").catch(() => {});
+      void m.loadPreparedEnvironment(studioLighting, "full").catch(() => {});
+    });
+  }, [studioLighting]);
   // Each look (in Flipbook) and reading style can carry its own background.
   const backgroundContext = mode === "book" ? (studio ? "studio" : "clean") : mode;
   const bgOverride = view.backgrounds?.[backgroundContext];
@@ -460,14 +534,25 @@ export function PdfViewer({
   useEffect(() => {
     setZoom(1);
   }, [mode]);
+  // Zooming in on page pictures streams the PDF behind them; pages redraw from it, sharper, once it is open.
+  const [fullDetail, setFullDetail] = useState(0);
+  useEffect(() => {
+    if (!doc || zoom <= 1 || mode === "book" || !isPageImageDocument(doc)) return;
+    return whenFullPdf(doc, () => setFullDetail((v) => v + 1));
+  }, [doc, zoom > 1, mode]);
+  const openingPage = () => {
+    const project = projectCode ? projectFromHash(window.location.hash, sections) : undefined;
+    return project?.startPage ?? Math.min(total, Math.max(1, Number.isFinite(startPage) ? Math.floor(startPage) : 1));
+  };
+  const currentLive = useRef(current);
+  currentLive.current = current;
   useEffect(() => {
     if (!total) return;
     // Apply after page elements mount, in all three reading modes. Hashes remain
     // intact through password entry and work on both permanent and personal URLs.
     let frame = 0;
     const open = () => {
-      const project = projectCode ? projectFromHash(window.location.hash, sections) : undefined;
-      const page = project?.startPage ?? Math.min(total, Math.max(1, Number.isFinite(startPage) ? Math.floor(startPage) : 1));
+      const page = openingPage();
       setCurrent(page);
       setJump({ page, t: Date.now() });
       if (modeLive.current === "scroll" && page > 1) {
@@ -502,7 +587,7 @@ export function PdfViewer({
   }, [mode, total]);
 
   // In the full portfolio and in full screen the icons rest out of sight and show when the mouse moves.
-  // On touch screens, which have no mouse to move, they stay.
+  // They show on arrival first, so a new reader sees the book can be turned. On touch screens they stay.
   const autoHide = showControls && (!!immersive || full);
   const [awake, setAwake] = useState(true);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -527,6 +612,14 @@ export function PdfViewer({
     else setAwake(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoHide, full]);
+  const arrived = useRef(false);
+  useEffect(() => {
+    if (!contentReady || arrived.current || !autoHide || !hoverCapable.current) return;
+    arrived.current = true;
+    setAwake(true);
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    idleTimer.current = setTimeout(() => { if (!panelOpen.current) setAwake(false); }, ARRIVAL_CONTROLS_MS);
+  }, [contentReady, autoHide]);
   const wasOpen = useRef(false);
   useEffect(() => {
     if (panel) {
@@ -539,7 +632,17 @@ export function PdfViewer({
   const fade = shown ? "opacity-100" : "pointer-events-none opacity-0";
 
   const scrollQueue = useMemo(() => createRenderQueue(2), [doc, mode]);
-  const scrollGate = useMemo(() => createPageReadiness(total), [doc, total, mode, studio, studio ? pageLighting : null, studio && pageLightingReady, studio && pageLightingFailed]);
+  // A streamed PDF opens once the pages in view are ready; the rest are drawn as the reader scrolls towards them.
+  const streamedDoc = doc ? isStreamedPdf(doc) : false;
+  const gatedDoc = useRef<PDFDocumentProxy | null>(null);
+  const scrollGate = useMemo(() => {
+    if (!streamedDoc || !total) return createPageReadiness(total);
+    // A new document opens where the link points; a change of reading mode keeps the reader's page.
+    const first = gatedDoc.current === doc ? currentLive.current : openingPage();
+    gatedDoc.current = doc;
+    return createPageReadiness(total, [first, first + 1]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc, total, mode, studio, studio ? pageLighting : null, studio && pageLightingReady, studio && pageLightingFailed]);
   useLayoutEffect(() => { if (mode === "scroll") setContentReady(false); }, [scrollGate, mode]);
   const scrollPrepared = useCallback((page: number, success: boolean) => {
     if (mode !== "scroll" || (success && studio && !pageLightingReady && !pageLightingFailed)) return;
@@ -638,10 +741,12 @@ export function PdfViewer({
               {panel === "profile" && profile && <Panel label="Profile" style={{ maxHeight: "calc(100dvh - 5rem)" }} className="mt-3 w-[min(24rem,calc(100vw-1.5rem))] overflow-y-auto overflow-x-hidden [overflow-wrap:anywhere] overscroll-contain">{profile}</Panel>}
             </div>
           )}
-          <div ref={clusterRef} style={!minimalControls && (home || profile || bookMarketing) ? { maxWidth: bookMarketing ? "calc(100% - 10rem)" : "calc(100% - 7rem)" } : undefined} className={cn("pointer-events-auto absolute right-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] flex-col items-end gap-2 transition-opacity duration-300", fade)}>
-            <div ref={toolbarRef} role="toolbar" aria-label="Viewer controls" className={cn("flex flex-wrap items-center justify-end gap-0.5 rounded-full p-1 shadow-sm backdrop-blur-md", tone === "dark" ? "bg-slate-950/80 text-white" : "bg-white/90 text-slate-700")}>
+          {/* Leaves room for exactly the icons on the left (about 2.75rem each), so a phone's bar fits on one row. */}
+          <div ref={clusterRef} style={!minimalControls && (home || profile || bookMarketing) ? { maxWidth: `calc(100% - ${1.25 + 2.75 * [home, profile, bookMarketing].filter(Boolean).length}rem)` } : undefined} className={cn("pointer-events-auto absolute right-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] flex-col items-end gap-2 transition-opacity duration-300", fade)}>
+            {/* One row on phones: zoom moves to pinch there, and a rare extra-long bar scrolls rather than wrapping. */}
+            <div ref={toolbarRef} role="toolbar" aria-label="Viewer controls" className={cn("flex max-w-full flex-nowrap items-center justify-start gap-0.5 overflow-x-auto sm:justify-end rounded-full p-1 shadow-sm backdrop-blur-md [scrollbar-width:none] sm:flex-wrap sm:overflow-visible", tone === "dark" ? "bg-slate-950/80 text-white" : "bg-white/90 text-slate-700")}>
               {!minimalControls && doc && availableModes.length > 1 && (
-                <div role="radiogroup" aria-label="Reading mode" className="flex items-center">
+                <div role="radiogroup" aria-label="Reading mode" className="flex shrink-0 items-center">
                   {MODES.filter(([m]) => availableModes.includes(m)).map(([m, label, Icon]) => (
                     <IconButton key={m} label={label} tone={tone} flat checked={mode === m} onClick={() => setMode(m)}>
                       <Icon className="size-[17px]" />
@@ -662,13 +767,13 @@ export function PdfViewer({
               )}
               {/* Page numbers share the controls row in every reading mode. */}
               {!minimalControls && doc && (
-                <span className={cn("inline-flex px-2 py-2 text-[11px] tabular-nums", tone === "dark" ? "text-white/85" : "text-slate-600")} aria-live="polite">
+                <span className={cn("inline-flex shrink-0 whitespace-nowrap px-2 py-2 text-[11px] tabular-nums", tone === "dark" ? "text-white/85" : "text-slate-600")} aria-live="polite">
                   {current} / {doc.numPages}
                 </span>
               )}
-              {!minimalControls && doc && <ToolbarDivider />}
+              {!minimalControls && doc && <ToolbarDivider className="hidden sm:block" />}
               {!minimalControls && doc && (
-                <IconButton label="Zoom out" tone={tone} flat onClick={() => z(-zoomStep)} disabled={zoom <= minimumZoom}>
+                <IconButton label="Zoom out" tone={tone} flat className="hidden sm:inline-flex" onClick={() => z(-zoomStep)} disabled={zoom <= minimumZoom}>
                   <ZoomOut className="size-[17px]" />
                 </IconButton>
               )}
@@ -678,7 +783,7 @@ export function PdfViewer({
                 </button>
               )}
               {!minimalControls && doc && (
-                <IconButton label="Zoom in" tone={tone} flat onClick={() => z(zoomStep)} disabled={zoom >= 3}>
+                <IconButton label="Zoom in" tone={tone} flat className="hidden sm:inline-flex" onClick={() => z(zoomStep)} disabled={zoom >= 3}>
                   <ZoomIn className="size-[17px]" />
                 </IconButton>
               )}
@@ -728,7 +833,7 @@ export function PdfViewer({
                       className={cn("rounded-md p-0.5 text-xxs text-muted-foreground", current === i + 1 ? "ring-2 ring-primary" : "hover:ring-1 hover:ring-border")}
                     >
                       <div className="pointer-events-none w-full">
-                        <PdfPage doc={doc} n={i + 1} size={s} zoom={0} onVisible={noop} eager thumb />
+                        <PdfPage doc={doc} n={i + 1} size={s} zoom={0} onVisible={noop} eager={!streamedDoc} thumb />
                       </div>
                       <span className="block pt-0.5 tabular-nums">{i + 1}</span>
                     </button>
@@ -757,7 +862,7 @@ export function PdfViewer({
       {mode === "book" && activeLook === "studio" && renderedStudio && !renderFailed && !compact ? (
         <RenderedBook fill={full || immersive} pack={renderedStudio} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} onReady={bookReadyChanged} onFallback={() => setRenderFailed(true)} />
       ) : mode === "book" ? (
-        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={!showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
+        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={!showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>
@@ -767,7 +872,7 @@ export function PdfViewer({
             >
               {sizes[current - 1] && (
                 <div className="shrink-0" style={{ width: `calc(min(100%, max(1px, calc((${pagedHeight} - ${topGap + 24}px) * ${sizes[current - 1]!.w / sizes[current - 1]!.h}))) * ${zoom})` }}>
-                <PdfPage links={pageLinks(current)} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={studio ? pageLighting : null} zoom={zoom} onVisible={noop} eager onRendered={markReady} />
+                <PdfPage links={pageLinks(current)} videos={pageVideos(current)} spotlights={pageSpotlights(current)} onSpotlight={openSpotlightById} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={noop} eager onRendered={markReady} />
                 </div>
               )}
             </div>
@@ -786,10 +891,13 @@ export function PdfViewer({
             style={{ paddingTop: topGap, width: `calc(min(100%, ${compact ? 900 : 1100}px) * ${zoom})` }}
           >
             {sizes.map((s, i) => (
-              <PdfPage links={pageLinks(i + 1)} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} onVisible={setCurrent} eager renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
+              <PdfPage links={pageLinks(i + 1)} videos={pageVideos(i + 1)} spotlights={pageSpotlights(i + 1)} onSpotlight={openSpotlightById} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={setCurrent} eager={!streamedDoc} renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
             ))}
           </div>
         </div>
+      )}
+      {mode !== "book" && openSpotlight !== null && spotlightViews[openSpotlight] && (
+        <SpotlightLightbox doc={doc} views={spotlightViews} index={openSpotlight} onIndex={setOpenSpotlight} onClose={() => setOpenSpotlight(null)} />
       )}
       {mode !== "book" && studioAvailable && <div ref={lightingHost} style={{ visibility: studio ? "visible" : "hidden" }} className="pointer-events-none absolute inset-0 z-[1] overflow-hidden" />}
         </div>
@@ -898,8 +1006,18 @@ function PdfPage({
   onPrepared,
   pageSizes,
   links,
+  videos,
+  spotlights,
+  onSpotlight,
+  detail = 0,
 }: {
   links?: PageLink[];
+  videos?: PageVideo[];
+  /** Spotlight boxes on the full page; `onSpotlight` opens one by id. */
+  spotlights?: PageSpotlight[];
+  onSpotlight?: (id: string) => void;
+  /** Bumped when a page-picture document can draw from its PDF, so a zoomed page redraws sharper. */
+  detail?: number;
   pageSizes?: { w: number; h: number }[];
   renderQueue?: ReturnType<typeof createRenderQueue>;
   retainArtwork?: boolean;
@@ -1124,7 +1242,21 @@ function PdfPage({
       cancelled = true;
       task?.cancel();
     };
-  }, [near, doc, n, size.w, zoom, renderWidth, renderQueue, retainArtwork, linksSignature]);
+  }, [near, doc, n, size.w, zoom, renderWidth, renderQueue, retainArtwork, linksSignature, detail]);
+
+  // A page drawn from its picture gets its selectable text from the streamed PDF, after the picture is on screen.
+  useEffect(() => {
+    if (thumb || !linkLayer || !renderWidth || !isPageImageDocument(doc)) return;
+    let live = true;
+    const layer = linkLayer.element;
+    void pageImageText(doc, n, renderWidth / size.w).then((text) => {
+      if (!live || !text || !layer.isConnected) return;
+      const placeholder = layer.querySelector(":scope > .textLayer");
+      if (placeholder) placeholder.replaceWith(text);
+      else layer.firstElementChild?.after(text);
+    }, () => undefined);
+    return () => { live = false; };
+  }, [linkLayer, doc, n, renderWidth, size.w, thumb]);
 
   return (
     <div
@@ -1138,6 +1270,9 @@ function PdfPage({
       {!thumb && linkLayer && createPortal(
         <div className="pointer-events-none absolute inset-0 z-10">
           {linkLayer.links.map((link) => <PageLinkAnchor key={link.id} link={link} />)}
+          {/* Inside the drawn page layer, which replaces the page's children whenever it redraws. */}
+          {videos && videos.length > 0 && <PageVideoHtml videos={videos} />}
+          {spotlights?.map((s) => <SpotlightTarget key={s.id} spotlight={s} onOpen={() => onSpotlight?.(s.id)} />)}
         </div>, linkLayer.element,
       )}
       {failed && (
