@@ -26,7 +26,7 @@ import { createPageVideoPlayer, type PageVideoPlayer } from "@/lib/portfolia/pag
 import { PageVideoSound } from "./PageVideoSound";
 import { foldoutsForLeaf, readableFoldouts, type Foldout, type PageBounds } from "@/lib/portfolia/foldouts";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Rotate3d } from "lucide-react";
 import { orbitDrag, type Orbit } from "@/lib/portfolia/orbit-view";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import type { ViewerSettings } from "@/lib/portfolia/store";
@@ -1174,7 +1174,12 @@ export function BookView({
 
   /** A press on the page edge while a note is open: the note closes first, then a plain click turns the page. */
   const afterClose = useRef<{ id: number; x: number; y: number; dir: 1 | -1 } | null>(null);
-  const beginCornerDrag = (e: React.PointerEvent<HTMLButtonElement>, direction: 1 | -1) => {
+  /**
+   * A press on something on the page (a spotlight, link, contents link): let go straight away and it opens; move
+   * first and the page takes over and turns, carried on by the viewport while the page's layer is hidden.
+   */
+  const handoff = useRef<{ id: number; x: number; y: number; dir: 1 | -1; started: boolean } | null>(null);
+  const beginCornerDrag = (e: React.PointerEvent<HTMLElement>, direction: 1 | -1) => {
     if (!e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
     // Touching the pages brings the view back square first (the turn follows from there).
     if (tilted.current) { levelView(); return; }
@@ -1225,7 +1230,21 @@ export function BookView({
     })();
   };
 
-  const finishCornerDrag = async (e: React.PointerEvent<HTMLButtonElement>, cancelled = false) => {
+  /** Follows the pointer during a page drag (from the page edge, or handed over from an item on the page). */
+  const moveCornerDrag = (e: React.PointerEvent<HTMLElement>) => {
+    const gesture = drag.current;
+    if (!gesture || gesture.id !== e.pointerId) return;
+    if (Math.abs(e.clientX - gesture.x) > 4 || Math.abs(e.clientY - gesture.y) > 4) gesture.moved = true;
+    gesture.lastX = e.clientX;
+    gesture.lastY = e.clientY;
+    const followed = gesture.pointer ? scene.current?.dragTurnPointer(e.clientX, e.clientY) : null;
+    if (followed != null) { gesture.progress = followed; return; }
+    // One page's width on screen, as the page-edge buttons measure it.
+    const width = (((corners[1]?.x ?? 92) - (corners[0]?.x ?? 8)) / 2 / 100) * (viewportRef.current?.clientWidth ?? 800) || 1;
+    gesture.progress = Math.min(1, Math.max(0, gesture.dir * (gesture.x - e.clientX) / width));
+    scene.current?.dragTurn(gesture.progress);
+  };
+  const finishCornerDrag = async (e: React.PointerEvent<HTMLElement>, cancelled = false) => {
     const gesture = drag.current;
     if (!gesture || gesture.id !== e.pointerId) return;
     drag.current = null;
@@ -1449,6 +1468,7 @@ export function BookView({
           e.currentTarget.setPointerCapture(e.pointerId);
         }}
         onPointerMove={(e) => {
+          if (handoff.current?.started && drag.current?.id === e.pointerId) { moveCornerDrag(e); return; }
           const spin = orbiting.current;
           if (spin && spin.id === e.pointerId && scene.current) {
             if (!spin.moved) {
@@ -1473,10 +1493,12 @@ export function BookView({
           if (scene.current) syncBounds();
         }}
         onPointerUp={(e) => {
+          if (handoff.current?.started && drag.current?.id === e.pointerId) { handoff.current = null; void finishCornerDrag(e); return; }
           if (panning.current?.id === e.pointerId) panning.current = null;
           if (orbiting.current?.id === e.pointerId) orbiting.current = null;
         }}
         onPointerCancel={(e) => {
+          if (handoff.current?.started && drag.current?.id === e.pointerId) { handoff.current = null; void finishCornerDrag(e, true); return; }
           if (panning.current?.id === e.pointerId) panning.current = null;
           if (orbiting.current?.id === e.pointerId) orbiting.current = null;
         }}
@@ -1514,7 +1536,32 @@ export function BookView({
           if (n === null || !bounds || (narrow && n !== leaf)) return null;
           const visible = foldoutsForLeaf(additions, layout.leaves[n]!);
           const onLeaf = linksForLeaf(pageLinks, layout.leaves[n]!);
-          return <div key={`${n}:${settings.studio}`} className="pointer-events-none absolute z-30" style={{ left: `${bounds.x}%`, top: `${bounds.y}%`, width: `${bounds.width}%`, height: `${bounds.height}%` }}>
+          return <div key={`${n}:${settings.studio}`} className="pointer-events-none absolute z-30" style={{ left: `${bounds.x}%`, top: `${bounds.y}%`, width: `${bounds.width}%`, height: `${bounds.height}%` }}
+            onPointerDownCapture={(e) => {
+              handoff.current = null;
+              const target = e.target as Element;
+              if (editingExtras || !e.isPrimary || !target.closest("a, button, [role=button]") || target.closest("[data-foldout]")) return;
+              const h = { id: e.pointerId, x: e.clientX, y: e.clientY, dir: (side === 0 ? -1 : 1) as 1 | -1, started: false };
+              handoff.current = h;
+              // Watched on the window, so even a quick flick that leaves the item at once is seen. Once it has moved,
+              // the viewport takes the pointer and turns the page from there.
+              const stop = () => { window.removeEventListener("pointermove", watch); window.removeEventListener("pointerup", stop); window.removeEventListener("pointercancel", stop); };
+              const watch = (ev: PointerEvent) => {
+                if (ev.pointerId !== h.id || handoff.current !== h) return stop();
+                if (Math.hypot(ev.clientX - h.x, ev.clientY - h.y) < 8) return;
+                stop();
+                h.started = true;
+                const viewport = viewportRef.current;
+                if (!viewport) return;
+                beginCornerDrag({ isPrimary: ev.isPrimary, pointerType: ev.pointerType, button: 0, clientX: ev.clientX, clientY: ev.clientY, pointerId: ev.pointerId,
+                  preventDefault: () => ev.preventDefault(), currentTarget: viewport } as unknown as React.PointerEvent<HTMLElement>, h.dir);
+                if (drag.current?.id !== h.id) handoff.current = null;
+              };
+              window.addEventListener("pointermove", watch);
+              window.addEventListener("pointerup", stop);
+              window.addEventListener("pointercancel", stop);
+            }}
+            onClickCapture={(e) => { if (handoff.current?.started) { e.preventDefault(); e.stopPropagation(); } }}>
             {editingExtras && <LiveScrapbookPage leaf={layout.leaves[n]!} side={side===0?'left':'right'} ratio={ratio} neighbour={spread[1-side] != null ? layout.leaves[spread[1-side]!] : undefined}/>}
             {onLeaf.map(link => <PageLinkAnchor key={link.id} link={link} />)}
             {videosForLeaf(pageVideos, layout.leaves[n]!).filter(v => !v.silent).map(v => <PageVideoSound key={v.id} video={v} on={videoSound === v.id} onToggle={() => videoPlayer.current?.toggleSound(v.id)} />)}
@@ -1620,6 +1667,47 @@ export function BookView({
           <div className={cn("absolute bottom-1.5 left-1.5 z-20 flex w-fit transition-opacity duration-300", awake ? "opacity-100" : "pointer-events-none opacity-0")}>
             <Segmented className="bg-white text-black [&_[role=radio]]:text-black [&_[role=radio][aria-checked=true]]:bg-slate-900 [&_[role=radio][aria-checked=true]]:text-white" label="Book appearance" value={settings.studio ? "studio" : "clean"} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={updateLook} />
           </div>
+        )}
+        {/* Touch screens: hold this and drag to look round the book in 3D (on a phone the background is too small to
+            drag, and a drag on the pages turns them). A tap brings the view back square. */}
+        {allow3d && bookReady && (
+          <button
+            type="button"
+            aria-label="Hold and drag to look round the book in 3D. Tap to straighten."
+            className={cn("absolute bottom-1.5 right-1.5 z-20 hidden size-11 touch-none select-none items-center justify-center rounded-full shadow-sm ring-1 backdrop-blur-md transition-transform duration-200 active:scale-95 [@media(pointer:coarse)]:flex",
+              tone === "dark" ? "bg-slate-950/70 text-white ring-white/15" : "bg-white/85 text-slate-700 ring-black/10", view3d && "ring-2 ring-current")}
+            onContextMenu={(e) => e.preventDefault()}
+            onPointerDown={(e) => {
+              if (!e.isPrimary || busy || !scene.current) return;
+              e.preventDefault();
+              e.currentTarget.setPointerCapture(e.pointerId);
+              orbiting.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
+            }}
+            onPointerMove={(e) => {
+              const spin = orbiting.current;
+              if (!spin || spin.id !== e.pointerId || !scene.current) return;
+              if (!spin.moved) {
+                if (Math.hypot(e.clientX - spin.x, e.clientY - spin.y) < 4) return;
+                spin.moved = true;
+                cancelAnimationFrame(orbitFrame.current);
+                tilted.current = true;
+                setView3d(true);
+              }
+              // A thumb's travel is short, so the button turns the view a little more per pixel than the background.
+              orbitAt.current = scene.current.orbit(orbitDrag(orbitAt.current, (e.clientX - spin.x) * 1.6, (e.clientY - spin.y) * 1.6, viewportRef.current?.clientHeight ?? 600));
+              spin.x = e.clientX;
+              spin.y = e.clientY;
+            }}
+            onPointerUp={(e) => {
+              const spin = orbiting.current;
+              if (spin?.id !== e.pointerId) return;
+              orbiting.current = null;
+              if (!spin.moved) levelView();
+            }}
+            onPointerCancel={() => { orbiting.current = null; }}
+          >
+            <Rotate3d className="size-5" aria-hidden />
+          </button>
         )}
       </div>
     </section>

@@ -466,6 +466,9 @@
 .pf-backdrops button[aria-pressed="true"] { border-color: #687963; background: #eef0e9; }
 .pf-backdrops span { display: block; width: 32px; height: 25px; border-radius: 4px; background-color: #d8d4ca; background-size: cover; }
 .pf-book-viewport { position: relative; width: 100%; height: clamp(340px, 66vh, 820px); background-size: cover; background-position: center; overflow: hidden; touch-action: pan-y; isolation: isolate; }
+/* A long press on the book is for turning or looking, never for selecting or the phone's callout menu. */
+.pf-book-viewport { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+.pf-book-viewport [data-foldout], .pf-book-viewport [role=dialog] { -webkit-user-select: text; user-select: text; }
 .pf-book-canvas { position: absolute; inset: 0; }
 .pf-book-canvas canvas { width: 100%; height: 100%; display: block; }
 .pf-book-navigation { display: flex; justify-content: center; align-items: center; gap: 1rem; padding: 1rem .65rem; background: #fbfaf6; font-size: .75rem; }
