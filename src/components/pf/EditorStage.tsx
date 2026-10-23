@@ -186,6 +186,8 @@ export function EditorStage({
   const [scrapbook, setScrapbook] = useState<ScrapbookPanel | null>(null);
   const [selection, setSelection] = useState<ScrapbookSelection>(null);
   const [shownPages, setShownPages] = useState<Array<{ page: number; half?: "left" | "right" }>>([]);
+  const [pageRequest, setPageRequest] = useState<{ page: number; t: number } | null>(null);
+  const [draggingSticker, setDraggingSticker] = useState<string | null>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !scrapbook) setTool(null);
@@ -206,7 +208,7 @@ export function EditorStage({
   const row = "flex items-center justify-between gap-3";
   return (
     <EditorFullscreenContext.Provider value={fullscreen}>
-    <LiveScrapbookContext.Provider value={{portfolio:p,enabled:tool==="scrapbook"&&!scrapbook,onError:onSaveError,selected:selection,onSelect:setSelection,onPages:setShownPages}}>
+    <LiveScrapbookContext.Provider value={{portfolio:p,enabled:tool==="scrapbook"&&!scrapbook,onError:onSaveError,selected:selection,onSelect:setSelection,onPages:setShownPages,pageRequest,draggingSticker}}>
     <div ref={stageRef} data-fullscreen={fullscreen.full || undefined} style={fullscreen.full ? { height: "100dvh" } : undefined} className={cn("pf-editor-stage overflow-hidden bg-muted/50", fullscreen.fallback ? "fixed inset-0 z-[200]" : "relative h-[calc(100dvh-3.5rem)]")}>
       <div className="absolute inset-0 overflow-auto" onPointerDown={() => undefined}>
         {preview}
@@ -330,7 +332,7 @@ export function EditorStage({
           {tool === "book" && <BookMarketingSettings p={p} />}
           {tool === "background" && <StyleForm sidebar part="background" p={p} onSaveError={onSaveError} />}
           {tool === "projects" && <ProjectSettings key={`${p.code}:${pdf.blobKey}`} p={p} />}
-          {tool === "scrapbook" && <ScrapbookQuickPanel p={p} shown={shownPages} selected={selection} onSelect={setSelection} onOpen={setScrapbook} onError={onSaveError} counts={{ notes, tabs, links }} />}
+          {tool === "scrapbook" && <ScrapbookQuickPanel p={p} shown={shownPages} selected={selection} onSelect={setSelection} onOpen={setScrapbook} onError={onSaveError} onGoTo={(page) => setPageRequest({ page, t: Date.now() })} onStickerDrag={setDraggingSticker} />}
           {tool === "share" && <>{home && <Button className="mb-4 w-full" onClick={onPublish}>{p.status === "published" ? "Save & view sharing options" : "Publish portfolio"}</Button>}<ShareActions p={p} /></>}
           {tool === "publish" && (
             <div className="space-y-5 text-sm">

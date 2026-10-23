@@ -14,12 +14,13 @@ import { createRenderQueue } from "@/lib/portfolia/render-queue";
 import { cachedReaderArtwork, copyReaderArtwork, prepareReaderArtwork } from "@/lib/portfolia/reader-artwork";
 import { READER_SLIDE_MS, READER_SLIDE_DISTANCE } from "@/lib/portfolia/reader-slide";
 import type { Foldout } from "@/lib/portfolia/foldouts";
-import { jumpsForPage, linksForPage, readablePageJumps, readablePageSpotlights, spotlightRegion, spotlightsForPage, videosForPage, type PageJump, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { jumpsForPage, linksForPage, readablePageJumps, readablePageStickers, stickersForPage, type PageSticker, readablePageSpotlights, spotlightRegion, spotlightsForPage, videosForPage, type PageJump, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { SpotlightLightbox, SpotlightTarget, type SpotlightView } from "./PageSpotlights";
 import { PageVideoHtml } from "./PageVideoHtml";
 import { coverWithSpreads } from "@/lib/portfolia/mixed-layout";
 import { createPortal } from "react-dom";
 import { PageJumpLink, PageLinkAnchor } from "./PageLinks";
+import { PageStickerMark } from "./AnimatedSticker";
 import { lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { EditorFullscreenContext } from "./editor-fullscreen";
 import { toggleFullscreen, type FullscreenDocument } from "@/lib/portfolia/fullscreen";
@@ -84,6 +85,7 @@ export function PdfViewer({
   videos,
   spotlights,
   jumps,
+  stickers,
   projectCode,
   profile,
   bookMarketing,
@@ -133,6 +135,8 @@ export function PdfViewer({
   spotlights?: PageSpotlight[];
   /** Contents links: boxes that go to another page. */
   jumps?: PageJump[];
+  /** Small animated stickers on pages. */
+  stickers?: PageSticker[];
   /** Enables hash links on public readers. Editor previews never read the URL hash. */
   projectCode?: string;
   /** The person's details, shown from a small profile icon. */
@@ -186,6 +190,10 @@ export function PdfViewer({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [JSON.stringify(jumps ?? []), doc]);
   const pageJumps = (page: number) => jumpsForPage(allJumps, page, spreadSheet(page));
+  const allStickers = useMemo(() => readablePageStickers(stickers, doc?.numPages ?? 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(stickers ?? []), doc]);
+  const pageStickers = (page: number) => stickersForPage(allStickers, page, spreadSheet(page));
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -876,7 +884,7 @@ export function PdfViewer({
       {mode === "book" && activeLook === "studio" && renderedStudio && !renderFailed && !compact ? (
         <RenderedBook fill={full || immersive} pack={renderedStudio} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} onReady={bookReadyChanged} onFallback={() => setRenderFailed(true)} />
       ) : mode === "book" ? (
-        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} jumps={jumps} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} showcaseOrbit={showcaseOrbit} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
+        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} showcaseOrbit={showcaseOrbit} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>
@@ -886,7 +894,7 @@ export function PdfViewer({
             >
               {sizes[current - 1] && (
                 <div className="shrink-0" style={{ width: `calc(min(100%, max(1px, calc((${pagedHeight} - ${topGap + 24}px) * ${sizes[current - 1]!.w / sizes[current - 1]!.h}))) * ${zoom})` }}>
-                <PdfPage links={pageLinks(current)} videos={pageVideos(current)} spotlights={pageSpotlights(current)} onSpotlight={openSpotlightById} jumps={pageJumps(current)} onJump={jumpTo} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={noop} eager onRendered={markReady} />
+                <PdfPage links={pageLinks(current)} videos={pageVideos(current)} spotlights={pageSpotlights(current)} onSpotlight={openSpotlightById} jumps={pageJumps(current)} stickers={pageStickers(current)} onJump={jumpTo} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={noop} eager onRendered={markReady} />
                 </div>
               )}
             </div>
@@ -905,7 +913,7 @@ export function PdfViewer({
             style={{ paddingTop: topGap, width: `calc(min(100%, ${compact ? 900 : 1100}px) * ${zoom})` }}
           >
             {sizes.map((s, i) => (
-              <PdfPage links={pageLinks(i + 1)} videos={pageVideos(i + 1)} spotlights={pageSpotlights(i + 1)} onSpotlight={openSpotlightById} jumps={pageJumps(i + 1)} onJump={jumpTo} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={setCurrent} eager={!streamedDoc} renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
+              <PdfPage links={pageLinks(i + 1)} videos={pageVideos(i + 1)} spotlights={pageSpotlights(i + 1)} onSpotlight={openSpotlightById} jumps={pageJumps(i + 1)} stickers={pageStickers(i + 1)} onJump={jumpTo} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={setCurrent} eager={!streamedDoc} renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
             ))}
           </div>
         </div>
@@ -1024,6 +1032,7 @@ function PdfPage({
   spotlights,
   onSpotlight,
   jumps,
+  stickers,
   onJump,
   detail = 0,
 }: {
@@ -1034,6 +1043,8 @@ function PdfPage({
   onSpotlight?: (id: string) => void;
   /** Contents links on the full page; `onJump` goes to a page. */
   jumps?: PageJump[];
+  /** Animated stickers on the full page. */
+  stickers?: PageSticker[];
   onJump?: (page: number) => void;
   /** Bumped when a page-picture document can draw from its PDF, so a zoomed page redraws sharper. */
   detail?: number;
@@ -1292,7 +1303,8 @@ function PdfPage({
           {/* Inside the drawn page layer, which replaces the page's children whenever it redraws. */}
           {videos && videos.length > 0 && <PageVideoHtml videos={videos} />}
           {spotlights?.map((s) => <SpotlightTarget key={s.id} spotlight={s} onOpen={() => onSpotlight?.(s.id)} />)}
-          {onJump && jumps?.map((j) => <PageJumpLink key={j.id} jump={j} onGo={onJump} />)}
+          {stickers?.map((s) => <PageStickerMark key={s.id} sticker={s} />)}
+        {onJump && jumps?.map((j) => <PageJumpLink key={j.id} jump={j} onGo={onJump} />)}
         </div>, linkLayer.element,
       )}
       {failed && (

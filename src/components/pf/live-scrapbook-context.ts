@@ -11,4 +11,8 @@ export const LiveScrapbookContext = createContext<{
   onSelect?: (selection: ScrapbookSelection) => void;
   /** The leaves the preview shows, so new items land on the page in view. */
   onPages?: (pages: Array<{ page: number; half?: "left" | "right" }>) => void;
+  /** A page the side panel asked to show (picking an item listed from another page); `t` makes each ask new. */
+  pageRequest?: { page: number; t: number } | null;
+  /** A sticker being dragged from the side panel: the open pages accept the drop while it is. */
+  draggingSticker?: string | null;
 } | null>(null);

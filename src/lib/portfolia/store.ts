@@ -1,5 +1,5 @@
 import { validateFoldout } from "./foldouts";
-import { validatePageTag, validatePageLink, validatePageVideo, validatePageSpotlight, validatePageJump, type PageVideo } from "./page-extras";
+import { validatePageTag, validatePageLink, validatePageVideo, validatePageSpotlight, validatePageJump, validatePageSticker, type PageVideo } from "./page-extras";
 import type { ExtraKind, Extra } from "./scrapbook-transform";
 import { backgroundKeys } from "./background-settings";
 import { foldoutKeys } from "./foldouts";
@@ -152,6 +152,8 @@ export interface PdfFile {
   spotlights?: import("./page-extras").PageSpotlight[];
   /** Boxes that take readers to another page (contents links). */
   jumps?: import("./page-extras").PageJump[];
+  /** Small animated stickers (arrows, circles, stars…) on pages. */
+  stickers?: import("./page-extras").PageSticker[];
   /** Optional derived JPEG used in public link previews. */
   coverKey?: string;
   renderedStudio?: import("./rendered-studio").RenderedStudio;
@@ -375,6 +377,7 @@ function validateExtra(kind:ExtraKind,item:Extra,pages:number):string|null{
   if(kind==="videos")return validatePageVideo(item as PageVideo,pages);
   if(kind==="spotlights")return validatePageSpotlight(item as import("./page-extras").PageSpotlight,pages);
   if(kind==="jumps")return validatePageJump(item as import("./page-extras").PageJump,pages);
+  if(kind==="stickers")return validatePageSticker(item as import("./page-extras").PageSticker,pages);
   return validatePageLink(item as import("./page-extras").PageLink,pages);
 }
 

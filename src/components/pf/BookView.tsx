@@ -12,12 +12,13 @@ import { foldoutSurfaces } from "@/lib/portfolia/foldouts";
 import { StoredFoldout } from "./FoldoutCard";
 import { BookLoader } from "./book-loader";
 import { getBookInset, subscribeBookInset } from "@/lib/portfolia/book-framing";
+import { PageStickerMark } from "./AnimatedSticker";
 import { PageJumpLink, PageLinkAnchor } from "./PageLinks";
 import { isBackgroundScene } from "@/lib/portfolia/background-scenes";
 import { loadLinkIcons, paintPageLinks, type LinkIcons } from "@/lib/portfolia/link-paint";
 import { PageTabButtons } from "./PageTabs";
 import { planTabs, tabEdge } from "@/lib/portfolia/tab-geometry";
-import { jumpsForLeaf, linksForLeaf, readablePageJumps, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, spotlightRegion, spotlightsForLeaf, tabSlots, videosForLeaf, type PageJump, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { jumpsForLeaf, linksForLeaf, readablePageJumps, readablePageStickers, stickersForLeaf, type PageSticker, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, spotlightRegion, spotlightsForLeaf, tabSlots, videosForLeaf, type PageJump, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { SpotlightLightbox, SpotlightTarget, type SpotlightView } from "./PageSpotlights";
 import { getBlob, publicAssetUrl, resolveAssetUrl } from "@/lib/portfolia/assets";
 import { videoUvRect } from "@/lib/portfolia/page-video";
@@ -369,6 +370,7 @@ export function BookView({
   videos,
   spotlights,
   jumps,
+  stickers,
   showPageNumber = true,
   showNavigation = true,
   showcaseOrbit = false,
@@ -430,6 +432,8 @@ export function BookView({
   spotlights?: PageSpotlight[];
   /** Contents links: boxes that turn straight to another page. */
   jumps?: PageJump[];
+  /** Small animated stickers on pages. */
+  stickers?: PageSticker[];
 }) {
   // A portrait first page followed only by landscape pages is a front cover and then two-page spreads.
   // The flipbook shows it that way whatever "My PDF contains" says; the other reading modes are unaffected.
@@ -494,6 +498,8 @@ export function BookView({
   const backdropScene = !viewer.backgroundKey && isBackgroundScene(viewer.backgroundPreset) ? viewer.backgroundPreset! : null;
   const jumpsSignature = JSON.stringify(editingExtras ? [] : jumps ?? []);
   const pageJumps = useMemo(() => readablePageJumps(JSON.parse(jumpsSignature), doc.numPages), [jumpsSignature, doc.numPages]);
+  const stickersSignature = JSON.stringify(editingExtras ? [] : stickers ?? []);
+  const pageStickers = useMemo(() => readablePageStickers(JSON.parse(stickersSignature), doc.numPages), [stickersSignature, doc.numPages]);
   const videoPlayer = useRef<PageVideoPlayer | null>(null);
   const [videoSound, setVideoSound] = useState<string | null>(null);
   const noteClosers = useRef(new Map<string, () => Promise<void> | null>());
@@ -589,18 +595,27 @@ export function BookView({
   // The homepage shows the 3D view off with a slow drift round the book until the reader takes over.
   useEffect(() => {
     if (!showcaseOrbit || !ready) return;
-    let frame = 0;
+    let frame = 0, last = 0;
     const started = performance.now();
     const drift = (now: number) => {
       if (tilted.current) return;
-      // Timed from the page's clock, so the Simple and Studio copies side by side move as one.
+      // The drift is slow, so 30 frames a second look the same and cost half: two whole books redraw for it.
+      if (now - last < 33) { frame = requestAnimationFrame(drift); return; }
+      last = now;
+      // Timed from the page's clock, so the Simple and Studio copies side by side move as one. The overlays on the
+      // pages wait meanwhile (as in any tilted view), so nothing needs measuring or re-rendering while it drifts.
       const s = now / 1000, ease = Math.min(1, (now - started) / 2500);
       orbitAt.current = scene.current?.orbit({ yaw: ease * 0.32 * Math.sin((s * 2 * Math.PI) / 16), pitch: ease * (0.24 + 0.1 * Math.sin((s * 2 * Math.PI) / 23)) }) ?? orbitAt.current;
-      syncBounds();
       frame = requestAnimationFrame(drift);
     };
+    setView3d(true);
     frame = requestAnimationFrame(drift);
-    return () => { cancelAnimationFrame(frame); if (!tilted.current) glideOrbit({ yaw: 0, pitch: 0 }, 900); };
+    return () => {
+      cancelAnimationFrame(frame);
+      if (tilted.current) return;
+      setView3d(false);
+      glideOrbit({ yaw: 0, pitch: 0 }, 900);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showcaseOrbit, ready]);
   const prefetchToken = useRef(0);
@@ -1136,6 +1151,14 @@ export function BookView({
     },
     [wait, narrow, layout, fallback, place, move, goTo],
   );
+  // The editor's scrapbook panel can ask for a page (an item listed from elsewhere in the book): turn straight there.
+  const pageRequest = liveScrapbook?.pageRequest;
+  useEffect(() => {
+    if (!pageRequest || !bookReady) return;
+    const found = layout.leaves.findIndex((l) => l.page === pageRequest.page);
+    if (found >= 0) void jumpTo(found);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageRequest?.t]);
 
   // When a turn ends, carry on with any clicks that arrived during it.
   useEffect(() => {
@@ -1492,9 +1515,10 @@ export function BookView({
           const visible = foldoutsForLeaf(additions, layout.leaves[n]!);
           const onLeaf = linksForLeaf(pageLinks, layout.leaves[n]!);
           return <div key={`${n}:${settings.studio}`} className="pointer-events-none absolute z-30" style={{ left: `${bounds.x}%`, top: `${bounds.y}%`, width: `${bounds.width}%`, height: `${bounds.height}%` }}>
-            {editingExtras && <LiveScrapbookPage leaf={layout.leaves[n]!} side={side===0?'left':'right'} ratio={ratio}/>}
+            {editingExtras && <LiveScrapbookPage leaf={layout.leaves[n]!} side={side===0?'left':'right'} ratio={ratio} neighbour={spread[1-side] != null ? layout.leaves[spread[1-side]!] : undefined}/>}
             {onLeaf.map(link => <PageLinkAnchor key={link.id} link={link} />)}
             {videosForLeaf(pageVideos, layout.leaves[n]!).filter(v => !v.silent).map(v => <PageVideoSound key={v.id} video={v} on={videoSound === v.id} onToggle={() => videoPlayer.current?.toggleSound(v.id)} />)}
+            {stickersForLeaf(pageStickers, layout.leaves[n]!).map(s => <PageStickerMark key={s.id} sticker={s} />)}
             {jumpsForLeaf(pageJumps, layout.leaves[n]!).map(j => <PageJumpLink key={j.id} jump={j} onGo={(page) => void jumpTo(layout.leaves.findIndex((l) => l.page === page))} />)}
             {spotlightsForLeaf(spotlightViews.map(v => v.spotlight), layout.leaves[n]!).map(s => <SpotlightTarget key={s.id} spotlight={s} onOpen={() => setOpenSpotlight(spotlightViews.findIndex(v => v.spotlight.id === s.id))} />)}
             {visible.map(item => <StoredFoldout key={`${item.id}:${(preparedNotesReady || litNotesKey === notesKey)}:${JSON.stringify(item)}`} item={item} demoAnimate={demoNotes} baked={item.style !== "sticky"} sceneRendered={(preparedNotesReady || litNotesKey === notesKey)} onProgress={p => {

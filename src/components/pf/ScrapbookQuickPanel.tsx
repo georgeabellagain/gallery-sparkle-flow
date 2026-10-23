@@ -1,11 +1,12 @@
 import { useRef, useState, type ReactNode } from "react";
-import { CornerDownRight, ExternalLink, Film, Link2, Plus, Search, StickyNote, Tag, Trash2 } from "lucide-react";
+import { CornerDownRight, ExternalLink, Film, Link2, Plus, Search, Shapes, StickyNote, Tag, Trash2 } from "lucide-react";
+import { AnimatedSticker } from "./AnimatedSticker";
 import { Button } from "@/components/ui/button";
 import type { ScrapbookPanel } from "./FoldoutSettings";
 import type { ScrapbookSelection } from "./live-scrapbook-context";
 import { deleteBlob, putBlob, uid } from "@/lib/portfolia/assets";
 import { MAX_FOLDOUTS, MAX_NOTE_ROTATION, newFoldout, noteRotation, readableFoldouts, rotateFoldout, type Foldout } from "@/lib/portfolia/foldouts";
-import { JUMP_SIZE, LINK_SIZE, MAX_JUMPS, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, SPOTLIGHT_CAPTION_LIMIT, SPOTLIGHT_LIMITS, SPOTLIGHT_SIZE, TAG_COLOURS, VIDEO_MAX_MB, VIDEO_WIDTH, hostOf, normaliseUrl, placeJump, placeVideo, readablePageJumps, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { MAX_STICKERS, STICKERS, STICKER_COLOURS, STICKER_SIZE, placeSticker, readablePageStickers, stickerInfo, type PageSticker, type StickerId, JUMP_SIZE, LINK_SIZE, MAX_JUMPS, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, SPOTLIGHT_CAPTION_LIMIT, SPOTLIGHT_LIMITS, SPOTLIGHT_SIZE, TAG_COLOURS, VIDEO_MAX_MB, VIDEO_WIDTH, hostOf, normaliseUrl, placeJump, placeVideo, readablePageJumps, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { readVideo, videoFileProblem, videoMime } from "@/lib/portfolia/page-video-file";
 import { gifFileProblem, gifToVideo, isGif } from "@/lib/portfolia/gif-to-video";
 import { addPortfolioExtra, deleteUnusedPortfolioAsset, isPaid, patchPortfolioExtra, removePortfolioExtra, useDoc, type Portfolio } from "@/lib/portfolia/store";
@@ -38,22 +39,26 @@ function FeatureBox({ icon: Icon, title, count, badge, hint, action, active, chi
  * Everything added on top of the pages, edited on the main editor's page: one box per feature. Add an item to the
  * page in view, drag it there, and change it in its box. Every change goes into the draft, so Save keeps it.
  */
-export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onError }: {
+export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onError, onGoTo, onStickerDrag }: {
   p: Portfolio;
   shown: Shown[];
   selected: ScrapbookSelection;
   onSelect: (selection: ScrapbookSelection) => void;
   onOpen: (panel: ScrapbookPanel) => void;
   onError: (message: string | null) => void;
+  /** Shows another page in the book (an item listed from elsewhere was picked). */
+  onGoTo?: (page: number) => void;
+  /** A sticker is being dragged from the palette (null when it is dropped or let go). */
+  onStickerDrag?: (sticker: string | null) => void;
   counts?: { notes: number; tabs: number; links: number };
 }) {
   const pdf = p.pdf!;
   const doc = useDoc();
-  const [target, setTarget] = useState(0);
   const [url, setUrl] = useState("");
   const [urlError, setUrlError] = useState("");
-  const page = shown[Math.min(target, shown.length - 1)] ?? { page: 1 };
-  const half = page.half ?? (shown.length > 1 && target === 0 ? "left" : "right");
+  // New items start on the right-hand page in view; drag them anywhere, across the spine too.
+  const page = shown[shown.length - 1] ?? { page: 1 };
+  const half = page.half ?? "right";
   const report = (ok: boolean, message: string) => onError(ok ? null : message);
   const select = (kind: Kind, id: string) => onSelect({ kind, id });
   const inView = (item: { page: number }) => shown.some((s) => s.page === item.page);
@@ -64,6 +69,7 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
   const jumps = readablePageJumps(pdf.jumps, pdf.pages);
   const spotlights = readablePageSpotlights(pdf.spotlights, pdf.pages);
   const pageVideos = readablePageVideos(pdf.videos, pdf.pages);
+  const stickers = readablePageStickers(pdf.stickers, pdf.pages);
   const spotlightLimit = isPaid(doc) ? SPOTLIGHT_LIMITS.personal : SPOTLIGHT_LIMITS.free;
 
   const addNote = (kind: "sticky" | "foldout") => {
@@ -154,6 +160,17 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
   const jump = selected?.kind === "jumps" ? jumps.find((j) => j.id === selected.id) : undefined;
   const spotlight = selected?.kind === "spotlights" ? spotlights.find((s) => s.id === selected.id) : undefined;
   const video = selected?.kind === "videos" ? pageVideos.find((v) => v.id === selected.id) : undefined;
+  const sticker = selected?.kind === "stickers" ? stickers.find((s) => s.id === selected.id) : undefined;
+  /** A click (rather than a drag) puts the sticker in the middle of the page in view. */
+  const addSticker = (id: StickerId) => {
+    const size = STICKER_SIZE.default;
+    // Each one lands a little apart from the last, so they don't pile up.
+    const step = stickers.filter((s) => s.page === page.page).length % 5;
+    const s = placeSticker({ id: uid("sticker"), page: page.page, half, sticker: id, colour: STICKER_COLOURS[0]!, x: 0, y: 0, size }, 0.5 - size / 2 + (step - 2) * 0.08, 0.4 + (step % 2) * 0.1, size);
+    const ok = addPortfolioExtra(p.code, pdf.blobKey, "stickers", s, MAX_STICKERS);
+    report(ok, `Use up to ${MAX_STICKERS} stickers.`);
+    if (ok) select("stickers", s.id);
+  };
   const patchNote = (next: Foldout) => report(patchPortfolioExtra(p.code, pdf.blobKey, "foldouts", next.id, next), "That change could not be saved. Check the text length.");
   const remove = () => {
     if (!selected) return;
@@ -169,15 +186,19 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
   const add = (label: string, onClick: () => void, disabled = false) => (
     <Button size="xs" variant="line" onClick={onClick} disabled={disabled}><Plus className="size-3.5" />{label}</Button>
   );
-  /** The items of one feature on the open pages, to pick one (they can also be clicked on the page). */
+  /**
+   * Every item of one feature, in page order, wherever it is in the book. Those on the open pages are solid; picking
+   * one elsewhere turns the book to it.
+   */
   const chips = (kind: Kind, items: Array<{ id: string; page: number; label: string }>) => {
-    const here = items.filter(inView);
+    const here = [...items].sort((a, b) => a.page - b.page);
     if (!here.length) return null;
     return (
       <div className="flex flex-wrap gap-1.5">
         {here.map((item) => (
-          <button key={item.id} type="button" aria-pressed={selected?.kind === kind && selected.id === item.id} onClick={() => select(kind, item.id)}
-            className="max-w-full truncate rounded-full border border-border bg-background px-2.5 py-1 text-[11px] transition-colors hover:border-foreground/30 aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background">
+          <button key={item.id} type="button" aria-pressed={selected?.kind === kind && selected.id === item.id} title={inView(item) ? undefined : `Go to page ${item.page}`}
+            onClick={() => { if (!inView(item)) onGoTo?.(item.page); select(kind, item.id); }}
+            className={cn("max-w-full truncate rounded-full border px-2.5 py-1 text-[11px] transition-colors hover:border-foreground/30 aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background", inView(item) ? "border-border bg-background" : "border-dashed border-border bg-transparent text-muted-foreground")}>
             {item.label === `p. ${item.page}` ? item.label : `p. ${item.page} · ${item.label}`}
           </button>
         ))}
@@ -195,20 +216,10 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
 
   return (
     <div className="space-y-3 text-sm">
-      <div className="space-y-1.5">
-        <p className="text-xs text-muted-foreground">New items go on</p>
-        {shown.length > 1 ? (
-          <div className="flex gap-1 rounded-full bg-muted p-0.5" role="radiogroup" aria-label="Page to add to">
-            {shown.map((s, i) => (
-              <button key={`${s.page}:${s.half ?? ""}`} type="button" role="radio" aria-checked={i === target} onClick={() => setTarget(i)}
-                className="flex-1 rounded-full px-2 py-1.5 text-xs transition-colors aria-checked:bg-background aria-checked:font-medium aria-checked:shadow-sm">
-                {i === 0 ? "Left" : "Right"} · page {s.page}
-              </button>
-            ))}
-          </div>
-        ) : <p className="text-sm font-medium">Page {page.page}</p>}
-        <p className="text-[11px] text-muted-foreground">Drag items on the page to place them; pull a corner to resize. Save keeps your changes.</p>
-      </div>
+      <p className="rounded-xl bg-muted/60 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+        New items appear on page {page.page}. Drag them anywhere, across onto the other page too; pull a corner to
+        resize. Every item in the book is listed below; pick one on another page to turn to it. Save keeps your changes.
+      </p>
 
       <FeatureBox icon={StickyNote} title="Notes" count={`${notes.length} of ${MAX_FOLDOUTS}`} hint="A sticky note, or a fold-out readers open to see more." active={Boolean(note)}
         action={<div className="flex gap-1">{add("Sticky", () => addNote("sticky"))}{add("Fold-out", () => addNote("foldout"))}</div>}>
@@ -228,6 +239,28 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
           </label>
           <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline" onClick={() => onOpen("notes")}>Add a picture or change the font</button>
         </>, "note")}
+      </FeatureBox>
+
+      <FeatureBox icon={Shapes} title="Animated stickers" count={`${stickers.length} of ${MAX_STICKERS}`} hint="Small moving arrows, circles and marks. Drag one onto a page, or click it to add it to the page in view." active={Boolean(sticker)}>
+        <div className="grid grid-cols-8 gap-1" role="list" aria-label="Stickers">
+          {STICKERS.map((s) => (
+            <button key={s.id} type="button" role="listitem" draggable title={`${s.label}: drag onto a page, or click to add`} aria-label={`Add ${s.label} sticker`}
+              onClick={() => addSticker(s.id)}
+              onDragStart={(e) => { e.dataTransfer.setData("application/x-portfolia-sticker", s.id); e.dataTransfer.effectAllowed = "copy"; onStickerDrag?.(s.id); }}
+              onDragEnd={() => onStickerDrag?.(null)}
+              className="aspect-square cursor-grab rounded-lg border border-border bg-background p-1.5 transition-colors hover:border-foreground/30 active:cursor-grabbing">
+              <AnimatedSticker sticker={s.id} colour="#1c1c1c" />
+            </button>
+          ))}
+        </div>
+        {chips("stickers", stickers.map((s) => ({ id: s.id, page: s.page, label: stickerInfo(s.sticker)?.label ?? "Sticker" })))}
+        {sticker && editing(<>
+          <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Sticker colour">
+            {STICKER_COLOURS.map((colour) => <button key={colour} type="button" role="radio" aria-checked={sticker.colour === colour} aria-label={`Sticker colour ${colour}`} className="size-6 rounded-full border border-black/15 aria-checked:ring-2 aria-checked:ring-foreground aria-checked:ring-offset-1" style={{ background: colour }} onClick={() => report(patchPortfolioExtra(p.code, pdf.blobKey, "stickers", sticker.id, { ...sticker, colour } as PageSticker), "The colour could not be saved.")} />)}
+            <input type="color" aria-label="Any sticker colour" className="h-6 w-8 cursor-pointer rounded border border-border" value={sticker.colour} onChange={(e) => report(patchPortfolioExtra(p.code, pdf.blobKey, "stickers", sticker.id, { ...sticker, colour: e.target.value } as PageSticker), "The colour could not be saved.")} />
+          </div>
+          <p className="text-xs text-muted-foreground">Drag it on the page; pull its corner to resize. It moves on its own in the reader.</p>
+        </>, "sticker")}
       </FeatureBox>
 
       <FeatureBox icon={Tag} title="Page tabs" count={`${tags.length} of ${MAX_TAGS}`} hint="Coloured tabs on the edge of the book. Readers press one to turn straight to its page." active={Boolean(tab)}

@@ -251,6 +251,69 @@ export function placeJump(j: PageJump, x: number, y: number, width: number, heig
   const w = Math.min(Math.max(JUMP_SIZE.min, width), 1), h = Math.min(Math.max(JUMP_SIZE.min, height), 1);
   return { ...j, width: w, height: h, x: Math.min(Math.max(0, x), 1 - w), y: Math.min(Math.max(0, y), 1 - h) };
 }
+/**
+ * A small animated sticker on a page: an arrow, circle, star and so on, drawn from the Lucide icon set (ISC licence,
+ * free to use) and moving gently. It sits on the page like a website link: a square, placed by its top-left corner.
+ */
+export const STICKERS = [
+  { id: "arrow-right", label: "Arrow", motion: "nudge" },
+  { id: "arrow-down", label: "Arrow down", motion: "bounce" },
+  { id: "arrow-up-right", label: "Arrow up", motion: "nudge-up" },
+  { id: "corner-right-down", label: "Curved arrow", motion: "bounce" },
+  { id: "circle", label: "Circle", motion: "draw" },
+  { id: "circle-dot", label: "Target", motion: "pulse" },
+  { id: "star", label: "Star", motion: "spin" },
+  { id: "sparkles", label: "Sparkle", motion: "twinkle" },
+  { id: "heart", label: "Heart", motion: "beat" },
+  { id: "check", label: "Tick", motion: "draw" },
+  { id: "pointer", label: "Click", motion: "tap" },
+  { id: "hand", label: "Wave", motion: "wiggle" },
+  { id: "zap", label: "Flash", motion: "flash" },
+  { id: "asterisk", label: "Burst", motion: "spin" },
+  { id: "eye", label: "Look", motion: "pulse" },
+  { id: "plus", label: "Plus", motion: "spin" },
+] as const;
+export type StickerId = (typeof STICKERS)[number]["id"];
+export type StickerMotion = (typeof STICKERS)[number]["motion"];
+export const stickerInfo = (id: string) => STICKERS.find((s) => s.id === id);
+export interface PageSticker {
+  id: string;
+  page: number;
+  /** Which half of a spread-sheet page it sits on. */
+  half: "left" | "right";
+  sticker: StickerId;
+  colour: string;
+  /** Top-left corner and width as fractions of the page; it is square. */
+  x: number;
+  y: number;
+  size: number;
+}
+export const MAX_STICKERS = 40;
+export const STICKER_SIZE = { min: 0.03, max: 0.5, default: 0.12 };
+export const STICKER_COLOURS = ["#e8604c", "#1c1c1c", "#ffffff", "#f2a93b", "#4fa3d1", "#6bbf8a", "#8c79d8", "#e98bb5"];
+export function validatePageSticker(s: PageSticker, pages: number): string | null {
+  if (!s || typeof s !== "object" || !key.test(s.id)) return "Choose a valid sticker.";
+  if (!Number.isInteger(s.page) || s.page < 1 || s.page > pages) return "Choose a page in this PDF.";
+  if (s.half !== "left" && s.half !== "right") return "Choose a page half.";
+  if (!stickerInfo(s.sticker)) return "Choose a sticker.";
+  if (!hex.test(s.colour)) return "Choose a sticker colour.";
+  if (![s.x, s.y, s.size].every(Number.isFinite) || s.size < STICKER_SIZE.min - 1e-9 || s.size > STICKER_SIZE.max + 1e-9) return "Choose a valid sticker size.";
+  if (s.x < -1e-9 || s.y < -1e-9 || s.x + s.size > 1.0001 || s.y > 1.0001) return "Keep the sticker on the page.";
+  return null;
+}
+export const readablePageStickers = (value: unknown, pages: number): PageSticker[] =>
+  readable<PageSticker>(value, MAX_STICKERS, (s) => !validatePageSticker(s, pages));
+export const stickersForLeaf = (stickers: PageSticker[], leaf: { page: number; half?: "left" | "right" }) =>
+  stickers.filter((s) => s.page === leaf.page && (!leaf.half || s.half === leaf.half));
+/** The same leaf-relative square on the full PDF page, for Scroll and Page-by-page. */
+export function stickersForPage(stickers: PageSticker[], page: number, split: boolean): PageSticker[] {
+  return stickers.filter((s) => s.page === page).map((s) => split ? { ...s, x: (s.half === "right" ? 0.5 : 0) + s.x / 2, size: s.size / 2 } : s);
+}
+/** Keeps a sticker on its page while it is moved or resized (`ratio` is page height over width). */
+export function placeSticker(s: PageSticker, x: number, y: number, size: number, ratio = 1.4): PageSticker {
+  const w = Math.min(Math.max(STICKER_SIZE.min, size), STICKER_SIZE.max), h = w / ratio;
+  return { ...s, size: w, x: Math.min(Math.max(0, x), 1 - w), y: Math.min(Math.max(0, y), Math.max(0, 1 - h)) };
+}
 function readable<T extends { id: string }>(value: unknown, max: number, ok: (v: T) => boolean): T[] {
   if (!Array.isArray(value)) return [];
   const ids = new Set<string>();

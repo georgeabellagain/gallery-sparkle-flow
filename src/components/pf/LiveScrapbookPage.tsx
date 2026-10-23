@@ -10,7 +10,7 @@ import {
   type Foldout,
   type ResizeCorner,
 } from "@/lib/portfolia/foldouts";
-import { jumpsForLeaf, linksForLeaf, placeVideo, readablePageJumps, readablePageSpotlights, readablePageVideos, spotlightsForLeaf, tabSlots, videoHeight, videosForLeaf, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { MAX_STICKERS, STICKER_SIZE, STICKER_COLOURS, jumpsForLeaf, linksForLeaf, placeSticker, placeVideo, readablePageJumps, readablePageStickers, stickerInfo, stickersForLeaf, type PageSticker, readablePageSpotlights, readablePageVideos, spotlightsForLeaf, tabSlots, videoHeight, videosForLeaf, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { CornerDownRight, Search } from "lucide-react";
 import { useBlob } from "./Chrome";
 
@@ -28,16 +28,21 @@ function VideoPoster({ video }: { video: PageVideo }) {
 }
 import { tabSlot } from "@/lib/portfolia/tab-geometry";
 import type { Leaf } from "@/lib/portfolia/book-layout";
-import { patchPortfolioExtra, removePortfolioExtra } from "@/lib/portfolia/store";
-import { transformExtra, type Extra, type ExtraKind } from "@/lib/portfolia/scrapbook-transform";
+import { addPortfolioExtra, patchPortfolioExtra, removePortfolioExtra } from "@/lib/portfolia/store";
+import { AnimatedSticker } from "./AnimatedSticker";
+import { uid } from "@/lib/portfolia/assets";
+import { extraWidth, moveToPage, transformExtra, type Extra, type ExtraKind } from "@/lib/portfolia/scrapbook-transform";
 export function LiveScrapbookPage({
   leaf,
   side,
   ratio,
+  neighbour,
 }: {
   leaf: Leaf;
   side: "left" | "right";
   ratio: number;
+  /** The other page of the open spread: items dragged across the spine move onto it. */
+  neighbour?: Leaf;
 }) {
   const context = useContext(LiveScrapbookContext)!;
   const pdf = context.portfolio.pdf!;
@@ -57,8 +62,10 @@ export function LiveScrapbookPage({
     handle: "move" | ResizeCorner | "rotate";
     next: Extra;
     centre?: { x: number; y: number };
+    /** How far it has been moved across, unclamped, so it can be carried over the spine. */
+    dx: number;
   } | null>(null);
-  useEffect(() => setDraft(null), [pdf.foldouts, pdf.links, pdf.tags, pdf.videos, pdf.spotlights, pdf.jumps]);
+  useEffect(() => setDraft(null), [pdf.foldouts, pdf.links, pdf.tags, pdf.videos, pdf.spotlights, pdf.jumps, pdf.stickers]);
   const leafVideos = videosForLeaf(readablePageVideos(pdf.videos, pdf.pages), leaf);
   // A new video is placed at a typical page shape; fit its height to this page's real shape once it is seen.
   useEffect(() => {
@@ -95,6 +102,7 @@ export function LiveScrapbookPage({
       height: bounds.height,
       handle,
       next: item,
+      dx: 0,
       ...(handle === "rotate" ? { centre: { x: bounds.left + (note.x + note.width / 2) * bounds.width, y: bounds.top + (note.y + note.height / 2) * bounds.height } } : {}),
     };
   };
@@ -111,21 +119,34 @@ export function LiveScrapbookPage({
       setDraft({ kind: d.kind, item: d.next });
       return;
     }
+    d.dx = (e.clientX - d.x) / d.width;
     d.next = transformExtra(
       d.kind,
       d.item,
-      (e.clientX - d.x) / d.width,
+      d.dx,
       (e.clientY - d.y) / d.height,
       d.handle,
       ratio,
     );
-    setDraft({ kind: d.kind, item: d.next });
+    // While moving, it follows the pointer even past the page's edge, towards the other page.
+    const across = d.handle === "move" && d.kind !== "tags" && neighbour;
+    setDraft({ kind: d.kind, item: across ? ({ ...d.next, x: ((d.item as { x: number }).x) + d.dx } as Extra) : d.next });
   };
   const end = (e: PointerEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     const d = drag.current;
     drag.current = null;
-    if (d) commit(d.kind, d.next);
+    if (!d) return;
+    // Let go over the other page: it moves there, where it was dropped.
+    if (d.handle === "move" && d.kind !== "tags" && neighbour) {
+      const x = (d.item as { x: number }).x + d.dx, centre = x + extraWidth(d.kind, d.item) / 2;
+      if (side === "right" ? centre < 0 : centre > 1) {
+        const half = neighbour.half ?? (side === "right" ? "left" : "right");
+        commit(d.kind, moveToPage(d.kind, d.next, neighbour.page, half, x + (side === "right" ? 1 : -1), ratio));
+        return;
+      }
+    }
+    commit(d.kind, d.next);
   };
   const cancel = () => {
     drag.current = null;
@@ -169,14 +190,28 @@ export function LiveScrapbookPage({
       <button
         key={corner}
         type="button"
-        aria-label={`Resize ${kind === "foldouts" ? "note" : kind === "tags" ? "tab" : kind === "videos" ? "video" : kind === "spotlights" ? "spotlight" : kind === "jumps" ? "page link" : "link"} ${corner}`}
+        aria-label={`Resize ${kind === "foldouts" ? "note" : kind === "tags" ? "tab" : kind === "videos" ? "video" : kind === "spotlights" ? "spotlight" : kind === "jumps" ? "page link" : kind === "stickers" ? "sticker" : "link"} ${corner}`}
         {...controls(kind, item, corner as ResizeCorner)}
         className={`pointer-events-auto absolute z-20 size-3 touch-none border border-white bg-blue-600 ${corner.includes("n") ? "-top-1.5" : "-bottom-1.5"} ${corner.includes("w") ? "-left-1.5" : "-right-1.5"}`}
         style={{ cursor: corner === "nw" || corner === "se" ? "nwse-resize" : "nesw-resize" }}
       />
     ));
+  // A sticker dragged in from the side panel lands where it is dropped, on whichever open page that is.
+  const dropSticker = (e: React.DragEvent<HTMLDivElement>) => {
+    const id = e.dataTransfer.getData("application/x-portfolia-sticker") || context.draggingSticker;
+    if (!id || !stickerInfo(id) || !root.current) return;
+    e.preventDefault();
+    const bounds = root.current.getBoundingClientRect(), size = STICKER_SIZE.default;
+    const base: PageSticker = { id: uid("sticker"), page: leaf.page, half: leaf.half ?? side, sticker: id as PageSticker["sticker"], colour: STICKER_COLOURS[0]!, x: 0, y: 0, size };
+    const sticker = placeSticker(base, (e.clientX - bounds.left) / bounds.width - size / 2, (e.clientY - bounds.top) / bounds.height - size / ratio / 2, size, ratio);
+    const ok = addPortfolioExtra(context.portfolio.code, pdf.blobKey, "stickers", sticker, MAX_STICKERS);
+    context.onError(ok ? null : `Use up to ${MAX_STICKERS} stickers.`);
+    if (ok) setSelected("stickers", sticker.id);
+  };
   return (
-    <div ref={root} className="pointer-events-none absolute inset-0" data-live-scrapbook>
+    <div ref={root} className={`absolute inset-0 ${context.draggingSticker ? "pointer-events-auto outline-2 outline-dashed outline-blue-500/50" : "pointer-events-none"}`} data-live-scrapbook
+      onDragOver={(e) => { if (context.draggingSticker) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } }}
+      onDrop={dropSticker}>
       {foldoutsForLeaf(pdf.foldouts ?? [], leaf).map((original) => {
         const f = live(original);
         return (
@@ -300,8 +335,30 @@ export function LiveScrapbookPage({
           </div>
         );
       })}
+      {stickersForLeaf(readablePageStickers(pdf.stickers, pdf.pages), leaf).map((original) => {
+        const s = live(original);
+        return (
+          <div
+            key={s.id}
+            data-selected={selected === s.id || undefined}
+            className="absolute pointer-events-auto ring-1 ring-blue-500/50 data-[selected]:ring-2 data-[selected]:ring-blue-600"
+            style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${s.size * 100}%`, aspectRatio: "1" }}
+          >
+            <AnimatedSticker sticker={s.sticker} colour={s.colour} />
+            <button
+              type="button"
+              aria-label={`Move sticker ${stickerInfo(s.sticker)?.label ?? ""}`}
+              {...controls("stickers", s, "move")}
+              className="absolute inset-0 touch-none cursor-move bg-transparent"
+            />
+            {resize("stickers", s)}
+          </div>
+        );
+      })}
+      {/* Every tab shows while editing, on the edge it sticks out of (pages ahead on the right, pages passed on the
+          left), so they can all be placed so none overlap. */}
       {tabSlots(pdf.tags ?? [])
-        .filter((t) => t.page === leaf.page && (!leaf.half || leaf.half === side))
+        .filter((t) => !neighbour || (side === "right" ? t.page >= leaf.page : t.page <= leaf.page))
         .map((original) => {
           const t = live(original);
           const slot = tabSlot(ratio, original.slot, original.of, t.position, t.scale);

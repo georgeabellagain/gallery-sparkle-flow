@@ -569,12 +569,37 @@
 
 /* Colour-and-motion backgrounds (BackgroundSceneLayer): blobs only move, so nothing repaints. */
 .pf-scene-blob { position: absolute; border-radius: 50%; will-change: transform; animation: pf-scene-drift var(--pf-period) ease-in-out infinite alternate; }
-@keyframes pf-scene-drift { from { transform: translate3d(-50%, -50%, 0) scale(1); } to { transform: translate3d(calc(-50% + var(--pf-dx)), calc(-50% + var(--pf-dy)), 0) scale(1.08); } }
+@keyframes pf-scene-drift { from { transform: translate3d(-50%, -50%, 0) scale(1); } to { transform: translate3d(calc(-50% + var(--pf-dx)), calc(-50% + var(--pf-dy)), 0) scale(1.16); } }
 .pf-scene-still .pf-scene-blob { animation: none; transform: translate3d(-50%, -50%, 0); }
-.pf-scene-sweep { position: absolute; inset: -20% -60%; will-change: transform; animation: pf-scene-sweep 18s ease-in-out infinite alternate; }
+.pf-scene-sweep { position: absolute; inset: -20% -60%; will-change: transform; animation: pf-scene-sweep 11s ease-in-out infinite alternate; }
 @keyframes pf-scene-sweep { from { transform: translate3d(-25%, 0, 0) rotate(8deg); } to { transform: translate3d(25%, 0, 0) rotate(8deg); } }
 @media (prefers-reduced-motion: reduce) { .pf-scene-blob { animation: none; transform: translate3d(-50%, -50%, 0); } .pf-scene-sweep { animation: none; } }
 
+/* Animated stickers on pages (AnimatedSticker). Each moves gently and loops; reduced motion keeps them still. */
+.pf-sticker svg { overflow: visible; filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / .18)); }
+.pf-sticker-nudge svg { animation: pf-stk-nudge 1.4s ease-in-out infinite; }
+.pf-sticker-nudge-up svg { animation: pf-stk-nudge-up 1.4s ease-in-out infinite; }
+.pf-sticker-bounce svg { animation: pf-stk-bounce 1.2s ease-in-out infinite; }
+.pf-sticker-pulse svg { animation: pf-stk-pulse 1.8s ease-in-out infinite; }
+.pf-sticker-beat svg { animation: pf-stk-beat 1.3s ease-in-out infinite; }
+.pf-sticker-spin svg { animation: pf-stk-spin 6s linear infinite; }
+.pf-sticker-twinkle svg { animation: pf-stk-twinkle 1.6s ease-in-out infinite; }
+.pf-sticker-tap svg { animation: pf-stk-tap 1.5s ease-in-out infinite; transform-origin: 30% 30%; }
+.pf-sticker-wiggle svg { animation: pf-stk-wiggle 1.6s ease-in-out infinite; transform-origin: 60% 90%; }
+.pf-sticker-flash svg { animation: pf-stk-flash 1.8s steps(1, end) infinite; }
+.pf-sticker-draw svg * { stroke-dasharray: 80; animation: pf-stk-draw 2.6s ease-in-out infinite; }
+@keyframes pf-stk-nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(14%); } }
+@keyframes pf-stk-nudge-up { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(10%, -10%); } }
+@keyframes pf-stk-bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(14%); } }
+@keyframes pf-stk-pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.14); opacity: .8; } }
+@keyframes pf-stk-beat { 0%, 60%, 100% { transform: scale(1); } 15% { transform: scale(1.18); } 30% { transform: scale(.96); } 45% { transform: scale(1.1); } }
+@keyframes pf-stk-spin { to { transform: rotate(360deg); } }
+@keyframes pf-stk-twinkle { 0%, 100% { transform: scale(1) rotate(0); opacity: 1; } 50% { transform: scale(.82) rotate(12deg); opacity: .6; } }
+@keyframes pf-stk-tap { 0%, 70%, 100% { transform: scale(1); } 80% { transform: scale(.85); } }
+@keyframes pf-stk-wiggle { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(14deg); } 75% { transform: rotate(-10deg); } }
+@keyframes pf-stk-flash { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes pf-stk-draw { 0% { stroke-dashoffset: 80; } 45%, 75% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -80; } }
+@media (prefers-reduced-motion: reduce) { .pf-sticker svg, .pf-sticker svg * { animation: none !important; stroke-dasharray: none !important; } }
 /* Customisation panels: thin, quiet sliders and switches. */
 .pf-panel input[type="range"] { appearance: none; -webkit-appearance: none; height: 18px; background: transparent; cursor: pointer; }
 .pf-panel input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 999px; background: color-mix(in oklab, currentColor 14%, transparent); }
