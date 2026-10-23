@@ -1036,7 +1036,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     shadowsDirty = true;
     if (turnRestPages) {
       [left, right].forEach((mesh, i) => {
-        const visible = !!turnRestPages![i] && turnRestVisible(progress, i === (dir === 1 ? 1 : 0));
+        // A turn following the pointer can fold a large corner over before it has moved far across, so the page
+        // beneath shows as soon as anything is folded.
+        const revealed = i === (dir === 1 ? 1 : 0);
+        const visible = !!turnRestPages![i] && (write && revealed ? progress > 1e-4 : turnRestVisible(progress, revealed));
         if (mesh.visible !== visible) { mesh.visible = visible; shadowsDirty = true; }
       });
     }
@@ -1200,7 +1203,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     },
     viewport(isNarrow: boolean, scale: number, target: number) {
       narrow = isNarrow;
-      zoom = THREE.MathUtils.clamp(scale, .5, 3);
+      zoom = THREE.MathUtils.clamp(scale, .45, 3);
       focus = target;
       frameCamera();
       paint();
@@ -1210,7 +1213,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const delta = cameraHeight(zoom) - cameraHeight(scale);
       panX += (x - 0.5) * delta * aspect;
       panY += (0.5 - y) * delta;
-      zoom = THREE.MathUtils.clamp(scale, .5, 3);
+      zoom = THREE.MathUtils.clamp(scale, .45, 3);
       frameCamera();
       requestPaint(false);
     },

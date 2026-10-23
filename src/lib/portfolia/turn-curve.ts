@@ -50,12 +50,21 @@ function foldLine(grabY: number, pointer: FoldPoint) {
   const nx0 = 1 - pointer.x, ny0 = grabY - pointer.y, length = Math.hypot(nx0, ny0);
   if (length < 1e-5) return null;
   const nx = nx0 / length, ny = ny0 / length;
-  const radius = 0.085 * Math.pow(Math.sin(Math.PI * pointerFoldProgress(pointer)), 0.7), wrap = Math.PI * radius;
+  const radius = foldRadius(pointerFoldProgress(pointer)), wrap = Math.PI * radius;
   const shift = Math.min(wrap, length) / 2;
   return { nx, ny, mx: (1 + pointer.x) / 2 - nx * shift, my: (grabY + pointer.y) / 2 - ny * shift, radius, wrap };
 }
+/**
+ * The roll's radius as a pointer turn goes over. It opens quickly, so even a small pull bends the paper over several
+ * rows of the sheet (a tight crease would show as facets), and closes to nothing as the page lands flat.
+ */
+export function foldRadius(progress: number) {
+  const s = Math.sin(Math.PI * Math.max(0, Math.min(1, progress)));
+  // Exactly none at either end (sin(pi) is not quite zero in floating point).
+  return s < 1e-6 ? 0 : 0.085 * Math.pow(s, 0.35);
+}
 /** The steepest the fold may tilt, up or down, at the start of a pointer turn. */
-export const FOLD_MAX_TILT = (30 * Math.PI) / 180;
+export const FOLD_MAX_TILT = (22 * Math.PI) / 180;
 /**
  * Hard stops for a pointer turn. The page follows the pointer's horizontal travel exactly; how far it may be pulled
  * up or down is limited to a tilt of FOLD_MAX_TILT, narrowing to level as the page goes over, and never so steep
@@ -70,7 +79,7 @@ export function constrainFoldPointer(grabY: number, pointer: FoldPoint, ratio: n
   const ease = 1 - progress * progress * (3 - 2 * progress);
   let tanMax = Math.tan(FOLD_MAX_TILT) * ease;
   // And by the spine: the fold line, from its middle, may lean at most until it touches x = 0 at the page's far edge.
-  const radius = 0.085 * Math.pow(Math.sin(Math.PI * progress), 0.7);
+  const radius = foldRadius(progress);
   const middle = (1 + px) / 2 - Math.min(Math.PI * radius, dx) / 2;
   const reach = Math.max(grabY, ratio - grabY) + 1e-6;
   tanMax = Math.max(0, Math.min(tanMax, (middle * 0.95) / reach));

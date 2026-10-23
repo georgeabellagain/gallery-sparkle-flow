@@ -6,7 +6,7 @@ import { TURN_STYLES, readableTurnSpeed, readableTurnStyle } from "@/lib/portfol
 import { setPreviewMode } from "@/lib/portfolia/preview-look";
 import type { ViewerSettings } from "@/lib/portfolia/store";
 import { RIBBON_COLOURS, readableRibbonColour } from "@/lib/portfolia/book-details";
-import { PanelSection, SliderRow, SwitchRow, optionClass } from "./panel-ui";
+import { PanelSection, SliderRow, optionClass } from "./panel-ui";
 
 /** Each tab shape in miniature (the book draws the real ones from tab-style.ts). */
 const TAB_PREVIEW: Record<TabStyle, CSSProperties> = {
@@ -28,27 +28,14 @@ export function PageTurnSettings({viewer,setViewer,pages=0}:{viewer:ViewerSettin
       <div className="grid grid-cols-3 gap-2" role="group" aria-label="Book style">
         {BOOK_STYLES.map(option=><button key={option.id} type="button" aria-pressed={book===option.id} className={optionClass} onClick={()=>change({bookStyle:option.id})}>{option.label}</button>)}
       </div>
-      {book!=="flipbook" && <div className="space-y-3 rounded-2xl bg-muted/50 p-3">
-        <SwitchRow label="Ribbon bookmark">
-          <input type="checkbox" role="switch" checked={viewer.ribbon===true} onChange={event=>change({ribbon:event.target.checked})} />
-        </SwitchRow>
-        {viewer.ribbon===true && pages>1 && <label className="flex items-center justify-between gap-3 text-xs">
-          <span>Marks</span>
-          <select aria-label="Page the ribbon marks" className="max-w-[11rem] rounded-lg border border-border bg-background px-2 py-1.5 text-xs" value={viewer.ribbonPage ?? ""}
-            onChange={event=>change({ribbonPage:event.target.value?Number(event.target.value):undefined})}>
-            <option value="">No page (tail only)</option>
-            {Array.from({length:pages},(_,i)=><option key={i+1} value={i+1}>{i===0?"Page 1 (cover: marks the first spread)":`Page ${i+1}`}</option>)}
-          </select>
-        </label>}
-        {viewer.ribbon===true && viewer.ribbonPage!==undefined && <p className="text-xs text-muted-foreground">The ribbon lies across that spread when it is open, and shows between the pages everywhere else.</p>}
-        {(viewer.ribbon===true||book==="hardback") && <div>
-          <p className="text-xs text-muted-foreground">{book==="hardback"?"Ribbon and headband colour":"Ribbon colour"}</p>
-          <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Ribbon colour">
-            {RIBBON_COLOURS.map(colour=><button key={colour} type="button" role="radio" aria-checked={readableRibbonColour(viewer.ribbonColour)===colour} aria-label={RIBBON_NAMES[colour]} title={RIBBON_NAMES[colour]}
-              className="size-6 rounded-full border border-black/15 transition-transform hover:scale-110 aria-checked:ring-2 aria-checked:ring-foreground aria-checked:ring-offset-2" style={{background:colour}}
-              onClick={()=>change({ribbonColour:colour})} />)}
-          </div>
-        </div>}
+      {/* The ribbon bookmark is set aside for now; a hardback still shows its headbands in this colour. */}
+      {book==="hardback" && <div className="rounded-2xl bg-muted/50 p-3">
+        <p className="text-xs text-muted-foreground">Headband colour</p>
+        <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Headband colour">
+          {RIBBON_COLOURS.map(colour=><button key={colour} type="button" role="radio" aria-checked={readableRibbonColour(viewer.ribbonColour)===colour} aria-label={RIBBON_NAMES[colour]} title={RIBBON_NAMES[colour]}
+            className="size-6 rounded-full border border-black/15 transition-transform hover:scale-110 aria-checked:ring-2 aria-checked:ring-foreground aria-checked:ring-offset-2" style={{background:colour}}
+            onClick={()=>change({ribbonColour:colour})} />)}
+        </div>
       </div>}
     </PanelSection>
     <PanelSection title="Page tabs" hint={`${TAB_STYLES.find(option=>option.id===tabStyle)!.description} Add tabs in Scrapbook.`}>

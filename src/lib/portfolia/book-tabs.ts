@@ -65,22 +65,8 @@ export function createBookTabs(
     if (mirrored) { ctx.translate(width, 0); ctx.scale(-1, 1); }
     tabOutline(ctx, style, width, height);
     ctx.fillStyle = spec.colour;
+    // Flat, matte card: no painted sheen. Studio light gives it its shading.
     ctx.fill();
-    ctx.save();
-    ctx.clip();
-    // Sheen along the top edge and a whisper of depth where the tab meets the page.
-    const sheen = ctx.createLinearGradient(0, 0, 0, height);
-    sheen.addColorStop(0, "rgba(255,255,255,0.22)");
-    sheen.addColorStop(0.18, "rgba(255,255,255,0)");
-    sheen.addColorStop(1, "rgba(0,0,0,0.06)");
-    ctx.fillStyle = sheen;
-    ctx.fillRect(0, 0, width, height);
-    const edge = ctx.createLinearGradient(0, 0, width * 0.35, 0);
-    edge.addColorStop(0, "rgba(0,0,0,0.14)");
-    edge.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = edge;
-    ctx.fillRect(0, 0, width, height);
-    ctx.restore();
     ctx.restore();
     ctx.fillStyle = noteInk(spec.colour);
     ctx.textAlign = "center";
@@ -141,6 +127,9 @@ export function createBookTabs(
         const mat = template().clone();
           setNaturalImperfections(mat,template().userData["naturalEnabled"] as number | boolean | undefined);
         mat.map = texture;
+        // Matte card like a sticky note (the scene keeps these matte whatever the paper finish).
+        mat.userData["stickyMatte"] = true;
+        mat.roughness = .97;
         // The rounded end is cut from the texture's alpha.
         mat.alphaTest = 0.5;
         mat.side = side;

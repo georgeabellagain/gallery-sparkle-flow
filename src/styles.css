@@ -575,9 +575,6 @@
 @keyframes pf-scene-sweep { from { transform: translate3d(-25%, 0, 0) rotate(8deg); } to { transform: translate3d(25%, 0, 0) rotate(8deg); } }
 @media (prefers-reduced-motion: reduce) { .pf-scene-blob { animation: none; transform: translate3d(-50%, -50%, 0); } .pf-scene-sweep { animation: none; } }
 
-/* On narrow screens the editor's own toolbar runs along the bottom; the 3D controls sit above it. */
-@media (max-width: 1023px) { .pf-editor-stage .pf-book-3d { bottom: 5.5rem; } }
-
 /* Customisation panels: thin, quiet sliders and switches. */
 .pf-panel input[type="range"] { appearance: none; -webkit-appearance: none; height: 18px; background: transparent; cursor: pointer; }
 .pf-panel input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 999px; background: color-mix(in oklab, currentColor 14%, transparent); }

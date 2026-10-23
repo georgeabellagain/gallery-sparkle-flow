@@ -114,6 +114,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
         fullSpread
         autoTurnDelay={1600}
         autoTurn={rendered && visible && motionAllowed && !interacted && !comparing}
+        showcaseOrbit={workspace && rendered && visible && motionAllowed && !interacted}
         onBookReadyChange={readyChanged}
         onLoadError={loadError}
       /></div>}
@@ -130,6 +131,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
           projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} spotlights={p.pdf.spotlights} jumps={p.pdf.jumps}
           initialLook="clean"
           fullSpread
+          showcaseOrbit={rendered && visible && motionAllowed && !interacted}
           onBookReadyChange={simpleChanged}
         />
       </LookCompare>}

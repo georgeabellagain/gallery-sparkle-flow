@@ -96,6 +96,7 @@ export function PdfViewer({
   demoNotes = false,
   onContentReadyChange,
   autoTurnDelay,
+  showcaseOrbit = false,
   fullSpread = false,
   onBookReadyChange,
   onLoadError,
@@ -150,6 +151,8 @@ export function PdfViewer({
   demoNotes?: boolean;
   onContentReadyChange?: (ready: boolean) => void;
   autoTurnDelay?: number;
+  /** Homepage only: the book drifts slowly round in 3D until the reader takes over. */
+  showcaseOrbit?: boolean;
   fullSpread?: boolean;
   /** A lighter homepage demonstration; full visitor readers keep their resolution. */
   lightweight?: boolean;
@@ -344,7 +347,8 @@ export function PdfViewer({
   modeLive.current = mode;
   const [jump, setJump] = useState<{ page: number; t: number } | null>(null);
   const homeScroll = useContext(HomeScrollContext);
-  const minimumZoom = mode === "book" && foldouts?.length && (!homeScroll || full) ? .5 : 1;
+  // In the editor the book can be zoomed well out, to see the whole spread and its surroundings while working.
+  const minimumZoom = mode === "book" && editorFullscreen ? .45 : mode === "book" && foldouts?.length && (!homeScroll || full) ? .5 : 1;
   const z = (d: number) => setZoom((v) => Math.min(3, Math.max(minimumZoom, Math.round((v + d) * 100) / 100)));
   const zoomStep = mode === "scroll" ? 0.05 : 0.25;
   const total = doc?.numPages ?? 0;
@@ -872,7 +876,7 @@ export function PdfViewer({
       {mode === "book" && activeLook === "studio" && renderedStudio && !renderFailed && !compact ? (
         <RenderedBook fill={full || immersive} pack={renderedStudio} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} onReady={bookReadyChanged} onFallback={() => setRenderFailed(true)} />
       ) : mode === "book" ? (
-        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} jumps={jumps} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
+        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} jumps={jumps} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} showcaseOrbit={showcaseOrbit} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>

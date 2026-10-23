@@ -105,7 +105,9 @@ export function writePointerFold(output: THREE.BufferGeometry, ratio: number, di
     const f = pointerFold(u, v * ratio, grabY, pointer), x = dir * f.x, y = f.y - ratio / 2;
     const relief = sheetSeeds ? pageRelief(u, v, sheetSeeds[0]!) * (1 - blend) + pageRelief(u, v, sheetSeeds[1]!) * blend : 0;
     const floor = pageRelief(Math.min(1, Math.abs(x)), Math.min(1, Math.max(0, y / ratio + .5)), restingSeeds[x < 0 ? 0 : 1]!);
-    positions.setXYZ(i, x, y, turnSheetHeight(f.z + relief + clearance, floor, gap, progress));
+    // The page beneath shows from the first fold (see book-scene), so the sheet keeps its clearance above it from the
+    // start; only the landing eases back to the exact resting shape.
+    positions.setXYZ(i, x, y, turnSheetHeight(f.z + relief + clearance, floor, gap, Math.max(progress, .5)));
   }
   positions.needsUpdate = true;
   output.computeVertexNormals();

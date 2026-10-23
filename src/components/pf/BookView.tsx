@@ -25,9 +25,8 @@ import { createPageVideoPlayer, type PageVideoPlayer } from "@/lib/portfolia/pag
 import { PageVideoSound } from "./PageVideoSound";
 import { foldoutsForLeaf, readableFoldouts, type Foldout, type PageBounds } from "@/lib/portfolia/foldouts";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Rotate3d, RotateCcw } from "lucide-react";
-import { BOOK_STYLES, readableBookStyle, type BookStyle } from "@/lib/portfolia/book-style";
-import { ORBIT_START, orbitDrag, type Orbit } from "@/lib/portfolia/orbit-view";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { orbitDrag, type Orbit } from "@/lib/portfolia/orbit-view";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
 import type { ViewerSettings } from "@/lib/portfolia/store";
 import {
@@ -62,7 +61,8 @@ const lookFrom = (viewer: ViewerSettings): Look => ({
   turnSpeed: viewer.turnSpeed,
   turnCurve: viewer.turnCurve,
   bookStyle: viewer.bookStyle,
-  ribbon: viewer.ribbon,
+  // The ribbon bookmark is set aside for now (its saved settings are kept for when it returns).
+  ribbon: false,
   ribbonColour: viewer.ribbonColour,
   material: viewer.finish,
   strength: viewer.studioLightingStrength ?? .75,
@@ -371,6 +371,7 @@ export function BookView({
   jumps,
   showPageNumber = true,
   showNavigation = true,
+  showcaseOrbit = false,
 }: {
   doc: PDFDocumentProxy;
   sizes: { w: number; h: number }[];
@@ -380,6 +381,8 @@ export function BookView({
   onPage: (page: number) => void;
   showPageNumber?: boolean;
   showNavigation?: boolean;
+  /** Homepage only: drift slowly round the book in 3D until the reader takes over. */
+  showcaseOrbit?: boolean;
   viewer: ViewerSettings;
   /** The colour behind the book. */
   colour: string;
@@ -535,10 +538,8 @@ export function BookView({
     return subscribePreviewLook(setPreviewLook);
   }, [previewable]);
   const offered = viewer.looks?.length ? viewer.looks : [viewer.look];
-  /** A book type tried in the 3D view; the creator's choice comes back when it closes. */
-  const [tryStyle, setTryStyle] = useState<BookStyle | null>(null);
   const lookFor = (): Look => {
-    const base = { ...lookFrom(viewer), ribbonGutter: ribbonGutterFor(viewer.ribbonPage, layout), ...(tryStyle ? { bookStyle: tryStyle } : {}) };
+    const base = { ...lookFrom(viewer), ribbonGutter: ribbonGutterFor(viewer.ribbonPage, layout) };
     if (editingExtras) return {...base,studio:false};
     return previewLook && offered.includes(previewLook) ? { ...base, studio: previewLook === "studio" } : base;
   };
@@ -550,7 +551,7 @@ export function BookView({
   useEffect(() => {
     setSettings(lookFor());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer.bookStyle, viewer.ribbon, viewer.ribbonColour, viewer.ribbonPage, layout, viewer.turnCurve, viewer.turnStyle, viewer.turnSpeed, viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioTopLight, viewer.studioImperfections, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.simpleShading, viewer.tabStyle, viewer.studioLightingStrength, previewLook, editingExtras, tryStyle]);
+  }, [viewer.bookStyle, viewer.ribbon, viewer.ribbonColour, viewer.ribbonPage, layout, viewer.turnCurve, viewer.turnStyle, viewer.turnSpeed, viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioTopLight, viewer.studioImperfections, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.simpleShading, viewer.tabStyle, viewer.studioLightingStrength, previewLook, editingExtras]);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; from: number; progress: number; prepared: Promise<void>; moved: boolean;
     /** Last pointer position, and whether the scene shapes this turn from the pointer itself (a soft turn). */
@@ -559,16 +560,17 @@ export function BookView({
   const noteProgresses = useRef(new Map<string, number>());
   const canPan = zoom > 1 || openNote;
   const panning = useRef<{ id: number; x: number; y: number } | null>(null);
-  // The 3D view: dragging around the book swings the camera over it, held to a dome above (see orbit-view).
+  // The 3D view: dragging the background around the book swings the camera over it, held to a dome above (see
+  // orbit-view). Touching the pages, an arrow or a tab glides back to the normal straight-down view.
   const [view3d, setView3d] = useState(false);
   const orbitAt = useRef<Orbit>({ yaw: 0, pitch: 0 });
-  const orbiting = useRef<{ id: number; x: number; y: number } | null>(null);
+  const orbiting = useRef<{ id: number; x: number; y: number; moved: boolean } | null>(null);
   const orbitFrame = useRef(0);
-  const glideOrbit = (to: Orbit) => {
+  const glideOrbit = (to: Orbit, ms = 700) => {
     cancelAnimationFrame(orbitFrame.current);
     const from = orbitAt.current, start = performance.now();
     const step = (now: number) => {
-      const t = Math.min(1, (now - start) / 700), e = 1 - Math.pow(1 - t, 3);
+      const t = Math.min(1, (now - start) / ms), e = 1 - Math.pow(1 - t, 3);
       orbitAt.current = scene.current?.orbit({ yaw: from.yaw + (to.yaw - from.yaw) * e, pitch: from.pitch + (to.pitch - from.pitch) * e }) ?? orbitAt.current;
       syncBounds();
       if (t < 1) orbitFrame.current = requestAnimationFrame(step);
@@ -576,12 +578,31 @@ export function BookView({
     orbitFrame.current = requestAnimationFrame(step);
   };
   useEffect(() => () => cancelAnimationFrame(orbitFrame.current), []);
-  const toggle3d = () => {
-    const next = !view3d;
-    setView3d(next);
-    if (!next) setTryStyle(null);
-    glideOrbit(next ? ORBIT_START : { yaw: 0, pitch: 0 });
+  const tilted = useRef(false);
+  /** Back to the straight-down view (a no-op when already there). */
+  const levelView = () => {
+    if (!tilted.current) return;
+    tilted.current = false;
+    setView3d(false);
+    glideOrbit({ yaw: 0, pitch: 0 });
   };
+  // The homepage shows the 3D view off with a slow drift round the book until the reader takes over.
+  useEffect(() => {
+    if (!showcaseOrbit || !ready) return;
+    let frame = 0;
+    const started = performance.now();
+    const drift = (now: number) => {
+      if (tilted.current) return;
+      // Timed from the page's clock, so the Simple and Studio copies side by side move as one.
+      const s = now / 1000, ease = Math.min(1, (now - started) / 2500);
+      orbitAt.current = scene.current?.orbit({ yaw: ease * 0.32 * Math.sin((s * 2 * Math.PI) / 16), pitch: ease * (0.24 + 0.1 * Math.sin((s * 2 * Math.PI) / 23)) }) ?? orbitAt.current;
+      syncBounds();
+      frame = requestAnimationFrame(drift);
+    };
+    frame = requestAnimationFrame(drift);
+    return () => { cancelAnimationFrame(frame); if (!tilted.current) glideOrbit({ yaw: 0, pitch: 0 }, 900); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showcaseOrbit, ready]);
   const prefetchToken = useRef(0);
   const index = spreadIndex(layout.spreads, leaf);
   const spread = layout.spreads[index]!;
@@ -824,8 +845,7 @@ export function BookView({
   }, [settings, ready]);
   // A rebuilt scene keeps the 3D view's angle.
   useEffect(() => {
-    if (scene.current && view3d) orbitAt.current = scene.current.orbit(orbitAt.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (scene.current && tilted.current) orbitAt.current = scene.current.orbit(orbitAt.current);
   }, [ready]);
   useEffect(() => {
     if (!busy && scene.current) {
@@ -843,7 +863,7 @@ export function BookView({
 
   // On a touch screen: tap the left or right of the book to turn that way, and pinch to zoom the book itself
   // (not the whole web page). While two fingers are down nothing else (a pan, a swipe) happens.
-  const minimumBookZoom = homeScroll && !fullscreen ? 1 : additions.length ? .5 : 1;
+  const minimumBookZoom = previewable ? .45 : homeScroll && !fullscreen ? 1 : additions.length ? .5 : 1;
   const pinching = useRef(false);
   const applyPinch = (asked: number, x: number, y: number) => {
     if (busy || wait || !scene.current) return;
@@ -991,6 +1011,7 @@ export function BookView({
     /** Turns one sheet in `direction`, or, given `toLeaf`, turns once straight to that leaf's spread (a jump). */
     async (direction: 1 | -1, chained = false, pace?: number, toLeaf?: number) => {
       if (wait || (jumping.current && !chained)) return;
+      if (!chained) levelView();
       // A turn is in progress: keep the click and run it the moment the book is free.
       if (lock.current) {
         queueStep(direction);
@@ -1132,6 +1153,8 @@ export function BookView({
   const afterClose = useRef<{ id: number; x: number; y: number; dir: 1 | -1 } | null>(null);
   const beginCornerDrag = (e: React.PointerEvent<HTMLButtonElement>, direction: 1 | -1) => {
     if (!e.isPrimary || (e.pointerType === "mouse" && e.button !== 0)) return;
+    // Touching the pages brings the view back square first (the turn follows from there).
+    if (tilted.current) { levelView(); return; }
     if (!lock.current && !wait && [...noteClosers.current.values()].some((close) => close() !== null)) {
       e.preventDefault();
       afterClose.current = { id: e.pointerId, x: e.clientX, y: e.clientY, dir: direction };
@@ -1377,6 +1400,8 @@ export function BookView({
     return () => clearTimeout(timer);
   }, [autoTurn, autoTurnDelay, bookReady, busy, wait, error, atStart, atEnd, move]);
 
+  // Recordings, the live scrapbook editor and the flat fallback keep the straight-down view.
+  const allow3d = !frameAspect && !editingExtras && !fallback;
   return (
     <section aria-label="Interactive PDF book" data-look={settings.studio ? "studio" : "simple"}>
       <div
@@ -1390,9 +1415,9 @@ export function BookView({
           if (e.target !== e.currentTarget && e.target !== host.current && e.target !== host.current?.firstChild) return;
           if (e.pointerType === "mouse" && e.button !== 0) return;
           if (!e.isPrimary || pinching.current) return;
-          if (view3d && !busy && scene.current) {
-            cancelAnimationFrame(orbitFrame.current);
-            orbiting.current = { id: e.pointerId, x: e.clientX, y: e.clientY };
+          // Dragging the background (not the pages) looks round the book in 3D. Touch keeps its swipe to turn.
+          if (allow3d && !canPan && e.pointerType !== "touch" && !busy && scene.current) {
+            orbiting.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
             e.currentTarget.setPointerCapture(e.pointerId);
             return;
           }
@@ -1403,6 +1428,13 @@ export function BookView({
         onPointerMove={(e) => {
           const spin = orbiting.current;
           if (spin && spin.id === e.pointerId && scene.current) {
+            if (!spin.moved) {
+              if (Math.hypot(e.clientX - spin.x, e.clientY - spin.y) < 4) return;
+              spin.moved = true;
+              cancelAnimationFrame(orbitFrame.current);
+              tilted.current = true;
+              setView3d(true);
+            }
             orbitAt.current = scene.current.orbit(orbitDrag(orbitAt.current, e.clientX - spin.x, e.clientY - spin.y, e.currentTarget.clientHeight));
             spin.x = e.clientX;
             spin.y = e.clientY;
@@ -1563,24 +1595,6 @@ export function BookView({
         {enabledLooks.length > 1 && !frameAspect && (
           <div className={cn("absolute bottom-1.5 left-1.5 z-20 flex w-fit transition-opacity duration-300", awake ? "opacity-100" : "pointer-events-none opacity-0")}>
             <Segmented className="bg-white text-black [&_[role=radio]]:text-black [&_[role=radio][aria-checked=true]]:bg-slate-900 [&_[role=radio][aria-checked=true]]:text-white" label="Book appearance" value={settings.studio ? "studio" : "clean"} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={updateLook} />
-          </div>
-        )}
-        {/* The 3D view: look around the book from above, and try it as another kind of book. */}
-        {showNavigation && !frameAspect && !editingExtras && !fallback && bookReady && (
-          <div className={cn("pf-book-3d absolute bottom-1.5 right-1.5 z-20 flex items-center gap-1 rounded-full p-1 shadow-sm ring-1 backdrop-blur-md transition-opacity duration-300", tone === "dark" ? "bg-slate-950/70 text-white ring-white/15" : "bg-white/85 text-slate-700 ring-black/10", awake || view3d ? "opacity-100" : "pointer-events-none opacity-0")}>
-            {view3d && <>
-              <div role="radiogroup" aria-label="Book type" className="flex items-center">
-                {BOOK_STYLES.map((s) => {
-                  const on = readableBookStyle(settings.bookStyle) === s.id;
-                  return <button key={s.id} type="button" role="radio" aria-checked={on} title={s.description} onClick={() => setTryStyle(s.id)}
-                    className={cn("whitespace-nowrap rounded-full px-2.5 py-1.5 text-[11px] font-medium transition-colors", on ? (tone === "dark" ? "bg-white text-slate-900" : "bg-slate-900 text-white") : "opacity-75 hover:opacity-100")}>{s.label}</button>;
-                })}
-              </div>
-              <button type="button" onClick={() => glideOrbit(ORBIT_START)} aria-label="Reset 3D angle" title="Reset angle" className="rounded-full p-1.5 opacity-75 transition-opacity hover:opacity-100"><RotateCcw className="size-[15px]" /></button>
-            </>}
-            <IconButton label={view3d ? "Leave 3D view" : "3D view: drag around the book to look"} tone={tone} flat pressed={view3d} onClick={toggle3d}>
-              <Rotate3d className="size-[17px]" />
-            </IconButton>
           </div>
         )}
       </div>

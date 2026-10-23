@@ -8,10 +8,13 @@ export interface TabPlan {
   /** True when the tab is on the sheet that is turning, so it travels with that sheet. */
   sheet: boolean;
 }
-/** How far a tab sticks out of the page edge and how far it tucks under it, in page widths. */
+/**
+ * How far a tab sticks out of the page edge and how far it reaches back over it, in page widths. It starts at the
+ * very edge (a hair over it, so no gap shows) rather than covering the page.
+ */
 export const TAB_SIZE = {
-  full: { out: 0.056, in: 0.012 },
-  compact: { out: 0.032, in: 0.012 },
+  full: { out: 0.056, in: 0.0015 },
+  compact: { out: 0.032, in: 0.0015 },
 };
 /** How strongly a turning sheet bows (matches the sheet in book-scene). */
 export const SHEET_CURL = 0.22;

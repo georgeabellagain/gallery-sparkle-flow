@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { CornerDownRight, ExternalLink, Film, Plus, Search, StickyNote, Tag, Trash2 } from "lucide-react";
+import { useRef, useState, type ReactNode } from "react";
+import { CornerDownRight, ExternalLink, Film, Link2, Plus, Search, StickyNote, Tag, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ScrapbookPanel } from "./FoldoutSettings";
 import type { ScrapbookSelection } from "./live-scrapbook-context";
@@ -9,41 +9,74 @@ import { JUMP_SIZE, LINK_SIZE, MAX_JUMPS, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, SPOTL
 import { readVideo, videoFileProblem, videoMime } from "@/lib/portfolia/page-video-file";
 import { gifFileProblem, gifToVideo, isGif } from "@/lib/portfolia/gif-to-video";
 import { addPortfolioExtra, deleteUnusedPortfolioAsset, isPaid, patchPortfolioExtra, removePortfolioExtra, useDoc, type Portfolio } from "@/lib/portfolia/store";
+import { cn } from "@/lib/utils";
 
 type Shown = { page: number; half?: "left" | "right" };
+type Kind = NonNullable<ScrapbookSelection>["kind"];
+
+/** One feature: its name, how many there are, an Add button, its items on the open pages and the chosen one's settings. */
+function FeatureBox({ icon: Icon, title, count, badge, hint, action, active, children }: {
+  icon: typeof StickyNote; title: string; count?: string; badge?: ReactNode; hint: string; action?: ReactNode; active: boolean; children?: ReactNode;
+}) {
+  return (
+    <section aria-label={title} className={cn("space-y-2.5 rounded-2xl border p-3 transition-colors", active ? "border-foreground/30 bg-muted/40" : "border-border")}>
+      <div className="flex items-center gap-2.5">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted"><Icon className="size-4" aria-hidden /></span>
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-1.5 text-sm font-medium">{title}{badge}</p>
+          {count && <p className="text-[11px] tabular-nums text-muted-foreground">{count}</p>}
+        </div>
+        {action}
+      </div>
+      <p className="text-xs leading-relaxed text-muted-foreground">{hint}</p>
+      {children}
+    </section>
+  );
+}
+
 /**
- * Notes, tabs and links edited straight on the main editor's page: add them to the page in view, pick one on
- * the page to change its words, colour or angle here, and use the full scrapbook editor for pictures and fonts.
- * Every change goes into the same draft as the scrapbook editor, so Save keeps it as before.
+ * Everything added on top of the pages, edited on the main editor's page: one box per feature. Add an item to the
+ * page in view, drag it there, and change it in its box. Every change goes into the draft, so Save keeps it.
  */
-export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onError, counts }: {
+export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onError }: {
   p: Portfolio;
   shown: Shown[];
   selected: ScrapbookSelection;
   onSelect: (selection: ScrapbookSelection) => void;
   onOpen: (panel: ScrapbookPanel) => void;
   onError: (message: string | null) => void;
-  counts: { notes: number; tabs: number; links: number };
+  counts?: { notes: number; tabs: number; links: number };
 }) {
   const pdf = p.pdf!;
+  const doc = useDoc();
   const [target, setTarget] = useState(0);
   const [url, setUrl] = useState("");
   const [urlError, setUrlError] = useState("");
   const page = shown[Math.min(target, shown.length - 1)] ?? { page: 1 };
   const half = page.half ?? (shown.length > 1 && target === 0 ? "left" : "right");
   const report = (ok: boolean, message: string) => onError(ok ? null : message);
-  const add = (kind: "sticky" | "foldout") => {
+  const select = (kind: Kind, id: string) => onSelect({ kind, id });
+  const inView = (item: { page: number }) => shown.some((s) => s.page === item.page);
+
+  const notes = readableFoldouts(pdf.foldouts, pdf.pages);
+  const tags = readablePageTags(pdf.tags, pdf.pages);
+  const links = readablePageLinks(pdf.links, pdf.pages);
+  const jumps = readablePageJumps(pdf.jumps, pdf.pages);
+  const spotlights = readablePageSpotlights(pdf.spotlights, pdf.pages);
+  const pageVideos = readablePageVideos(pdf.videos, pdf.pages);
+  const spotlightLimit = isPaid(doc) ? SPOTLIGHT_LIMITS.personal : SPOTLIGHT_LIMITS.free;
+
+  const addNote = (kind: "sticky" | "foldout") => {
     const note = newFoldout(uid("note"), page.page, half, kind);
     const ok = addPortfolioExtra(p.code, pdf.blobKey, "foldouts", note, MAX_FOLDOUTS);
     report(ok, `Use up to ${MAX_FOLDOUTS} notes per PDF.`);
-    if (ok) onSelect({ kind: "foldouts", id: note.id });
+    if (ok) select("foldouts", note.id);
   };
   const addTab = () => {
-    const tags = readablePageTags(pdf.tags, pdf.pages);
     const tag: PageTag = { id: uid("tab"), page: page.page, label: `p. ${page.page}`, colour: TAG_COLOURS[tags.length % TAG_COLOURS.length]! };
     const ok = addPortfolioExtra(p.code, pdf.blobKey, "tags", tag, MAX_TAGS);
     report(ok, `Use up to ${MAX_TAGS} tabs.`);
-    if (ok) onSelect({ kind: "tags", id: tag.id });
+    if (ok) select("tags", tag.id);
   };
   const addLink = () => {
     const address = normaliseUrl(url);
@@ -52,14 +85,31 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
     const link: PageLink = { id: uid("link"), page: page.page, half, url: address, x: .5 - LINK_SIZE.default / 2, y: .4, size: LINK_SIZE.default };
     const ok = addPortfolioExtra(p.code, pdf.blobKey, "links", link, MAX_LINKS);
     report(ok, `Use up to ${MAX_LINKS} links.`);
-    if (ok) { setUrl(""); onSelect({ kind: "links", id: link.id }); }
+    if (ok) { setUrl(""); select("links", link.id); }
   };
-  const doc = useDoc();
+  const addJump = () => {
+    const onPage = jumps.filter((j) => j.page === page.page && j.half === half);
+    // Each new box lands just below the last one on this page, ready for the next line of the contents.
+    const below = onPage.reduce((y, j) => Math.max(y, j.y + j.height), 0.25);
+    const { width, height } = JUMP_SIZE.default;
+    const y = onPage.length ? below + 0.01 : 0.3;
+    const j = placeJump({ id: uid("jump"), page: page.page, half, x: (1 - width) / 2, y, width, height, target: Math.min(pdf.pages, page.page + 1) }, (1 - width) / 2, y, width, height);
+    const ok = addPortfolioExtra(p.code, pdf.blobKey, "jumps", j, MAX_JUMPS);
+    report(ok, `Use up to ${MAX_JUMPS} contents links.`);
+    if (ok) select("jumps", j.id);
+  };
+  const addSpotlight = () => {
+    const size = SPOTLIGHT_SIZE.default;
+    const s: PageSpotlight = { id: uid("spot"), page: page.page, half, x: (1 - size) / 2, y: 0.3, width: size, height: size * 0.75 };
+    const ok = addPortfolioExtra(p.code, pdf.blobKey, "spotlights", s, spotlightLimit);
+    report(ok, isPaid(doc) ? `Use up to ${spotlightLimit} spotlights.` : `Free includes ${spotlightLimit} spotlights. Personal adds up to ${SPOTLIGHT_LIMITS.personal}.`);
+    if (ok) select("spotlights", s.id);
+  };
+
   const videoInput = useRef<HTMLInputElement>(null);
   const [videoPhase, setVideoPhase] = useState<string | null>(null);
   const [videoError, setVideoError] = useState("");
-  const pageVideos = readablePageVideos(pdf.videos, pdf.pages);
-  const sideHasVideo = pageVideos.some(v => v.page === page.page && v.half === half);
+  const sideHasVideo = pageVideos.some((v) => v.page === page.page && v.half === half);
   const addVideo = async (chosen?: File) => {
     if (!chosen || videoPhase) return;
     const gif = isGif(chosen);
@@ -88,7 +138,7 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
       const video = placeVideo(base, (1 - VIDEO_WIDTH.default) / 2, 0.3, VIDEO_WIDTH.default);
       const ok = addPortfolioExtra(p.code, pdf.blobKey, "videos", video, MAX_VIDEOS);
       if (!ok) { void deleteBlob(blobKey).catch(() => {}); void deleteBlob(posterKey).catch(() => {}); return setVideoError("The video could not be added. Please try again."); }
-      onSelect({ kind: "videos", id: video.id });
+      select("videos", video.id);
     } catch (e) {
       void deleteBlob(blobKey).catch(() => {}); void deleteBlob(posterKey).catch(() => {});
       setVideoError(e instanceof Error ? e.message : "The video could not be added.");
@@ -97,185 +147,152 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
       if (videoInput.current) videoInput.current.value = "";
     }
   };
-  const spotlights = readablePageSpotlights(pdf.spotlights, pdf.pages);
-  const spotlightLimit = isPaid(doc) ? SPOTLIGHT_LIMITS.personal : SPOTLIGHT_LIMITS.free;
-  const addSpotlight = () => {
-    const size = SPOTLIGHT_SIZE.default;
-    const s: PageSpotlight = { id: uid("spot"), page: page.page, half, x: (1 - size) / 2, y: 0.3, width: size, height: size * 0.75 };
-    const ok = addPortfolioExtra(p.code, pdf.blobKey, "spotlights", s, spotlightLimit);
-    report(ok, isPaid(doc) ? `Use up to ${spotlightLimit} spotlights.` : `Free includes ${spotlightLimit} spotlights. Personal adds up to ${SPOTLIGHT_LIMITS.personal}.`);
-    if (ok) onSelect({ kind: "spotlights", id: s.id });
-  };
-  const spotlight = selected?.kind === "spotlights" ? spotlights.find(s => s.id === selected.id) : undefined;
-  // Contents links: one box per line of a contents page, each going to its own page.
-  const jumps = readablePageJumps(pdf.jumps, pdf.pages);
-  const addJump = () => {
-    const onPage = jumps.filter(j => j.page === page.page && j.half === half);
-    // Each new box lands just below the last one on this page, ready for the next line of the contents.
-    const below = onPage.reduce((y, j) => Math.max(y, j.y + j.height), 0.25);
-    const { width, height } = JUMP_SIZE.default;
-    const j = placeJump({ id: uid("jump"), page: page.page, half, x: (1 - width) / 2, y: onPage.length ? below + 0.01 : 0.3, width, height, target: Math.min(pdf.pages, page.page + 1) }, (1 - width) / 2, onPage.length ? below + 0.01 : 0.3, width, height);
-    const ok = addPortfolioExtra(p.code, pdf.blobKey, "jumps", j, MAX_JUMPS);
-    report(ok, `Use up to ${MAX_JUMPS} page links.`);
-    if (ok) onSelect({ kind: "jumps", id: j.id });
-  };
-  const jump = selected?.kind === "jumps" ? jumps.find(j => j.id === selected.id) : undefined;
-  const video = selected?.kind === "videos" ? pageVideos.find(v => v.id === selected.id) : undefined;
-  const note = selected?.kind === "foldouts" ? readableFoldouts(pdf.foldouts, pdf.pages).find(f => f.id === selected.id) : undefined;
-  const tab = selected?.kind === "tags" ? readablePageTags(pdf.tags, pdf.pages).find(t => t.id === selected.id) : undefined;
-  const link = selected?.kind === "links" ? readablePageLinks(pdf.links, pdf.pages).find(l => l.id === selected.id) : undefined;
+
+  const note = selected?.kind === "foldouts" ? notes.find((f) => f.id === selected.id) : undefined;
+  const tab = selected?.kind === "tags" ? tags.find((t) => t.id === selected.id) : undefined;
+  const link = selected?.kind === "links" ? links.find((l) => l.id === selected.id) : undefined;
+  const jump = selected?.kind === "jumps" ? jumps.find((j) => j.id === selected.id) : undefined;
+  const spotlight = selected?.kind === "spotlights" ? spotlights.find((s) => s.id === selected.id) : undefined;
+  const video = selected?.kind === "videos" ? pageVideos.find((v) => v.id === selected.id) : undefined;
   const patchNote = (next: Foldout) => report(patchPortfolioExtra(p.code, pdf.blobKey, "foldouts", next.id, next), "That change could not be saved. Check the text length.");
   const remove = () => {
     if (!selected) return;
-    const removed = selected.kind === "videos" ? pageVideos.find(v => v.id === selected.id) : undefined;
+    const removed = selected.kind === "videos" ? pageVideos.find((v) => v.id === selected.id) : undefined;
     const ok = removePortfolioExtra(p.code, pdf.blobKey, selected.kind, selected.id);
     report(ok, "The item could not be removed. Please try again.");
     // A removed video's files are cleared unless the saved version still uses them.
     if (ok && removed) { void deleteUnusedPortfolioAsset(removed.blobKey); void deleteUnusedPortfolioAsset(removed.posterKey); }
     onSelect(null);
   };
-  const field = "mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm";
+
+  const field = "mt-1 w-full rounded-lg border border-border bg-background px-2.5 py-2 text-sm";
+  const add = (label: string, onClick: () => void, disabled = false) => (
+    <Button size="xs" variant="line" onClick={onClick} disabled={disabled}><Plus className="size-3.5" />{label}</Button>
+  );
+  /** The items of one feature on the open pages, to pick one (they can also be clicked on the page). */
+  const chips = (kind: Kind, items: Array<{ id: string; page: number; label: string }>) => {
+    const here = items.filter(inView);
+    if (!here.length) return null;
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {here.map((item) => (
+          <button key={item.id} type="button" aria-pressed={selected?.kind === kind && selected.id === item.id} onClick={() => select(kind, item.id)}
+            className="max-w-full truncate rounded-full border border-border bg-background px-2.5 py-1 text-[11px] transition-colors hover:border-foreground/30 aria-pressed:border-foreground aria-pressed:bg-foreground aria-pressed:text-background">
+            {item.label === `p. ${item.page}` ? item.label : `p. ${item.page} · ${item.label}`}
+          </button>
+        ))}
+      </div>
+    );
+  };
+  const editing = (children: ReactNode, what: string) => (
+    <div className="space-y-3 border-t border-border/70 pt-3">
+      {children}
+      <div className="flex justify-end">
+        <Button size="xs" variant="quiet" onClick={remove} aria-label={`Delete selected ${what}`}><Trash2 className="size-3.5" />Delete</Button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="space-y-4 text-sm">
-      <p className="text-xs leading-relaxed text-muted-foreground">
-        Add notes, tabs, links and spotlights to the page in view, then drag them on the page. Pull a corner to resize, the round handle to rotate a note. Press Save above to keep your changes.
-      </p>
-      <section aria-label="Add to this page" className="space-y-2">
-        {shown.length > 1 && (
-          <div className="flex gap-1" role="radiogroup" aria-label="Page to add to">
+    <div className="space-y-3 text-sm">
+      <div className="space-y-1.5">
+        <p className="text-xs text-muted-foreground">New items go on</p>
+        {shown.length > 1 ? (
+          <div className="flex gap-1 rounded-full bg-muted p-0.5" role="radiogroup" aria-label="Page to add to">
             {shown.map((s, i) => (
-              <button key={`${s.page}:${s.half ?? ""}`} type="button" role="radio" aria-checked={i === target} onClick={() => setTarget(i)} className="flex-1 rounded-lg border border-border px-2 py-1 text-xs aria-checked:border-foreground aria-checked:bg-muted">
+              <button key={`${s.page}:${s.half ?? ""}`} type="button" role="radio" aria-checked={i === target} onClick={() => setTarget(i)}
+                className="flex-1 rounded-full px-2 py-1.5 text-xs transition-colors aria-checked:bg-background aria-checked:font-medium aria-checked:shadow-sm">
                 {i === 0 ? "Left" : "Right"} · page {s.page}
               </button>
             ))}
           </div>
-        )}
-        <p className="font-medium">Add to page {page.page}</p>
-        <div className="grid grid-cols-2 gap-2">
-          <Button size="sm" variant="line" onClick={() => add("sticky")}><StickyNote className="size-4" />Sticky note</Button>
-          <Button size="sm" variant="line" onClick={() => add("foldout")}><Plus className="size-4" />Fold-out note</Button>
-          <Button size="sm" variant="line" onClick={addTab}><Tag className="size-4" />Page tab</Button>
-        </div>
-        <div className="rounded-xl border border-border p-3">
-          <p className="font-medium">Website link</p>
-          <p className="mt-1 text-xs text-muted-foreground">Puts the site's logo on the page. Readers click or tap it to open the site in a new tab, in every reading style.</p>
-          <div className="mt-2 flex gap-2">
-            <input aria-label="Website address" inputMode="url" placeholder="behance.net/yourname" value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addLink(); } }} className="min-w-0 flex-1 rounded-lg border border-border bg-background p-2 text-sm" />
-            <Button size="sm" onClick={addLink}>Add</Button>
+        ) : <p className="text-sm font-medium">Page {page.page}</p>}
+        <p className="text-[11px] text-muted-foreground">Drag items on the page to place them; pull a corner to resize. Save keeps your changes.</p>
+      </div>
+
+      <FeatureBox icon={StickyNote} title="Notes" count={`${notes.length} of ${MAX_FOLDOUTS}`} hint="A sticky note, or a fold-out readers open to see more." active={Boolean(note)}
+        action={<div className="flex gap-1">{add("Sticky", () => addNote("sticky"))}{add("Fold-out", () => addNote("foldout"))}</div>}>
+        {chips("foldouts", notes.map((n) => ({ id: n.id, page: n.page, label: (n.outside?.text ?? n.title) || (n.style === "sticky" ? "Sticky note" : "Fold-out") })))}
+        {note && editing(<>
+          <label className="block text-xs">Words on the note
+            <textarea className={field} rows={3} maxLength={1200} value={note.outside?.text ?? note.title} onChange={(e) => patchNote({ ...note, outside: { ...(note.outside ?? { colour: note.colour, text: "" }), text: e.target.value } })} />
+          </label>
+          {note.style !== "sticky" && <label className="block text-xs">Inside the fold-out
+            <textarea className={field} rows={3} maxLength={1200} value={note.inside?.text ?? ""} onChange={(e) => patchNote({ ...note, inside: { ...(note.inside ?? { colour: "#fbf6e9", text: "" }), text: e.target.value } })} />
+          </label>}
+          <label className="flex items-center justify-between gap-3 text-xs">Paper colour
+            <input type="color" aria-label="Note paper colour" className="h-8 w-10 cursor-pointer rounded-lg border border-border" value={note.outside?.colour ?? note.colour} onChange={(e) => patchNote({ ...note, colour: e.target.value, outside: { ...(note.outside ?? { text: note.title }), colour: e.target.value } })} />
+          </label>
+          <label className="block text-xs">Angle · {noteRotation(note).toFixed(0)}°
+            <input type="range" aria-label="Note angle" min={-MAX_NOTE_ROTATION} max={MAX_NOTE_ROTATION} step={1} value={noteRotation(note)} onChange={(e) => patchNote(rotateFoldout(note, Number(e.target.value)))} className="mt-1 w-full" />
+          </label>
+          <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline" onClick={() => onOpen("notes")}>Add a picture or change the font</button>
+        </>, "note")}
+      </FeatureBox>
+
+      <FeatureBox icon={Tag} title="Page tabs" count={`${tags.length} of ${MAX_TAGS}`} hint="Coloured tabs on the edge of the book. Readers press one to turn straight to its page." active={Boolean(tab)}
+        action={add("Add", addTab, tags.length >= MAX_TAGS)}>
+        {chips("tags", tags.map((t) => ({ id: t.id, page: t.page, label: t.label || "Tab" })))}
+        {tab && editing(<>
+          <label className="block text-xs">Label
+            <input className={field} maxLength={24} value={tab.label} onChange={(e) => report(patchPortfolioExtra(p.code, pdf.blobKey, "tags", tab.id, { ...tab, label: e.target.value }), "Keep tab text to 24 characters.")} />
+          </label>
+          <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Tab colour">
+            {TAG_COLOURS.map((colour) => <button key={colour} type="button" role="radio" aria-checked={tab.colour === colour} aria-label={`Tab colour ${colour}`} className="size-6 rounded-full border border-black/15 aria-checked:ring-2 aria-checked:ring-foreground aria-checked:ring-offset-1" style={{ background: colour }} onClick={() => patchPortfolioExtra(p.code, pdf.blobKey, "tags", tab.id, { ...tab, colour })} />)}
           </div>
-          {urlError && <p role="alert" className="mt-1 text-xs text-destructive">{urlError}</p>}
+          <p className="text-xs text-muted-foreground">Goes to page {tab.page}. The tab shape is set in Book & turns.</p>
+        </>, "tab")}
+      </FeatureBox>
+
+      <FeatureBox icon={Link2} title="Website links" count={`${links.length} of ${MAX_LINKS}`} hint="The site's logo on the page. Readers click it to open the site in a new tab." active={Boolean(link)}>
+        <div className="flex gap-2">
+          <input aria-label="Website address" inputMode="url" placeholder="behance.net/yourname" value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLink(); } }} className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm" />
+          <Button size="xs" onClick={addLink} disabled={links.length >= MAX_LINKS}>Add</Button>
         </div>
-        <div className="rounded-xl border border-border p-3">
-          <p className="flex items-center justify-between font-medium">Video or GIF on the page{!isPaid(doc) && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-normal">Personal</span>}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Plays inside the paper as if printed on it. Starts muted; readers tap it for sound. MP4, WebM or animated GIF up to {VIDEO_MAX_MB} MB, one per page. A GIF is turned into a looping video on your device.</p>
-          <input ref={videoInput} type="file" accept="video/mp4,video/webm,image/gif,.mp4,.m4v,.webm,.gif" className="sr-only" tabIndex={-1} aria-hidden onChange={e => void addVideo(e.target.files?.[0])} />
-          <Button size="sm" variant="line" className="mt-2 w-full" disabled={Boolean(videoPhase) || sideHasVideo} onClick={() => videoInput.current?.click()}>
-            <Film className="size-4" />{videoPhase ? `${videoPhase}…` : sideHasVideo ? "This page has a video" : "Choose a video or GIF"}
-          </Button>
-          {videoError && <p role="alert" className="mt-1 text-xs text-destructive">{videoError}</p>}
-        </div>
-        <div className="rounded-xl border border-border p-3">
-          <p className="flex items-center justify-between font-medium">Spotlight<span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-normal tabular-nums">{spotlights.length} of {spotlightLimit}</span></p>
-          <p className="mt-1 text-xs text-muted-foreground">Mark a detail worth a closer look. Readers see a magnifier there and can open it large and sharp, with your caption.</p>
-          <Button size="sm" variant="line" className="mt-2 w-full" disabled={spotlights.length >= spotlightLimit} onClick={addSpotlight}>
-            <Search className="size-4" />Add a spotlight
-          </Button>
-        </div>
-        <div className="rounded-xl border border-border p-3">
-          <p className="flex items-center justify-between font-medium">Contents links<span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-normal tabular-nums">{jumps.length}</span></p>
-          <p className="mt-1 text-xs text-muted-foreground">Put a box over each line of your contents page and choose the page it opens. Readers click the line to go straight there, in every reading style.</p>
-          <Button size="sm" variant="line" className="mt-2 w-full" disabled={jumps.length >= MAX_JUMPS} onClick={addJump}>
-            <CornerDownRight className="size-4" />Add a contents link
-          </Button>
-        </div>
-      </section>
-      {jump && (
-        <section aria-label="Selected contents link" className="space-y-3 border-t border-border pt-3">
-          <div className="flex items-center justify-between">
-            <p className="font-medium">Contents link</p>
-            <Button size="xs" variant="quiet" onClick={remove} aria-label="Delete selected contents link"><Trash2 className="size-4" />Delete</Button>
-          </div>
+        {urlError && <p role="alert" className="text-xs text-destructive">{urlError}</p>}
+        {chips("links", links.map((l) => ({ id: l.id, page: l.page, label: hostOf(l.url) })))}
+        {link && editing(<>
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><ExternalLink className="size-3.5" aria-hidden />Opens {hostOf(link.url)} in a new tab</p>
+          <label className="block text-xs">Caption under the logo (optional)
+            <input className={field} maxLength={40} value={link.label ?? ""} onChange={(e) => report(patchPortfolioExtra(p.code, pdf.blobKey, "links", link.id, { ...link, label: e.target.value || undefined }), "Keep the caption short.")} />
+          </label>
+        </>, "link")}
+      </FeatureBox>
+
+      <FeatureBox icon={CornerDownRight} title="Contents links" count={`${jumps.length} of ${MAX_JUMPS}`} hint="A box over each line of your contents page. Readers click the line to go straight to its page." active={Boolean(jump)}
+        action={add("Add", addJump, jumps.length >= MAX_JUMPS)}>
+        {chips("jumps", jumps.map((j) => ({ id: j.id, page: j.page, label: `to p. ${j.target}` })))}
+        {jump && editing(<>
           <label className="flex items-center justify-between gap-3 text-xs">Goes to page
-            <input type="number" min={1} max={pdf.pages} value={jump.target} className="w-20 rounded-lg border border-border bg-background p-2 text-sm tabular-nums"
-              onChange={e => { const target = Math.round(Number(e.target.value)); if (Number.isInteger(target) && target >= 1 && target <= pdf.pages) report(patchPortfolioExtra(p.code, pdf.blobKey, "jumps", jump.id, { ...jump, target }), `Choose a page from 1 to ${pdf.pages}.`); }} />
+            <input type="number" min={1} max={pdf.pages} value={jump.target} className="w-20 rounded-lg border border-border bg-background px-2 py-1.5 text-sm tabular-nums"
+              onChange={(e) => { const to = Math.round(Number(e.target.value)); if (Number.isInteger(to) && to >= 1 && to <= pdf.pages) report(patchPortfolioExtra(p.code, pdf.blobKey, "jumps", jump.id, { ...jump, target: to }), `Choose a page from 1 to ${pdf.pages}.`); }} />
           </label>
-          <p className="text-xs text-muted-foreground">Drag the box over its line and pull the corner to fit. Add the next one and it appears just below, ready for the next line.</p>
-          <Button size="sm" variant="line" className="w-full" disabled={jumps.length >= MAX_JUMPS} onClick={addJump}><CornerDownRight className="size-4" />Add the next line</Button>
-        </section>
-      )}
-      {spotlight && (
-        <section aria-label="Selected spotlight" className="space-y-3 border-t border-border pt-3">
-          <div className="flex items-center justify-between">
-            <p className="font-medium">Spotlight</p>
-            <Button size="xs" variant="quiet" onClick={remove} aria-label="Delete selected spotlight"><Trash2 className="size-4" />Delete</Button>
-          </div>
+          <p className="text-xs text-muted-foreground">Fit the box over its line. The next one you add appears just below.</p>
+        </>, "contents link")}
+      </FeatureBox>
+
+      <FeatureBox icon={Search} title="Spotlights" count={`${spotlights.length} of ${spotlightLimit}`} hint="Mark a detail. Readers open it large and sharp, with your caption." active={Boolean(spotlight)}
+        action={add("Add", addSpotlight, spotlights.length >= spotlightLimit)}>
+        {chips("spotlights", spotlights.map((s) => ({ id: s.id, page: s.page, label: s.caption || "Spotlight" })))}
+        {spotlight && editing(<>
           <label className="block text-xs">Caption (optional)
-            <textarea className={field} rows={2} maxLength={SPOTLIGHT_CAPTION_LIMIT} value={spotlight.caption ?? ""} onChange={e => report(patchPortfolioExtra(p.code, pdf.blobKey, "spotlights", spotlight.id, { ...spotlight, caption: e.target.value || undefined }), `Keep the caption to ${SPOTLIGHT_CAPTION_LIMIT} characters.`)} />
+            <textarea className={field} rows={2} maxLength={SPOTLIGHT_CAPTION_LIMIT} value={spotlight.caption ?? ""} onChange={(e) => report(patchPortfolioExtra(p.code, pdf.blobKey, "spotlights", spotlight.id, { ...spotlight, caption: e.target.value || undefined }), `Keep the caption to ${SPOTLIGHT_CAPTION_LIMIT} characters.`)} />
           </label>
-          <p className="text-xs text-muted-foreground">Drag the box over the detail; pull its corner to fit it. Readers see exactly what's inside the box, drawn sharp from your PDF.</p>
-        </section>
-      )}
-      {video && (
-        <section aria-label="Selected video" className="space-y-3 border-t border-border pt-3">
-          <div className="flex items-center justify-between">
-            <p className="font-medium">Video</p>
-            <Button size="xs" variant="quiet" onClick={remove} aria-label="Delete selected video"><Trash2 className="size-4" />Delete</Button>
-          </div>
-          <p className="text-xs text-muted-foreground">{video.name ?? "Video"} · {(video.bytes / 1048576).toFixed(1)} MB · page {video.page}</p>
-          <p className="text-xs text-muted-foreground">Drag it on the page; pull the corner to resize. It keeps its shape.{!isPaid(doc) && " Saving a portfolio with videos needs Personal."}</p>
-        </section>
-      )}
-      {(note || tab || link) && (
-        <section aria-label="Selected item" className="space-y-3 border-t border-border pt-3">
-          <div className="flex items-center justify-between">
-            <p className="font-medium">{note ? (note.style === "sticky" ? "Sticky note" : "Fold-out note") : tab ? "Page tab" : "Website link"}</p>
-            <Button size="xs" variant="quiet" onClick={remove} aria-label="Delete selected item"><Trash2 className="size-4" />Delete</Button>
-          </div>
-          {note && <>
-            <label className="block text-xs">Words on the note
-              <textarea className={field} rows={3} maxLength={1200} value={note.outside?.text ?? note.title} onChange={e => patchNote({ ...note, outside: { ...(note.outside ?? { colour: note.colour, text: "" }), text: e.target.value } })} />
-            </label>
-            {note.style !== "sticky" && <label className="block text-xs">Inside the fold-out
-              <textarea className={field} rows={3} maxLength={1200} value={note.inside?.text ?? ""} onChange={e => patchNote({ ...note, inside: { ...(note.inside ?? { colour: "#fbf6e9", text: "" }), text: e.target.value } })} />
-            </label>}
-            <label className="flex items-center justify-between gap-3 text-xs">Paper colour
-              <input type="color" aria-label="Note paper colour" className="h-8 w-10 cursor-pointer rounded border border-border" value={note.outside?.colour ?? note.colour} onChange={e => patchNote({ ...note, colour: e.target.value, outside: { ...(note.outside ?? { text: note.title }), colour: e.target.value } })} />
-            </label>
-            <label className="block text-xs">Angle · {noteRotation(note).toFixed(0)}°
-              <input type="range" aria-label="Note angle" min={-MAX_NOTE_ROTATION} max={MAX_NOTE_ROTATION} step={1} value={noteRotation(note)} onChange={e => patchNote(rotateFoldout(note, Number(e.target.value)))} className="mt-1 w-full accent-leaf" />
-            </label>
-          </>}
-          {tab && <>
-            <label className="block text-xs">Tab label
-              <input className={field} maxLength={24} value={tab.label} onChange={e => report(patchPortfolioExtra(p.code, pdf.blobKey, "tags", tab.id, { ...tab, label: e.target.value }), "Keep tab text to 24 characters.")} />
-            </label>
-            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Tab colour">
-              {TAG_COLOURS.map(colour => <button key={colour} type="button" role="radio" aria-checked={tab.colour === colour} aria-label={`Tab colour ${colour}`} className="size-6 rounded-full border border-black/15 aria-checked:ring-2 aria-checked:ring-foreground aria-checked:ring-offset-1" style={{ background: colour }} onClick={() => patchPortfolioExtra(p.code, pdf.blobKey, "tags", tab.id, { ...tab, colour })} />)}
-            </div>
-            <p className="text-xs text-muted-foreground">Readers press a tab to turn straight to page {tab.page}.</p>
-          </>}
-          {link && <>
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><ExternalLink className="size-3.5" aria-hidden />Opens {hostOf(link.url)} in a new tab</p>
-            <label className="block text-xs">Caption under the logo (optional)
-              <input className={field} maxLength={40} value={link.label ?? ""} onChange={e => report(patchPortfolioExtra(p.code, pdf.blobKey, "links", link.id, { ...link, label: e.target.value || undefined }), "Keep the caption short.")} />
-            </label>
-          </>}
-          <Button size="xs" variant="line" onClick={() => onOpen(note ? "notes" : tab ? "tabs" : "links")}>Pictures, fonts and more…</Button>
-        </section>
-      )}
-      <section aria-label="Everything in this portfolio" className="space-y-2 border-t border-border pt-3">
-        {([
-          ["notes", "Fold-out & sticky notes", counts.notes],
-          ["tabs", "Page tabs", counts.tabs],
-          ["links", "Website links", counts.links],
-        ] as const).map(([id, name, count]) => (
-          <button key={id} type="button" onClick={() => onOpen(id)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-border p-2.5 text-left transition-colors hover:bg-muted">
-            <span className="text-sm">{name}</span>
-            <span className="rounded-full bg-muted px-2 py-0.5 text-xs tabular-nums">{count}</span>
-          </button>
-        ))}
-        <p className="text-xs text-muted-foreground">Opens the full scrapbook editor, with pictures, fonts and every page.</p>
-      </section>
+        </>, "spotlight")}
+      </FeatureBox>
+
+      <FeatureBox icon={Film} title="Video or GIF" count={`${pageVideos.length} of ${MAX_VIDEOS}`} badge={!isPaid(doc) ? <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-normal">Personal</span> : undefined}
+        hint={`Plays inside the page, muted until tapped. MP4, WebM or GIF up to ${VIDEO_MAX_MB} MB, one per page.`} active={Boolean(video)}
+        action={add(videoPhase ? "Adding…" : "Add", () => videoInput.current?.click(), Boolean(videoPhase) || sideHasVideo)}>
+        <input ref={videoInput} type="file" accept="video/mp4,video/webm,image/gif,.mp4,.m4v,.webm,.gif" className="sr-only" tabIndex={-1} aria-hidden onChange={(e) => void addVideo(e.target.files?.[0])} />
+        {videoPhase && <p className="text-xs text-muted-foreground">{videoPhase}…</p>}
+        {sideHasVideo && !videoPhase && <p className="text-xs text-muted-foreground">Page {page.page} already has a video.</p>}
+        {videoError && <p role="alert" className="text-xs text-destructive">{videoError}</p>}
+        {chips("videos", pageVideos.map((v) => ({ id: v.id, page: v.page, label: v.name ?? "Video" })))}
+        {video && editing(
+          <p className="text-xs text-muted-foreground">{video.name ?? "Video"} · {(video.bytes / 1048576).toFixed(1)} MB · page {video.page}{!isPaid(doc) && ". Saving a portfolio with videos needs Personal."}</p>,
+        "video")}
+      </FeatureBox>
     </div>
   );
 }

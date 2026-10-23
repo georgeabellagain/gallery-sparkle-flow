@@ -1,4 +1,3 @@
-import { canExportPhoto } from "@/lib/portfolia/photo-export.functions";
 import { coverLeaf } from "@/lib/portfolia/rigid-cover";
 import { photoLighting, photoSpreadPages } from "@/lib/portfolia/photo-settings";
 import { StudioLightingSettings, PaperSettings } from "./StudioAppearanceSettings";
@@ -285,9 +284,6 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
     setSaving(true);
     setError("");
     try {
-      const check = await canExportPhoto().catch(() => null);
-      if (!check) { setError("Sign in to download your photo shoot."); return; }
-      if (!check.allowed) { setUpgrade(true); return; }
       stage.current.setSize(size);
       const blob = await stage.current.png();
       if (!stage.current) return;
@@ -451,20 +447,12 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                     </button>
                   ))}
                 </div>
-                {options.style !== "flipbook" && (
+                {/* The ribbon bookmark is set aside for now; a hardback keeps its headband colour. */}
+                {options.style === "hardback" && (
                   <div className="flex flex-wrap items-center gap-3">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        role="switch"
-                        className="size-4 accent-leaf"
-                        checked={options.ribbon === true}
-                        onChange={(e) => change({ ribbon: e.target.checked })}
-                      />
-                      Ribbon bookmark
-                    </label>
-                    {(options.ribbon === true || options.style === "hardback") && (
-                      <div className="flex gap-1.5" role="radiogroup" aria-label="Ribbon colour">
+                    <span>Headband colour</span>
+                    {(
+                      <div className="flex gap-1.5" role="radiogroup" aria-label="Headband colour">
                         {RIBBON_COLOURS.map((colour) => (
                           <button
                             key={colour}
