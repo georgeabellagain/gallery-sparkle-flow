@@ -17,6 +17,9 @@ function loadImage(url: string) {
   return pending;
 }
 
+/** How many times wider and taller the floor reaches while the 3D view is tilted, so its edges stay out of sight. */
+export const FLOOR_REACH = 4;
+
 /** A matte photograph on the table, shaded by the same environment as the pages. */
 export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shadows = false) {
   const material = new THREE.MeshStandardMaterial({ roughness: .82, metalness: 0 });
@@ -163,21 +166,20 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
       if (catcher) { catcher.position.x=plane.position.x;catcher.position.y=plane.position.y;catcher.scale.copy(plane.scale);catcher.visible=true; }
     },
     /**
-     * The 3D view moves the camera over the book, but the backdrop stays put on screen. `neutral` is the camera as
-     * it would be looking straight down (frame() was given it); the picture keeps exactly where it appeared to that
-     * camera, carried to the moving one and pushed back far enough to stay behind the book. Shadows stay on the
-     * table, caught by the catcher. Pass no camera to lay the picture back flat.
+     * The backdrop is a solid floor under the book. In the 3D view the camera moves over it, so the floor stays put
+     * in the room (with the lights, the HDRI and the shadows on it) and simply reaches further, to the edges of the
+     * tilted view. The picture keeps its size and place: it repeats (mirrored, so there is no seam) beyond its
+     * original frame instead of being stretched over the larger floor.
      */
-    follow(neutral: THREE.PerspectiveCamera, camera: THREE.PerspectiveCamera | null, push = 1.4) {
-      plane.position.z = -0.072;
-      plane.quaternion.identity();
-      if (!camera || !plane.visible) return;
-      const local = plane.position.clone().sub(neutral.position);
-      const depth = Math.max(1e-3, -local.z), k = (depth + push) / depth;
-      local.multiplyScalar(k).applyQuaternion(camera.quaternion);
-      plane.position.copy(camera.position).add(local);
-      plane.quaternion.copy(camera.quaternion);
-      plane.scale.multiplyScalar(k);
+    extend(tilted: boolean) {
+      const k = tilted && plane.visible ? FLOOR_REACH : 1;
+      plane.scale.x *= k; plane.scale.y *= k;
+      if (catcher) { catcher.scale.x *= k; catcher.scale.y *= k; }
+      const wrap = k > 1 ? THREE.MirroredRepeatWrapping : THREE.ClampToEdgeWrapping;
+      for (const map of [texture, normals, roughness]) {
+        if (map.wrapS !== wrap) { map.wrapS = map.wrapT = wrap; map.needsUpdate = true; }
+        map.repeat.set(k, k); map.offset.set((1 - k) / 2, (1 - k) / 2);
+      }
     },
     dispose() { disposed = true; revision++; source = null; scene.remove(plane); texture.dispose(); normals.dispose(); roughness.dispose(); plane.geometry.dispose(); material.dispose(); if (catcher) {scene.remove(catcher);catcher.geometry.dispose();catcher.material.dispose();} },
   };

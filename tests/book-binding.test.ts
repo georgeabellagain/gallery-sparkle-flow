@@ -20,7 +20,8 @@ test("shell stays under artwork and above backdrop, follows spread visibility an
  const book=new THREE.Group(),binding=createBookBinding(book,1.4),shell=book.children[0] as THREE.Group;
  const disposed=new Set<THREE.BufferGeometry|THREE.Material|THREE.Texture>();
  for(const style of BOOK_STYLES){
-  binding.set(style.id,true);binding.sync([false,true]);
+  // One page of an open spread (part of the block on each side), as a narrow screen shows it.
+  binding.set(style.id,true);binding.sync([false,true],[{kind:"page",share:.4},{kind:"page",share:.6}]);
   assert.equal(shell.visible,style.id!=="flipbook");assert.equal(shell.children[0]!.visible,false);assert.equal(shell.children[1]!.visible,true);
   if(style.id==="flipbook")continue;
   book.updateMatrixWorld(true);
@@ -34,6 +35,16 @@ test("shell stays under artwork and above backdrop, follows spread visibility an
  shell.traverse(o=>{if(o instanceof THREE.Mesh){resources.add(o.geometry);resources.add(o.material);if(o.material.map)resources.add(o.material.map);}});
  resources.forEach(resource=>resource.addEventListener("dispose",()=>disposed.add(resource)));
  binding.dispose();assert.equal(book.children.length,0);assert.equal(disposed.size,resources.size);
+});
+test("a closed soft cover's spine reaches up to the cover paper, leaving no gap",()=>{
+ const book=new THREE.Group(),binding=createBookBinding(book,1.4),shell=book.children[0] as THREE.Group;
+ binding.set("softcover",true);binding.sync([false,true],[{kind:"page",share:0},{kind:"page",share:1}]);book.updateMatrixWorld(true);
+ const spines=shell.children.filter(o=>o instanceof THREE.Mesh&&o.visible&&o.geometry instanceof THREE.ExtrudeGeometry);
+ assert.equal(spines.length,1);
+ const box=new THREE.Box3().setFromObject(spines[0]!);
+ // The paper sits 0.014 above the table plane at the spine (pageRelief), just above the spine's top.
+ assert.ok(box.max.z>.013&&box.max.z<.014,`spine top ${box.max.z}`);assert.ok(box.max.x>0&&box.min.x<-.004,"wraps the edge and tucks under the cover");
+ binding.dispose();
 });
 test("repeated exposure changes reuse binding material programs",()=>{
  const book=new THREE.Group(),binding=createBookBinding(book,1.4);binding.set("hardback",false);

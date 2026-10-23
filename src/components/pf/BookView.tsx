@@ -767,7 +767,8 @@ export function BookView({
         failed();
         return;
       }
-      scene.current = made;      const coverScene=made;
+      scene.current = made;
+      const coverScene=made;
       void source.face(0).then(canvas=>{if(canvas&&!cancelled&&scene.current===coverScene)coverScene.setCoverColour(canvas);}).catch(()=>{});
       // The back board takes its own colour from the back cover, so its edges match that artwork.
       if(layout.leaves.length>2)void source.face(layout.leaves.length-1).then(canvas=>{if(canvas&&!cancelled&&scene.current===coverScene)coverScene.setCoverColour(canvas,"back");}).catch(()=>{});

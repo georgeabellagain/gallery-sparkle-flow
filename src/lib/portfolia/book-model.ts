@@ -13,6 +13,21 @@ export function caseSpineGeometry(){
   // Cylinder arc faces the back (-Z); ends are capped at the head and tail.
   return geometry;
 }
+/**
+ * A closed book's spine: a rounded but nearly square "D" (a superellipse), so it meets both covers at full depth
+ * instead of pinching to nothing at its top and bottom edges. Unit size: bulges from x 0 to -1, runs z -1..1
+ * (the book's thickness) and y -0.5..0.5 (head to tail), capped at both ends.
+ */
+export function closedSpineGeometry(){
+  const points:THREE.Vector2[]=[];
+  for(let i=0;i<=40;i++){
+    const t=-Math.PI/2+Math.PI*i/40,c=Math.cos(t),s=Math.sin(t);
+    points.push(new THREE.Vector2(-Math.pow(Math.abs(c),.35),Math.sign(s)*Math.pow(Math.abs(s),.35)));
+  }
+  const geometry=new THREE.ExtrudeGeometry(new THREE.Shape(points),{depth:1,bevelEnabled:false,curveSegments:1});
+  geometry.translate(0,0,-.5);geometry.rotateX(Math.PI/2);geometry.computeVertexNormals();
+  return geometry;
+}
 /** Bounds of the displayed model only; hidden spread/cover meshes must not affect framing. */
 export function visibleBookBounds(object:THREE.Object3D){
   object.updateWorldMatrix(true,true);

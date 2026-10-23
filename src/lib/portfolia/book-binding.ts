@@ -1,4 +1,4 @@
-import { pageBlockGeometry, coverBoardGeometry, caseSpineGeometry } from "./book-model";
+import { pageBlockGeometry, coverBoardGeometry, caseSpineGeometry, closedSpineGeometry } from "./book-model";
 import { COVER_GAP, PAGE_TOP, coverArtZ, coverTurnPose, type CoverRest } from "./rigid-cover";
 import * as THREE from "three";
 import { bookStyleProfile, type BookStyle } from "./book-style";
@@ -170,6 +170,8 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
   // The ribbon bookmark: across its marked spread, otherwise a tail from between the pages onto the table.
   const ribbon=mesh(new THREE.BufferGeometry(),ribbonMaterial());ribbon.visible=false;group.add(ribbon);
   const ribbonShadow=new THREE.Mesh(new THREE.BufferGeometry(),ribbonShadowMaterial());ribbonShadow.renderOrder=1;ribbonShadow.visible=false;group.add(ribbonShadow);
+  // A closed book's outer spine (added last, after the parts above).
+  const closedSpineShape=closedSpineGeometry(),closedSpine=mesh(closedSpineShape,spineMaterial);closedSpine.visible=false;group.add(closedSpine);
   let ribbonOn=false,ribbonColour:string=readableRibbonColour(undefined),ribbonStamp="",ribbonGutter:number|undefined;
   let ribbonTurn:RibbonTurn|null=null,ribbonBoard:RibbonBoard={top:PAGE_TOP-.006,thickness:0,overhang:0},ribbonBoards:RibbonBoard[]=[ribbonBoard,ribbonBoard],ribbonInset=0,ribbonOpenSide:1|-1=1;
   let turnShapes:{page:THREE.Vector3[];from:RibbonShapePath;to:RibbonShapePath;carried:boolean}|null=null;
@@ -277,29 +279,30 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
       // It reaches the front board only while a closed or turning cover needs it, otherwise it stays below the paper.
       const raised=hard&&(turning.visible||sides.some(({root},index)=>root.visible&&layout[index]!.kind==="closed"));
       spine.position.z=PAGE_TOP+(raised?B:0)-.001;
-      spine.rotation.set(0,0,0);spine.position.x=0;
       // A closed book (not mid-turn) shows its spine on the outside: the case wraps round the whole edge, from the
-      // top of the front board to the bottom of the back board, bulging outward like a real rounded spine.
-      // (A soft cover has no closed board: it is closed when only one side shows and it holds the whole block.)
+      // top of the front board to the bottom of the back board, bulging outward like a real rounded spine. Its
+      // inner face reaches in past the page edges, so no sliver of paper shows between it and the covers.
+      // (A soft cover has no closed board: it is closed when only one side shows and it holds the whole block. Its
+      // cover is paper, which rises to pageRelief's height at the spine, so the spine reaches up to meet it.)
       const closedIndex=([0,1] as const).find(index=>visible[index]&&(layout[index]!.kind==="closed"||(!hard&&!visible[1-index]&&layout[index]!.share>=.999)));
-      if(closedIndex!==undefined&&!turning.visible){
-        const sign=closedIndex===0?-1:1,topZ=hard?PAGE_TOP+B+.0006:PAGE_TOP-.0002,bottomZ=-deepest-.0004,thickness=topZ-bottomZ;
-        // The arc faces -z when built; a quarter turn about y points it out past the spine edge.
-        spine.rotation.set(0,sign*Math.PI/2,0);
-        spine.scale.set(thickness/2,ratio+2*profile.overhang,Math.max(.006,profile.spine*.75));
-        spine.position.set(sign*.0004,0,(topZ+bottomZ)/2);
+      const shown=style!=="flipbook"&&(visible[0]||visible[1]),closed=shown&&closedIndex!==undefined&&!turning.visible;
+      if(closed){
+        const sign=closedIndex===0?-1:1,topZ=hard?PAGE_TOP+B+.0003:pageRelief(0,.5,0)-.0003,bottomZ=-deepest-.0004;
+        closedSpine.scale.set(sign*Math.max(.007,profile.spine*.8),ratio+2*profile.overhang,(topZ-bottomZ)/2);
+        closedSpine.position.set(sign*.0025,0,(topZ+bottomZ)/2);
       }
-      spine.visible=style!=="flipbook"&&(visible[0]||visible[1]);
+      closedSpine.visible=closed;
+      spine.visible=shown&&!closed;
       // In an open book the headband shows as a short striped roll lying across the head and foot of the gutter,
       // just proud of the page edges and tucked under the paper's rise at the spine.
       // Only an open book shows them; a closed one keeps them inside its case, where their ends would poke past the spine.
       // Beside a hardback cover lying open (first and last spreads) they would sit on the cover's inside, so they hide.
       const openCover=(index:0|1)=>hard&&visible[index]&&layout[index]!.kind==="open";
-      const showBands=hasHeadbands(style)&&spine.visible&&visible[0]&&visible[1]&&!openCover(0)&&!openCover(1);
+      const showBands=hasHeadbands(style)&&shown&&visible[0]&&visible[1]&&!openCover(0)&&!openCover(1);
       bands.forEach((band,index)=>{band.visible=showBands;band.rotation.set(0,0,Math.PI/2);band.scale.set(.0042,.03,.0042);band.position.set(0,(index===0?1:-1)*((ratio-.004)/2+.003),PAGE_TOP);});
       // The ribbon lies across its marked spread; elsewhere it leaves the block it is held in at the foot of the gutter
       // and drapes onto the table. A turn that leaves or reaches the marked spread drives it frame by frame (turnRibbon).
-      const showRibbon=hasRibbon(style,ribbonOn)&&spine.visible;
+      const showRibbon=hasRibbon(style,ribbonOn)&&shown;
       const leafOf=(index:0|1)=>visible[index]?layout[index]!.leaf:undefined;
       const placement:RibbonPlacement=ribbonTurn?{mode:"open"}:hard||style==="softcover"?ribbonPlacement(ribbonGutter,leafOf(0),leafOf(1),leaves):{mode:"default"};
       // The ribbon is held between paper, so it never leaves from (or lies on) a cover lying open with no pages under it.
@@ -383,6 +386,6 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
       turning.rotation.y=-dir*pose.angle;
       turning.visible=true;
     },
-    dispose(){parent.remove(group);box.dispose();boardGeometry.dispose();faceGeometry.dispose();bandGeometry.dispose();bandMaterial.map?.dispose();bandMaterial.dispose();ribbon.geometry.dispose();(ribbon.material as THREE.Material).dispose();ribbonShadow.geometry.dispose();(ribbonShadow.material as THREE.Material).dispose();[boardMaterial,backBoardMaterial,spineMaterial].forEach(disposeCloth);cylinder.dispose();edges.dispose();boardMaterial.dispose();backBoardMaterial.dispose();pageMaterial.dispose();spineMaterial.dispose();},
+    dispose(){parent.remove(group);box.dispose();closedSpineShape.dispose();boardGeometry.dispose();faceGeometry.dispose();bandGeometry.dispose();bandMaterial.map?.dispose();bandMaterial.dispose();ribbon.geometry.dispose();(ribbon.material as THREE.Material).dispose();ribbonShadow.geometry.dispose();(ribbonShadow.material as THREE.Material).dispose();[boardMaterial,backBoardMaterial,spineMaterial].forEach(disposeCloth);cylinder.dispose();edges.dispose();boardMaterial.dispose();backBoardMaterial.dispose();pageMaterial.dispose();spineMaterial.dispose();},
   };
 }

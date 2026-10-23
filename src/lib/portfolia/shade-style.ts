@@ -33,13 +33,16 @@ float shadowInk(float s, vec2 p, float opacity) {
   s = clamp(s, 0.0, 1.0);
   if (shadeStyle == 0) return s * opacity;
   if (shadeStyle == 1) return s * s * (3.0 - 2.0 * s) * s * opacity;
-  float mark = min(1.0, opacity * 2.6);
-  float cover = s * opacity / max(mark, 1e-4);
+  // Marks are darker than the smooth shadow so they read as marks, but they fade out with the shadow itself, so
+  // the pattern melts into the background instead of stopping at a line.
+  float fade = smoothstep(0.0, 0.55, s);
+  float mark = min(1.0, opacity * 2.6) * fade;
+  float cover = s * opacity / max(min(1.0, opacity * 2.6), 1e-4);
   if (shadeStyle == 2) {
     vec2 q = p * 210.0, cell = floor(q);
     vec2 f = fract(q) - 0.5 + (vec2(shadeHash(cell), shadeHash(cell + 17.0)) - 0.5) * 0.3;
     float r = 0.56 * sqrt(cover), d = length(f), aa = fwidth(d) + 1e-4;
-    return mark * (1.0 - smoothstep(r - aa, r + aa, d)) * step(0.004, cover);
+    return mark * (1.0 - smoothstep(r - aa, r + aa, d));
   }
   float q1 = (p.x + p.y) * 115.0, d1 = abs(fract(q1) - 0.5) * 2.0, aa1 = fwidth(q1) * 2.0 + 1e-4;
   float ink = 1.0 - smoothstep(cover - aa1, cover + aa1, d1);
@@ -48,7 +51,7 @@ float shadowInk(float s, vec2 p, float opacity) {
     float q2 = (p.x - p.y) * 115.0, d2 = abs(fract(q2) - 0.5) * 2.0, aa2 = fwidth(q2) * 2.0 + 1e-4;
     ink = max(ink * (1.0 - 0.35 * step(0.3, cover)), (1.0 - smoothstep(w2 - aa2, w2 + aa2, d2)) * step(0.001, w2));
   }
-  return mark * ink * step(0.004, cover);
+  return mark * ink;
 }
 #endif
 `;

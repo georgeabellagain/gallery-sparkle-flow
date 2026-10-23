@@ -200,7 +200,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   light.position.set(-1.8, 2.8, 5.5);
   light.castShadow = true;
   const topLight = new THREE.DirectionalLight(0xffffff, 0);
-  topLight.position.set(0, 0, 6); topLight.castShadow = false; scene.add(topLight);
+  topLight.position.set(0, 0, 6); topLight.castShadow = false;
+  // The studio's lights, fixed in the room: the 3D view moves the camera round them, like walking round a table.
+  const lightRig = new THREE.Group();
+  scene.add(lightRig);
+  lightRig.add(topLight);
   // A tight frustum keeps shadow detail high.
   const shadowExtent = Math.hypot(1, ratio / 2) + 0.7;
   light.shadow.mapSize.set(1024, 1024);
@@ -212,7 +216,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   light.shadow.normalBias = 0.012;
   light.shadow.bias = -0.0001;
   light.shadow.radius = studioShadowRadius(3,light.shadow.mapSize.x);
-  scene.add(ambient, light);
+  lightRig.add(ambient, light);
   const sunPatch = new THREE.SpotLight(0xfff3dc, 0, 0, Math.PI / 5, .35, 0);
   sunPatch.position.set(-1.8, 2.8, 5.5);
   sunPatch.target.position.set(0, 0, 0);
@@ -223,7 +227,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   sunPatch.shadow.camera.far = 12;
   const cachedLightMask = createCachedLightMask();
   const dapples = new Map<string, THREE.CanvasTexture>();
-  scene.add(sunPatch, sunPatch.target);
+  lightRig.add(sunPatch, sunPatch.target);
 
   // The book floats this far above the background, which is what makes its shadow show.
   const BOOK_LIFT = 0.07;
@@ -526,10 +530,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const update = pendingDragShape;
     pendingDragShape = null;
     update?.();
-    // In the 3D view the backdrop is framed for the straight-down camera and then held still on screen.
+    // A picture background is a solid floor: in the 3D view it stays put in the room and simply reaches further,
+    // framed as for the straight-down camera so its picture never zooms.
     const orbitingNow = isOrbiting(orbit);
     backdrop.frame(orbitingNow ? neutralCamera : camera, w, h, Math.max(ratio * 1.1 + FRAME_PAD, 2.32 / camera.aspect) * (1 + inset));
-    backdrop.follow(neutralCamera, orbitingNow ? camera : null);
+    backdrop.extend(orbitingNow);
     // Output-sized filtered maps remain attached to the lights. Moving sheets and notes
     // update once per displayed frame; idle scenes only refresh when dirtied.
     // Keep hidden receiving/covered pages in the shadow pass throughout a turn.
@@ -597,8 +602,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       const d = orbitDirection(orbit), away = distance * (1 + 0.45 * Math.sin(orbitTilt(orbit)));
       camera.position.set(focus + d.x * away, d.y * away, d.z * away);
       camera.lookAt(focus, 0, 0);
-    } else {
-      camera.position.set(focus + panX, panY, distance);
+   } else {
+     camera.position.set(focus + panX, panY, distance);
       camera.lookAt(focus + panX, panY, 0);
     }
     camera.updateProjectionMatrix();

@@ -1,5 +1,5 @@
 import { registerPublicUrls } from "@/lib/portfolia/assets";
-import { FIELD_NOTES_PUBLISHED_CODE, chooseHomeExample } from "@/lib/portfolia/homepage-examples";
+import { FIELD_NOTES_PUBLISHED_CODE, HOME_EXAMPLE_START_PAGE, LOOKBOOK_CODE, chooseHomeExample } from "@/lib/portfolia/homepage-examples";
 import { FIELD_NOTES_CODE, fieldNotesExample } from "@/lib/portfolia/field-notes-example";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PdfViewer } from "./PdfViewer";
@@ -14,17 +14,19 @@ import { DEFAULT_VIEWER } from "@/lib/portfolia/store";
 export const FEATURED_PORTFOLIO_CODE = "adu2v";
 export const FEATURED_CREDIT = "Property of Scarlett Bushell 2026";
 const demoRequests = new Map<string, { at: number; promise: Promise<PublicPortfolio> }>();
-function loadDemoPortfolio(code: string, refresh = false) {
+function loadDemoPortfolio(code: string, refresh = false, fallback = false) {
   void loadPdfjs().catch(() => {});
   // The site's own example ships with the site: nothing to fetch from an account.
   if (code === FIELD_NOTES_CODE) return Promise.resolve<PublicPortfolio>(fieldNotesExample());
-  let request = demoRequests.get(code);
+  const key = `${code}|${fallback}`;
+  let request = demoRequests.get(key);
   if (refresh || !request || Date.now() - request.at > 60000) {
     const published = getPublicPortfolio({ data: { by: "code", value: code } });
-    // The published Field Notes falls back to the copy shipped with the site, so the homepage always has its example.
-    const promise = code === FIELD_NOTES_PUBLISHED_CODE ? published.then((result) => result ?? fieldNotesExample(), () => fieldNotesExample()) : published;
-    request = { at: Date.now(), promise }; demoRequests.set(code, request);
-    void promise.catch(() => { if (demoRequests.get(code)?.promise === promise) demoRequests.delete(code); });
+    // The homepage's lookbook and the published Field Notes fall back to the Field Notes copy shipped with the site,
+    // so the homepage always has an example even when a published book can't be reached.
+    const promise = code === FIELD_NOTES_PUBLISHED_CODE || (fallback && code === LOOKBOOK_CODE) ? published.then((result) => result ?? fieldNotesExample(), () => fieldNotesExample()) : published;
+    request = { at: Date.now(), promise }; demoRequests.set(key, request);
+    void promise.catch(() => { if (demoRequests.get(key)?.promise === promise) demoRequests.delete(key); });
   }
   return request.promise;
 }
@@ -65,7 +67,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
     setSlow(false);
     setData(null);
     const timeout = setTimeout(() => { cancelled = true; setState("error"); }, 30000);
-    void loadDemoPortfolio(exampleCode, attempt > 0).then((result) => {
+    void loadDemoPortfolio(exampleCode, attempt > 0, workspace).then((result) => {
       if (cancelled) return;
       clearTimeout(timeout);
       if (result) registerPublicUrls(result.urls);
@@ -73,7 +75,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
       setState((result?.portfolio.pdf && result.urls[result.portfolio.pdf.blobKey]) ? "ready" : "error");
     }).catch(() => { clearTimeout(timeout); if (!cancelled) setState("error"); });
     return () => { cancelled = true; clearTimeout(timeout); };
-  }, [attempt, exampleCode]);
+  }, [attempt, exampleCode, workspace]);
   useEffect(() => {
     if (state !== "ready" || rendered) { setSlow(false); return; }
     const timeout = setTimeout(() => setSlow(true), 60000);
@@ -101,7 +103,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
         source={source}
         fileName={p.pdf.name}
         viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "studio", studioBrightness: Math.min(1, (p.viewer?.studioBrightness ?? 0.5) + 0.14), modes: workspace ? ["book", "scroll", "paged"] : ["book"], looks: comparing ? ["studio"] : ["clean", "studio"] }}
-        startPage={workspace ? 2 : undefined}
+        startPage={workspace ? HOME_EXAMPLE_START_PAGE : undefined}
         backgroundUrl={p.viewer?.backgroundKey ? data?.urls[p.viewer.backgroundKey] : undefined}
         controls
         homepageExample={workspace}
@@ -121,7 +123,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
           source={source}
           fileName={p.pdf.name}
           viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "clean", modes: ["book"], looks: ["clean"] }}
-          startPage={2}
+          startPage={HOME_EXAMPLE_START_PAGE}
           controls={false}
           pageNumber={false}
           homepageExample
