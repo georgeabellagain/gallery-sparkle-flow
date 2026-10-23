@@ -4,6 +4,7 @@ import type { NoteFont } from "./foldouts";
 import { NOTE_FONT_FAMILIES } from "./foldout-paint";
 import { noteInk } from "./foldout-paint";
 import { pageRelief } from "./page-relief";
+import { readableTabStyle, tabOutline, type TabStyle } from "./tab-style";
 import { nearPage, TAB_SIZE, tabFrame, tabSlot, type TabEdge, type TabPlan } from "./tab-geometry";
 
 export interface TabSpec {
@@ -17,7 +18,7 @@ export interface TabSpec {
   scale?: number;
 }
 /** The turning sheet's outer edge at height `v`: the point, and the direction pointing outward along the sheet. */
-export type SheetEdgeAt = (v: number) => { x: number; y?: number; z: number; tx: number; tz: number };
+export type SheetEdgeAt = (v: number) => { x: number; y?: number; z: number; tx: number; ty?: number; tz: number };
 const COLS = 4;
 const LIFT = 0.001;
 /** Paper tabs that are part of the book: they sit on the page edge, travel with the sheet they belong to, and are lit like the paper. */
@@ -32,6 +33,8 @@ export function createBookTabs(
   type Entry = { spec: TabSpec; y: number; height: number; v: number; front: THREE.BufferGeometry; back: THREE.BufferGeometry; group: THREE.Group };
   let entries: Entry[] = [];
   let compact = false;
+  let style: TabStyle = "rounded";
+  let lastSpecs: TabSpec[] = [];
   let rest: Record<string, TabEdge> = {};
   const resources: Array<{ dispose: () => void }> = [];
   const own: THREE.MeshStandardMaterial[] = [];
@@ -51,20 +54,16 @@ export function createBookTabs(
    * in 3D), a faint sheen along one edge and light, spaced lettering. The canvas runs from the end tucked under the
    * page (left) to the outer end (right).
    */
-  const artwork = (spec: TabSpec, width: number, height: number) => {
+  const artwork = (spec: TabSpec, width: number, height: number, mirrored: boolean) => {
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext("2d")!;
-    const radius = Math.min(width * 0.42, height * 0.5);
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(width - radius, 0);
-    ctx.arcTo(width, 0, width, radius, radius);
-    ctx.lineTo(width, height - radius);
-    ctx.arcTo(width, height, width - radius, height, radius);
-    ctx.lineTo(0, height);
-    ctx.closePath();
+    // The back of the tab is sampled mirrored, so its shape is drawn mirrored too: the shaped end is then the outer
+    // end on both faces (and on whichever side of the book the tab lies). The lettering is not mirrored.
+    ctx.save();
+    if (mirrored) { ctx.translate(width, 0); ctx.scale(-1, 1); }
+    tabOutline(ctx, style, width, height);
     ctx.fillStyle = spec.colour;
     ctx.fill();
     ctx.save();
@@ -82,6 +81,7 @@ export function createBookTabs(
     ctx.fillStyle = edge;
     ctx.fillRect(0, 0, width, height);
     ctx.restore();
+    ctx.restore();
     ctx.fillStyle = noteInk(spec.colour);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -91,13 +91,16 @@ export function createBookTabs(
     const fit = () => { ctx.font = `500 ${px}px ${family}`; if ("letterSpacing" in spaced) spaced.letterSpacing = `${(px * 0.06).toFixed(1)}px`; };
     fit();
     while (px > 8 && ctx.measureText(spec.text).width > height * 0.78) { px *= 0.9; fit(); }
-    ctx.translate(width * 0.56, height / 2);
+    // Centred on the visible part of the tab (a ribbon's notch leaves less room at the end).
+    const centre = style === "ribbon" ? 0.48 : 0.56;
+    ctx.translate(width * (mirrored ? 1 - centre : centre), height / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.fillText(spec.text, 0, 0);
     return canvas;
   };
   const set = (specs: TabSpec[], isCompact: boolean) => {
     clear();
+    lastSpecs = specs;
     compact = isCompact;
     const s = size();
     const length = s.out + s.in;
@@ -126,11 +129,15 @@ export function createBookTabs(
       back.setIndex(index);
       resources.push(geometry, back);
       const px = 96;
-      const texture = new THREE.CanvasTexture(artwork(spec, px, Math.max(48, Math.round((px * height) / length))));
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = 4;
-      resources.push(texture);
+      const picture = (mirrored: boolean) => {
+        const texture = new THREE.CanvasTexture(artwork(spec, px, Math.max(48, Math.round((px * height) / length)), mirrored));
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.anisotropy = 4;
+        resources.push(texture);
+        return texture;
+      };
       const meshFor = (g: THREE.BufferGeometry, side: THREE.Side) => {
+        const texture = picture(side === THREE.BackSide);
         const mat = template().clone();
           setNaturalImperfections(mat,template().userData["naturalEnabled"] as number | boolean | undefined);
         mat.map = texture;
@@ -162,18 +169,26 @@ export function createBookTabs(
         to: rest[e.spec.id] ?? "right",
         sheet: false,
       };
-      // A tab on the turning sheet hangs from that sheet's real edge, whatever shape the turn gives it.
-      const frame = plan.sheet && edge ? edge(e.v) : tabFrame(plan, progress, dir, e.v);
+      // A tab on the turning sheet hangs from that sheet's real edge, whatever shape the turn gives it: each of its
+      // two long sides is read where it meets the sheet, so when a fold that follows the pointer swings the corner
+      // round, the tab swings with it, locked to the paper.
+      const onSheet = plan.sheet && edge;
+      const rows = [-1, 1].map((side) => {
+        const v = e.v + (side * e.height) / 2 / ratio;
+        if (onSheet) { const f = edge(v); return { x: f.x, y: f.y ?? e.y + (side * e.height) / 2, z: f.z, tx: f.tx, ty: f.ty ?? 0, tz: f.tz }; }
+        const f = tabFrame(plan, progress, dir, e.v);
+        return { x: f.x, y: e.y + (side * e.height) / 2, z: f.z, tx: f.tx, ty: 0, tz: f.tz };
+      });
       const geometries = [e.front, e.back];
       for (const g of geometries) {
         const pos = g.getAttribute("position") as THREE.BufferAttribute;
         for (let c = 0; c <= COLS; c++) {
           const dist = -s.in + ((s.out + s.in) * c) / COLS;
           for (let r = 0; r < 2; r++) {
+            const frame = rows[r]!;
             const x = frame.x + frame.tx * dist;
+            const yy = frame.y + frame.ty * dist;
             const lift = frame.z + frame.tz * dist;
-            // A fold that follows the pointer can slant the edge, moving the tab up or down with it.
-            const yy = ("y" in frame && typeof frame.y === "number" ? frame.y : e.y) + (r === 0 ? -1 : 1) * (e.height / 2);
             const z = lift + (relief ? relief(x, yy) : pageRelief(Math.min(1, Math.abs(frame.x)), e.v, 0)) * nearPage(lift) + LIFT;
             pos.setXYZ(c * 2 + r, x, yy, z);
           }
@@ -188,6 +203,13 @@ export function createBookTabs(
   return {
     set,
     clear,
+    /** The shape of every tab; redraws them only when it changes. */
+    setStyle(next: unknown) {
+      const value = readableTabStyle(next);
+      if (value === style) return;
+      style = value;
+      if (lastSpecs.length) { const keep = rest; set(lastSpecs, compact); rest = keep; pose(null, 0, 1); }
+    },
     /** Which edge each tab rests on when no page is turning. */
     setRest(edges: Record<string, TabEdge>) {
       rest = edges;

@@ -7,9 +7,9 @@ export type Orbit = { yaw: number; pitch: number };
 
 const deg = Math.PI / 180;
 /** Hard stops: never round to the side or under the book, only a cap of the dome above it. */
-export const ORBIT_LIMITS = { yaw: 55 * deg, pitch: 50 * deg, tilt: 56 * deg, back: 25 * deg } as const;
+export const ORBIT_LIMITS = { yaw: 30 * deg, pitch: 34 * deg, tilt: 38 * deg, back: 10 * deg } as const;
 /** Where the 3D view opens: a little from the reader's side and to the left, like a book on a desk. */
-export const ORBIT_START: Orbit = { yaw: -0.32, pitch: 0.62 };
+export const ORBIT_START: Orbit = { yaw: -0.22, pitch: 0.42 };
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 /** How far the camera leans from straight down, whichever way. */
@@ -33,9 +33,9 @@ export function orbitDirection(o: Orbit) {
   return { x: Math.sin(o.yaw) * Math.cos(o.pitch), y: -Math.sin(o.pitch), z: Math.cos(o.yaw) * Math.cos(o.pitch) };
 }
 
-/** Dragging across the whole view swings the camera about 150°, which the limits then stop. */
+/** Dragging across the whole view swings the camera about 90°, which the limits then stop. */
 export function orbitDrag(o: Orbit, dx: number, dy: number, size: number): Orbit {
-  const k = (2.6 / Math.max(1, size));
+  const k = (1.6 / Math.max(1, size));
   return clampOrbit({ yaw: o.yaw - dx * k, pitch: o.pitch - dy * k });
 }
 

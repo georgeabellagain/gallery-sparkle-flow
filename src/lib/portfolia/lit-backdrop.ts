@@ -162,6 +162,23 @@ export function createLitBackdrop(scene: THREE.Scene, repaint: () => void, shado
       plane.scale.set(heightInWorld * camera.aspect, heightInWorld, 1); plane.visible = true;
       if (catcher) { catcher.position.x=plane.position.x;catcher.position.y=plane.position.y;catcher.scale.copy(plane.scale);catcher.visible=true; }
     },
+    /**
+     * The 3D view moves the camera over the book, but the backdrop stays put on screen. `neutral` is the camera as
+     * it would be looking straight down (frame() was given it); the picture keeps exactly where it appeared to that
+     * camera, carried to the moving one and pushed back far enough to stay behind the book. Shadows stay on the
+     * table, caught by the catcher. Pass no camera to lay the picture back flat.
+     */
+    follow(neutral: THREE.PerspectiveCamera, camera: THREE.PerspectiveCamera | null, push = 1.4) {
+      plane.position.z = -0.072;
+      plane.quaternion.identity();
+      if (!camera || !plane.visible) return;
+      const local = plane.position.clone().sub(neutral.position);
+      const depth = Math.max(1e-3, -local.z), k = (depth + push) / depth;
+      local.multiplyScalar(k).applyQuaternion(camera.quaternion);
+      plane.position.copy(camera.position).add(local);
+      plane.quaternion.copy(camera.quaternion);
+      plane.scale.multiplyScalar(k);
+    },
     dispose() { disposed = true; revision++; source = null; scene.remove(plane); texture.dispose(); normals.dispose(); roughness.dispose(); plane.geometry.dispose(); material.dispose(); if (catcher) {scene.remove(catcher);catcher.geometry.dispose();catcher.material.dispose();} },
   };
 }

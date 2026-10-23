@@ -79,6 +79,8 @@ export interface ViewerSettings {
   simpleShadowOpacity?: number;
   /** Simple look: how shade on the pages is drawn. Omitted is standard. */
   simpleShading?: import("./shade-style").ShadeStyle;
+  /** The shape of the page tabs. */
+  tabStyle?: import("./tab-style").TabStyle;
   background: "midnight" | "black" | "paper" | "soft" | "oak" | "walnut";
   finish: import("./surface").SurfaceKind;
   paper: "smooth" | "natural";

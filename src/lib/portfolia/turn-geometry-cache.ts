@@ -93,16 +93,36 @@ export function turnGeometryWriter(template:THREE.BufferGeometry, ratio:number, 
  * Writes the sheet for a soft turn that follows the pointer (see pointerFold). Unlike the baked turns it depends on
  * where the pointer is, not only how far the turn has got, so it is computed live; the sheet has 561 vertices.
  */
-export function writePointerFold(output: THREE.BufferGeometry, ratio: number, dir: 1 | -1, grabY: number, pointer: FoldPoint, restingSeeds: readonly number[], gap: number) {
+export function writePointerFold(output: THREE.BufferGeometry, ratio: number, dir: 1 | -1, grabY: number, pointer: FoldPoint, restingSeeds: readonly number[], gap: number,
+  sheetSeeds?: readonly number[], endNormals?: readonly [Float32Array, Float32Array]) {
   const uv = output.getAttribute("uv"), positions = output.getAttribute("position") as THREE.BufferAttribute;
   const progress = pointerFoldProgress(pointer), clearance = turnClearance(progress, gap);
+  // The sheet carries its own paper relief, from the face it leaves to the face it lands on, exactly as the baked
+  // turns do; so where it comes to rest it already has the resting page's shape and the hand-over can't jump.
+  const t = Math.min(1, Math.max(0, (progress - .3) / .4)), blend = t * t * (3 - 2 * t);
   for (let i = 0; i < uv.count; i++) {
-    const f = pointerFold(uv.getX(i), uv.getY(i) * ratio, grabY, pointer), x = dir * f.x, y = f.y - ratio / 2;
+    const u = uv.getX(i), v = uv.getY(i);
+    const f = pointerFold(u, v * ratio, grabY, pointer), x = dir * f.x, y = f.y - ratio / 2;
+    const relief = sheetSeeds ? pageRelief(u, v, sheetSeeds[0]!) * (1 - blend) + pageRelief(u, v, sheetSeeds[1]!) * blend : 0;
     const floor = pageRelief(Math.min(1, Math.abs(x)), Math.min(1, Math.max(0, y / ratio + .5)), restingSeeds[x < 0 ? 0 : 1]!);
-    positions.setXYZ(i, x, y, turnSheetHeight(f.z + clearance, floor, gap, progress));
+    positions.setXYZ(i, x, y, turnSheetHeight(f.z + relief + clearance, floor, gap, progress));
   }
   positions.needsUpdate = true;
   output.computeVertexNormals();
+  // Near either end, ease the lighting into the resting page's own normals (as bakeTurnGeometry does).
+  if (endNormals) {
+    const edge = progress < .5 ? 0 : 1, distance = edge === 0 ? progress : 1 - progress;
+    const k = Math.max(0, 1 - distance / .08), ease = k * k * (3 - 2 * k);
+    if (ease > 0) {
+      const normals = output.getAttribute("normal") as THREE.BufferAttribute, n = normals.array as Float32Array, target = endNormals[edge]!;
+      for (let j = 0; j < n.length; j += 3) {
+        const nx = n[j]! + (target[j]! - n[j]!) * ease, ny = n[j + 1]! + (target[j + 1]! - n[j + 1]!) * ease, nz = n[j + 2]! + (target[j + 2]! - n[j + 2]!) * ease;
+        const length = Math.hypot(nx, ny, nz) || 1;
+        n[j] = nx / length; n[j + 1] = ny / length; n[j + 2] = nz / length;
+      }
+      normals.needsUpdate = true;
+    }
+  }
   return progress;
 }
 

@@ -4,9 +4,10 @@ import { studioShadowSize, studioShadowRadius } from "./shadow-quality";
 import { createBookBinding, sideShare, type BindingSide, type RibbonTurn } from "./book-binding";
 import { createGutterShade } from "./gutter-shade";
 import { createTurnShade } from "./turn-shade";
-import { readableShadeStyle, shadeStyleIndex, shadeStyleUniform, type ShadeStyle } from "./shade-style";
+import { readableShadeStyle, shadeStyleIndex, shadeStyleUniform, styleShadowMaterial, type ShadeStyle } from "./shade-style";
 import { createPageVideo, type PageVideoSource } from "./page-video";
 import { bindingTurnCurve, bookStyleProfile, type BookStyle } from "./book-style";
+import type { TabStyle } from "./tab-style";
 import { clampOrbit, isOrbiting, orbitDirection, orbitTilt, type Orbit } from "./orbit-view";
 import { constrainFoldPointer,pointerFoldProgress, type FoldPoint, type TurnCurve } from "./turn-curve";
 import { createCachedLightMask } from "./cached-light-mask";
@@ -61,6 +62,7 @@ export type StudioSettings = {
   simpleShadowOpacity: number;
   /** Simple look only: how shade is drawn (smooth, stippled, hatched...). */
   shadeStyle?: ShadeStyle;
+  tabStyle?: TabStyle;
 };
 export type BookFaces = [HTMLCanvasElement | null, HTMLCanvasElement | null];
 const ease = turnEase;
@@ -188,6 +190,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   };
 
   const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 50);
+  /** The camera as it would be without the 3D view (straight down); the backdrop is framed for it. */
+  const neutralCamera = new THREE.PerspectiveCamera(36, 1, 0.1, 50);
   const book = new THREE.Group();
   scene.add(book);
   const binding = createBookBinding(book,ratio);
@@ -273,6 +277,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       new THREE.MeshBasicMaterial({ map: art.texture, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }),
     );
     mesh.renderOrder = -1;
+    // Smooth, stippled or hatched, as the creator chose for Simple (shade-style).
+    styleShadowMaterial(mesh.material);
     // A little down and to the right, like a real drop shadow.
     mesh.position.set(CONTACT_X + x, CONTACT_Y, -BOOK_LIFT + 0.002);
     scene.add(mesh);
@@ -430,7 +436,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let turnRestPages: [boolean, boolean] | null = null;
   let draggedTurn: { from: BookFaces; to: BookFaces; dir: 1 | -1; destinationFocus: number; originalFocus: number; progress: number; speed: number; style: TurnStyle; rigid:boolean;
     /** A soft turn dragged by the reader follows the pointer: the height grabbed and where the pointer is, in page units. */
-    pointer?: { allowed: boolean; grabY: number; at: FoldPoint; seeds: number[] } } | null = null;
+    pointer?: { allowed: boolean; grabY: number; at: FoldPoint; seeds: number[]; sheetSeeds: number[]; endNormals: [Float32Array, Float32Array] } } | null = null;
   // Pointer to book-plane conversion for turns that follow the pointer.
   const pointerRay = new THREE.Raycaster(), pointerNdc = new THREE.Vector2(), pointerInverse = new THREE.Matrix4();
   const pointerOrigin = new THREE.Vector3(), pointerDirection = new THREE.Vector3();
@@ -520,8 +526,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const update = pendingDragShape;
     pendingDragShape = null;
     update?.();
-    // A tilted view sees past the edges of a backdrop sized for looking straight down.
-    backdrop.frame(camera, w, h, Math.max(ratio * 1.1 + FRAME_PAD, 2.32 / camera.aspect) * (1 + inset) * (1 + 4.5 * Math.sin(orbitTilt(orbit))));
+    // In the 3D view the backdrop is framed for the straight-down camera and then held still on screen.
+    const orbitingNow = isOrbiting(orbit);
+    backdrop.frame(orbitingNow ? neutralCamera : camera, w, h, Math.max(ratio * 1.1 + FRAME_PAD, 2.32 / camera.aspect) * (1 + inset));
+    backdrop.follow(neutralCamera, orbitingNow ? camera : null);
     // Output-sized filtered maps remain attached to the lights. Moving sheets and notes
     // update once per displayed frame; idle scenes only refresh when dirtied.
     // Keep hidden receiving/covered pages in the shadow pass throughout a turn.
@@ -583,6 +591,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     if (isOrbiting(orbit)) {
       // The 3D view always circles the middle of the book; panning doesn't apply.
       // Step back as the view leans, so the near edge of the book stays in frame.
+      neutralCamera.fov = camera.fov; neutralCamera.aspect = camera.aspect;
+      neutralCamera.position.set(focus, 0, distance); neutralCamera.lookAt(focus, 0, 0);
+      neutralCamera.updateProjectionMatrix(); neutralCamera.updateMatrixWorld();
       const d = orbitDirection(orbit), away = distance * (1 + 0.45 * Math.sin(orbitTilt(orbit)));
       camera.position.set(focus + d.x * away, d.y * away, d.z * away);
       camera.lookAt(focus, 0, 0);
@@ -857,6 +868,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     turnShade.enable(next.studio);
     // Hand-drawn shading belongs to the flat, illustrated Simple look; Studio's light stays smooth.
     shadeStyleUniform.value = next.studio ? 0 : shadeStyleIndex(readableShadeStyle(next.shadeStyle));
+    tabs.setStyle(next.tabStyle);
     for (const m of pageMaterials) {
       setNaturalImperfections(m,next.studio ? next.imperfections ?? 0 : 0);
       const stickyMatte = Boolean(m.userData["stickyMatte"]);
@@ -1076,10 +1088,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     binding.turnRibbon(progress, (u, v) => { const s = sheetSample(u, v); return { position: s.position.clone(), normal: s.normal.clone() }; });
     if (tabPlan) tabs.turn(tabPlan, progress, dir, (v) => {
       // The sampler reuses its vectors, so read each sample before taking the next.
-      const inner = sheetSample(31 / 32, v).position, ix = inner.x, iz = inner.z;
+      const inner = sheetSample(31 / 32, v).position, ix = inner.x, iy = inner.y, iz = inner.z;
       const outer = sheetSample(1, v).position, x = outer.x, y = outer.y, z = outer.z;
-      const tx = x - ix, tz = z - iz, length = Math.hypot(tx, tz) || 1;
-      return { x, y, z, tx: tx / length, tz: tz / length };
+      // Outward along the paper in all three directions: a slanted fold turns the tab within the page too.
+      const tx = x - ix, ty = y - iy, tz = z - iz, length = Math.hypot(tx, ty, tz) || 1;
+      return { x, y, z, tx: tx / length, ty: ty / length, tz: tz / length };
     });
     driveContact(progress);
     turnShade.drive(progress, dir);
@@ -1294,8 +1307,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       // Only a dragged soft paper turn follows the pointer; boards and the other curves keep their baked shapes.
       const followsPointer = dragging && !rigid && bindingTurnCurve(settings.bookStyle, settings.turnCurve, from, to) === "soft";
       const restingSeeds = [seedFor(dir === 1 ? from[0] : to[0]), seedFor(dir === 1 ? to[1] : from[1])];
+      const sheetSeeds = [seedFor(from[moving]), seedFor(to[landing])];
       draggedTurn = { from, to, dir, destinationFocus, originalFocus, progress: 0, speed, style, rigid,
-        pointer: followsPointer ? { allowed: true, grabY: ratio / 2, at: { x: 1, y: ratio / 2 }, seeds: restingSeeds } : undefined };
+        pointer: followsPointer ? { allowed: true, grabY: ratio / 2, at: { x: 1, y: ratio / 2 }, seeds: restingSeeds, sheetSeeds,
+          endNormals: [restingTurnNormals(geometry, ratio, dir, sheetSeeds[0]!, dir), restingTurnNormals(geometry, ratio, -dir as 1 | -1, sheetSeeds[1]!, -dir)] as [Float32Array, Float32Array] } : undefined };
     },
     /** Starts a pointer-following turn at the point the reader pressed. False when this turn doesn't follow the pointer. */
     beginPointerTurn(clientX: number, clientY: number): boolean {
@@ -1317,7 +1332,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       pointer.at = constrainFoldPointer(pointer.grabY, { x: turn.dir * p.x, y: p.y + ratio / 2 }, ratio);
       turn.progress = pointerFoldProgress(pointer.at);
       const at = pointer.at;
-      pendingDragShape = () => shape(turn.progress, turn.dir, () => writePointerFold(geometry, ratio, turn.dir, pointer.grabY, at, pointer.seeds, SHEET_CLEARANCE));
+      pendingDragShape = () => shape(turn.progress, turn.dir, () => writePointerFold(geometry, ratio, turn.dir, pointer.grabY, at, pointer.seeds, SHEET_CLEARANCE, pointer.sheetSeeds, pointer.endNormals));
       requestPaint();
       return turn.progress;
     },
@@ -1350,7 +1365,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         await animate(Math.max(160 * speed, 760 * speed * Math.abs(end - start)), (t) => {
           const at = { x: THREE.MathUtils.lerp(from0.x, goal.x, t), y: THREE.MathUtils.lerp(from0.y, goal.y, t) };
           turn.progress = pointerFoldProgress(at);
-          shape(turn.progress, dir, () => writePointerFold(geometry, ratio, dir, pointer.grabY, at, pointer.seeds, SHEET_CLEARANCE));
+          shape(turn.progress, dir, () => writePointerFold(geometry, ratio, dir, pointer.grabY, at, pointer.seeds, SHEET_CLEARANCE, pointer.sheetSeeds, pointer.endNormals));
           if (narrow && complete) {
             focus = THREE.MathUtils.lerp(startFocus, destinationFocus, turn.progress);
             frameCamera();

@@ -388,7 +388,7 @@ export function StyleForm({
                 )}
                 {editedLook === "clean" ? (
                   <div onPointerDownCapture={() => setPreviewLook("clean")}>
-                    <PanelSection title="Shadow" hint="Under the book, and on the page below while one turns.">
+                    <PanelSection title="Shadow behind the book" hint="Pages turning always shade the pages under them.">
                       <SliderRow label="Strength" value={`${Math.round((shadowOn ? shadowOpacity : 0) * 100)}%`}>
                         <input
                           type="range"
@@ -406,7 +406,7 @@ export function StyleForm({
                         />
                       </SliderRow>
                     </PanelSection>
-                    <PanelSection title="Shading style">
+                    <PanelSection title="Shadow style">
                       <ShadeStylePicker value={viewer.simpleShading} onChange={(simpleShading) => setViewer({ simpleShading })} />
                     </PanelSection>
                   </div>

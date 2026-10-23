@@ -55,7 +55,7 @@ import { BackdropLayer, IconButton, Segmented, type Tone } from "@/components/pf
 /** Full screen is the visible height of the window, which on a phone changes as the address bar slides away. */
 const FULL_HEIGHT = typeof CSS !== "undefined" && CSS.supports?.("height", "100dvh") ? "100dvh" : "100vh";
 
-type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri" | "simpleShadow" | "simpleShadowOpacity" | "shadeStyle" | "strength" | "textureStrength" | "topLight" | "imperfections" | "turnStyle" | "turnSpeed" | "turnCurve" | "bookStyle" | "ribbon" | "ribbonColour" | "ribbonGutter">;
+type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri" | "simpleShadow" | "simpleShadowOpacity" | "shadeStyle" | "tabStyle" | "strength" | "textureStrength" | "topLight" | "imperfections" | "turnStyle" | "turnSpeed" | "turnCurve" | "bookStyle" | "ribbon" | "ribbonColour" | "ribbonGutter">;
 const lookFrom = (viewer: ViewerSettings): Look => ({
   studio: viewer.look === "studio",
   turnStyle: viewer.turnStyle,
@@ -74,6 +74,7 @@ const lookFrom = (viewer: ViewerSettings): Look => ({
   simpleShadow: viewer.simpleShadow ?? true,
   simpleShadowOpacity: viewer.simpleShadowOpacity ?? DEFAULT_SIMPLE_SHADOW_OPACITY,
   shadeStyle: viewer.simpleShading,
+  tabStyle: viewer.tabStyle,
 });
 
 /** The most turns that can be queued up by clicking quickly. */
@@ -534,8 +535,10 @@ export function BookView({
     return subscribePreviewLook(setPreviewLook);
   }, [previewable]);
   const offered = viewer.looks?.length ? viewer.looks : [viewer.look];
+  /** A book type tried in the 3D view; the creator's choice comes back when it closes. */
+  const [tryStyle, setTryStyle] = useState<BookStyle | null>(null);
   const lookFor = (): Look => {
-    const base = { ...lookFrom(viewer), ribbonGutter: ribbonGutterFor(viewer.ribbonPage, layout) };
+    const base = { ...lookFrom(viewer), ribbonGutter: ribbonGutterFor(viewer.ribbonPage, layout), ...(tryStyle ? { bookStyle: tryStyle } : {}) };
     if (editingExtras) return {...base,studio:false};
     return previewLook && offered.includes(previewLook) ? { ...base, studio: previewLook === "studio" } : base;
   };
@@ -547,7 +550,7 @@ export function BookView({
   useEffect(() => {
     setSettings(lookFor());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer.bookStyle, viewer.ribbon, viewer.ribbonColour, viewer.ribbonPage, layout, viewer.turnCurve, viewer.turnStyle, viewer.turnSpeed, viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioTopLight, viewer.studioImperfections, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.simpleShading, viewer.studioLightingStrength, previewLook, editingExtras]);
+  }, [viewer.bookStyle, viewer.ribbon, viewer.ribbonColour, viewer.ribbonPage, layout, viewer.turnCurve, viewer.turnStyle, viewer.turnSpeed, viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioTopLight, viewer.studioImperfections, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.simpleShading, viewer.tabStyle, viewer.studioLightingStrength, previewLook, editingExtras, tryStyle]);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; from: number; progress: number; prepared: Promise<void>; moved: boolean;
     /** Last pointer position, and whether the scene shapes this turn from the pointer itself (a soft turn). */
@@ -561,8 +564,6 @@ export function BookView({
   const orbitAt = useRef<Orbit>({ yaw: 0, pitch: 0 });
   const orbiting = useRef<{ id: number; x: number; y: number } | null>(null);
   const orbitFrame = useRef(0);
-  /** A book type tried in the 3D view; the creator's choice comes back when it closes. */
-  const [tryStyle, setTryStyle] = useState<BookStyle | null>(null);
   const glideOrbit = (to: Orbit) => {
     cancelAnimationFrame(orbitFrame.current);
     const from = orbitAt.current, start = performance.now();
@@ -766,8 +767,7 @@ export function BookView({
         failed();
         return;
       }
-      scene.current = made;
-      const coverScene=made;
+      scene.current = made;      const coverScene=made;
       void source.face(0).then(canvas=>{if(canvas&&!cancelled&&scene.current===coverScene)coverScene.setCoverColour(canvas);}).catch(()=>{});
       // The back board takes its own colour from the back cover, so its edges match that artwork.
       if(layout.leaves.length>2)void source.face(layout.leaves.length-1).then(canvas=>{if(canvas&&!cancelled&&scene.current===coverScene)coverScene.setCoverColour(canvas,"back");}).catch(()=>{});
@@ -819,8 +819,8 @@ export function BookView({
     }
   }, [jump, layout, goTo, busy]);
   useEffect(() => {
-    scene.current?.configure(tryStyle ? { ...settings, bookStyle: tryStyle } : settings);
-  }, [settings, ready, tryStyle]);
+    scene.current?.configure(settings);
+  }, [settings, ready]);
   // A rebuilt scene keeps the 3D view's angle.
   useEffect(() => {
     if (scene.current && view3d) orbitAt.current = scene.current.orbit(orbitAt.current);
@@ -1566,11 +1566,11 @@ export function BookView({
         )}
         {/* The 3D view: look around the book from above, and try it as another kind of book. */}
         {showNavigation && !frameAspect && !editingExtras && !fallback && bookReady && (
-          <div className={cn("absolute bottom-1.5 right-1.5 z-20 flex items-center gap-1 rounded-full p-1 shadow-sm ring-1 backdrop-blur-md transition-opacity duration-300", tone === "dark" ? "bg-slate-950/70 text-white ring-white/15" : "bg-white/85 text-slate-700 ring-black/10", awake || view3d ? "opacity-100" : "pointer-events-none opacity-0")}>
+          <div className={cn("pf-book-3d absolute bottom-1.5 right-1.5 z-20 flex items-center gap-1 rounded-full p-1 shadow-sm ring-1 backdrop-blur-md transition-opacity duration-300", tone === "dark" ? "bg-slate-950/70 text-white ring-white/15" : "bg-white/85 text-slate-700 ring-black/10", awake || view3d ? "opacity-100" : "pointer-events-none opacity-0")}>
             {view3d && <>
               <div role="radiogroup" aria-label="Book type" className="flex items-center">
                 {BOOK_STYLES.map((s) => {
-                  const on = (tryStyle ?? readableBookStyle(settings.bookStyle)) === s.id;
+                  const on = readableBookStyle(settings.bookStyle) === s.id;
                   return <button key={s.id} type="button" role="radio" aria-checked={on} title={s.description} onClick={() => setTryStyle(s.id)}
                     className={cn("whitespace-nowrap rounded-full px-2.5 py-1.5 text-[11px] font-medium transition-colors", on ? (tone === "dark" ? "bg-white text-slate-900" : "bg-slate-900 text-white") : "opacity-75 hover:opacity-100")}>{s.label}</button>;
                 })}

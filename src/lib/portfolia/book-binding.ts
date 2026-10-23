@@ -252,22 +252,43 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
     sync(visible:readonly [boolean,boolean],layout:readonly [BindingSide,BindingSide]=[PAGE_SIDE,PAGE_SIDE]){
       const profile=bookStyleProfile(style),hard=style==="hardback",depth=stackDepth(style,leaves),B=profile.board;
       let deepest=0;
+      const infoOf=(index:number)=>hard?layout[index]!:{...layout[index]!,kind:"page" as const};
+      const blockOf=(index:number)=>{const info=infoOf(index);return info.kind==="open"?0:info.kind==="closed"?depth:Math.max(.002,depth*info.share);};
+      // An open book lies level: both boards rest at the same depth and meet the spine there, the thinner side's
+      // page block reaching down to it (seen only from the side, in the 3D view). Page tops stay at PAGE_TOP.
+      const level=Math.max(0,...([0,1] as const).filter(index=>visible[index]&&infoOf(index).kind==="page").map(blockOf));
       sides.forEach(({root,board,top,pages},index)=>{
         root.visible=visible[index]!;
-        const sign=index===0?-1:1,info=hard?layout[index]!:{...layout[index]!,kind:"page" as const};
-        const block=info.kind==="open"?0:info.kind==="closed"?depth:Math.max(.002,depth*info.share);
+        const sign=index===0?-1:1,info=infoOf(index);
+        const block=info.kind==="page"?Math.max(blockOf(index),level):blockOf(index);
         board.position.x=top.position.x=hard?sign*profile.overhang:0;
         pages.visible=block>0;pages.scale.z=Math.max(block,1e-4);pages.position.z=PAGE_TOP-block/2;
         top.visible=info.kind==="closed";top.position.z=PAGE_TOP+B/2;
-        // An open cover is just its board, directly beneath the artwork.
-        board.position.z=info.kind==="open"?coverArtZ("open",B)-COVER_GAP-B/2:PAGE_TOP-block-B/2;
-        if(root.visible)deepest=Math.max(deepest,info.kind==="open"?-coverArtZ("open",B)+COVER_GAP+B:-PAGE_TOP+block+B);
+        // An open cover is just its board, directly beneath the artwork; beside a page block it reaches down to the
+        // same level as the board under that block, so the two lie flat together at the spine.
+        if(info.kind==="open"){
+          const boardTop=coverArtZ("open",B)-COVER_GAP,boardBottom=Math.min(boardTop-B,level>0?PAGE_TOP-level-B:boardTop-B);
+          board.scale.z=boardTop-boardBottom;board.position.z=(boardTop+boardBottom)/2;
+        }else{board.scale.z=B;board.position.z=PAGE_TOP-block-B/2;}
+        if(root.visible)deepest=Math.max(deepest,-(board.position.z-board.scale.z/2));
       });
       // The case spine wraps the deepest side, from the block top down.
       spine.scale.set(profile.spine*.65,ratio+2*profile.overhang,Math.max(profile.spine,deepest+.002));
       // It reaches the front board only while a closed or turning cover needs it, otherwise it stays below the paper.
       const raised=hard&&(turning.visible||sides.some(({root},index)=>root.visible&&layout[index]!.kind==="closed"));
       spine.position.z=PAGE_TOP+(raised?B:0)-.001;
+      spine.rotation.set(0,0,0);spine.position.x=0;
+      // A closed book (not mid-turn) shows its spine on the outside: the case wraps round the whole edge, from the
+      // top of the front board to the bottom of the back board, bulging outward like a real rounded spine.
+      // (A soft cover has no closed board: it is closed when only one side shows and it holds the whole block.)
+      const closedIndex=([0,1] as const).find(index=>visible[index]&&(layout[index]!.kind==="closed"||(!hard&&!visible[1-index]&&layout[index]!.share>=.999)));
+      if(closedIndex!==undefined&&!turning.visible){
+        const sign=closedIndex===0?-1:1,topZ=hard?PAGE_TOP+B+.0006:PAGE_TOP-.0002,bottomZ=-deepest-.0004,thickness=topZ-bottomZ;
+        // The arc faces -z when built; a quarter turn about y points it out past the spine edge.
+        spine.rotation.set(0,sign*Math.PI/2,0);
+        spine.scale.set(thickness/2,ratio+2*profile.overhang,Math.max(.006,profile.spine*.75));
+        spine.position.set(sign*.0004,0,(topZ+bottomZ)/2);
+      }
       spine.visible=style!=="flipbook"&&(visible[0]||visible[1]);
       // In an open book the headband shows as a short striped roll lying across the head and foot of the gutter,
       // just proud of the page edges and tucked under the paper's rise at the spine.

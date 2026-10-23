@@ -43,7 +43,7 @@ test("a jump over several sheets carries the tabs of every page passed over", ()
 test("tab meshes are built, posed and released", () => {
   const original = globalThis.document;
   globalThis.document = {
-    createElement: () => ({ width: 1, height: 1, getContext: () => ({ fillRect() {}, measureText: () => ({ width: 10 }), translate() {}, rotate() {}, fillText() {}, beginPath() {}, moveTo() {}, lineTo() {}, arcTo() {}, closePath() {}, fill() {}, save() {}, clip() {}, restore() {}, createLinearGradient: () => ({ addColorStop() {} }) }) }),
+    createElement: () => ({ width: 1, height: 1, getContext: () => ({ fillRect() {}, measureText: () => ({ width: 10 }), translate() {}, scale() {}, rotate() {}, fillText() {}, beginPath() {}, moveTo() {}, lineTo() {}, arcTo() {}, closePath() {}, fill() {}, save() {}, clip() {}, restore() {}, createLinearGradient: () => ({ addColorStop() {} }) }) }),
   } as unknown as Document;
   try {
     const book = new THREE.Group(), paper = new THREE.MeshPhysicalMaterial();
