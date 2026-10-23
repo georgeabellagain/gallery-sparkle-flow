@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { constrainFoldPointer, pointerFold, pointerFoldProgress, readableTurnCurve, softFold } from "../src/lib/portfolia/turn-curve";
+import { constrainFoldPointer, FOLD_MAX_TILT, pointerFold, pointerFoldProgress, readableTurnCurve, softFold } from "../src/lib/portfolia/turn-curve";
 
 const grid = (fn: (u: number, v: number) => void) => { for (let i = 0; i <= 20; i++) for (let j = 0; j <= 4; j++) fn(i / 20, j / 4); };
 
@@ -75,6 +75,28 @@ test("the pointer is held where bound paper can reach", () => {
     for (const y of [0, 0.35, 0.7, 1.05, 1.4]) assert.deepEqual(pointerFold(0, y, grabY, at), { x: 0, y, z: 0 });
   }
   void far;
+});
+
+test("pointer turns stop hard at the tilt limit and never jump, wherever the pointer goes", () => {
+  const ratio = 1.4, grabY = 0.3;
+  let previous: { at: { x: number; y: number }; target: { x: number; y: number } } | null = null;
+  // Sweep the pointer in small steps across, far above and far below the page.
+  for (let i = 0; i <= 2000; i++) {
+    const t = i / 2000, target = { x: 1.2 - 2.6 * t, y: grabY + 3 * Math.sin(t * Math.PI * 6) };
+    const at = constrainFoldPointer(grabY, target, ratio);
+    const tilt = Math.abs(grabY - at.y) / Math.max(1e-9, 1 - at.x);
+    assert.ok(tilt <= Math.tan(FOLD_MAX_TILT) + 1e-9, `tilt ${tilt} at step ${i}`);
+    // The page never moves further than the pointer did (plus a little where the stops narrow): no jumps.
+    if (previous) {
+      const moved = Math.hypot(at.x - previous.at.x, at.y - previous.at.y), pointer = Math.hypot(target.x - previous.target.x, target.y - previous.target.y);
+      assert.ok(moved <= pointer * 1.6 + 0.003, `jump at step ${i}: page ${moved.toFixed(4)} vs pointer ${pointer.toFixed(4)}`);
+    }
+    for (const y of [0, 0.7, 1.4]) { const s = pointerFold(0, y, grabY, at); assert.equal(s.x, 0); assert.equal(s.z, 0); }
+    previous = { at, target };
+  }
+  // Pulled straight up from the start, the corner can only rise a little.
+  const up = constrainFoldPointer(grabY, { x: 0.8, y: 5 }, ratio);
+  assert.ok(up.y - grabY <= 0.2 * Math.tan(FOLD_MAX_TILT) + 1e-9);
 });
 
 test("soft is a recognised turn curve", () => assert.equal(readableTurnCurve("soft"), "soft"));

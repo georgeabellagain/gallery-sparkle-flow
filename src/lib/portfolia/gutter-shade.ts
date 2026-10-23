@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { SHADE_STYLE_GLSL, shadeStyleUniform } from "./shade-style";
 
 /**
  * Soft ambient occlusion where paper curves into the spine, the strongest cue that pages are bound.
@@ -18,18 +19,20 @@ export function createGutterShade() {
         shader.uniforms["gutterAmount"] = amount;
         shader.uniforms["gutterSpace"] = space;
         shader.uniforms["gutterWidth"] = width;
-        shader.vertexShader = "uniform mat4 gutterSpace;\nvarying float gutterDistance;\n" + shader.vertexShader.replace(
+        shader.uniforms["shadeStyle"] = shadeStyleUniform;
+        shader.vertexShader = "uniform mat4 gutterSpace;\nvarying float gutterDistance;\nvarying vec2 gutterPoint;\n" + shader.vertexShader.replace(
           "#include <project_vertex>",
-          "#include <project_vertex>\nvec4 gutterBook = gutterSpace * modelMatrix * vec4(transformed, 1.0);\ngutterDistance = length(gutterBook.xz);",
+          "#include <project_vertex>\nvec4 gutterBook = gutterSpace * modelMatrix * vec4(transformed, 1.0);\ngutterDistance = length(gutterBook.xz);\ngutterPoint = gutterBook.xy;",
         );
-        // Simple draws the artwork through the emissive channel (unlit), so the shade darkens both.
-        shader.fragmentShader = "uniform float gutterAmount;\nuniform float gutterWidth;\nvarying float gutterDistance;\n" + shader.fragmentShader.replace(
+        // Simple draws the artwork through the emissive channel (unlit), so the shade darkens both. Its style
+        // (smooth, stippled, hatched...) comes from shade-style.
+        shader.fragmentShader = "uniform float gutterAmount;\nuniform float gutterWidth;\nvarying float gutterDistance;\nvarying vec2 gutterPoint;\n" + SHADE_STYLE_GLSL + shader.fragmentShader.replace(
           "#include <color_fragment>",
           `#include <color_fragment>
           float gutterShadeK = 1.0;
           if (gutterAmount > 0.0) {
             float gutter = 1.0 - smoothstep(0.0, gutterWidth, gutterDistance);
-            gutterShadeK = 1.0 - gutterAmount * gutter * gutter;
+            gutterShadeK = styledShade(gutterAmount * gutter * gutter, gutterPoint);
             diffuseColor.rgb *= gutterShadeK;
           }`,
         ).replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance *= gutterShadeK;");

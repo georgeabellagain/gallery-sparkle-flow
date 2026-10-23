@@ -46,24 +46,52 @@ export function createBookTabs(
     own.length = 0;
     resources.splice(0).forEach((r) => r.dispose());
   };
+  /**
+   * A slim, modern tab: its colour with a rounded outer end (cut out through the texture's alpha, so it stays crisp
+   * in 3D), a faint sheen along one edge and light, spaced lettering. The canvas runs from the end tucked under the
+   * page (left) to the outer end (right).
+   */
   const artwork = (spec: TabSpec, width: number, height: number) => {
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext("2d")!;
+    const radius = Math.min(width * 0.42, height * 0.5);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(width - radius, 0);
+    ctx.arcTo(width, 0, width, radius, radius);
+    ctx.lineTo(width, height - radius);
+    ctx.arcTo(width, height, width - radius, height, radius);
+    ctx.lineTo(0, height);
+    ctx.closePath();
     ctx.fillStyle = spec.colour;
+    ctx.fill();
+    ctx.save();
+    ctx.clip();
+    // Sheen along the top edge and a whisper of depth where the tab meets the page.
+    const sheen = ctx.createLinearGradient(0, 0, 0, height);
+    sheen.addColorStop(0, "rgba(255,255,255,0.22)");
+    sheen.addColorStop(0.18, "rgba(255,255,255,0)");
+    sheen.addColorStop(1, "rgba(0,0,0,0.06)");
+    ctx.fillStyle = sheen;
     ctx.fillRect(0, 0, width, height);
+    const edge = ctx.createLinearGradient(0, 0, width * 0.35, 0);
+    edge.addColorStop(0, "rgba(0,0,0,0.14)");
+    edge.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = edge;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
     ctx.fillStyle = noteInk(spec.colour);
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     const family = spec.font ? NOTE_FONT_FAMILIES[spec.font].css : '"Instrument Sans", Arial, sans-serif';
-    let px = Math.min(width * 0.52, 44) * (spec.fontSize ?? 100) / 100;
-    ctx.font = `600 ${px}px ${family}`;
-    while (px > 8 && ctx.measureText(spec.text).width > height * 0.84) {
-      px *= 0.9;
-      ctx.font = `600 ${px}px ${family}`;
-    }
-    ctx.translate(width / 2, height / 2);
+    const spaced = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+    let px = Math.min(width * 0.4, 34) * (spec.fontSize ?? 100) / 100;
+    const fit = () => { ctx.font = `500 ${px}px ${family}`; if ("letterSpacing" in spaced) spaced.letterSpacing = `${(px * 0.06).toFixed(1)}px`; };
+    fit();
+    while (px > 8 && ctx.measureText(spec.text).width > height * 0.78) { px *= 0.9; fit(); }
+    ctx.translate(width * 0.56, height / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.fillText(spec.text, 0, 0);
     return canvas;
@@ -106,6 +134,8 @@ export function createBookTabs(
         const mat = template().clone();
           setNaturalImperfections(mat,template().userData["naturalEnabled"] as number | boolean | undefined);
         mat.map = texture;
+        // The rounded end is cut from the texture's alpha.
+        mat.alphaTest = 0.5;
         mat.side = side;
         mat.emissiveMap = mat.emissive.getHex() ? texture : null;
         materials.push(mat);

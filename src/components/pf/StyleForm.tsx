@@ -2,7 +2,9 @@ import { StudioLightingSettings, PaperSettings } from "./StudioAppearanceSetting
 import { PageTurnSettings } from "./PageTurnSettings";
 import { isPortfolioDraft } from "@/lib/portfolia/store";
 import { ChoiceTile } from "./ChoiceTile";
+import { ShadeStylePicker } from "./ShadeStylePicker";
 import { BackgroundSettings } from "./BackgroundSettings";
+import { PanelSection, SliderRow, SwitchRow } from "./panel-ui";
 import { ScrollText, File, BookOpen, Square, Sun } from "lucide-react";
 import { usePortfolioFont } from "@/lib/portfolia/fonts";
 import { useEffect, useRef, useState } from "react";
@@ -101,6 +103,9 @@ export function StyleForm({
     if (!looks.length) return;
     setViewer({ looks, look: looks.includes(viewer.look) ? viewer.look : looks[0]! });
   };
+  // Which look's settings are showing in Light & shade (the only one offered, or the creator's pick).
+  const [lookTab, setLookTab] = useState<ViewerSettings["look"]>(viewer.look);
+  const editedLook = enabledLooks.length > 1 ? lookTab : enabledLooks[0]!;
   const shadowOn = viewer.simpleShadow ?? true;
   const shadowOpacity = viewer.simpleShadowOpacity ?? DEFAULT_SIMPLE_SHADOW_OPACITY;
 
@@ -264,9 +269,8 @@ export function StyleForm({
             className={`${titled ? "mt-3" : ""} grid items-start gap-x-10 gap-y-4 text-xs ${sidebar || !titled ? "" : "lg:grid-cols-2"}`}
           >
             {showReading && (
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <p>Visual styles visitors can use</p>
+              <div>
+                <PanelSection title="Visitors can read as" hint="Offer one or more; visitors switch between them.">
                   <div className="grid grid-cols-3 gap-2">
                     {(
                       [
@@ -285,29 +289,18 @@ export function StyleForm({
                       />
                     ))}
                   </div>
-                  <p>Shows first</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(
-                      [
-                        ["scroll", ScrollText],
-                        ["paged", File],
-                        ["book", BookOpen],
-                      ] as const
-                    )
-                      .filter(([mode]) => enabledModes.includes(mode))
-                      .map(([mode, Icon]) => (
-                        <ChoiceTile
-                          key={mode}
-                          label={modeLabel[mode]}
-                          icon={Icon}
-                          selected={viewer.mode === mode}
-                          onClick={() => setViewer({ mode })}
-                        />
-                      ))}
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <p>My PDF contains</p>
+                </PanelSection>
+                {enabledModes.length > 1 && (
+                  <PanelSection title="Opens in">
+                    <Segmented
+                      label="Opens in"
+                      value={viewer.mode}
+                      options={(["scroll", "paged", "book"] as const).filter((mode) => enabledModes.includes(mode)).map((mode) => [mode, modeLabel[mode]] as const)}
+                      onChange={(mode) => setViewer({ mode })}
+                    />
+                  </PanelSection>
+                )}
+                <PanelSection title="Your PDF contains">
                   <Segmented
                     label="My PDF contains"
                     value={viewer.spreads}
@@ -319,77 +312,91 @@ export function StyleForm({
                     }
                     onChange={(spreads) => setViewer({ spreads })}
                   />
-                </div>
-                {enabledModes.includes("book") && <PageTurnSettings viewer={viewer} setViewer={setViewer} pages={p.pdf?.pages} />}
-                <label className="flex items-center justify-between gap-3">
-                  <span>Show profile icon</span>
-                  <input
-                    type="checkbox"
-                    checked={viewer.showHeader}
-                    onChange={(e) => setViewer({ showHeader: e.target.checked })}
-                  />
-                </label>
+                </PanelSection>
+                <PanelSection title="Viewer">
+                  <SwitchRow label="Show profile icon">
+                    <input
+                      type="checkbox"
+                      checked={viewer.showHeader}
+                      onChange={(e) => setViewer({ showHeader: e.target.checked })}
+                    />
+                  </SwitchRow>
+                </PanelSection>
               </div>
             )}
-            {(showLook || showPaper || showBackground) && (
-              <div className="space-y-3">
-                {showLook && (
-                  <div ref={flipbookBox} className="space-y-4">
-                    <p className="font-medium">Lighting</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(
-                        [
-                          ["clean", "Simple", Square],
-                          ["studio", "Studio", Sun],
-                        ] as const
-                      ).map(([look, label, Icon]) => (
-                        <ChoiceTile
-                          key={look}
-                          label={label}
-                          icon={Icon}
-                          selected={enabledLooks.includes(look)}
-                          disabled={enabledLooks.length === 1 && enabledLooks.includes(look)}
-                          onClick={() => toggleLook(look, !enabledLooks.includes(look))}
-                        />
-                      ))}
-                    </div>
-                    <p>Shows first</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(
-                        [
-                          ["clean", "Simple", Square],
-                          ["studio", "Studio", Sun],
-                        ] as const
-                      )
-                        .filter(([look]) => enabledLooks.includes(look))
-                        .map(([look, label, Icon]) => (
-                          <ChoiceTile
-                            key={look}
-                            label={label}
-                            icon={Icon}
-                            selected={viewer.look === look}
-                            onClick={() => {
-                              setViewer({ look });
-                              setPreviewLook(look);
-                            }}
-                          />
-                        ))}
-                    </div>
-                    {enabledLooks.includes("clean") && (
-                      <label
-                        className="block space-y-2"
-                        onPointerDownCapture={() => setPreviewLook("clean")}
-                      >
-                        <span>
-                          Simple shadow · {Math.round((shadowOn ? shadowOpacity : 0) * 100)}%
-                        </span>
+            {showPaper && (
+              <div>
+                {enabledModes.includes("book") ? (
+                  <PageTurnSettings viewer={viewer} setViewer={setViewer} pages={p.pdf?.pages} />
+                ) : (
+                  <p className="pb-4 text-xs text-muted-foreground">Turn on the flipbook in Reading modes to choose a book type and page turns.</p>
+                )}
+                <PanelSection title="Paper" hint="The finish of the pages under Studio light.">
+                  <div data-studio-background onPointerDownCapture={() => setPreviewLook("studio")}>
+                    <PaperSettings viewer={viewer} setViewer={setViewer} heading={false} />
+                  </div>
+                </PanelSection>
+              </div>
+            )}
+            {showLook && (
+              <div ref={flipbookBox}>
+                <PanelSection title="Looks visitors get" hint="Simple is crisp and flat; Studio is lit like a photograph. Offer both and visitors can switch.">
+                  <div className="grid grid-cols-2 gap-2">
+                    {(
+                      [
+                        ["clean", "Simple", Square],
+                        ["studio", "Studio", Sun],
+                      ] as const
+                    ).map(([look, label, Icon]) => (
+                      <ChoiceTile
+                        key={look}
+                        label={label}
+                        icon={Icon}
+                        selected={enabledLooks.includes(look)}
+                        disabled={enabledLooks.length === 1 && enabledLooks.includes(look)}
+                        onClick={() => toggleLook(look, !enabledLooks.includes(look))}
+                      />
+                    ))}
+                  </div>
+                  {enabledLooks.length > 1 && (
+                    <SwitchRow label="Open in Studio" hint="Otherwise the book opens in Simple.">
+                      <input
+                        type="checkbox"
+                        checked={viewer.look === "studio"}
+                        onChange={(e) => {
+                          const look = e.target.checked ? "studio" : "clean";
+                          setViewer({ look });
+                          setPreviewLook(look);
+                          setLookTab(look);
+                        }}
+                      />
+                    </SwitchRow>
+                  )}
+                </PanelSection>
+                {enabledLooks.length > 1 && (
+                  <div className="border-t border-border/70 pt-4">
+                    <Segmented
+                      label="Look to adjust"
+                      value={editedLook}
+                      options={[["clean", "Adjust Simple"], ["studio", "Adjust Studio"]] as const}
+                      onChange={(look) => {
+                        setLookTab(look);
+                        setPreviewLook(look);
+                      }}
+                    />
+                  </div>
+                )}
+                {editedLook === "clean" ? (
+                  <div onPointerDownCapture={() => setPreviewLook("clean")}>
+                    <PanelSection title="Shadow" hint="Under the book, and on the page below while one turns.">
+                      <SliderRow label="Strength" value={`${Math.round((shadowOn ? shadowOpacity : 0) * 100)}%`}>
                         <input
                           type="range"
                           aria-label="Simple shadow"
                           min="0"
                           max="100"
                           value={Math.round((shadowOn ? shadowOpacity : 0) * 100)}
-                          className="w-full accent-leaf"
+                          className="w-full"
                           onChange={(e) =>
                             setViewer({
                               simpleShadow: Number(e.target.value) > 0,
@@ -397,58 +404,50 @@ export function StyleForm({
                             })
                           }
                         />
-                      </label>
-                    )}
-                    {enabledLooks.includes("studio") && (
-                      <div
-                        className="space-y-3 border-t border-border pt-3"
-                        onPointerDownCapture={() => setPreviewLook("studio")}
-                      >
-                        <StudioLightingSettings viewer={viewer} setViewer={setViewer} />
-                        <p>Offer Studio in</p>
-                        {(
-                          [
-                            ["scroll", "Scroll"],
-                            ["paged", "Page by page"],
-                          ] as const
-                        ).map(([mode, label]) => (
-                          <label key={mode} className="flex items-center gap-2">
-                            <input
-                              type="checkbox"
-                              checked={!viewer.studioModes || viewer.studioModes.includes(mode)}
-                              onChange={(e) => {
-                                const modes = viewer.studioModes ?? ["book", "scroll", "paged"];
-                                setViewer({
-                                  studioModes: e.target.checked
-                                    ? [...new Set([...modes, mode])]
-                                    : modes.filter((v) => v !== mode),
-                                });
-                              }}
-                            />
-                            {label}
-                          </label>
-                        ))}
-                      </div>
-                    )}
+                      </SliderRow>
+                    </PanelSection>
+                    <PanelSection title="Shading style">
+                      <ShadeStylePicker value={viewer.simpleShading} onChange={(simpleShading) => setViewer({ simpleShading })} />
+                    </PanelSection>
                   </div>
-                )}
-                {showPaper && (
-                  <div
-                    data-studio-background
-                    className="space-y-3"
-                    onPointerDownCapture={() => setPreviewLook("studio")}
-                  >
-                    <PaperSettings viewer={viewer} setViewer={setViewer} />
+                ) : (
+                  <div onPointerDownCapture={() => setPreviewLook("studio")}>
+                    <PanelSection title="Light" hint="Preview any light. Free includes 1–4; Personal unlocks all 15 when saving.">
+                      <StudioLightingSettings viewer={viewer} setViewer={setViewer} heading={false} />
+                    </PanelSection>
+                    <PanelSection title="Offer Studio in" hint="The flipbook always offers it.">
+                      {(
+                        [
+                          ["scroll", "Scroll"],
+                          ["paged", "Page by page"],
+                        ] as const
+                      ).map(([mode, label]) => (
+                        <SwitchRow key={mode} label={label}>
+                          <input
+                            type="checkbox"
+                            checked={!viewer.studioModes || viewer.studioModes.includes(mode)}
+                            onChange={(e) => {
+                              const modes = viewer.studioModes ?? ["book", "scroll", "paged"];
+                              setViewer({
+                                studioModes: e.target.checked
+                                  ? [...new Set([...modes, mode])]
+                                  : modes.filter((v) => v !== mode),
+                              });
+                            }}
+                          />
+                        </SwitchRow>
+                      ))}
+                    </PanelSection>
                   </div>
-                )}
-                {showBackground && (
-                  <BackgroundSettings
-                    viewer={viewer}
-                    setViewer={setViewer}
-                    defaultColour={wheelColour}
-                  />
                 )}
               </div>
+            )}
+            {showBackground && (
+              <BackgroundSettings
+                viewer={viewer}
+                setViewer={setViewer}
+                defaultColour={wheelColour}
+              />
             )}
           </div>
         </div>

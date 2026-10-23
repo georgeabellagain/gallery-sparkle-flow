@@ -4,9 +4,11 @@ import { studioShadowSize, studioShadowRadius } from "./shadow-quality";
 import { createBookBinding, sideShare, type BindingSide, type RibbonTurn } from "./book-binding";
 import { createGutterShade } from "./gutter-shade";
 import { createTurnShade } from "./turn-shade";
+import { readableShadeStyle, shadeStyleIndex, shadeStyleUniform, type ShadeStyle } from "./shade-style";
 import { createPageVideo, type PageVideoSource } from "./page-video";
 import { bindingTurnCurve, bookStyleProfile, type BookStyle } from "./book-style";
-import { constrainFoldPointer, pointerFoldProgress, type FoldPoint, type TurnCurve } from "./turn-curve";
+import { clampOrbit, isOrbiting, orbitDirection, orbitTilt, type Orbit } from "./orbit-view";
+import { constrainFoldPointer,pointerFoldProgress, type FoldPoint, type TurnCurve } from "./turn-curve";
 import { createCachedLightMask } from "./cached-light-mask";
 import { createSettledPaperCache } from "./settled-paper";
 import { presetShadow } from "./lighting";
@@ -57,6 +59,8 @@ export type StudioSettings = {
   simpleShadow: boolean;
   /** Simple look only: how dark that shadow is, 0..1. */
   simpleShadowOpacity: number;
+  /** Simple look only: how shade is drawn (smooth, stippled, hatched...). */
+  shadeStyle?: ShadeStyle;
 };
 export type BookFaces = [HTMLCanvasElement | null, HTMLCanvasElement | null];
 const ease = turnEase;
@@ -516,7 +520,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     const update = pendingDragShape;
     pendingDragShape = null;
     update?.();
-    backdrop.frame(camera, w, h, Math.max(ratio * 1.1 + FRAME_PAD, 2.32 / camera.aspect) * (1 + inset));
+    // A tilted view sees past the edges of a backdrop sized for looking straight down.
+    backdrop.frame(camera, w, h, Math.max(ratio * 1.1 + FRAME_PAD, 2.32 / camera.aspect) * (1 + inset) * (1 + 4.5 * Math.sin(orbitTilt(orbit))));
     // Output-sized filtered maps remain attached to the lights. Moving sheets and notes
     // update once per displayed frame; idle scenes only refresh when dirtied.
     // Keep hidden receiving/covered pages in the shadow pass throughout a turn.
@@ -546,6 +551,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const FRAME_PAD = 0.12 + 0.08 * ratio;
   /** Extra room around the book (the editor uses it to keep the book clear of its tools). */
   let inset = 0;
+  /** The 3D view's angle over the book (0, 0 looks straight down). */
+  let orbit: Orbit = { yaw: 0, pitch: 0 };
   const cameraHeight = (scale: number, atFocus = focus) => {
     const aspect = Math.max(1, host.clientWidth) / Math.max(1, host.clientHeight);
     // Frame a lone cover as a page, but leave room for both pages once open.
@@ -573,8 +580,16 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     clampPan();
     const visibleHeight = height ?? cameraHeight(zoom);
     const distance = visibleHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
-    camera.position.set(focus + panX, panY, distance);
-    camera.lookAt(focus + panX, panY, 0);
+    if (isOrbiting(orbit)) {
+      // The 3D view always circles the middle of the book; panning doesn't apply.
+      // Step back as the view leans, so the near edge of the book stays in frame.
+      const d = orbitDirection(orbit), away = distance * (1 + 0.45 * Math.sin(orbitTilt(orbit)));
+      camera.position.set(focus + d.x * away, d.y * away, d.z * away);
+      camera.lookAt(focus, 0, 0);
+    } else {
+      camera.position.set(focus + panX, panY, distance);
+      camera.lookAt(focus + panX, panY, 0);
+    }
     camera.updateProjectionMatrix();
   };
   const resize = () => {
@@ -839,7 +854,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // Bound pages darken softly into the spine. Simple gets only a slim, light seam so artwork stays true.
     if (next.studio) gutter.set(next.bookStyle !== "flipbook" ? .32 : .18);
     else gutter.set(.14, .07);
-    turnShade.enable(!next.studio);
+    turnShade.enable(next.studio);
+    // Hand-drawn shading belongs to the flat, illustrated Simple look; Studio's light stays smooth.
+    shadeStyleUniform.value = next.studio ? 0 : shadeStyleIndex(readableShadeStyle(next.shadeStyle));
     for (const m of pageMaterials) {
       setNaturalImperfections(m,next.studio ? next.imperfections ?? 0 : 0);
       const stickyMatte = Boolean(m.userData["stickyMatte"]);
@@ -1085,8 +1102,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     async captureReady() { await paperTextures.ready(); await backdrop.ready(); if (!await loadEnvironment(settings.hdri)) throw new Error("Studio lighting could not be prepared."); },
     setFrameSink(sink?: (canvas: HTMLCanvasElement) => void) { frameSink = sink; paint(); },
     renderFrame: paint,
-    setBackdrop(url: string | undefined, fit: Parameters<typeof backdrop.set>[1], lit: boolean, colour: string, surface = false) {
-      backdrop.set(url, fit, true, colour, lit, surface);
+    /** `shown` false leaves the canvas clear behind the book, for a colour-and-motion scene drawn underneath it. */
+    setBackdrop(url: string | undefined, fit: Parameters<typeof backdrop.set>[1], lit: boolean, colour: string, surface = false, shown = true) {
+      backdrop.set(url, fit, shown, colour, lit, surface);
     },
     setNotes: notes.set,
     notesReady: notes.has,
@@ -1185,6 +1203,14 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       frameCamera();
       requestPaint(false);
     },
+    /** Moves the 3D view (held to the dome above the book); returns the angle actually used. */
+    orbit(next: Orbit) {
+      orbit = clampOrbit(next);
+      if (isOrbiting(orbit)) { panX = 0; panY = 0; }
+      frameCamera();
+      requestPaint(false);
+      return orbit;
+    },
     async resetZoom() {
       if (zoom === 1 && panX === 0 && panY === 0) return;
       const startZoom = zoom, startX = panX, startY = panY;
@@ -1209,8 +1235,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       return [left,right].map((mesh,index) => {
         const rigid=Boolean(mesh.userData["rigidCover"]),width=1+(rigid?2*COVER_OVERHANG:0),height=ratio+(rigid?2*COVER_OVERHANG:0),z=rigid?(mesh.userData["coverZ"] as number):0;
         const x=index===0?-width:0;
-        const top=new THREE.Vector3(x,height/2,z).project(camera),bottom=new THREE.Vector3(x+width,-height/2,z).project(camera);
-        return {x:(top.x+1)*50,y:(1-top.y)*50,width:(bottom.x-top.x)*50,height:(top.y-bottom.y)*50};
+        // All four corners, so a tilted 3D view still gets the box around the page.
+        const points=[[x,height/2],[x+width,height/2],[x,-height/2],[x+width,-height/2]].map(([px,py])=>new THREE.Vector3(px,py,z).project(camera));
+        const xs=points.map(p=>(p.x+1)*50),ys=points.map(p=>(1-p.y)*50);
+        return {x:Math.min(...xs),y:Math.min(...ys),width:Math.max(...xs)-Math.min(...xs),height:Math.max(...ys)-Math.min(...ys)};
       });
     },
     corners() {

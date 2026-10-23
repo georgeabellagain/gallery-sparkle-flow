@@ -77,6 +77,8 @@ export interface ViewerSettings {
   simpleShadow?: boolean;
   /** How dark that shadow is, 0 to 1. Starts at 0.2. */
   simpleShadowOpacity?: number;
+  /** Simple look: how shade on the pages is drawn. Omitted is standard. */
+  simpleShading?: import("./shade-style").ShadeStyle;
   background: "midnight" | "black" | "paper" | "soft" | "oak" | "walnut";
   finish: import("./surface").SurfaceKind;
   paper: "smooth" | "natural";

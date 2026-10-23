@@ -732,7 +732,7 @@ export function PdfViewer({
     >
       {backgroundUrl && mode !== "book" && (
         <div aria-hidden className="pointer-events-none sticky top-0 -z-10 -mb-[100svh] h-[100svh] w-full overflow-hidden">
-          <BackdropLayer colour={colour} imageUrl={backgroundUrl} fit={bgView.backgroundFit} />
+          <BackdropLayer colour={colour} imageUrl={backgroundUrl} fit={bgView.backgroundFit} scene={bgView.backgroundKey ? undefined : bgView.backgroundPreset} />
         </div>
       )}
 

@@ -3,6 +3,8 @@ import { Link } from "@tanstack/react-router";
 import logo from "@/assets/portfolia-logo.png";
 import { cn } from "@/lib/utils";
 import { fitTransform, toneOfHex, type BackgroundFit } from "@/lib/portfolia/background";
+import { backgroundScene } from "@/lib/portfolia/background-scenes";
+import { BackgroundSceneLayer } from "./BackgroundSceneLayer";
 
 /** Whether the backdrop behind the controls is light or dark. */
 export type Tone = "light" | "dark";
@@ -161,8 +163,13 @@ export function Segmented<T extends string>({
   );
 }
 
-/** The colour (or picture) behind the PDF. A picture always covers the area. */
-export function BackdropLayer({ colour, imageUrl, fit, className }: { colour: string; imageUrl?: string; fit?: Partial<BackgroundFit>; className?: string }) {
+/** The colour (or picture, or colour-and-motion scene) behind the PDF. A picture always covers the area. */
+export function BackdropLayer({ colour, imageUrl, fit, className, scene }: { colour: string; imageUrl?: string; fit?: Partial<BackgroundFit>; className?: string; scene?: string }) {
+  const sceneSpec = backgroundScene(scene);
+  if (sceneSpec) return <BackgroundSceneLayer scene={sceneSpec} className={className} />;
+  return <PictureBackdrop colour={colour} imageUrl={imageUrl} fit={fit} className={className} />;
+}
+function PictureBackdrop({ colour, imageUrl, fit, className }: { colour: string; imageUrl?: string; fit?: Partial<BackgroundFit>; className?: string }) {
   const host=useRef<HTMLDivElement>(null), [size,setSize]=useState(0);
   useEffect(()=>{const el=host.current;if(!el)return;const measure=()=>setSize(Math.max(el.clientWidth,el.clientHeight));measure();const observer=new ResizeObserver(measure);observer.observe(el);return()=>observer.disconnect();},[]);
   const tiled=fit?.tile && (fit.scale ?? 1)<1, scale=Math.max(.25,fit?.scale ?? 1);

@@ -311,9 +311,9 @@ export function LiveScrapbookPage({
               key={t.id}
               className="absolute pointer-events-auto ring-2 ring-blue-500"
               style={{
-                left: side === "left" ? "-7.5%" : "100%",
+                left: side === "left" ? "-5.6%" : "100%",
                 top: `${(0.5 - slot.y / ratio - slot.height / ratio / 2) * 100}%`,
-                width: "7.5%",
+                width: "5.6%",
                 height: `${(slot.height / ratio) * 100}%`,
                 background: t.colour,
               }}

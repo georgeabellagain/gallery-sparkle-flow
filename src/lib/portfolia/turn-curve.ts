@@ -54,22 +54,30 @@ function foldLine(grabY: number, pointer: FoldPoint) {
   const shift = Math.min(wrap, length) / 2;
   return { nx, ny, mx: (1 + pointer.x) / 2 - nx * shift, my: (grabY + pointer.y) / 2 - ny * shift, radius, wrap };
 }
-/** Keeps the pointer where paper bound at the spine could actually reach, so the fold never crosses the spine. */
+/** The steepest the fold may tilt, up or down, at the start of a pointer turn. */
+export const FOLD_MAX_TILT = (30 * Math.PI) / 180;
+/**
+ * Hard stops for a pointer turn. The page follows the pointer's horizontal travel exactly; how far it may be pulled
+ * up or down is limited to a tilt of FOLD_MAX_TILT, narrowing to level as the page goes over, and never so steep
+ * that the fold line would reach the spine anywhere on the page. It is a smooth function of the pointer, so the
+ * page never jumps or twitches, however far the pointer goes.
+ */
 export function constrainFoldPointer(grabY: number, pointer: FoldPoint, ratio: number): FoldPoint {
-  let px = Math.max(-1, Math.min(1, pointer.x)), py = Math.max(-ratio * 0.25, Math.min(ratio * 1.25, pointer.y));
-  // The grabbed point stays within a page width of the spine at its own height.
-  const dy0 = py - grabY, d = Math.hypot(px, dy0);
-  if (d > 1) { px /= d; py = grabY + dy0 / d; }
-  // Steep folds are eased back towards level until the fold line stays on the page side of the spine.
-  for (let i = 0; i < 24; i++) {
-    const line = foldLine(grabY, { x: px, y: py });
-    if (!line || line.nx < 1e-6) break;
-    const xAt = (y: number) => line.mx - ((y - line.my) * line.ny) / line.nx;
-    if (Math.min(xAt(0), xAt(ratio)) >= 0) break;
-    py = grabY + (py - grabY) * 0.75;
-    if (Math.abs(py - grabY) < 1e-4) { px = Math.max(px, -1); break; }
-  }
-  return { x: px, y: py };
+  const px = Math.max(-1, Math.min(1, Number.isFinite(pointer.x) ? pointer.x : 1));
+  const dx = 1 - px, progress = pointerFoldProgress({ x: px, y: grabY });
+  if (dx < 1e-6) return { x: px, y: grabY };
+  // Tilt allowed by the stop, easing to level as the page lands.
+  const ease = 1 - progress * progress * (3 - 2 * progress);
+  let tanMax = Math.tan(FOLD_MAX_TILT) * ease;
+  // And by the spine: the fold line, from its middle, may lean at most until it touches x = 0 at the page's far edge.
+  const radius = 0.085 * Math.pow(Math.sin(Math.PI * progress), 0.7);
+  const middle = (1 + px) / 2 - Math.min(Math.PI * radius, dx) / 2;
+  const reach = Math.max(grabY, ratio - grabY) + 1e-6;
+  tanMax = Math.max(0, Math.min(tanMax, (middle * 0.95) / reach));
+  // The pointer's own tilt, held within the stops.
+  const wanted = (grabY - (Number.isFinite(pointer.y) ? pointer.y : grabY)) / dx;
+  const tilt = Math.max(-tanMax, Math.min(tanMax, wanted));
+  return { x: px, y: grabY - dx * tilt };
 }
 export function pointerFold(x: number, y: number, grabY: number, pointer: FoldPoint): { x: number; y: number; z: number } {
   const line = foldLine(grabY, pointer);
@@ -77,7 +85,8 @@ export function pointerFold(x: number, y: number, grabY: number, pointer: FoldPo
   const { nx, ny, mx, my, radius } = line;
   // Distance past the fold line, towards the grabbed point. The spine side stays where it is.
   const s = (x - mx) * nx + (y - my) * ny;
-  if (s <= 0) return { x, y, z: 0 };
+  // The spine is the hinge and never moves; points within a millionth of the fold count as unfolded.
+  if (s <= 1e-6 || x <= 1e-9) return { x, y, z: 0 };
   if (radius < 1e-5) return { x: x - 2 * s * nx, y: y - 2 * s * ny, z: 0 };
   const wrap = line.wrap;
   if (s < wrap) {

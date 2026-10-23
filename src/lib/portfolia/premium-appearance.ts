@@ -2,7 +2,7 @@ import { DEFAULT_STYLE } from "./store";
 import type { Portfolio } from "./store";
 import { SPOTLIGHT_LIMITS } from "./page-extras";
 export const FREE_HDRIS = ["1", "2", "3", "4"];
-export const FREE_BACKGROUNDS = ["wood_floor", "concrete_floor_02"];
+export const FREE_BACKGROUNDS = ["wood_floor", "concrete_floor_02", "scene:sorbet", "scene:aurora"];
 export const personalHdri = (id: string) => !FREE_HDRIS.includes(id);
 export const personalBackground = (id: string) => !FREE_BACKGROUNDS.includes(id);
 export function premiumAppearance(p: Portfolio): string[] {

@@ -3,7 +3,7 @@ import { LiveScrapbookContext, type ScrapbookSelection } from "./live-scrapbook-
 import { ScrapbookQuickPanel } from "./ScrapbookQuickPanel";
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Camera, ChartNoAxesColumn, BookOpen, GripHorizontal, FolderOpen, Image as ImageIcon, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
+import { ArrowLeft, Book as BookIcon, Camera, ChartNoAxesColumn, BookOpen, ChevronRight, ChevronsLeft, ChevronsRight, GripHorizontal, FolderOpen, Image as ImageIcon, Megaphone, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/pf/Chrome";
 import { ScrapbookDialog, type ScrapbookPanel } from "@/components/pf/FoldoutSettings";
@@ -44,19 +44,37 @@ import { openingLook } from "@/lib/portfolia/appearance";
 const PhotoShoot=lazy(()=>import("./PhotoShoot").then(module=>({default:module.PhotoShoot})));
 
 type Tool = "shoot" | "book" | "customise" | "profile" | "reading" | "look" | "paper" | "background" | "scrapbook" | "projects" | "publish" | "share" | "statistics";
-const TOOLS: Array<[Tool, string, typeof Sun]> = [
-  ["reading", "Visual style", BookOpen],
-  ["look", "Lighting", Sun],
-  ["paper", "Paper", BookOpen],
-  ["background", "Background", ImageIcon],
-  ["scrapbook", "Scrapbook", StickyNote],
-  ["projects", "Projects", FolderOpen],
-  ["book", "Book marketing", BookOpen],
-  ["shoot", "Photo shoot", Camera],
-  ["share", "Share", Share2],
-  ["statistics", "Statistics", ChartNoAxesColumn],
-  ["publish", "File & publishing", Upload],
+/** The dock, in three groups: how the book looks, what is on it, and getting it out. */
+const TOOL_GROUPS: Array<Array<[Tool, string, typeof Sun]>> = [
+  [
+    ["paper", "Book & turns", BookIcon],
+    ["look", "Light & shade", Sun],
+    ["background", "Background", ImageIcon],
+    ["reading", "Reading modes", BookOpen],
+  ],
+  [
+    ["scrapbook", "Scrapbook", StickyNote],
+    ["projects", "Projects", FolderOpen],
+    ["book", "Book marketing", Megaphone],
+    ["shoot", "Photo shoot", Camera],
+  ],
+  [
+    ["share", "Share", Share2],
+    ["statistics", "Statistics", ChartNoAxesColumn],
+    ["publish", "File & publishing", Upload],
+  ],
 ];
+const TOOLS = TOOL_GROUPS.flat();
+/** One line under each panel's title saying what it changes. */
+const TOOL_HINTS: Partial<Record<Tool, string>> = {
+  paper: "The kind of book, how its pages turn, and the paper.",
+  look: "Simple and Studio: shadows, shading and light.",
+  background: "What sits behind the book.",
+  reading: "How visitors can read: flipbook, scroll or page by page.",
+  scrapbook: "Notes, tabs, links, videos and spotlights on pages.",
+  customise: "Choose what to change.",
+};
+const PANEL_WIDE_KEY = "pf-panel-wide";
 
 /** The bar across the top of the editor: where you are, whether it is saved, how the book looks, and publishing. */
 export function EditorBar({
@@ -162,6 +180,9 @@ export function EditorStage({
     return () => observer.disconnect();
   }, []);
   const [tool, setTool] = useState<Tool | null>(null);
+  // A wider panel, remembered on this device.
+  const [wide, setWide] = useState(() => { try { return localStorage.getItem(PANEL_WIDE_KEY) === "1"; } catch { return false; } });
+  const toggleWide = () => setWide((current) => { try { localStorage.setItem(PANEL_WIDE_KEY, current ? "0" : "1"); } catch { /* not remembered */ } return !current; });
   const [scrapbook, setScrapbook] = useState<ScrapbookPanel | null>(null);
   const [selection, setSelection] = useState<ScrapbookSelection>(null);
   const [shownPages, setShownPages] = useState<Array<{ page: number; half?: "left" | "right" }>>([]);
@@ -236,7 +257,9 @@ export function EditorStage({
           }}
         ><GripHorizontal className="size-4" aria-hidden /></button>
         <div className="flex min-h-0 gap-1 overflow-auto lg:flex-col">
-        {TOOLS.map(([id, label, Icon]) => (
+        {TOOL_GROUPS.map((group, g) => [
+          g > 0 && <span key={`gap${g}`} aria-hidden className="mx-0.5 w-px shrink-0 self-stretch bg-border lg:mx-2 lg:my-1 lg:h-px lg:w-auto" />,
+          ...group.map(([id, label, Icon]) => (
           <button
             key={id}
             type="button"
@@ -254,27 +277,50 @@ export function EditorStage({
               {label}
             </span>
           </button>
-        ))}
+        ))])}
         </div>
       </nav>}
       {tool && tool !== "shoot" && (
         <section
           aria-label={title}
-          className="absolute inset-x-2 bottom-36 z-30 max-h-[62%] overflow-y-auto overflow-x-hidden [overflow-wrap:anywhere] rounded-2xl border border-border bg-background p-4 shadow-soft lg:inset-x-auto lg:bottom-4 lg:right-4 lg:top-4 lg:max-h-none lg:w-[19rem]"
+          className={cn("pf-panel absolute inset-x-2 bottom-36 z-30 max-h-[62%] overflow-y-auto overflow-x-hidden overscroll-contain [overflow-wrap:anywhere] rounded-3xl border border-border/80 bg-background/95 px-5 pb-5 shadow-lift backdrop-blur-xl [scrollbar-width:thin] lg:inset-x-auto lg:bottom-4 lg:right-4 lg:top-4 lg:max-h-none lg:transition-[width] lg:duration-300", wide ? "lg:w-[31rem]" : "lg:w-[23rem]")}
         >
-          <div className="mb-3 flex items-center justify-between border-b border-border pb-2">
-            <div className="flex items-center gap-2">
-              {tool !== "customise" && <Button size="xs" variant="quiet" onClick={() => setTool("customise")} aria-label="Back to customise options"><ArrowLeft className="size-4" />Back</Button>}
-              <h2 className="text-sm font-medium">{title}</h2>
+          <div className="sticky top-0 z-10 -mx-5 mb-4 flex items-start justify-between gap-2 border-b border-border/70 bg-background/90 px-5 pb-3 pt-4 backdrop-blur-xl">
+            <div className="flex min-w-0 items-start gap-2">
+              {tool !== "customise" && <button type="button" onClick={() => setTool("customise")} aria-label="Back to customise options" className="-ml-1.5 mt-0.5 rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"><ArrowLeft className="size-4" /></button>}
+              <div className="min-w-0">
+                <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
+                {TOOL_HINTS[tool] && <p className="mt-0.5 text-xs text-muted-foreground">{TOOL_HINTS[tool]}</p>}
+              </div>
             </div>
-            <button type="button" aria-label="Close panel" className="rounded-full p-1.5 hover:bg-muted" onClick={() => setTool(null)}>
-              <X className="size-4" />
-            </button>
+            <div className="flex shrink-0 items-center">
+              <button type="button" aria-label={wide ? "Narrower panel" : "Wider panel"} title={wide ? "Narrower" : "Wider"} aria-pressed={wide} className="hidden rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground lg:block" onClick={toggleWide}>
+                {wide ? <ChevronsRight className="size-4" /> : <ChevronsLeft className="size-4" />}
+              </button>
+              <button type="button" aria-label="Close panel" className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" onClick={() => setTool(null)}>
+                <X className="size-4" />
+              </button>
+            </div>
           </div>
-          {tool === "customise" && <div className="space-y-2">
-            <label className="mb-3 block text-xs">Portfolio name<input aria-label="Portfolio name" className="mt-1 w-full rounded-lg border bg-background p-2 text-sm" value={p.name ?? ""} maxLength={120} placeholder={p.pdf?.name ?? "My portfolio"} onChange={e=>patchPortfolio({name:e.target.value})} /></label>
-            {([["reading", "Visual style"], ["look", "Lighting"], ["paper", "Paper"], ["background", "Background"], ["scrapbook", "Notes, tabs, links & spotlights"], ["book", "Book marketing"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="line" size="sm" onClick={() => setTool(id)}>{label}</Button>)}
-            <details className="pt-3"><summary className="cursor-pointer text-sm">More options</summary><div className="mt-3 grid gap-2">{([["profile", "Profile details"], ["projects", "Named projects"], ["publish", "File & publishing"], ["statistics", "Statistics"]] as const).map(([id, label]) => <Button key={id} className="w-full justify-start" variant="quiet" size="sm" onClick={() => setTool(id)}>{label}</Button>)}</div></details>
+          {tool === "customise" && <div className="space-y-5">
+            <label className="block text-xs">Portfolio name<input aria-label="Portfolio name" className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/40" value={p.name ?? ""} maxLength={120} placeholder={p.pdf?.name ?? "My portfolio"} onChange={e=>patchPortfolio({name:e.target.value})} /></label>
+            {([["Design", TOOL_GROUPS[0]!], ["On the pages", TOOL_GROUPS[1]!.filter(([id]) => id !== "shoot")], ["More", [["profile", "Profile details", BookOpen] as [Tool, string, typeof Sun], ...TOOL_GROUPS[2]!.filter(([id]) => id !== "share")]]] as const).map(([heading, items]) => (
+              <div key={heading} className="space-y-1.5">
+                <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{heading}</h3>
+                <div className="overflow-hidden rounded-2xl border border-border/80">
+                  {items.map(([id, label, Icon]) => (
+                    <button key={id} type="button" onClick={() => setTool(id)} className="flex w-full items-center gap-3 border-t border-border/70 px-3 py-2.5 text-left text-sm transition-colors first:border-t-0 hover:bg-muted/60">
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted"><Icon className="size-4" aria-hidden /></span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block">{label}</span>
+                        {TOOL_HINTS[id] && <span className="block truncate text-xs text-muted-foreground">{TOOL_HINTS[id]}</span>}
+                      </span>
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>}
           {tool === "profile" && profile}
           {tool === "statistics" && (statistics ?? <p className="text-sm text-muted-foreground">Sign in to see portfolio statistics.</p>)}

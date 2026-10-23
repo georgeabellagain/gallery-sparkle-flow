@@ -10,8 +10,8 @@ export interface TabPlan {
 }
 /** How far a tab sticks out of the page edge and how far it tucks under it, in page widths. */
 export const TAB_SIZE = {
-  full: { out: 0.075, in: 0.012 },
-  compact: { out: 0.036, in: 0.012 },
+  full: { out: 0.056, in: 0.012 },
+  compact: { out: 0.032, in: 0.012 },
 };
 /** How strongly a turning sheet bows (matches the sheet in book-scene). */
 export const SHEET_CURL = 0.22;
@@ -23,7 +23,7 @@ const smooth = (t: number) => {
 export function tabSlot(ratio: number, index: number, count: number, position?: number, scale = 1) {
   const usable = ratio * 0.9;
   const gap = 0.012;
-  const height = Math.min(ratio * 0.16 * Math.max(.5,Math.min(2,scale)), (usable - gap * (count - 1)) / Math.max(1, count));
+  const height = Math.min(ratio * 0.135 * Math.max(.5,Math.min(2,scale)), (usable - gap * (count - 1)) / Math.max(1, count));
   const total = count * height + (count - 1) * gap;
   const automatic = total / 2 - height / 2 - index * (height + gap);
   const limit = ratio / 2 - height / 2;

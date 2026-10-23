@@ -4,6 +4,7 @@ import { PAPER_STYLES, paperFinish } from "@/lib/portfolia/surface";
 import type { ViewerSettings } from "@/lib/portfolia/store";
 import { Square, Layers, Origami, Newspaper } from "lucide-react";
 import { ChoiceTile } from "./ChoiceTile";
+import { SliderRow } from "./panel-ui";
 type Props = {
   viewer: Partial<ViewerSettings>;
   setViewer: (patch: Partial<ViewerSettings>) => unknown;
@@ -12,21 +13,26 @@ export function StudioLightingSettings({
   viewer,
   setViewer,
   photo = false,
+  heading = true,
 }: {
   viewer: Partial<ViewerSettings>;
   setViewer: Props["setViewer"];
   photo?: boolean;
+  /** False when a panel section already titles it. */
+  heading?: boolean;
 }) {
   const studioLighting = viewer.studioLighting ?? "4",
     studioBrightness = viewer.studioBrightness ?? 0.5;
   return (
     <div className="space-y-3">
-      <p>Studio HDRI</p>
-      <p className="text-xs text-muted-foreground">
-        {photo
-          ? "Choose the light for this photograph."
-          : "Preview any light. Free includes 1–4; Personal unlocks all 15 when saving."}
-      </p>
+      {heading && <>
+        <p>Studio HDRI</p>
+        <p className="text-xs text-muted-foreground">
+          {photo
+            ? "Choose the light for this photograph."
+            : "Preview any light. Free includes 1–4; Personal unlocks all 15 when saving."}
+        </p>
+      </>}
       {([false, true] as const).map((personal) => (
         <section
           key={String(personal)}
@@ -42,17 +48,16 @@ export function StudioLightingSettings({
                 aria-pressed={studioLighting === light.id}
                 aria-label={`Lighting ${light.label}`}
                 onClick={() => setViewer({ studioLighting: light.id })}
-                className={`h-16 rounded-lg border bg-cover text-white ${studioLighting === light.id ? "ring-2 ring-foreground ring-offset-1 border-foreground" : "border-border"}`}
+                className={`relative h-16 overflow-hidden rounded-xl border bg-cover text-white transition-shadow hover:shadow-sm ${studioLighting === light.id ? "ring-2 ring-foreground ring-offset-1 border-foreground" : "border-border"}`}
                 style={{ background: light.preview }}
               >
-                <span className="rounded bg-black/60 px-2 py-1">{light.label}</span>
+                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent px-2 pb-1 pt-3 text-left text-[10px] font-medium">{light.label}</span>
               </button>
             ))}
           </div>
         </section>
       ))}
-      <label className="block space-y-1">
-        <span>Brightness · {Math.round(studioBrightness * 100)}%</span>
+      <SliderRow label="Brightness" value={`${Math.round(studioBrightness * 100)}%`}>
         <input
           className="w-full accent-leaf"
           type="range"
@@ -62,9 +67,8 @@ export function StudioLightingSettings({
           value={Math.round(studioBrightness * 100)}
           onChange={(e) => setViewer({ studioBrightness: Number(e.target.value) / 100 })}
         />
-      </label>
-      <label className="block space-y-1">
-        <span>Diffusion · {Math.round((1 - (viewer.studioLightingStrength ?? 0.75)) * 100)}%</span>
+      </SliderRow>
+      <SliderRow label="Diffusion" value={`${Math.round((1 - (viewer.studioLightingStrength ?? 0.75)) * 100)}%`}>
         <input
           className="w-full accent-leaf"
           type="range"
@@ -78,9 +82,8 @@ export function StudioLightingSettings({
             })
           }
         />
-      </label>
-      <label className="block space-y-1">
-        <span>White top light · {Math.round((viewer.studioTopLight ?? 0) * 100)}%</span>
+      </SliderRow>
+      <SliderRow label="White top light" value={`${Math.round((viewer.studioTopLight ?? 0) * 100)}%`}>
         <input
           className="w-full accent-leaf"
           type="range"
@@ -90,14 +93,14 @@ export function StudioLightingSettings({
           value={Math.round((viewer.studioTopLight ?? 0) * 100)}
           onChange={(e) => setViewer({ studioTopLight: Number(e.target.value) / 100 })}
         />
-      </label>
+      </SliderRow>
     </div>
   );
 }
-export function PaperSettings({ viewer, setViewer }: Props) {
+export function PaperSettings({ viewer, setViewer, heading = true }: Props & { heading?: boolean }) {
   return (
     <div className="space-y-3">
-      <p className="font-medium">Paper</p>
+      {heading && <p className="font-medium">Paper</p>}
       <div className="grid grid-cols-2 gap-2">
         {PAPER_STYLES.map(([id, label]) => (
           <ChoiceTile

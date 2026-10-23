@@ -567,6 +567,29 @@
 .pf-editor-stage[data-fullscreen="true"] { --pf-paged-height: 100dvh; }
 .pf-editor-stage[data-fullscreen="true"] .pf-book-viewport { height: 100dvh; }
 
+/* Colour-and-motion backgrounds (BackgroundSceneLayer): blobs only move, so nothing repaints. */
+.pf-scene-blob { position: absolute; border-radius: 50%; will-change: transform; animation: pf-scene-drift var(--pf-period) ease-in-out infinite alternate; }
+@keyframes pf-scene-drift { from { transform: translate3d(-50%, -50%, 0) scale(1); } to { transform: translate3d(calc(-50% + var(--pf-dx)), calc(-50% + var(--pf-dy)), 0) scale(1.08); } }
+.pf-scene-still .pf-scene-blob { animation: none; transform: translate3d(-50%, -50%, 0); }
+.pf-scene-sweep { position: absolute; inset: -20% -60%; will-change: transform; animation: pf-scene-sweep 18s ease-in-out infinite alternate; }
+@keyframes pf-scene-sweep { from { transform: translate3d(-25%, 0, 0) rotate(8deg); } to { transform: translate3d(25%, 0, 0) rotate(8deg); } }
+@media (prefers-reduced-motion: reduce) { .pf-scene-blob { animation: none; transform: translate3d(-50%, -50%, 0); } .pf-scene-sweep { animation: none; } }
+
+/* Customisation panels: thin, quiet sliders and switches. */
+.pf-panel input[type="range"] { appearance: none; -webkit-appearance: none; height: 18px; background: transparent; cursor: pointer; }
+.pf-panel input[type="range"]::-webkit-slider-runnable-track { height: 4px; border-radius: 999px; background: color-mix(in oklab, currentColor 14%, transparent); }
+.pf-panel input[type="range"]::-moz-range-track { height: 4px; border-radius: 999px; background: color-mix(in oklab, currentColor 14%, transparent); }
+.pf-panel input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; margin-top: -6px; width: 16px; height: 16px; border-radius: 999px; background: var(--background); border: 1.5px solid currentColor; box-shadow: 0 1px 3px rgb(0 0 0 / .18); transition: transform .15s; }
+.pf-panel input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 999px; background: var(--background); border: 1.5px solid currentColor; box-shadow: 0 1px 3px rgb(0 0 0 / .18); }
+.pf-panel input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.15); }
+.pf-panel input[type="range"]:disabled { opacity: .4; cursor: not-allowed; }
+.pf-panel input[type="checkbox"] { appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 30px; height: 18px; border-radius: 999px; background: color-mix(in oklab, currentColor 18%, transparent); cursor: pointer; transition: background .2s; }
+.pf-panel input[type="checkbox"]::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 999px; background: white; box-shadow: 0 1px 2px rgb(0 0 0 / .25); transition: transform .2s; }
+.pf-panel input[type="checkbox"]:checked { background: var(--foreground); }
+.pf-panel input[type="checkbox"]:checked::after { transform: translateX(12px); }
+.pf-panel input[type="checkbox"]:disabled { opacity: .45; cursor: not-allowed; }
+.pf-panel input[type="checkbox"]:focus-visible, .pf-panel input[type="range"]:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
 /* The paper moves through viewport-fixed Studio light, with no baked illumination. */
 .pf-paged-slide { animation: pf-reader-slide 480ms cubic-bezier(.22,.7,.25,1); }
 @keyframes pf-reader-slide { from { transform: translateX(24%); } to { transform: translateX(0); } }

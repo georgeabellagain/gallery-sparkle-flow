@@ -11,8 +11,8 @@ test("no shade on either page before or after a turn", () => {
 });
 
 test("the page left behind darkens slightly as the sheet lifts, then clears by mid-turn", () => {
-  const early = turnShadeAt(0.08), mid = turnShadeAt(0.5);
-  assert.ok(early.source.strength > 0.1 && early.source.strength <= 0.2);
+  const early = turnShadeAt(0.08), mid = turnShadeAt(0.56);
+  assert.ok(early.source.strength > 0.25 && early.source.strength <= 0.42, "clearly visible, never black");
   assert.equal(mid.source.strength, 0);
   assert.ok(turnShadeAt(0.1).source.reach > turnShadeAt(0.4).source.reach, "the shade draws in towards the spine as the sheet rises");
 });
@@ -23,5 +23,5 @@ test("the page being covered darkens slowly as the sheet closes on it, spreading
     assert.ok(values[i]!.strength > values[i - 1]!.strength);
     assert.ok(values[i]!.reach >= values[i - 1]!.reach);
   }
-  assert.ok(values[3]!.strength <= 0.32);
+  assert.ok(values[3]!.strength > 0.45 && values[3]!.strength <= 0.6);
 });

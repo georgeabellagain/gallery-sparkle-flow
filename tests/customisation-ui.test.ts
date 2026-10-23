@@ -26,10 +26,10 @@ test("visual style presents three mode tiles and a separate first-view selection
   const html = renderToStaticMarkup(
     createElement(StyleForm, { p, part: "reading", onSaveError: () => {} }),
   );
-  assert.ok(html.includes("Visual styles visitors can use"));
-  assert.ok(html.includes("Shows first"));
+  assert.ok(html.includes("Visitors can read as"));
+  assert.ok(html.includes("Opens in"));
   for (const label of ["Scroll", "Page by page", "Flipbook"])
-    assert.equal(html.split(`>${label}</span>`).length - 1, 2);
+    assert.equal(html.split(`>${label}</span>`).length - 1, 1);
   assert.ok(html.includes('aria-pressed="true"'));
 });
 test("lighting and paper have separate panels and all fifteen HDRIs are selectable", () => {
@@ -37,8 +37,9 @@ test("lighting and paper have separate panels and all fifteen HDRIs are selectab
     createElement(StyleForm, { p, part: "look", onSaveError: () => {} }),
   );
   assert.equal((lighting.match(/aria-label="Lighting \d+"/g) ?? []).length, 15);
-  assert.ok(lighting.includes("Simple shadow"));
-  assert.ok(lighting.includes("Shows first"));
+  // Opens on the look the book opens in; the other is one tab away.
+  assert.ok(lighting.includes("Adjust Simple"));
+  assert.ok(lighting.includes("Open in Studio"));
   assert.ok(!lighting.includes("Newspaper"));
   const paper = renderToStaticMarkup(
     createElement(StyleForm, { p, part: "paper", onSaveError: () => {} }),
@@ -56,7 +57,8 @@ test("background panel displays per-view previews, a colour wheel and texture pr
     "Scroll",
     "Page by page",
     "Colour wheel",
-    "Presets",
+    "Surfaces",
+    "Colour &amp; motion",
   ])
     assert.ok(html.includes(label));
   assert.ok(!html.includes("3D background"));

@@ -1,4 +1,8 @@
 import { BackgroundPresetPicker } from "./BackgroundPresetPicker";
+import { BackgroundScenePicker } from "./BackgroundScenePicker";
+import { BackgroundSceneLayer } from "./BackgroundSceneLayer";
+import { PanelSection, SliderRow, SwitchRow } from "./panel-ui";
+import { backgroundScene } from "@/lib/portfolia/background-scenes";
 import { useEffect, useRef, useState } from "react";
 import { useBlob, useObjectUrl } from "./Chrome";
 import { Button } from "@/components/ui/button";
@@ -30,6 +34,8 @@ function Picture({
   const blob = useBlob(choice.backgroundKey),
     uploaded = useObjectUrl(blob);
   const url = backgroundPicture(choice, uploaded);
+  const scene = !choice.backgroundKey ? backgroundScene(choice.backgroundPreset) : null;
+  if (scene) return <span aria-label={label} className={`${className} relative block overflow-hidden`}><BackgroundSceneLayer scene={scene} /></span>;
   return url ? (
     <img src={url} alt={label} className={className} />
   ) : (
@@ -131,50 +137,64 @@ export function BackgroundSettings({
       setBusy(false);
     }
   };
+  const sceneChosen = !choice.backgroundKey && Boolean(backgroundScene(choice.backgroundPreset));
   return (
-    <div className="space-y-3">
-      <p className="font-medium">Background</p>
-      <button
-        type="button"
-        aria-pressed={target === "main"}
-        onClick={() => {
-          setTarget("main");
-          setPreviewMode(null);
-        }}
-        className="w-full overflow-hidden rounded-lg border border-border text-left aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-1"
-      >
-        <Picture choice={viewer} label="Default background" />
-        <span className="block p-2">Default background</span>
-      </button>
-      <p>Different backgrounds</p>
-      <div className="grid grid-cols-2 gap-2">
-        {contexts.map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={target === id}
-            onClick={() => {
-              setTarget(id);
-              setPreviewMode(id === "studio" || id === "clean" ? "book" : id);
-              setPreviewLook(id === "studio" ? "studio" : "clean");
-            }}
-            className="overflow-hidden rounded-lg border border-border text-left aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-1"
-          >
-            <Picture choice={backgroundFor(viewer, id)} label={label} />
-            <span className="block p-2">{label}</span>
+    <div>
+      <PanelSection
+        title="Applies to"
+        hint="One background everywhere, or a different one for each view."
+        aside={target !== "main" ? (
+          <button type="button" className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline" onClick={() => setViewer({ backgrounds: { ...viewer.backgrounds, [target]: undefined } })}>
+            Use default here
           </button>
-        ))}
-      </div>
-      <div className="space-y-3 border-t border-border pt-3">
-        <p className="font-medium">{title}</p>
-        <label className="flex items-center justify-between gap-3">
+        ) : undefined}
+      >
+        <button
+          type="button"
+          aria-pressed={target === "main"}
+          onClick={() => {
+            setTarget("main");
+            setPreviewMode(null);
+          }}
+          className="flex w-full items-center gap-3 overflow-hidden rounded-xl border border-border p-1.5 text-left text-xs aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-1"
+        >
+          <Picture choice={viewer} label="Default background" className="h-10 w-16 shrink-0 rounded-lg object-cover" />
+          <span className="font-medium">Default background</span>
+        </button>
+        <div className="grid grid-cols-2 gap-2">
+          {contexts.map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={target === id}
+              onClick={() => {
+                setTarget(id);
+                setPreviewMode(id === "studio" || id === "clean" ? "book" : id);
+                setPreviewLook(id === "studio" ? "studio" : "clean");
+              }}
+              className="overflow-hidden rounded-xl border border-border text-left text-xs aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-1"
+            >
+              <Picture choice={backgroundFor(viewer, id)} label={label} className="h-12 w-full object-cover" />
+              <span className="block px-2 py-1.5">{label}</span>
+            </button>
+          ))}
+        </div>
+      </PanelSection>
+      <PanelSection title="Colour & motion" hint="Minimal fields of colour; the moving ones drift slowly behind the book. Sorbet and Aurora are included on Free.">
+        <BackgroundScenePicker selected={!choice.backgroundKey ? choice.backgroundPreset : undefined} onSelect={(id, base) => choose({ backgroundPreset: id, backgroundColor: base })} />
+      </PanelSection>
+      <PanelSection title="Surfaces" hint="Photographed textures. Warm wood and Soft concrete are included on Free; the others and uploads need Personal to save.">
+        <BackgroundPresetPicker selected={!choice.backgroundKey?choice.backgroundPreset:undefined} onSelect={id=>choose({backgroundPreset:id,backgroundFit:{...DEFAULT_FIT,tile:true}})} />
+      </PanelSection>
+      <PanelSection title="Your own">
+        <label className="flex items-center justify-between gap-3 text-xs">
           Colour wheel
           <input
             type="color"
             aria-label={`${title} colour`}
             value={choice.backgroundColor ?? defaultColour}
             onChange={(e) => choose({ backgroundColor: e.target.value })}
-            className="h-10 w-12 cursor-pointer rounded border border-border"
+            className="h-8 w-10 cursor-pointer rounded-lg border border-border bg-transparent"
           />
         </label>
         <input
@@ -187,94 +207,71 @@ export function BackgroundSettings({
             e.currentTarget.value = "";
           }}
         />
-        <Button size="xs" variant="line" disabled={busy} onClick={() => input.current?.click()}>
+        <Button size="xs" variant="line" className="w-full" disabled={busy} onClick={() => input.current?.click()}>
           {busy ? "Saving picture…" : "Upload picture"}
         </Button>
         {uploads.length > 0 && (
-          <>
-            <p>Your pictures</p>
-            <div className="grid grid-cols-3 gap-2">
-              {uploads.map((key, i) => (
-                <button
-                  key={key}
-                  type="button"
-                  aria-label={`Use uploaded picture ${i + 1}`}
-                  aria-pressed={choice.backgroundKey === key}
-                  onClick={() => choose({ backgroundKey: key })}
-                  className="overflow-hidden rounded border border-border aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-1"
-                >
-                  <Picture choice={{ backgroundKey: key }} label={`Uploaded picture ${i + 1}`} />
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-        <p className="font-medium">Presets</p><p className="text-xs text-muted-foreground">Preview every background. Warm wood and Soft concrete are included on Free. Other presets and uploaded backgrounds require Personal to save.</p>
-        <BackgroundPresetPicker selected={!choice.backgroundKey?choice.backgroundPreset:undefined} onSelect={id=>choose({backgroundPreset:id,backgroundFit:{...DEFAULT_FIT,tile:true}})} />
-        {(choice.backgroundKey || choice.backgroundPreset) && (
-          <div className="space-y-2">
-            <Picture choice={choice} label={`${title} picture`} />
-            {(
-              [
-                [
-                  "scale",
-                  "Size",
-                  choice.backgroundPreset && !choice.backgroundKey ? 25 : 100,
-                  300,
-                  5,
-                ],
-                ["x", "Left / right", -100, 100, 2],
-                ["y", "Up / down", -100, 100, 2],
-              ] as const
-            ).map(([key, label, min, max, step]) => (
-              <label key={key} className="block space-y-1">
-                <span>
-                  {label}
-                  {key === "scale" ? ` · ${Math.round(fit.scale * 100)}%` : ""}
-                </span>
-                <input
-                  type="range"
-                  className="w-full accent-leaf"
-                  aria-label={`${title} ${label}`}
-                  min={min}
-                  max={max}
-                  step={step}
-                  value={Math.round(fit[key] * 100)}
-                  disabled={key !== "scale" && fit.scale <= 1}
-                  onChange={(e) => setFit({ [key]: Number(e.target.value) / 100 })}
-                />
-              </label>
+          <div className="grid grid-cols-3 gap-2">
+            {uploads.map((key, i) => (
+              <button
+                key={key}
+                type="button"
+                aria-label={`Use uploaded picture ${i + 1}`}
+                aria-pressed={choice.backgroundKey === key}
+                onClick={() => choose({ backgroundKey: key })}
+                className="overflow-hidden rounded-lg border border-border aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-1"
+              >
+                <Picture choice={{ backgroundKey: key }} label={`Uploaded picture ${i + 1}`} className="h-12 w-full object-cover" />
+              </button>
             ))}
-            <Button size="xs" variant="quiet" onClick={() => setFit(DEFAULT_FIT)}>
-              Reset size and position
-            </Button>
           </div>
         )}
-        {target !== "main" && (
-          <Button
-            size="xs"
-            variant="quiet"
-            onClick={() =>
-              setViewer({ backgrounds: { ...viewer.backgrounds, [target]: undefined } })
-            }
-          >
-            Use default background
-          </Button>
-        )}
-      </div>
-      <label className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={viewer.backgroundLighting ?? true}
-          onChange={(e) => {
-            setViewer({ backgroundLighting: e.target.checked, background3D: false });
-            setPreviewLook("studio");
-          }}
-        />
-        Light background with HDRI
-      </label>
+      </PanelSection>
+      {(choice.backgroundKey || choice.backgroundPreset) && !sceneChosen && (
+        <PanelSection title="Size & position" aside={<button type="button" className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline" onClick={() => setFit(DEFAULT_FIT)}>Reset</button>}>
+          {(
+            [
+              [
+                "scale",
+                "Size",
+                choice.backgroundPreset && !choice.backgroundKey ? 25 : 100,
+                300,
+                5,
+              ],
+              ["x", "Left / right", -100, 100, 2],
+              ["y", "Up / down", -100, 100, 2],
+            ] as const
+          ).map(([key, label, min, max, step]) => (
+            <SliderRow key={key} label={label} value={key === "scale" ? `${Math.round(fit.scale * 100)}%` : undefined}>
+              <input
+                type="range"
+                className="w-full"
+                aria-label={`${title} ${label}`}
+                min={min}
+                max={max}
+                step={step}
+                value={Math.round(fit[key] * 100)}
+                disabled={key !== "scale" && fit.scale <= 1}
+                onChange={(e) => setFit({ [key]: Number(e.target.value) / 100 })}
+              />
+            </SliderRow>
+          ))}
+        </PanelSection>
+      )}
+      <PanelSection title="Studio lighting">
+        <SwitchRow label="Light background with HDRI" hint="The Studio light falls on the background too.">
+          <input
+            type="checkbox"
+            checked={viewer.backgroundLighting ?? true}
+            onChange={(e) => {
+              setViewer({ backgroundLighting: e.target.checked, background3D: false });
+              setPreviewLook("studio");
+            }}
+          />
+        </SwitchRow>
+      </PanelSection>
       {error && (
-        <p role="alert" className="text-destructive">
+        <p role="alert" className="pt-3 text-xs text-destructive">
           {error}
         </p>
       )}
