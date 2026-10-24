@@ -107,7 +107,7 @@ function EditPortfolio() {
           onDialog={setDialog}
           onPublish={publish}
           onUnpublish={() => setDialog("unpublish")}
-          preview={<PortfolioPage bookMarketing={p.bookMarketing} showCredit={p.plan === "free"} profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.style} viewer={p.viewer} projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} videos={p.pdf.videos} spotlights={p.pdf.spotlights} jumps={p.pdf.jumps} stickers={p.pdf.stickers} cvBlobKey={p.profile.cv?.blobKey} compact />}
+          preview={<PortfolioPage bookMarketing={p.bookMarketing} showCredit={p.plan === "free"} profile={p.profile} pdf={pdf} photoUrl={photoUrl} allowDownload={p.allowDownload} pageStyle={p.style} viewer={p.viewer} projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} videos={p.pdf.videos} spotlights={p.pdf.spotlights} jumps={p.pdf.jumps} stickers={p.pdf.stickers} hotspots={p.pdf.hotspots} cvBlobKey={p.profile.cv?.blobKey} compact />}
         />
         <PageImagesNote p={p} className="fixed bottom-4 left-4 z-40 max-w-[min(90vw,22rem)] rounded-xl border border-border bg-background/95 p-2.5 shadow-soft" />
         {saveErr && <p role="alert" className="fixed bottom-4 left-1/2 z-50 w-[min(90vw,32rem)] -translate-x-1/2 rounded-xl border border-destructive/20 bg-background p-3 text-sm text-destructive shadow-soft">{saveErr}</p>}

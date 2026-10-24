@@ -1,6 +1,6 @@
 import { renderedKeys, type RenderedStudio } from "./rendered-studio";
 import type { Leaf } from "./book-layout";
-import { readablePageLinks, readablePageVideos } from "./page-extras";
+import { readablePageHotspots, readablePageLinks, readablePageVideos } from "./page-extras";
 export const NOTE_FONT_IDS = ["serif", "sans", "mono", "hand", "neat", "script", "marker"] as const;
 export type NoteFont = (typeof NOTE_FONT_IDS)[number];
 export const NOTE_ALIGNS = ["left", "center", "right", "justify"] as const;
@@ -173,7 +173,7 @@ export function readableFoldouts(value: unknown, pages: number): Foldout[] {
     .slice(0, MAX_FOLDOUTS);
 }
 export function foldoutKeys(
-  pdf?: { foldouts?: Foldout[]; links?: unknown; videos?: unknown; renderedStudio?: RenderedStudio; pages: number } | null,
+  pdf?: { foldouts?: Foldout[]; links?: unknown; videos?: unknown; hotspots?: unknown; renderedStudio?: RenderedStudio; pages: number } | null,
 ): string[] {
   return [
     ...new Set([
@@ -189,6 +189,8 @@ export function foldoutKeys(
         .filter((k): k is string => !!k),
       // Page videos and their stills follow the same lifecycle.
       ...pageVideoKeys(pdf),
+      // So do the pictures in hotspot pop-ups.
+      ...readablePageHotspots(pdf?.hotspots, pdf?.pages ?? 0).map((h) => h.imageKey).filter((k): k is string => !!k),
     ]),
   ];
 }

@@ -10,7 +10,7 @@ import {
   type Foldout,
   type ResizeCorner,
 } from "@/lib/portfolia/foldouts";
-import { MAX_STICKERS, STICKER_SIZE, STICKER_COLOURS, jumpsForLeaf, linksForLeaf, placeSticker, placeVideo, readablePageJumps, readablePageStickers, stickerInfo, stickersForLeaf, type PageSticker, readablePageSpotlights, readablePageVideos, spotlightsForLeaf, tabSlots, videoHeight, videosForLeaf, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { hotspotsForLeaf, readablePageHotspots, MAX_STICKERS, STICKER_SIZE, STICKER_COLOURS, jumpsForLeaf, linksForLeaf, placeSticker, placeVideo, readablePageJumps, readablePageStickers, stickerInfo, stickersForLeaf, type PageSticker, readablePageSpotlights, readablePageVideos, spotlightsForLeaf, tabSlots, videoHeight, videosForLeaf, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { CornerDownRight, Search } from "lucide-react";
 import { useBlob } from "./Chrome";
 
@@ -30,6 +30,7 @@ import { tabSlot } from "@/lib/portfolia/tab-geometry";
 import type { Leaf } from "@/lib/portfolia/book-layout";
 import { addPortfolioExtra, patchPortfolioExtra, removePortfolioExtra } from "@/lib/portfolia/store";
 import { AnimatedSticker } from "./AnimatedSticker";
+import { HotspotFace } from "./PageHotspots";
 import { uid } from "@/lib/portfolia/assets";
 import { extraWidth, moveToPage, transformExtra, type Extra, type ExtraKind } from "@/lib/portfolia/scrapbook-transform";
 export function LiveScrapbookPage({
@@ -65,7 +66,7 @@ export function LiveScrapbookPage({
     /** How far it has been moved across, unclamped, so it can be carried over the spine. */
     dx: number;
   } | null>(null);
-  useEffect(() => setDraft(null), [pdf.foldouts, pdf.links, pdf.tags, pdf.videos, pdf.spotlights, pdf.jumps, pdf.stickers]);
+  useEffect(() => setDraft(null), [pdf.foldouts, pdf.links, pdf.tags, pdf.videos, pdf.spotlights, pdf.jumps, pdf.stickers, pdf.hotspots]);
   const leafVideos = videosForLeaf(readablePageVideos(pdf.videos, pdf.pages), leaf);
   // A new video is placed at a typical page shape; fit its height to this page's real shape once it is seen.
   useEffect(() => {
@@ -190,7 +191,7 @@ export function LiveScrapbookPage({
       <button
         key={corner}
         type="button"
-        aria-label={`Resize ${kind === "foldouts" ? "note" : kind === "tags" ? "tab" : kind === "videos" ? "video" : kind === "spotlights" ? "spotlight" : kind === "jumps" ? "page link" : kind === "stickers" ? "sticker" : "link"} ${corner}`}
+        aria-label={`Resize ${kind === "foldouts" ? "note" : kind === "tags" ? "tab" : kind === "videos" ? "video" : kind === "spotlights" ? "spotlight" : kind === "jumps" ? "page link" : kind === "stickers" ? "sticker" : kind === "hotspots" ? "hotspot" : "link"} ${corner}`}
         {...controls(kind, item, corner as ResizeCorner)}
         className={`pointer-events-auto absolute z-20 size-3 touch-none border border-white bg-blue-600 ${corner.includes("n") ? "-top-1.5" : "-bottom-1.5"} ${corner.includes("w") ? "-left-1.5" : "-right-1.5"}`}
         style={{ cursor: corner === "nw" || corner === "se" ? "nwse-resize" : "nesw-resize" }}
@@ -335,8 +336,27 @@ export function LiveScrapbookPage({
           </div>
         );
       })}
-      {stickersForLeaf(readablePageStickers(pdf.stickers, pdf.pages), leaf).map((original) => {
-        const s = live(original);
+      {hotspotsForLeaf(readablePageHotspots(pdf.hotspots, pdf.pages), leaf).map((original) => {
+        const h = live(original);
+        return (
+          <div
+            key={h.id}
+            data-selected={selected === h.id || undefined}
+            className="absolute pointer-events-auto ring-1 ring-blue-500/50 data-[selected]:ring-2 data-[selected]:ring-blue-600"
+            style={{ left: `${h.x * 100}%`, top: `${h.y * 100}%`, width: `${h.size * 100}%`, aspectRatio: h.style === "dot" ? "1" : "3.6", containerType: "inline-size" }}
+          >
+            <HotspotFace hotspot={h} />
+            <button
+              type="button"
+              aria-label={`Move hotspot ${h.label || h.title || ""}`}
+              {...controls("hotspots", h, "move")}
+              className="absolute inset-0 touch-none cursor-move bg-transparent"
+            />
+            {resize("hotspots", h)}
+          </div>
+        );
+      })}
+      {stickersForLeaf(readablePageStickers(pdf.stickers, pdf.pages), leaf).map((original) => {        const s = live(original);
         return (
           <div
             key={s.id}

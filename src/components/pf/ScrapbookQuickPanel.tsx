@@ -1,12 +1,13 @@
 import { useRef, useState, type ReactNode } from "react";
-import { CornerDownRight, ExternalLink, Film, Link2, Plus, Search, Shapes, StickyNote, Tag, Trash2 } from "lucide-react";
+import { CornerDownRight, ExternalLink, Film, Link2, MousePointerClick, Plus, Search, Shapes, StickyNote, Tag, Trash2 } from "lucide-react";
+import { HotspotFields } from "./HotspotFields";
 import { AnimatedSticker } from "./AnimatedSticker";
 import { Button } from "@/components/ui/button";
 import type { ScrapbookPanel } from "./FoldoutSettings";
 import type { ScrapbookSelection } from "./live-scrapbook-context";
 import { deleteBlob, putBlob, uid } from "@/lib/portfolia/assets";
 import { MAX_FOLDOUTS, MAX_NOTE_ROTATION, newFoldout, noteRotation, readableFoldouts, rotateFoldout, type Foldout } from "@/lib/portfolia/foldouts";
-import { MAX_STICKERS, STICKERS, STICKER_COLOURS, STICKER_SIZE, placeSticker, readablePageStickers, stickerInfo, type PageSticker, type StickerId, JUMP_SIZE, LINK_SIZE, MAX_JUMPS, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, SPOTLIGHT_CAPTION_LIMIT, SPOTLIGHT_LIMITS, SPOTLIGHT_SIZE, TAG_COLOURS, VIDEO_MAX_MB, VIDEO_WIDTH, hostOf, normaliseUrl, placeJump, placeVideo, readablePageJumps, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { HOTSPOT_SIZE, MAX_HOTSPOTS, placeHotspot, readablePageHotspots, type HotspotStyle, type PageHotspot, MAX_STICKERS, STICKERS, STICKER_COLOURS, STICKER_SIZE, placeSticker, readablePageStickers, stickerInfo, type PageSticker, type StickerId, JUMP_SIZE, LINK_SIZE, MAX_JUMPS, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, SPOTLIGHT_CAPTION_LIMIT, SPOTLIGHT_LIMITS, SPOTLIGHT_SIZE, TAG_COLOURS, VIDEO_MAX_MB, VIDEO_WIDTH, hostOf, normaliseUrl, placeJump, placeVideo, readablePageJumps, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { readVideo, videoFileProblem, videoMime } from "@/lib/portfolia/page-video-file";
 import { gifFileProblem, gifToVideo, isGif } from "@/lib/portfolia/gif-to-video";
 import { addPortfolioExtra, deleteUnusedPortfolioAsset, isPaid, patchPortfolioExtra, removePortfolioExtra, useDoc, type Portfolio } from "@/lib/portfolia/store";
@@ -21,10 +22,11 @@ function FeatureBox({ icon: Icon, title, count, badge, hint, action, active, chi
 }) {
   return (
     <section aria-label={title} className={cn("space-y-2.5 rounded-2xl border p-3 transition-colors", active ? "border-foreground/30 bg-muted/40" : "border-border")}>
-      <div className="flex items-center gap-2.5">
+      {/* The Add buttons move under the title when there isn't room beside it. */}
+      <div className="flex flex-wrap items-center gap-2.5">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted"><Icon className="size-4" aria-hidden /></span>
-        <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 text-sm font-medium">{title}{badge}</p>
+        <div className="min-w-[9rem] flex-1">
+          <p className="flex items-center gap-1.5 whitespace-nowrap text-sm font-medium">{title}{badge}</p>
           {count && <p className="text-[11px] tabular-nums text-muted-foreground">{count}</p>}
         </div>
         {action}
@@ -70,6 +72,7 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
   const spotlights = readablePageSpotlights(pdf.spotlights, pdf.pages);
   const pageVideos = readablePageVideos(pdf.videos, pdf.pages);
   const stickers = readablePageStickers(pdf.stickers, pdf.pages);
+  const hotspots = readablePageHotspots(pdf.hotspots, pdf.pages);
   const spotlightLimit = isPaid(doc) ? SPOTLIGHT_LIMITS.personal : SPOTLIGHT_LIMITS.free;
 
   const addNote = (kind: "sticky" | "foldout") => {
@@ -161,6 +164,16 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
   const spotlight = selected?.kind === "spotlights" ? spotlights.find((s) => s.id === selected.id) : undefined;
   const video = selected?.kind === "videos" ? pageVideos.find((v) => v.id === selected.id) : undefined;
   const sticker = selected?.kind === "stickers" ? stickers.find((s) => s.id === selected.id) : undefined;
+  const hotspot = selected?.kind === "hotspots" ? hotspots.find((h) => h.id === selected.id) : undefined;
+  /** A new hotspot in the middle of the page in view, ready to fill in. */
+  const addHotspot = (style: HotspotStyle) => {
+    const size = style === "dot" ? HOTSPOT_SIZE.dot : style === "tag" ? HOTSPOT_SIZE.tag : HOTSPOT_SIZE.button;
+    const step = hotspots.filter((h) => h.page === page.page).length % 4;
+    const h = placeHotspot({ id: uid("hotspot"), page: page.page, half, style, x: 0, y: 0, size, colour: style === "button" ? "#1c1c1c" : TAG_COLOURS[0]!, action: "popup", label: style === "dot" ? undefined : style === "tag" ? "See details" : "Find out more" }, 0.5 - size / 2, 0.35 + step * 0.08, size);
+    const ok = addPortfolioExtra(p.code, pdf.blobKey, "hotspots", h, MAX_HOTSPOTS);
+    report(ok, `Use up to ${MAX_HOTSPOTS} hotspots.`);
+    if (ok) select("hotspots", h.id);
+  };
   /** A click (rather than a drag) puts the sticker in the middle of the page in view. */
   const addSticker = (id: StickerId) => {
     const size = STICKER_SIZE.default;
@@ -239,6 +252,14 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
           </label>
           <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline" onClick={() => onOpen("notes")}>Add a picture or change the font</button>
         </>, "note")}
+      </FeatureBox>
+
+      <FeatureBox icon={MousePointerClick} title="Hotspots & buttons" count={`${hotspots.length} of ${MAX_HOTSPOTS}`} hint="Product tags, pop-ups with a picture, price, video or shop button, and call-to-action buttons to your site, email or phone." active={Boolean(hotspot)}
+        action={<div className="flex gap-1">{add("Dot", () => addHotspot("dot"), hotspots.length >= MAX_HOTSPOTS)}{add("Tag", () => addHotspot("tag"), hotspots.length >= MAX_HOTSPOTS)}{add("Button", () => addHotspot("button"), hotspots.length >= MAX_HOTSPOTS)}</div>}>
+        {chips("hotspots", hotspots.map((h) => ({ id: h.id, page: h.page, label: h.title || h.label || (h.style === "dot" ? "Dot" : "Hotspot") })))}
+        {hotspot && editing(
+          <HotspotFields hotspot={hotspot} save={(next: PageHotspot, message?: string) => { const ok = patchPortfolioExtra(p.code, pdf.blobKey, "hotspots", next.id, next); report(ok, message ?? "That change couldn't be saved. Check the words aren't too long."); return ok; }} />,
+        "hotspot")}
       </FeatureBox>
 
       <FeatureBox icon={Shapes} title="Animated stickers" count={`${stickers.length} of ${MAX_STICKERS}`} hint="Small moving arrows, circles and marks. Drag one onto a page, or click it to add it to the page in view." active={Boolean(sticker)}>

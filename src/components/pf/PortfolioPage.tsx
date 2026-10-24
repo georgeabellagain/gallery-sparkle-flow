@@ -3,7 +3,7 @@ import type { PdfFile, Portfolio } from "@/lib/portfolia/store";
 import { readablePageImages } from "@/lib/portfolia/page-images";
 import type { RenderedStudio } from "@/lib/portfolia/rendered-studio";
 import type { Foldout } from "@/lib/portfolia/foldouts";
-import type { PageJump, PageLink, PageSpotlight, PageSticker, PageTag, PageVideo } from "@/lib/portfolia/page-extras";
+import type { PageHotspot, PageJump, PageLink, PageSpotlight, PageSticker, PageTag, PageVideo } from "@/lib/portfolia/page-extras";
 import type { PortfolioProject } from "@/lib/portfolia/projects";
 import { usePortfolioFont } from "@/lib/portfolia/fonts";
 import { reportHref } from "@/lib/portfolia/report";
@@ -43,6 +43,8 @@ export function PortfolioPage({
   spotlights,
   jumps,
   stickers,
+  hotspots,
+  leadForm,
   projectCode,
   startFullscreen,
 }: {
@@ -69,6 +71,8 @@ export function PortfolioPage({
   spotlights?: PageSpotlight[];
   jumps?: PageJump[];
   stickers?: PageSticker[];
+  hotspots?: PageHotspot[];
+  leadForm?: import("@/lib/portfolia/lead-form").LeadForm;
   projectCode?: string;
   /** Open full screen on a phone or tablet (a portfolio opened from its QR code). */
   startFullscreen?: boolean;
@@ -110,7 +114,7 @@ export function PortfolioPage({
           viewer={view}
           startPage={startPage}
           projects={projects}
-          foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers}
+          foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} hotspots={hotspots} leadForm={leadForm}
           projectCode={projectCode}
           startFullscreen={startFullscreen}
           bookMarketing={bookDetails}

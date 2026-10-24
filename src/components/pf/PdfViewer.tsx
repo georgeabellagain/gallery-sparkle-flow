@@ -14,19 +14,23 @@ import { createRenderQueue } from "@/lib/portfolia/render-queue";
 import { cachedReaderArtwork, copyReaderArtwork, prepareReaderArtwork } from "@/lib/portfolia/reader-artwork";
 import { READER_SLIDE_MS, READER_SLIDE_DISTANCE } from "@/lib/portfolia/reader-slide";
 import type { Foldout } from "@/lib/portfolia/foldouts";
-import { jumpsForPage, linksForPage, readablePageJumps, readablePageStickers, stickersForPage, type PageSticker, readablePageSpotlights, spotlightRegion, spotlightsForPage, videosForPage, type PageJump, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { jumpsForPage, linksForPage, readablePageJumps, readablePageStickers, stickersForPage, readablePageHotspots, hotspotsForPage, type PageHotspot, type PageSticker, readablePageSpotlights, spotlightRegion, spotlightsForPage, videosForPage, type PageJump, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { SpotlightLightbox, SpotlightTarget, type SpotlightView } from "./PageSpotlights";
 import { PageVideoHtml } from "./PageVideoHtml";
 import { coverWithSpreads } from "@/lib/portfolia/mixed-layout";
 import { createPortal } from "react-dom";
 import { PageJumpLink, PageLinkAnchor } from "./PageLinks";
 import { PageStickerMark } from "./AnimatedSticker";
+import { PageHotspotMark } from "./PageHotspots";
+import { LeadGate } from "./LeadGate";
+import { readableLeadForm, type LeadForm } from "@/lib/portfolia/lead-form";
 import { lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { EditorFullscreenContext } from "./editor-fullscreen";
 import { toggleFullscreen, type FullscreenDocument } from "@/lib/portfolia/fullscreen";
 import { List, Copy } from "lucide-react";
 import { projectFromHash, projectPath, readableProjects, type PortfolioProject } from "@/lib/portfolia/projects";
-import { BookOpen, ChevronLeft, ChevronRight, Download, FileText, LayoutGrid, Maximize2, Minimize2, ScrollText, User, ZoomIn, ZoomOut } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, Download, FileText, LayoutGrid, Maximize2, Minimize2, ScrollText, Search, User, ZoomIn, ZoomOut } from "lucide-react";
+import { BookSearch } from "./BookSearch";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { downloadLink, isStreamedPdf, markStreamedPdf, openRemotePdf, PDF_RANGE_CHUNK, type RemotePdf } from "@/lib/portfolia/remote-pdf";
@@ -86,6 +90,8 @@ export function PdfViewer({
   spotlights,
   jumps,
   stickers,
+  hotspots,
+  leadForm,
   projectCode,
   profile,
   bookMarketing,
@@ -137,6 +143,10 @@ export function PdfViewer({
   jumps?: PageJump[];
   /** Small animated stickers on pages. */
   stickers?: PageSticker[];
+  /** Pressable hotspots on pages. */
+  hotspots?: PageHotspot[];
+  /** The portfolio's lead capture form (public readers only). */
+  leadForm?: LeadForm;
   /** Enables hash links on public readers. Editor previews never read the URL hash. */
   projectCode?: string;
   /** The person's details, shown from a small profile icon. */
@@ -194,6 +204,10 @@ export function PdfViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [JSON.stringify(stickers ?? []), doc]);
   const pageStickers = (page: number) => stickersForPage(allStickers, page, spreadSheet(page));
+  const allHotspots = useMemo(() => readablePageHotspots(hotspots, doc?.numPages ?? 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(hotspots ?? []), doc]);
+  const pageHotspots = (page: number) => hotspotsForPage(allHotspots, page, spreadSheet(page));
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -204,7 +218,7 @@ export function PdfViewer({
   const editorFullscreen = useContext(EditorFullscreenContext);
   const full = nativeFull || pseudoFull || Boolean(editorFullscreen?.full);
   const minimalControls = homepageExample && !full;
-  const [panel, setPanel] = useState<"profile" | "book" | "pages" | "projects" | null>(null);
+  const [panel, setPanel] = useState<"profile" | "book" | "pages" | "projects" | "search" | null>(null);
   const [projectMessage, setProjectMessage] = useState("");
   const [manualProjectLink, setManualProjectLink] = useState("");
   const [contentReady, setContentReady] = useState(false);
@@ -707,7 +721,7 @@ export function PdfViewer({
   const panelFit = { maxHeight: `calc(100svh - ${(toolbarHeight || 36) + 6 + 8 + 12}px)` };
 
   const quiet = tone === "dark" ? "text-white/90" : "text-slate-700";
-  const togglePanel = (name: "profile" | "book" | "pages" | "projects") => setPanel((p) => (p === name ? null : name));
+  const togglePanel = (name: "profile" | "book" | "pages" | "projects" | "search") => setPanel((p) => (p === name ? null : name));
   const copyProject = async (id: string) => {
     if (!projectCode) return;
     const url = window.location.origin + projectPath(projectCode, id);
@@ -748,6 +762,9 @@ export function PdfViewer({
         </div>
       )}
 
+      {/* The lead form, once a public reader reaches its page (never on the homepage example). */}
+      {projectCode && !homepageExample && doc && (() => { const form = readableLeadForm(leadForm, doc.numPages); return form ? <LeadGate form={form} code={projectCode} page={current} /> : null; })()}
+
       {showControls && (
         <div className="pointer-events-none sticky top-0 z-50 h-0">
           {!minimalControls && (home || profile || bookMarketing) && (
@@ -780,6 +797,11 @@ export function PdfViewer({
               {!minimalControls && doc && (
                 <IconButton label="Pages" tone={tone} flat pressed={panel === "pages"} onClick={() => togglePanel("pages")}>
                   <LayoutGrid className="size-[17px]" />
+                </IconButton>
+              )}
+              {!minimalControls && doc && (
+                <IconButton label="Search" tone={tone} flat pressed={panel === "search"} onClick={() => togglePanel("search")}>
+                  <Search className="size-[17px]" />
                 </IconButton>
               )}
               {!minimalControls && sections.length > 0 && (
@@ -839,6 +861,11 @@ export function PdfViewer({
                 {manualProjectLink && <input aria-label="Project link" readOnly value={manualProjectLink} onFocus={(e) => e.target.select()} className="mt-2 w-full rounded border p-2 text-xs" />}
               </Panel>
             )}
+            {!minimalControls && panel === "search" && doc && (
+              <Panel label="Search" style={panelFit} className="w-[min(24rem,calc(100vw-1.5rem))] max-w-full overflow-auto overscroll-contain">
+                <BookSearch doc={doc} onGo={(page) => { jumpTo(page); setPanel(null); }} />
+              </Panel>
+            )}
             {!minimalControls && panel === "pages" && doc && (
               <Panel label="Pages" style={panelFit} className="w-[min(24rem,calc(100vw-1.5rem))] max-w-full overflow-auto overscroll-contain">
                 <div className="grid grid-cols-4 gap-2">
@@ -884,7 +911,7 @@ export function PdfViewer({
       {mode === "book" && activeLook === "studio" && renderedStudio && !renderFailed && !compact ? (
         <RenderedBook fill={full || immersive} pack={renderedStudio} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} onReady={bookReadyChanged} onFallback={() => setRenderFailed(true)} />
       ) : mode === "book" ? (
-        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} showcaseOrbit={showcaseOrbit} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
+        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} hotspots={hotspots} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} showcaseOrbit={showcaseOrbit} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>
@@ -894,7 +921,7 @@ export function PdfViewer({
             >
               {sizes[current - 1] && (
                 <div className="shrink-0" style={{ width: `calc(min(100%, max(1px, calc((${pagedHeight} - ${topGap + 24}px) * ${sizes[current - 1]!.w / sizes[current - 1]!.h}))) * ${zoom})` }}>
-                <PdfPage links={pageLinks(current)} videos={pageVideos(current)} spotlights={pageSpotlights(current)} onSpotlight={openSpotlightById} jumps={pageJumps(current)} stickers={pageStickers(current)} onJump={jumpTo} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={noop} eager onRendered={markReady} />
+                <PdfPage links={pageLinks(current)} videos={pageVideos(current)} spotlights={pageSpotlights(current)} onSpotlight={openSpotlightById} jumps={pageJumps(current)} stickers={pageStickers(current)} hotspots={pageHotspots(current)} onJump={jumpTo} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={noop} eager onRendered={markReady} />
                 </div>
               )}
             </div>
@@ -913,7 +940,7 @@ export function PdfViewer({
             style={{ paddingTop: topGap, width: `calc(min(100%, ${compact ? 900 : 1100}px) * ${zoom})` }}
           >
             {sizes.map((s, i) => (
-              <PdfPage links={pageLinks(i + 1)} videos={pageVideos(i + 1)} spotlights={pageSpotlights(i + 1)} onSpotlight={openSpotlightById} jumps={pageJumps(i + 1)} stickers={pageStickers(i + 1)} onJump={jumpTo} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={setCurrent} eager={!streamedDoc} renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
+              <PdfPage links={pageLinks(i + 1)} videos={pageVideos(i + 1)} spotlights={pageSpotlights(i + 1)} onSpotlight={openSpotlightById} jumps={pageJumps(i + 1)} stickers={pageStickers(i + 1)} hotspots={pageHotspots(i + 1)} onJump={jumpTo} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={setCurrent} eager={!streamedDoc} renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
             ))}
           </div>
         </div>
@@ -1033,6 +1060,7 @@ function PdfPage({
   onSpotlight,
   jumps,
   stickers,
+  hotspots,
   onJump,
   detail = 0,
 }: {
@@ -1045,6 +1073,8 @@ function PdfPage({
   jumps?: PageJump[];
   /** Animated stickers on the full page. */
   stickers?: PageSticker[];
+  /** Pressable hotspots on the full page. */
+  hotspots?: PageHotspot[];
   onJump?: (page: number) => void;
   /** Bumped when a page-picture document can draw from its PDF, so a zoomed page redraws sharper. */
   detail?: number;
@@ -1304,6 +1334,7 @@ function PdfPage({
           {videos && videos.length > 0 && <PageVideoHtml videos={videos} />}
           {spotlights?.map((s) => <SpotlightTarget key={s.id} spotlight={s} onOpen={() => onSpotlight?.(s.id)} />)}
           {stickers?.map((s) => <PageStickerMark key={s.id} sticker={s} />)}
+        {hotspots?.map((h) => <PageHotspotMark key={h.id} hotspot={h} />)}
         {onJump && jumps?.map((j) => <PageJumpLink key={j.id} jump={j} onGo={onJump} />)}
         </div>, linkLayer.element,
       )}

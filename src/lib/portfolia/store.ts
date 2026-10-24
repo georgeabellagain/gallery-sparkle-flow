@@ -1,5 +1,5 @@
 import { validateFoldout } from "./foldouts";
-import { validatePageTag, validatePageLink, validatePageVideo, validatePageSpotlight, validatePageJump, validatePageSticker, type PageVideo } from "./page-extras";
+import { validatePageTag, validatePageLink, validatePageVideo, validatePageSpotlight, validatePageJump, validatePageSticker, validatePageHotspot, type PageVideo } from "./page-extras";
 import type { ExtraKind, Extra } from "./scrapbook-transform";
 import { backgroundKeys } from "./background-settings";
 import { foldoutKeys } from "./foldouts";
@@ -154,6 +154,8 @@ export interface PdfFile {
   jumps?: import("./page-extras").PageJump[];
   /** Small animated stickers (arrows, circles, stars…) on pages. */
   stickers?: import("./page-extras").PageSticker[];
+  /** Pressable hotspots: product tags, pop-up cards, call-to-action buttons. */
+  hotspots?: import("./page-extras").PageHotspot[];
   /** Optional derived JPEG used in public link previews. */
   coverKey?: string;
   renderedStudio?: import("./rendered-studio").RenderedStudio;
@@ -187,6 +189,8 @@ export interface Portfolio {
   searchIndexing?: boolean;
   /** Opt-in (Personal): email the account when someone opens the published portfolio. Never sent to visitors. */
   notifyOnOpen?: boolean;
+  /** A lead capture form shown at a chosen page (Personal). */
+  leadForm?: import("./lead-form").LeadForm;
   plan: "free" | "personal";
   billing?: "month" | "year";
   username?: string;
@@ -378,6 +382,7 @@ function validateExtra(kind:ExtraKind,item:Extra,pages:number):string|null{
   if(kind==="spotlights")return validatePageSpotlight(item as import("./page-extras").PageSpotlight,pages);
   if(kind==="jumps")return validatePageJump(item as import("./page-extras").PageJump,pages);
   if(kind==="stickers")return validatePageSticker(item as import("./page-extras").PageSticker,pages);
+  if(kind==="hotspots")return validatePageHotspot(item as import("./page-extras").PageHotspot,pages);
   return validatePageLink(item as import("./page-extras").PageLink,pages);
 }
 

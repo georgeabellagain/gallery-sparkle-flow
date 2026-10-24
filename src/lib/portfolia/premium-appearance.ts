@@ -12,6 +12,7 @@ export function premiumAppearance(p: Portfolio): string[] {
   if (choices.some(c => c?.backgroundKey || (c?.backgroundPreset && personalBackground(c.backgroundPreset)))) features.push("Personal backgrounds");
   if (p.profile.cv) features.push("Downloadable CV");
   if (p.pdf?.videos?.length) features.push("Videos on pages");
+  if (p.leadForm?.enabled) features.push("Lead capture form");
   if ((p.pdf?.spotlights?.length ?? 0) > SPOTLIGHT_LIMITS.free) features.push(`More than ${SPOTLIGHT_LIMITS.free} spotlights`);
   if (p.style && Object.entries(p.style).some(([key, value]) => value !== undefined && value !== DEFAULT_STYLE[key as keyof typeof DEFAULT_STYLE])) features.push("Custom profile styling");
   return features;

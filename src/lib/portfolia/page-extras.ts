@@ -272,6 +272,29 @@ export const STICKERS = [
   { id: "asterisk", label: "Burst", motion: "spin" },
   { id: "eye", label: "Look", motion: "pulse" },
   { id: "plus", label: "Plus", motion: "spin" },
+  // For shops and catalogues: sale badges, bags and tags.
+  { id: "badge-sale", label: "Sale badge", motion: "pop" },
+  { id: "badge-new", label: "New badge", motion: "pop" },
+  { id: "badge-hot", label: "Hot badge", motion: "flicker" },
+  { id: "percent", label: "Discount", motion: "spin" },
+  { id: "shopping-bag", label: "Bag", motion: "bounce" },
+  { id: "tag", label: "Price tag", motion: "swing" },
+  { id: "gift", label: "Gift", motion: "wiggle" },
+  // To draw the eye.
+  { id: "bell", label: "Bell", motion: "ring" },
+  { id: "megaphone", label: "Announce", motion: "shake" },
+  { id: "party", label: "Celebrate", motion: "pop" },
+  { id: "flame", label: "Flame", motion: "flicker" },
+  { id: "thumbs-up", label: "Thumbs up", motion: "pop" },
+  { id: "message", label: "Speech", motion: "pop" },
+  { id: "map-pin", label: "Location", motion: "drop" },
+  { id: "phone", label: "Call", motion: "ring" },
+  { id: "mail", label: "Email", motion: "bounce" },
+  { id: "clock", label: "Time", motion: "spin" },
+  { id: "arrow-left", label: "Arrow left", motion: "nudge-left" },
+  { id: "arrow-up", label: "Arrow up", motion: "rise" },
+  { id: "scribble-circle", label: "Hand circle", motion: "draw" },
+  { id: "underline", label: "Underline", motion: "draw" },
 ] as const;
 export type StickerId = (typeof STICKERS)[number]["id"];
 export type StickerMotion = (typeof STICKERS)[number]["motion"];
@@ -313,6 +336,101 @@ export function stickersForPage(stickers: PageSticker[], page: number, split: bo
 export function placeSticker(s: PageSticker, x: number, y: number, size: number, ratio = 1.4): PageSticker {
   const w = Math.min(Math.max(STICKER_SIZE.min, size), STICKER_SIZE.max), h = w / ratio;
   return { ...s, size: w, x: Math.min(Math.max(0, x), 1 - w), y: Math.min(Math.max(0, y), Math.max(0, 1 - h)) };
+}
+/**
+ * A hotspot: something readers press on a page. It looks like a pulsing dot, a labelled tag or a button, and either
+ * opens a pop-up card (a product with its picture, price and a shop button, a caption, a YouTube or Vimeo video) or
+ * goes straight to a link (a website, an email address or a phone number). Product tags, pop-up frames and
+ * call-to-action buttons, as catalogue and brochure makers offer, all in one.
+ */
+export const HOTSPOT_STYLES = [
+  { id: "dot", label: "Pulsing dot" },
+  { id: "tag", label: "Tag" },
+  { id: "button", label: "Button" },
+] as const;
+export type HotspotStyle = (typeof HOTSPOT_STYLES)[number]["id"];
+export interface PageHotspot {
+  id: string;
+  page: number;
+  half: "left" | "right";
+  style: HotspotStyle;
+  /** Top-left corner and width as fractions of the page (a dot is square; a tag or button is a pill). */
+  x: number;
+  y: number;
+  size: number;
+  colour: string;
+  /** Words on a tag or button. */
+  label?: string;
+  action: "popup" | "link";
+  /** The pop-up card. */
+  title?: string;
+  text?: string;
+  price?: string;
+  imageKey?: string;
+  /** A YouTube or Vimeo address, played in the pop-up. */
+  video?: string;
+  /** Where the link (or the pop-up's button) goes: a website, mailto: or tel:. */
+  url?: string;
+  buttonLabel?: string;
+}
+export const MAX_HOTSPOTS = 60;
+export const HOTSPOT_SIZE = { min: 0.025, max: 0.7, dot: 0.05, tag: 0.22, button: 0.32 };
+export const HOTSPOT_LIMITS = { label: 40, title: 80, text: 600, price: 24, button: 30 };
+/** How tall a hotspot is as a fraction of the page (for keeping it on the page): a dot is square, a pill is short. */
+export const hotspotHeight = (h: Pick<PageHotspot, "style" | "size">, ratio = 1.4) => (h.style === "dot" ? h.size : h.size * 0.28) / ratio;
+/** A website, email or phone link, made safe: "shop.com/x" becomes https://shop.com/x; anything else is null. */
+export function hotspotHref(input: string): string | null {
+  const text = (input ?? "").trim();
+  if (/^mailto:[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(text)) return text;
+  if (/^[^\s@:/]+@[^\s@]+\.[^\s@]+$/.test(text)) return `mailto:${text}`;
+  if (/^tel:\+?[0-9 ()-]{5,24}$/i.test(text)) return text.replace(/\s+/g, "");
+  return normaliseUrl(text);
+}
+/** The privacy-friendly player address for a YouTube or Vimeo link, or null. */
+export function videoEmbedUrl(input: string): string | null {
+  try {
+    const url = new URL((input ?? "").trim());
+    const host = url.hostname.replace(/^www\.|^m\./, "");
+    let id: string | null = null;
+    if (host === "youtu.be") id = url.pathname.slice(1);
+    else if (host === "youtube.com" || host === "youtube-nocookie.com") id = url.searchParams.get("v") ?? url.pathname.match(/^\/(?:embed|shorts|live)\/([^/?]+)/)?.[1] ?? null;
+    if (id && /^[A-Za-z0-9_-]{6,20}$/.test(id)) return `https://www.youtube-nocookie.com/embed/${id}`;
+    if (host === "vimeo.com" || host === "player.vimeo.com") {
+      const v = url.pathname.match(/(\d{5,12})/)?.[1];
+      if (v) return `https://player.vimeo.com/video/${v}?dnt=1`;
+    }
+  } catch { /* not an address */ }
+  return null;
+}
+const within = (v: unknown, max: number) => v === undefined || (typeof v === "string" && v.length <= max);
+export function validatePageHotspot(h: PageHotspot, pages: number): string | null {
+  if (!h || typeof h !== "object" || !key.test(h.id)) return "Choose a valid hotspot.";
+  if (!Number.isInteger(h.page) || h.page < 1 || h.page > pages) return "Choose a page in this PDF.";
+  if (h.half !== "left" && h.half !== "right") return "Choose a page half.";
+  if (!HOTSPOT_STYLES.some((s) => s.id === h.style)) return "Choose how the hotspot looks.";
+  if (h.action !== "popup" && h.action !== "link") return "Choose what the hotspot does.";
+  if (!hex.test(h.colour)) return "Choose a hotspot colour.";
+  if (!within(h.label, HOTSPOT_LIMITS.label) || !within(h.title, HOTSPOT_LIMITS.title) || !within(h.text, HOTSPOT_LIMITS.text) || !within(h.price, HOTSPOT_LIMITS.price) || !within(h.buttonLabel, HOTSPOT_LIMITS.button)) return "Keep the hotspot's words shorter.";
+  if (h.imageKey !== undefined && (typeof h.imageKey !== "string" || !key.test(h.imageKey))) return "Choose a valid picture.";
+  if (h.video !== undefined && (typeof h.video !== "string" || !videoEmbedUrl(h.video))) return "Use a YouTube or Vimeo address.";
+  if (h.url !== undefined && (typeof h.url !== "string" || hotspotHref(h.url) !== h.url)) return "Use a website, email address or phone number.";
+  if (h.action === "link" && !h.url) return "Add where the link goes.";
+  if (![h.x, h.y, h.size].every(Number.isFinite) || h.size < HOTSPOT_SIZE.min - 1e-9 || h.size > HOTSPOT_SIZE.max + 1e-9) return "Choose a valid hotspot size.";
+  if (h.x < -1e-9 || h.y < -1e-9 || h.x + h.size > 1.0001 || h.y > 1.0001) return "Keep the hotspot on the page.";
+  return null;
+}
+export const readablePageHotspots = (value: unknown, pages: number): PageHotspot[] =>
+  readable<PageHotspot>(value, MAX_HOTSPOTS, (h) => !validatePageHotspot(h, pages));
+export const hotspotsForLeaf = (hotspots: PageHotspot[], leaf: { page: number; half?: "left" | "right" }) =>
+  hotspots.filter((h) => h.page === leaf.page && (!leaf.half || h.half === leaf.half));
+/** The same leaf-relative place on the full PDF page, for Scroll and Page-by-page. */
+export function hotspotsForPage(hotspots: PageHotspot[], page: number, split: boolean): PageHotspot[] {
+  return hotspots.filter((h) => h.page === page).map((h) => split ? { ...h, x: (h.half === "right" ? 0.5 : 0) + h.x / 2, size: h.size / 2 } : h);
+}
+/** Keeps a hotspot on its page while it is moved or resized. */
+export function placeHotspot(h: PageHotspot, x: number, y: number, size: number, ratio = 1.4): PageHotspot {
+  const w = Math.min(Math.max(HOTSPOT_SIZE.min, size), HOTSPOT_SIZE.max), height = hotspotHeight({ style: h.style, size: w }, ratio);
+  return { ...h, size: w, x: Math.min(Math.max(0, x), 1 - w), y: Math.min(Math.max(0, y), Math.max(0, 1 - height)) };
 }
 function readable<T extends { id: string }>(value: unknown, max: number, ok: (v: T) => boolean): T[] {
   if (!Array.isArray(value)) return [];

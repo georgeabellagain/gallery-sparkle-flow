@@ -1,7 +1,7 @@
 import { transformFoldout, type Foldout, type ResizeCorner } from "./foldouts";
-import { placeJump, placeLink, placeSpotlight, placeSticker, placeVideo, type PageJump, type PageLink, type PageSpotlight, type PageSticker, type PageTag, type PageVideo } from "./page-extras";
-export type ExtraKind = "foldouts" | "links" | "tags" | "videos" | "spotlights" | "jumps" | "stickers";
-export type Extra = Foldout | PageLink | PageTag | PageVideo | PageSpotlight | PageJump | PageSticker;
+import { placeHotspot, placeJump, placeLink, placeSpotlight, placeSticker, placeVideo, type PageHotspot, type PageJump, type PageLink, type PageSpotlight, type PageSticker, type PageTag, type PageVideo } from "./page-extras";
+export type ExtraKind = "foldouts" | "links" | "tags" | "videos" | "spotlights" | "jumps" | "stickers" | "hotspots";
+export type Extra = Foldout | PageLink | PageTag | PageVideo | PageSpotlight | PageJump | PageSticker | PageHotspot;
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 export function transformExtra(
   kind: ExtraKind,
@@ -30,6 +30,10 @@ export function transformExtra(
     const j = item as PageJump;
     return handle === "move" ? placeJump(j, j.x + dx, j.y + dy, j.width, j.height) : placeJump(j, j.x, j.y, j.width + dx, j.height + dy);
   }
+  if (kind === "hotspots") {
+    const h = item as PageHotspot;
+    return handle === "move" ? placeHotspot(h, h.x + dx, h.y + dy, h.size, ratio) : placeHotspot(h, h.x, h.y, h.size + dx, ratio);
+  }
   if (kind === "stickers") {
     // A sticker stays square: its corner handle changes its size.
     const s = item as PageSticker;
@@ -55,7 +59,7 @@ export function transformExtra(
 /** How wide an item is, in page widths (a tab sits on the edge and has none). */
 export function extraWidth(kind: ExtraKind, item: Extra): number {
   if (kind === "tags") return 0;
-  if (kind === "links" || kind === "stickers") return (item as PageLink | PageSticker).size;
+  if (kind === "links" || kind === "stickers" || kind === "hotspots") return (item as PageLink | PageSticker | PageHotspot).size;
   return (item as Foldout | PageVideo | PageSpotlight | PageJump).width;
 }
 /**

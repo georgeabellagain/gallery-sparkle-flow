@@ -108,7 +108,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
         controls
         homepageExample={workspace}
         allowDownload={p.allowDownload}
-        projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} videos={p.pdf.videos} spotlights={p.pdf.spotlights} jumps={p.pdf.jumps} stickers={p.pdf.stickers} projectCode={p.code}
+        projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} videos={p.pdf.videos} spotlights={p.pdf.spotlights} jumps={p.pdf.jumps} stickers={p.pdf.stickers} hotspots={p.pdf.hotspots} projectCode={p.code}
         lightweight={!workspace}
         initialLook="studio"
         fullSpread
@@ -128,7 +128,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
           controls={false}
           pageNumber={false}
           homepageExample
-          projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} spotlights={p.pdf.spotlights} jumps={p.pdf.jumps} stickers={p.pdf.stickers}
+          projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} spotlights={p.pdf.spotlights} jumps={p.pdf.jumps} stickers={p.pdf.stickers} hotspots={p.pdf.hotspots}
           initialLook="clean"
           fullSpread
           showcaseOrbit={rendered && visible && motionAllowed && !interacted}
