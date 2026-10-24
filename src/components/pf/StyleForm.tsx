@@ -300,6 +300,16 @@ export function StyleForm({
                     />
                   </PanelSection>
                 )}
+                {enabledModes.includes("book") && (
+                  <PanelSection title="Idle 3D tour" hint="The book drifts slowly round in 3D, as on the Portfolia homepage, until the reader touches anything.">
+                    <Segmented
+                      label="Idle 3D tour"
+                      value={viewer.idleOrbit ?? "off"}
+                      options={[["off", "Off"], ["start", "On opening and idle"], ["idle", "After a minute idle"]] as const}
+                      onChange={(idleOrbit) => setViewer({ idleOrbit })}
+                    />
+                  </PanelSection>
+                )}
                 <PanelSection title="Your PDF contains">
                   <Segmented
                     label="My PDF contains"

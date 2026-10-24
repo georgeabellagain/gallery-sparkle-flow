@@ -1,7 +1,7 @@
 import { transformFoldout, type Foldout, type ResizeCorner } from "./foldouts";
-import { placeHotspot, placeJump, placeLink, placeSpotlight, placeSticker, placeVideo, type PageHotspot, type PageJump, type PageLink, type PageSpotlight, type PageSticker, type PageTag, type PageVideo } from "./page-extras";
-export type ExtraKind = "foldouts" | "links" | "tags" | "videos" | "spotlights" | "jumps" | "stickers" | "hotspots";
-export type Extra = Foldout | PageLink | PageTag | PageVideo | PageSpotlight | PageJump | PageSticker | PageHotspot;
+import { placeSlideshow, type PageSlideshow, placeHotspot, placeJump, placeLink, placeSpotlight, placeSticker, placeVideo, type PageHotspot, type PageJump, type PageLink, type PageSpotlight, type PageSticker, type PageTag, type PageVideo } from "./page-extras";
+export type ExtraKind = "foldouts" | "links" | "tags" | "videos" | "spotlights" | "jumps" | "stickers" | "hotspots" | "slideshows";
+export type Extra = Foldout | PageLink | PageTag | PageVideo | PageSpotlight | PageJump | PageSticker | PageHotspot | PageSlideshow;
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
 export function transformExtra(
   kind: ExtraKind,
@@ -29,6 +29,11 @@ export function transformExtra(
     // A page link's box is any shape, like a spotlight: it covers one line of a contents page.
     const j = item as PageJump;
     return handle === "move" ? placeJump(j, j.x + dx, j.y + dy, j.width, j.height) : placeJump(j, j.x, j.y, j.width + dx, j.height + dy);
+  }
+  if (kind === "slideshows") {
+    // Any shape, like a spotlight: the corner handle changes width and height freely.
+    const s = item as PageSlideshow;
+    return handle === "move" ? placeSlideshow(s, s.x + dx, s.y + dy, s.width, s.height) : placeSlideshow(s, s.x, s.y, s.width + dx, s.height + dy);
   }
   if (kind === "hotspots") {
     const h = item as PageHotspot;

@@ -1,13 +1,14 @@
 import { useRef, useState, type ReactNode } from "react";
-import { CornerDownRight, ExternalLink, Film, Link2, MousePointerClick, Plus, Search, Shapes, StickyNote, Tag, Trash2 } from "lucide-react";
+import { CornerDownRight, ExternalLink, Film, GalleryHorizontal, Link2, MousePointerClick, Plus, Search, Shapes, StickyNote, Tag, Trash2 } from "lucide-react";
 import { HotspotFields } from "./HotspotFields";
+import { SlideshowFields } from "./SlideshowFields";
 import { AnimatedSticker } from "./AnimatedSticker";
 import { Button } from "@/components/ui/button";
 import type { ScrapbookPanel } from "./FoldoutSettings";
 import type { ScrapbookSelection } from "./live-scrapbook-context";
 import { deleteBlob, putBlob, uid } from "@/lib/portfolia/assets";
 import { MAX_FOLDOUTS, MAX_NOTE_ROTATION, newFoldout, noteRotation, readableFoldouts, rotateFoldout, type Foldout } from "@/lib/portfolia/foldouts";
-import { HOTSPOT_SIZE, MAX_HOTSPOTS, placeHotspot, readablePageHotspots, type HotspotStyle, type PageHotspot, MAX_STICKERS, STICKERS, STICKER_COLOURS, STICKER_SIZE, placeSticker, readablePageStickers, stickerInfo, type PageSticker, type StickerId, JUMP_SIZE, LINK_SIZE, MAX_JUMPS, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, SPOTLIGHT_CAPTION_LIMIT, SPOTLIGHT_LIMITS, SPOTLIGHT_SIZE, TAG_COLOURS, VIDEO_MAX_MB, VIDEO_WIDTH, hostOf, normaliseUrl, placeJump, placeVideo, readablePageJumps, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { MAX_SLIDESHOWS, SLIDESHOW_SIZE, SLIDE_INTERVAL, placeSlideshow, readablePageSlideshows, type PageSlideshow, HOTSPOT_SIZE, MAX_HOTSPOTS, placeHotspot, readablePageHotspots, type HotspotStyle, type PageHotspot, MAX_STICKERS, STICKERS, STICKER_COLOURS, STICKER_SIZE, placeSticker, readablePageStickers, stickerInfo, type PageSticker, type StickerId, JUMP_SIZE, LINK_SIZE, MAX_JUMPS, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, SPOTLIGHT_CAPTION_LIMIT, SPOTLIGHT_LIMITS, SPOTLIGHT_SIZE, TAG_COLOURS, VIDEO_MAX_MB, VIDEO_WIDTH, hostOf, normaliseUrl, placeJump, placeVideo, readablePageJumps, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { readVideo, videoFileProblem, videoMime } from "@/lib/portfolia/page-video-file";
 import { gifFileProblem, gifToVideo, isGif } from "@/lib/portfolia/gif-to-video";
 import { addPortfolioExtra, deleteUnusedPortfolioAsset, isPaid, patchPortfolioExtra, removePortfolioExtra, useDoc, type Portfolio } from "@/lib/portfolia/store";
@@ -73,6 +74,7 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
   const pageVideos = readablePageVideos(pdf.videos, pdf.pages);
   const stickers = readablePageStickers(pdf.stickers, pdf.pages);
   const hotspots = readablePageHotspots(pdf.hotspots, pdf.pages);
+  const slideshows = readablePageSlideshows(pdf.slideshows, pdf.pages);
   const spotlightLimit = isPaid(doc) ? SPOTLIGHT_LIMITS.personal : SPOTLIGHT_LIMITS.free;
 
   const addNote = (kind: "sticky" | "foldout") => {
@@ -165,6 +167,14 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
   const video = selected?.kind === "videos" ? pageVideos.find((v) => v.id === selected.id) : undefined;
   const sticker = selected?.kind === "stickers" ? stickers.find((s) => s.id === selected.id) : undefined;
   const hotspot = selected?.kind === "hotspots" ? hotspots.find((h) => h.id === selected.id) : undefined;
+  const slideshow = selected?.kind === "slideshows" ? slideshows.find((s) => s.id === selected.id) : undefined;
+  const addSlideshow = () => {
+    const { width, height } = SLIDESHOW_SIZE.default;
+    const s = placeSlideshow({ id: uid("slides"), page: page.page, half, x: 0, y: 0, width, height, images: [], interval: SLIDE_INTERVAL.default, transition: "fade", fit: "cover" }, (1 - width) / 2, 0.3, width, height);
+    const ok = addPortfolioExtra(p.code, pdf.blobKey, "slideshows", s, MAX_SLIDESHOWS);
+    report(ok, `Use up to ${MAX_SLIDESHOWS} slideshows.`);
+    if (ok) select("slideshows", s.id);
+  };
   /** A new hotspot in the middle of the page in view, ready to fill in. */
   const addHotspot = (style: HotspotStyle) => {
     const size = style === "dot" ? HOTSPOT_SIZE.dot : style === "tag" ? HOTSPOT_SIZE.tag : HOTSPOT_SIZE.button;
@@ -260,6 +270,14 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
         {hotspot && editing(
           <HotspotFields hotspot={hotspot} save={(next: PageHotspot, message?: string) => { const ok = patchPortfolioExtra(p.code, pdf.blobKey, "hotspots", next.id, next); report(ok, message ?? "That change couldn't be saved. Check the words aren't too long."); return ok; }} />,
         "hotspot")}
+      </FeatureBox>
+
+      <FeatureBox icon={GalleryHorizontal} title="Slideshows" count={`${slideshows.length} of ${MAX_SLIDESHOWS}`} hint="A box of your pictures on the page that changes by itself. Readers can step through with arrows." active={Boolean(slideshow)}
+        action={add("Add", addSlideshow, slideshows.length >= MAX_SLIDESHOWS)}>
+        {chips("slideshows", slideshows.map((s) => ({ id: s.id, page: s.page, label: `${s.images.length} picture${s.images.length === 1 ? "" : "s"}` })))}
+        {slideshow && editing(
+          <SlideshowFields slideshow={slideshow} save={(next: PageSlideshow, message?: string) => { const ok = patchPortfolioExtra(p.code, pdf.blobKey, "slideshows", next.id, next); report(ok, message ?? "That change couldn't be saved."); return ok; }} />,
+        "slideshow")}
       </FeatureBox>
 
       <FeatureBox icon={Shapes} title="Animated stickers" count={`${stickers.length} of ${MAX_STICKERS}`} hint="Small moving arrows, circles and marks. Drag one onto a page, or click it to add it to the page in view." active={Boolean(sticker)}>

@@ -16,5 +16,6 @@ export function publicAssetKeys(p: Portfolio, personal: boolean): string[] {
 export function publicPortfolioPlan(p: Portfolio, personal: boolean): Portfolio {
   // Free keeps its first few spotlights; videos are Personal only.
   const freePdf = !personal && p.pdf ? { pdf: { ...p.pdf, videos: undefined, spotlights: p.pdf.spotlights?.slice(0, SPOTLIGHT_LIMITS.free) } } : {};
-  return { ...p, notifyOnOpen: undefined, ...(!personal ? { viewer: freeViewer(p.viewer) } : {}), ...freePdf, plan: personal ? "personal" : "free", cancelledAt: undefined, profile: { ...p.profile, ...(!personal ? { cv: undefined } : {}) }, ...(!personal && p.style ? { style: { ...p.style, bannerKey: undefined } } : {}) };
+  // A lead form only takes replies for Personal owners, so readers of an unpaid portfolio never see one.
+  return { ...p, notifyOnOpen: undefined, ...(!personal ? { leadForm: undefined } : {}), ...(!personal ? { viewer: freeViewer(p.viewer) } : {}), ...freePdf, plan: personal ? "personal" : "free", cancelledAt: undefined, profile: { ...p.profile, ...(!personal ? { cv: undefined } : {}) }, ...(!personal && p.style ? { style: { ...p.style, bannerKey: undefined } } : {}) };
 }

@@ -13,13 +13,15 @@ import { StoredFoldout } from "./FoldoutCard";
 import { BookLoader } from "./book-loader";
 import { getBookInset, subscribeBookInset } from "@/lib/portfolia/book-framing";
 import { PageStickerMark } from "./AnimatedSticker";
+import { drawPageLayer, loadPageLayerPictures } from "./sticker-layer";
 import { PageHotspotMark } from "./PageHotspots";
+import { PageSlideshowMark } from "./PageSlideshow";
 import { PageJumpLink, PageLinkAnchor } from "./PageLinks";
 import { isBackgroundScene } from "@/lib/portfolia/background-scenes";
 import { loadLinkIcons, paintPageLinks, type LinkIcons } from "@/lib/portfolia/link-paint";
 import { PageTabButtons } from "./PageTabs";
 import { planTabs, tabEdge } from "@/lib/portfolia/tab-geometry";
-import { jumpsForLeaf, linksForLeaf, readablePageJumps, readablePageStickers, stickersForLeaf, readablePageHotspots, hotspotsForLeaf, type PageHotspot, type PageSticker, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, spotlightRegion, spotlightsForLeaf, tabSlots, videosForLeaf, type PageJump, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { jumpsForLeaf, linksForLeaf, readablePageJumps, readablePageStickers, stickersForLeaf, readablePageHotspots, hotspotsForLeaf, type PageHotspot, readablePageSlideshows, slideshowsForLeaf, type PageSlideshow, type PageSticker, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, spotlightRegion, spotlightsForLeaf, tabSlots, videosForLeaf, type PageJump, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { SpotlightLightbox, SpotlightTarget, type SpotlightView } from "./PageSpotlights";
 import { getBlob, publicAssetUrl, resolveAssetUrl } from "@/lib/portfolia/assets";
 import { videoUvRect } from "@/lib/portfolia/page-video";
@@ -373,6 +375,7 @@ export function BookView({
   jumps,
   stickers,
   hotspots,
+  slideshows,
   showPageNumber = true,
   showNavigation = true,
   showcaseOrbit = false,
@@ -438,6 +441,8 @@ export function BookView({
   stickers?: PageSticker[];
   /** Pressable hotspots: product tags, pop-up cards, buttons. */
   hotspots?: PageHotspot[];
+  /** Picture slideshows on pages. */
+  slideshows?: PageSlideshow[];
 }) {
   // A portrait first page followed only by landscape pages is a front cover and then two-page spreads.
   // The flipbook shows it that way whatever "My PDF contains" says; the other reading modes are unaffected.
@@ -506,6 +511,8 @@ export function BookView({
   const pageStickers = useMemo(() => readablePageStickers(JSON.parse(stickersSignature), doc.numPages), [stickersSignature, doc.numPages]);
   const hotspotsSignature = JSON.stringify(editingExtras ? [] : hotspots ?? []);
   const pageHotspots = useMemo(() => readablePageHotspots(JSON.parse(hotspotsSignature), doc.numPages), [hotspotsSignature, doc.numPages]);
+  const slideshowsSignature = JSON.stringify(editingExtras ? [] : slideshows ?? []);
+  const pageSlideshows = useMemo(() => readablePageSlideshows(JSON.parse(slideshowsSignature), doc.numPages), [slideshowsSignature, doc.numPages]);
   const videoPlayer = useRef<PageVideoPlayer | null>(null);
   const [videoSound, setVideoSound] = useState<string | null>(null);
   const noteClosers = useRef(new Map<string, () => Promise<void> | null>());
@@ -1305,6 +1312,26 @@ export function BookView({
   // Tell the viewer when the book is rendered and ready, so it can show nothing but a loader until then.
   useEffect(() => { if (error) { console.error("Book render error", error); onRenderError?.(error); } }, [error, onRenderError]);
   const bookReady = (ready > 0 || fallback) && warm && !loading && !error;
+  // Stickers and slideshows move in a flat overlay over still pages. While that overlay is away (turning, tilted,
+  // preparing) the pages carry still copies drawn on the paper, so they stay fixed to their page as it turns.
+  useEffect(() => {
+    const s = scene.current;
+    if (!s || (!pageStickers.length && !pageSlideshows.length)) return;
+    let live = true;
+    const layers = new Map<number, HTMLCanvasElement | null>();
+    void loadPageLayerPictures(pageStickers, pageSlideshows).then(() => {
+      if (!live) return;
+      s.setStickerLayerLookup((canvas) => {
+        const n = Number(canvas.dataset["seed"]), at = layout.leaves[n];
+        if (!at) return null;
+        if (!layers.has(n)) layers.set(n, drawPageLayer(stickersForLeaf(pageStickers, at), slideshowsForLeaf(pageSlideshows, at), ratio));
+        return layers.get(n) ?? null;
+      });
+    });
+    return () => { live = false; s.setStickerLayerLookup(() => null); };
+  }, [ready, pageStickers, pageSlideshows, layout, ratio]);
+  const overlayShown = bookReady && !busy && !wait && !fallback && !view3d;
+  useEffect(() => { scene.current?.setStickerLayerShown(!overlayShown); }, [overlayShown, ready]);
   const [litNotesKey, setLitNotesKey] = useState("");
   const notesForSpread = (pages: Array<number | null>) => pages.flatMap((n, side) => n === null ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side, seed: n + 1, exterior: n === 0 || n === layout.leaves.length - 1 })));
   useEffect(() => { noteProgresses.current.clear(); setOpenNote(false); }, [leaf, additions]);
@@ -1571,6 +1598,7 @@ export function BookView({
             {editingExtras && <LiveScrapbookPage leaf={layout.leaves[n]!} side={side===0?'left':'right'} ratio={ratio} neighbour={spread[1-side] != null ? layout.leaves[spread[1-side]!] : undefined}/>}
             {onLeaf.map(link => <PageLinkAnchor key={link.id} link={link} />)}
             {videosForLeaf(pageVideos, layout.leaves[n]!).filter(v => !v.silent).map(v => <PageVideoSound key={v.id} video={v} on={videoSound === v.id} onToggle={() => videoPlayer.current?.toggleSound(v.id)} />)}
+            {slideshowsForLeaf(pageSlideshows, layout.leaves[n]!).map(s => <PageSlideshowMark key={s.id} slideshow={s} />)}
             {stickersForLeaf(pageStickers, layout.leaves[n]!).map(s => <PageStickerMark key={s.id} sticker={s} />)}
             {hotspotsForLeaf(pageHotspots, layout.leaves[n]!).map(h => <PageHotspotMark key={h.id} hotspot={h} />)}
             {jumpsForLeaf(pageJumps, layout.leaves[n]!).map(j => <PageJumpLink key={j.id} jump={j} onGo={(page) => void jumpTo(layout.leaves.findIndex((l) => l.page === page))} />)}

@@ -3,13 +3,14 @@ import { LiveScrapbookContext, type ScrapbookSelection } from "./live-scrapbook-
 import { ScrapbookQuickPanel } from "./ScrapbookQuickPanel";
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Inbox, Book as BookIcon, Camera, ChartNoAxesColumn, BookOpen, ChevronRight, ChevronsLeft, ChevronsRight, GripHorizontal, FolderOpen, Image as ImageIcon, Megaphone, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Inbox, Book as BookIcon, Camera, ChartNoAxesColumn, BookOpen, ChevronRight, ChevronsLeft, ChevronsRight, GripHorizontal, FolderOpen, Image as ImageIcon, Megaphone, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/pf/Chrome";
 import { ScrapbookDialog, type ScrapbookPanel } from "@/components/pf/FoldoutSettings";
 import { ProjectSettings } from "@/components/pf/ProjectSettings";
 import { ShareActions } from "@/components/pf/ShareActions";
 import { LeadSettings } from "@/components/pf/LeadSettings";
+import { BrandingSettings } from "@/components/pf/BrandingSettings";
 import { StyleForm } from "@/components/pf/StyleForm";
 import { Segmented } from "@/components/pf/viewer-ui";
 import { formatBytes } from "@/lib/portfolia/assets";
@@ -44,7 +45,7 @@ import { openingLook } from "@/lib/portfolia/appearance";
 
 const PhotoShoot=lazy(()=>import("./PhotoShoot").then(module=>({default:module.PhotoShoot})));
 
-type Tool = "shoot" | "book" | "customise" | "profile" | "reading" | "look" | "paper" | "background" | "scrapbook" | "projects" | "publish" | "share" | "statistics" | "leads";
+type Tool = "shoot" | "book" | "customise" | "profile" | "reading" | "look" | "paper" | "background" | "scrapbook" | "projects" | "publish" | "share" | "statistics" | "leads" | "branding";
 /** The dock, in three groups: how the book looks, what is on it, and getting it out. */
 const TOOL_GROUPS: Array<Array<[Tool, string, typeof Sun]>> = [
   [
@@ -52,6 +53,7 @@ const TOOL_GROUPS: Array<Array<[Tool, string, typeof Sun]>> = [
     ["look", "Light & shade", Sun],
     ["background", "Background", ImageIcon],
     ["reading", "Reading modes", BookOpen],
+    ["branding", "Branding", BadgeCheck],
   ],
   [
     ["scrapbook", "Scrapbook", StickyNote],
@@ -75,6 +77,7 @@ const TOOL_HINTS: Partial<Record<Tool, string>> = {
   reading: "How visitors can read: flipbook, scroll or page by page.",
   scrapbook: "Notes, tabs, links, hotspots, stickers and more on pages.",
   leads: "A form that collects readers' details, and the leads it brings in.",
+  branding: "Your own logo in the viewer.",
   customise: "Choose what to change.",
 };
 const PANEL_WIDE_KEY = "pf-panel-wide";
@@ -329,6 +332,7 @@ export function EditorStage({
           </div>}
           {tool === "profile" && profile}
           {tool === "leads" && <LeadSettings p={p} onSaveError={onSaveError} />}
+          {tool === "branding" && <BrandingSettings p={p} onSaveError={onSaveError} />}
           {tool === "statistics" && (statistics ?? <p className="text-sm text-muted-foreground">Sign in to see portfolio statistics.</p>)}
           {tool === "reading" && <StyleForm sidebar part="reading" p={p} onSaveError={onSaveError} />}
           {tool === "look" && <StyleForm sidebar part="look" p={p} onSaveError={onSaveError} />}

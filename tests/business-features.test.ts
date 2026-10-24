@@ -1,8 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { HOTSPOT_SIZE, STICKERS, hotspotHref, hotspotsForPage, placeHotspot, readablePageHotspots, validatePageHotspot, videoEmbedUrl, type PageHotspot } from "../src/lib/portfolia/page-extras";
+import { HOTSPOT_SIZE, MAX_SLIDES, SLIDESHOW_SIZE, STICKERS, placeSlideshow, readablePageSlideshows, slideshowsForLeaf, slideshowsForPage, validatePageSlideshow, type PageSlideshow, hotspotHref, hotspotsForPage, placeHotspot, readablePageHotspots, validatePageHotspot, videoEmbedUrl, type PageHotspot } from "../src/lib/portfolia/page-extras";
 import { defaultLeadForm, leadProblem, leadsCsv, readableLeadForm } from "../src/lib/portfolia/lead-form";
 import { foldoutKeys } from "../src/lib/portfolia/foldouts";
+import { freeViewer } from "../src/lib/portfolia/premium-appearance";
+import { backgroundKeys } from "../src/lib/portfolia/background-settings";
 
 const tag: PageHotspot = { id: "h1", page: 2, half: "right", style: "tag", x: 0.3, y: 0.4, size: HOTSPOT_SIZE.tag, colour: "#e8604c", action: "popup", label: "Linen shirt", title: "Linen shirt", price: "£45", imageKey: "hotspot_abc" };
 
@@ -47,4 +49,31 @@ test("lead forms: email is always required, chosen fields are checked, and the C
 test("there are plenty of stickers, each with a known motion", () => {
   assert.ok(STICKERS.length >= 36);
   assert.equal(new Set(STICKERS.map((s) => s.id)).size, STICKERS.length);
+});
+
+const show: PageSlideshow = { id: "s1", page: 3, half: "left", x: 0.1, y: 0.2, width: 0.6, height: 0.4, images: ["slide_a", "slide_b"], interval: 4, transition: "fade", fit: "cover" };
+
+test("slideshows are validated, kept on the page and their pictures publish with the portfolio", () => {
+  assert.equal(validatePageSlideshow(show, 4), null);
+  assert.ok(validatePageSlideshow({ ...show, page: 5 }, 4));
+  assert.ok(validatePageSlideshow({ ...show, interval: 1 }, 4));
+  assert.ok(validatePageSlideshow({ ...show, images: Array.from({ length: MAX_SLIDES + 1 }, (_, i) => `slide_${i}`) }, 4));
+  assert.ok(validatePageSlideshow({ ...show, x: 0.6 }, 4), "the box must stay on the page");
+  const placed = placeSlideshow(show, 0.9, 0.9, 0.01, 2);
+  assert.equal(placed.width, SLIDESHOW_SIZE.min);
+  assert.equal(placed.height, 1);
+  assert.ok(placed.x + placed.width <= 1 && placed.y === 0);
+  assert.equal(readablePageSlideshows([show, { ...show, fit: "stretch" }], 4).length, 1);
+  assert.equal(slideshowsForLeaf([show], { page: 3, half: "right" }).length, 0);
+  assert.equal(slideshowsForPage([show], 3, true)[0]!.width, 0.3);
+  const keys = foldoutKeys({ slideshows: [show], pages: 4 });
+  assert.ok(keys.includes("slide_a") && keys.includes("slide_b"));
+});
+
+test("your logo in the viewer is a Personal feature that publishes with the viewer", () => {
+  const view = { brandLogoKey: "brand_x", brandLink: "https://studio.com/", brandLogoHeight: 40 };
+  assert.ok(backgroundKeys(view as never).includes("brand_x"));
+  const free = freeViewer(view as never) as { brandLogoKey?: string; brandLink?: string };
+  assert.equal(free.brandLogoKey, undefined);
+  assert.equal(free.brandLink, undefined);
 });

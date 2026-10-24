@@ -13,6 +13,7 @@ export function premiumAppearance(p: Portfolio): string[] {
   if (p.profile.cv) features.push("Downloadable CV");
   if (p.pdf?.videos?.length) features.push("Videos on pages");
   if (p.leadForm?.enabled) features.push("Lead capture form");
+  if (p.viewer?.brandLogoKey) features.push("Your logo in the viewer");
   if ((p.pdf?.spotlights?.length ?? 0) > SPOTLIGHT_LIMITS.free) features.push(`More than ${SPOTLIGHT_LIMITS.free} spotlights`);
   if (p.style && Object.entries(p.style).some(([key, value]) => value !== undefined && value !== DEFAULT_STYLE[key as keyof typeof DEFAULT_STYLE])) features.push("Custom profile styling");
   return features;
@@ -21,5 +22,5 @@ export function premiumAppearance(p: Portfolio): string[] {
 export function freeViewer(view: Portfolio["viewer"]): Portfolio["viewer"] {
   if (!view) return view;
   const clean = <T extends { backgroundKey?: string; backgroundPreset?: string }>(c: T): T => ({ ...c, backgroundKey: undefined, backgroundPreset: c.backgroundPreset && !personalBackground(c.backgroundPreset) ? c.backgroundPreset : undefined });
-  return { ...clean(view), studioLighting: view.studioLighting && !personalHdri(view.studioLighting) ? view.studioLighting : "4", backgroundUploads: undefined, backgrounds: view.backgrounds ? Object.fromEntries(Object.entries(view.backgrounds).map(([key,c]) => [key, clean(c)])) : undefined };
+  return { ...clean(view), brandLogoKey: undefined, brandLink: undefined, studioLighting: view.studioLighting && !personalHdri(view.studioLighting) ? view.studioLighting : "4", backgroundUploads: undefined, backgrounds: view.backgrounds ? Object.fromEntries(Object.entries(view.backgrounds).map(([key,c]) => [key, clean(c)])) : undefined };
 }

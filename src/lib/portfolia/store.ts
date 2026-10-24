@@ -1,5 +1,5 @@
 import { validateFoldout } from "./foldouts";
-import { validatePageTag, validatePageLink, validatePageVideo, validatePageSpotlight, validatePageJump, validatePageSticker, validatePageHotspot, type PageVideo } from "./page-extras";
+import { validatePageTag, validatePageLink, validatePageVideo, validatePageSpotlight, validatePageJump, validatePageSticker, validatePageHotspot, validatePageSlideshow, type PageVideo } from "./page-extras";
 import type { ExtraKind, Extra } from "./scrapbook-transform";
 import { backgroundKeys } from "./background-settings";
 import { foldoutKeys } from "./foldouts";
@@ -79,6 +79,12 @@ export interface ViewerSettings {
   simpleShadowOpacity?: number;
   /** Simple look: how shade on the pages is drawn. Omitted is standard. */
   simpleShading?: import("./shade-style").ShadeStyle;
+  /** Your own logo in the viewer (Personal): its picture, height in pixels, and where pressing it goes. */
+  brandLogoKey?: string;
+  brandLogoHeight?: number;
+  brandLink?: string;
+  /** Book view: drift round the book in 3D on opening and after a minute idle ("start"), only when idle ("idle"), or never. */
+  idleOrbit?: "off" | "start" | "idle";
   /** The shape of the page tabs. */
   tabStyle?: import("./tab-style").TabStyle;
   background: "midnight" | "black" | "paper" | "soft" | "oak" | "walnut";
@@ -156,6 +162,8 @@ export interface PdfFile {
   stickers?: import("./page-extras").PageSticker[];
   /** Pressable hotspots: product tags, pop-up cards, call-to-action buttons. */
   hotspots?: import("./page-extras").PageHotspot[];
+  /** Picture slideshows on pages. */
+  slideshows?: import("./page-extras").PageSlideshow[];
   /** Optional derived JPEG used in public link previews. */
   coverKey?: string;
   renderedStudio?: import("./rendered-studio").RenderedStudio;
@@ -383,6 +391,7 @@ function validateExtra(kind:ExtraKind,item:Extra,pages:number):string|null{
   if(kind==="jumps")return validatePageJump(item as import("./page-extras").PageJump,pages);
   if(kind==="stickers")return validatePageSticker(item as import("./page-extras").PageSticker,pages);
   if(kind==="hotspots")return validatePageHotspot(item as import("./page-extras").PageHotspot,pages);
+  if(kind==="slideshows")return validatePageSlideshow(item as import("./page-extras").PageSlideshow,pages);
   return validatePageLink(item as import("./page-extras").PageLink,pages);
 }
 

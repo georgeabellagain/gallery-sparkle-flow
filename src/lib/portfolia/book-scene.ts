@@ -1116,6 +1116,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     setVideoLookup(lookup: (canvas: HTMLCanvasElement) => PageVideoSource | null) { pageVideo.setLookup(lookup); requestPaint(false); },
     /** Only the printed stills (reduced motion, captures). */
     setVideoStill(still: boolean) { pageVideo.setStill(still); requestPaint(false); },
+    /** Which sticker layer is drawn over a page picture while the stickers' flat overlay is away. */
+    setStickerLayerLookup(lookup: (canvas: HTMLCanvasElement) => HTMLCanvasElement | null) { pageVideo.setLayerLookup(lookup); requestPaint(false); },
+    setStickerLayerShown(shown: boolean) { pageVideo.setLayerShown(shown); requestPaint(false); },
     /** A new video frame is ready: redraw without recomputing shadows. */
     videoFrame() { requestPaint(false); },
     setCoverColour(canvas:HTMLCanvasElement,board:"front"|"back"="front"){binding.setCoverColour(sampleCoverColour(canvas),board);requestPaint();},

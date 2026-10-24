@@ -22,6 +22,8 @@ export function backgroundKeys(view?: Partial<ViewerSettings>): string[] {
     ...new Set(
       [
         view?.backgroundKey,
+        // The creator's own logo in the viewer lives with the viewer's pictures, so it saves and publishes the same way.
+        view?.brandLogoKey,
         ...(view?.backgroundUploads ?? []),
         ...Object.values(view?.backgrounds ?? {}).map((v) => v?.backgroundKey),
       ].filter((v): v is string => Boolean(v)),

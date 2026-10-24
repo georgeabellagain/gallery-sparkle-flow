@@ -432,6 +432,57 @@ export function placeHotspot(h: PageHotspot, x: number, y: number, size: number,
   const w = Math.min(Math.max(HOTSPOT_SIZE.min, size), HOTSPOT_SIZE.max), height = hotspotHeight({ style: h.style, size: w }, ratio);
   return { ...h, size: w, x: Math.min(Math.max(0, x), 1 - w), y: Math.min(Math.max(0, y), Math.max(0, 1 - height)) };
 }
+/**
+ * A slideshow on a page: a box of your own pictures that changes by itself (fading or sliding) and that readers can
+ * step through with arrows or a swipe. Like a photo slideshow element in a catalogue maker.
+ */
+export interface PageSlideshow {
+  id: string;
+  page: number;
+  half: "left" | "right";
+  /** Top-left corner and size as fractions of the page. */
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** The pictures, in order. */
+  images: string[];
+  /** Seconds each picture shows before the next. */
+  interval: number;
+  transition: "fade" | "slide";
+  /** Fill the box (cropping) or show each picture whole. */
+  fit: "cover" | "contain";
+}
+export const MAX_SLIDESHOWS = 12;
+export const MAX_SLIDES = 12;
+export const SLIDESHOW_SIZE = { min: 0.08, default: { width: 0.6, height: 0.4 } };
+export const SLIDE_INTERVAL = { min: 2, max: 12, default: 4 };
+export function validatePageSlideshow(s: PageSlideshow, pages: number): string | null {
+  if (!s || typeof s !== "object" || !key.test(s.id)) return "Choose a valid slideshow.";
+  if (!Number.isInteger(s.page) || s.page < 1 || s.page > pages) return "Choose a page in this PDF.";
+  if (s.half !== "left" && s.half !== "right") return "Choose a page half.";
+  if (!Array.isArray(s.images) || s.images.length > MAX_SLIDES || s.images.some((k) => typeof k !== "string" || !key.test(k))) return `Use up to ${MAX_SLIDES} pictures.`;
+  if (!Number.isFinite(s.interval) || s.interval < SLIDE_INTERVAL.min || s.interval > SLIDE_INTERVAL.max) return "Choose how long each picture shows.";
+  if (s.transition !== "fade" && s.transition !== "slide") return "Choose how pictures change.";
+  if (s.fit !== "cover" && s.fit !== "contain") return "Choose how pictures fit.";
+  if (![s.x, s.y, s.width, s.height].every(Number.isFinite)) return "Choose a valid slideshow size.";
+  if (s.width < SLIDESHOW_SIZE.min - 1e-9 || s.height < SLIDESHOW_SIZE.min - 1e-9 || s.width > 1.0001 || s.height > 1.0001) return "Choose a valid slideshow size.";
+  if (s.x < -1e-9 || s.y < -1e-9 || s.x + s.width > 1.0001 || s.y + s.height > 1.0001) return "Keep the slideshow on the page.";
+  return null;
+}
+export const readablePageSlideshows = (value: unknown, pages: number): PageSlideshow[] =>
+  readable<PageSlideshow>(value, MAX_SLIDESHOWS, (s) => !validatePageSlideshow(s, pages));
+export const slideshowsForLeaf = (slideshows: PageSlideshow[], leaf: { page: number; half?: "left" | "right" }) =>
+  slideshows.filter((s) => s.page === leaf.page && (!leaf.half || s.half === leaf.half));
+/** The same leaf-relative box on the full PDF page, for Scroll and Page-by-page. */
+export function slideshowsForPage(slideshows: PageSlideshow[], page: number, split: boolean): PageSlideshow[] {
+  return slideshows.filter((s) => s.page === page).map((s) => split ? { ...s, x: (s.half === "right" ? 0.5 : 0) + s.x / 2, width: s.width / 2 } : s);
+}
+/** Keeps a slideshow's box on its page while it is moved or resized. Its shape is free. */
+export function placeSlideshow(s: PageSlideshow, x: number, y: number, width: number, height: number): PageSlideshow {
+  const w = Math.min(Math.max(SLIDESHOW_SIZE.min, width), 1), h = Math.min(Math.max(SLIDESHOW_SIZE.min, height), 1);
+  return { ...s, width: w, height: h, x: Math.min(Math.max(0, x), 1 - w), y: Math.min(Math.max(0, y), 1 - h) };
+}
 function readable<T extends { id: string }>(value: unknown, max: number, ok: (v: T) => boolean): T[] {
   if (!Array.isArray(value)) return [];
   const ids = new Set<string>();

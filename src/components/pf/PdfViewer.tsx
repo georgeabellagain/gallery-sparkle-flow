@@ -14,7 +14,7 @@ import { createRenderQueue } from "@/lib/portfolia/render-queue";
 import { cachedReaderArtwork, copyReaderArtwork, prepareReaderArtwork } from "@/lib/portfolia/reader-artwork";
 import { READER_SLIDE_MS, READER_SLIDE_DISTANCE } from "@/lib/portfolia/reader-slide";
 import type { Foldout } from "@/lib/portfolia/foldouts";
-import { jumpsForPage, linksForPage, readablePageJumps, readablePageStickers, stickersForPage, readablePageHotspots, hotspotsForPage, type PageHotspot, type PageSticker, readablePageSpotlights, spotlightRegion, spotlightsForPage, videosForPage, type PageJump, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { jumpsForPage, linksForPage, readablePageJumps, readablePageStickers, stickersForPage, readablePageHotspots, hotspotsForPage, type PageHotspot, readablePageSlideshows, slideshowsForPage, type PageSlideshow, type PageSticker, readablePageSpotlights, spotlightRegion, spotlightsForPage, videosForPage, type PageJump, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { SpotlightLightbox, SpotlightTarget, type SpotlightView } from "./PageSpotlights";
 import { PageVideoHtml } from "./PageVideoHtml";
 import { coverWithSpreads } from "@/lib/portfolia/mixed-layout";
@@ -22,6 +22,7 @@ import { createPortal } from "react-dom";
 import { PageJumpLink, PageLinkAnchor } from "./PageLinks";
 import { PageStickerMark } from "./AnimatedSticker";
 import { PageHotspotMark } from "./PageHotspots";
+import { PageSlideshowMark } from "./PageSlideshow";
 import { LeadGate } from "./LeadGate";
 import { readableLeadForm, type LeadForm } from "@/lib/portfolia/lead-form";
 import { lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -31,6 +32,7 @@ import { List, Copy } from "lucide-react";
 import { projectFromHash, projectPath, readableProjects, type PortfolioProject } from "@/lib/portfolia/projects";
 import { BookOpen, ChevronLeft, ChevronRight, Download, FileText, LayoutGrid, Maximize2, Minimize2, ScrollText, Search, User, ZoomIn, ZoomOut } from "lucide-react";
 import { BookSearch } from "./BookSearch";
+import { BrandMark } from "./BrandingSettings";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { downloadLink, isStreamedPdf, markStreamedPdf, openRemotePdf, PDF_RANGE_CHUNK, type RemotePdf } from "@/lib/portfolia/remote-pdf";
@@ -91,6 +93,7 @@ export function PdfViewer({
   jumps,
   stickers,
   hotspots,
+  slideshows,
   leadForm,
   projectCode,
   profile,
@@ -145,6 +148,8 @@ export function PdfViewer({
   stickers?: PageSticker[];
   /** Pressable hotspots on pages. */
   hotspots?: PageHotspot[];
+  /** Picture slideshows on pages. */
+  slideshows?: PageSlideshow[];
   /** The portfolio's lead capture form (public readers only). */
   leadForm?: LeadForm;
   /** Enables hash links on public readers. Editor previews never read the URL hash. */
@@ -208,6 +213,10 @@ export function PdfViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [JSON.stringify(hotspots ?? []), doc]);
   const pageHotspots = (page: number) => hotspotsForPage(allHotspots, page, spreadSheet(page));
+  const allSlideshows = useMemo(() => readablePageSlideshows(slideshows, doc?.numPages ?? 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(slideshows ?? []), doc]);
+  const pageSlideshows = (page: number) => slideshowsForPage(allSlideshows, page, spreadSheet(page));
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -507,6 +516,27 @@ export function PdfViewer({
   }, [compact,startMode]);
   const liveScrapbook = useContext(LiveScrapbookContext);
   useEffect(()=>{if(liveScrapbook?.enabled)setMode("book");},[liveScrapbook?.enabled]);
+  // Idle 3D tour: the book drifts round as on the homepage, on opening and/or after a minute with nothing done. A press,
+  // key or scroll stops it at once; moving the pointer only puts off the next one.
+  const idleOrbit = view.idleOrbit ?? "off";
+  const [idleDrift, setIdleDrift] = useState(false);
+  useEffect(() => {
+    if (idleOrbit === "off" || liveScrapbook?.enabled || homepageExample || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) { setIdleDrift(false); return; }
+    let timer = 0;
+    const rest = () => { clearTimeout(timer); timer = window.setTimeout(() => setIdleDrift(true), 60_000); };
+    const wake = () => { setIdleDrift(false); rest(); };
+    setIdleDrift(idleOrbit === "start");
+    rest();
+    const options = { capture: true, passive: true } as const;
+    const stops = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
+    for (const type of stops) window.addEventListener(type, wake, options);
+    window.addEventListener("pointermove", rest, options);
+    return () => {
+      clearTimeout(timer);
+      for (const type of stops) window.removeEventListener(type, wake, options);
+      window.removeEventListener("pointermove", rest, options);
+    };
+  }, [idleOrbit, liveScrapbook?.enabled, homepageExample]);
   const requestedLook = liveScrapbook?.enabled ? "clean" : previewLook ?? selectedLook;
   const activeLook = liveScrapbook?.enabled ? "clean" : enabledLooks.includes(requestedLook) ? requestedLook : openingLook(view, mode);
   const changeLook = (look: "clean" | "studio") => { setSelectedLook(look); if (compact) pinPreviewLook(look); };
@@ -767,14 +797,18 @@ export function PdfViewer({
 
       {showControls && (
         <div className="pointer-events-none sticky top-0 z-50 h-0">
-          {!minimalControls && (home || profile || bookMarketing) && (
-            <div ref={profileRef} className={cn("pointer-events-auto absolute left-3 top-3 transition-opacity duration-300", fade)}>
+          {!minimalControls && (home || profile || bookMarketing || view.brandLogoKey) && (
+            <div ref={profileRef} className="pointer-events-auto absolute left-3 top-3">
               <div className="flex items-center gap-2">
+                {/* The creator's own logo stays in view; the icons beside it fade with the other controls. */}
+                {view.brandLogoKey && <BrandMark logoKey={view.brandLogoKey} height={view.brandLogoHeight} link={view.brandLink} tone={tone} />}
+                <div className={cn("flex items-center gap-2 transition-opacity duration-300", fade)}>
                 {home && <LogoMark tone={tone} />}
                 {bookMarketing && <IconButton label="About this book" tone={tone} pressed={panel === "book"} onClick={() => togglePanel("book")}><BookOpen className="size-[17px]" /></IconButton>}
                 {profile && <IconButton label="Profile" tone={tone} pressed={panel === "profile"} onClick={() => togglePanel("profile")}>
                   {profileImageUrl && !profileImageFailed ? <img src={profileImageUrl} alt="" className="size-8 rounded-full object-cover" onError={() => setProfileImageFailed(true)} /> : <User className="size-[17px]" />}
                 </IconButton>}
+                </div>
               </div>
               {panel === "book" && bookMarketing && <Panel label="About this book" style={{ maxHeight: "calc(100dvh - 5rem)" }} className="mt-3 w-[min(24rem,calc(100vw-1.5rem))] overflow-y-auto overflow-x-hidden [overflow-wrap:anywhere] overscroll-contain">{bookMarketing}</Panel>}
               {panel === "profile" && profile && <Panel label="Profile" style={{ maxHeight: "calc(100dvh - 5rem)" }} className="mt-3 w-[min(24rem,calc(100vw-1.5rem))] overflow-y-auto overflow-x-hidden [overflow-wrap:anywhere] overscroll-contain">{profile}</Panel>}
@@ -911,7 +945,7 @@ export function PdfViewer({
       {mode === "book" && activeLook === "studio" && renderedStudio && !renderFailed && !compact ? (
         <RenderedBook fill={full || immersive} pack={renderedStudio} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} onReady={bookReadyChanged} onFallback={() => setRenderFailed(true)} />
       ) : mode === "book" ? (
-        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} hotspots={hotspots} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} showcaseOrbit={showcaseOrbit} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
+        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} hotspots={hotspots} slideshows={slideshows} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} showcaseOrbit={showcaseOrbit || (idleDrift && mode === "book" && shown)} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>
@@ -921,7 +955,7 @@ export function PdfViewer({
             >
               {sizes[current - 1] && (
                 <div className="shrink-0" style={{ width: `calc(min(100%, max(1px, calc((${pagedHeight} - ${topGap + 24}px) * ${sizes[current - 1]!.w / sizes[current - 1]!.h}))) * ${zoom})` }}>
-                <PdfPage links={pageLinks(current)} videos={pageVideos(current)} spotlights={pageSpotlights(current)} onSpotlight={openSpotlightById} jumps={pageJumps(current)} stickers={pageStickers(current)} hotspots={pageHotspots(current)} onJump={jumpTo} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={noop} eager onRendered={markReady} />
+                <PdfPage links={pageLinks(current)} videos={pageVideos(current)} spotlights={pageSpotlights(current)} onSpotlight={openSpotlightById} jumps={pageJumps(current)} stickers={pageStickers(current)} hotspots={pageHotspots(current)} slideshows={pageSlideshows(current)} onJump={jumpTo} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={noop} eager onRendered={markReady} />
                 </div>
               )}
             </div>
@@ -940,7 +974,7 @@ export function PdfViewer({
             style={{ paddingTop: topGap, width: `calc(min(100%, ${compact ? 900 : 1100}px) * ${zoom})` }}
           >
             {sizes.map((s, i) => (
-              <PdfPage links={pageLinks(i + 1)} videos={pageVideos(i + 1)} spotlights={pageSpotlights(i + 1)} onSpotlight={openSpotlightById} jumps={pageJumps(i + 1)} stickers={pageStickers(i + 1)} hotspots={pageHotspots(i + 1)} onJump={jumpTo} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={setCurrent} eager={!streamedDoc} renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
+              <PdfPage links={pageLinks(i + 1)} videos={pageVideos(i + 1)} spotlights={pageSpotlights(i + 1)} onSpotlight={openSpotlightById} jumps={pageJumps(i + 1)} stickers={pageStickers(i + 1)} hotspots={pageHotspots(i + 1)} slideshows={pageSlideshows(i + 1)} onJump={jumpTo} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={setCurrent} eager={!streamedDoc} renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
             ))}
           </div>
         </div>
@@ -1061,6 +1095,7 @@ function PdfPage({
   jumps,
   stickers,
   hotspots,
+  slideshows,
   onJump,
   detail = 0,
 }: {
@@ -1075,6 +1110,8 @@ function PdfPage({
   stickers?: PageSticker[];
   /** Pressable hotspots on the full page. */
   hotspots?: PageHotspot[];
+  /** Picture slideshows on the full page. */
+  slideshows?: PageSlideshow[];
   onJump?: (page: number) => void;
   /** Bumped when a page-picture document can draw from its PDF, so a zoomed page redraws sharper. */
   detail?: number;
@@ -1333,7 +1370,8 @@ function PdfPage({
           {/* Inside the drawn page layer, which replaces the page's children whenever it redraws. */}
           {videos && videos.length > 0 && <PageVideoHtml videos={videos} />}
           {spotlights?.map((s) => <SpotlightTarget key={s.id} spotlight={s} onOpen={() => onSpotlight?.(s.id)} />)}
-          {stickers?.map((s) => <PageStickerMark key={s.id} sticker={s} />)}
+          {slideshows?.map((s) => <PageSlideshowMark key={s.id} slideshow={s} />)}
+        {stickers?.map((s) => <PageStickerMark key={s.id} sticker={s} />)}
         {hotspots?.map((h) => <PageHotspotMark key={h.id} hotspot={h} />)}
         {onJump && jumps?.map((j) => <PageJumpLink key={j.id} jump={j} onGo={onJump} />)}
         </div>, linkLayer.element,

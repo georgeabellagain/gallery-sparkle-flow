@@ -10,7 +10,7 @@ import {
   type Foldout,
   type ResizeCorner,
 } from "@/lib/portfolia/foldouts";
-import { hotspotsForLeaf, readablePageHotspots, MAX_STICKERS, STICKER_SIZE, STICKER_COLOURS, jumpsForLeaf, linksForLeaf, placeSticker, placeVideo, readablePageJumps, readablePageStickers, stickerInfo, stickersForLeaf, type PageSticker, readablePageSpotlights, readablePageVideos, spotlightsForLeaf, tabSlots, videoHeight, videosForLeaf, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { slideshowsForLeaf, readablePageSlideshows, hotspotsForLeaf, readablePageHotspots, MAX_STICKERS, STICKER_SIZE, STICKER_COLOURS, jumpsForLeaf, linksForLeaf, placeSticker, placeVideo, readablePageJumps, readablePageStickers, stickerInfo, stickersForLeaf, type PageSticker, readablePageSpotlights, readablePageVideos, spotlightsForLeaf, tabSlots, videoHeight, videosForLeaf, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { CornerDownRight, Search } from "lucide-react";
 import { useBlob } from "./Chrome";
 
@@ -31,6 +31,7 @@ import type { Leaf } from "@/lib/portfolia/book-layout";
 import { addPortfolioExtra, patchPortfolioExtra, removePortfolioExtra } from "@/lib/portfolia/store";
 import { AnimatedSticker } from "./AnimatedSticker";
 import { HotspotFace } from "./PageHotspots";
+import { SlideshowFrame } from "./PageSlideshow";
 import { uid } from "@/lib/portfolia/assets";
 import { extraWidth, moveToPage, transformExtra, type Extra, type ExtraKind } from "@/lib/portfolia/scrapbook-transform";
 export function LiveScrapbookPage({
@@ -66,7 +67,7 @@ export function LiveScrapbookPage({
     /** How far it has been moved across, unclamped, so it can be carried over the spine. */
     dx: number;
   } | null>(null);
-  useEffect(() => setDraft(null), [pdf.foldouts, pdf.links, pdf.tags, pdf.videos, pdf.spotlights, pdf.jumps, pdf.stickers, pdf.hotspots]);
+  useEffect(() => setDraft(null), [pdf.foldouts, pdf.links, pdf.tags, pdf.videos, pdf.spotlights, pdf.jumps, pdf.stickers, pdf.hotspots, pdf.slideshows]);
   const leafVideos = videosForLeaf(readablePageVideos(pdf.videos, pdf.pages), leaf);
   // A new video is placed at a typical page shape; fit its height to this page's real shape once it is seen.
   useEffect(() => {
@@ -191,7 +192,7 @@ export function LiveScrapbookPage({
       <button
         key={corner}
         type="button"
-        aria-label={`Resize ${kind === "foldouts" ? "note" : kind === "tags" ? "tab" : kind === "videos" ? "video" : kind === "spotlights" ? "spotlight" : kind === "jumps" ? "page link" : kind === "stickers" ? "sticker" : kind === "hotspots" ? "hotspot" : "link"} ${corner}`}
+        aria-label={`Resize ${kind === "foldouts" ? "note" : kind === "tags" ? "tab" : kind === "videos" ? "video" : kind === "spotlights" ? "spotlight" : kind === "jumps" ? "page link" : kind === "stickers" ? "sticker" : kind === "hotspots" ? "hotspot" : kind === "slideshows" ? "slideshow" : "link"} ${corner}`}
         {...controls(kind, item, corner as ResizeCorner)}
         className={`pointer-events-auto absolute z-20 size-3 touch-none border border-white bg-blue-600 ${corner.includes("n") ? "-top-1.5" : "-bottom-1.5"} ${corner.includes("w") ? "-left-1.5" : "-right-1.5"}`}
         style={{ cursor: corner === "nw" || corner === "se" ? "nwse-resize" : "nesw-resize" }}
@@ -336,8 +337,28 @@ export function LiveScrapbookPage({
           </div>
         );
       })}
-      {hotspotsForLeaf(readablePageHotspots(pdf.hotspots, pdf.pages), leaf).map((original) => {
-        const h = live(original);
+      {slideshowsForLeaf(readablePageSlideshows(pdf.slideshows, pdf.pages), leaf).map((original) => {
+        const s = live(original);
+        return (
+          <div
+            key={s.id}
+            data-selected={selected === s.id || undefined}
+            className="absolute pointer-events-auto overflow-visible ring-1 ring-blue-500/60 data-[selected]:ring-2 data-[selected]:ring-blue-600"
+            style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${s.width * 100}%`, height: `${s.height * 100}%` }}
+          >
+            <span className="absolute inset-0 overflow-hidden"><SlideshowFrame slideshow={s} still /></span>
+            <span aria-hidden className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">Slideshow · {s.images.length}</span>
+            <button
+              type="button"
+              aria-label="Move slideshow"
+              {...controls("slideshows", s, "move")}
+              className="absolute inset-0 touch-none cursor-move bg-transparent"
+            />
+            {resize("slideshows", s)}
+          </div>
+        );
+      })}
+      {hotspotsForLeaf(readablePageHotspots(pdf.hotspots, pdf.pages), leaf).map((original) => {        const h = live(original);
         return (
           <div
             key={h.id}
