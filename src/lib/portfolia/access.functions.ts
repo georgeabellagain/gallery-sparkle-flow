@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAccount } from "@/lib/require-account";
 const code = z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/);
 const lookup = z.object({ by: z.enum(["code", "username"]), value: code });
 
@@ -45,7 +45,7 @@ export const unlockPortfolio = createServerFn({ method: "POST" }).inputValidator
   return { ok: true, message: "" };
 });
 
-export const ownerAccessSettings = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).inputValidator(d => z.object({ code }).parse(d)).handler(async ({ data, context }) => {
+export const ownerAccessSettings = createServerFn({ method: "GET" }).middleware([requireAccount]).inputValidator(d => z.object({ code }).parse(d)).handler(async ({ data, context }) => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { readAccessPolicy } = await import("./access.server");
   const { setResponseHeader } = await import("@tanstack/react-start/server");
@@ -59,7 +59,7 @@ export const ownerAccessSettings = createServerFn({ method: "GET" }).middleware(
   return { password: Boolean(policy?.password_hash), expiresAt: policy?.expires_at ?? null, personal };
 });
 
-export const saveAccessSettings = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator(d => z.object({ code, password: z.string().min(8).max(256).optional(), removePassword: z.boolean(), expiresAt: z.string().datetime().nullable() }).parse(d)).handler(async ({ data, context }) => {
+export const saveAccessSettings = createServerFn({ method: "POST" }).middleware([requireAccount]).inputValidator(d => z.object({ code, password: z.string().min(8).max(256).optional(), removePassword: z.boolean(), expiresAt: z.string().datetime().nullable() }).parse(d)).handler(async ({ data, context }) => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { readAccessPolicy } = await import("./access.server");
   const { hashPassword } = await import("./access-crypto.server");

@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAccount } from "@/lib/require-account";
 import { gatewayFetch, getPaddleClient, type PaddleEnv } from "./paddle.server";
 
 const envSchema = z.enum(["sandbox", "live"]);
@@ -33,7 +33,7 @@ async function currentSub(supabase: any, userId: string, env: PaddleEnv) {
 
 /** Opens Paddle's customer portal (cancel, card details, invoices). */
 export const getPortalUrl = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAccount])
   .inputValidator((d) => z.object({ environment: envSchema }).parse(d))
   .handler(async ({ data, context }) => {
     const sub = await currentSub(context.supabase, context.userId, data.environment);
@@ -45,7 +45,7 @@ export const getPortalUrl = createServerFn({ method: "POST" })
 
 /** Switch monthly <-> yearly immediately, charging or crediting the difference. */
 export const switchBilling = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAccount])
   .inputValidator((d) => z.object({ environment: envSchema, priceId: z.enum(PRICE_IDS) }).parse(d))
   .handler(async ({ data, context }) => {
     const sub = await currentSub(context.supabase, context.userId, data.environment);
@@ -62,7 +62,7 @@ export const switchBilling = createServerFn({ method: "POST" })
 
 /** Undo a scheduled cancellation — the plan simply renews on its normal date. */
 export const keepSubscription = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAccount])
   .inputValidator((d) => z.object({ environment: envSchema }).parse(d))
   .handler(async ({ data, context }) => {
     const sub = await currentSub(context.supabase, context.userId, data.environment);

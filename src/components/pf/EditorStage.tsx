@@ -3,7 +3,7 @@ import { LiveScrapbookContext, type ScrapbookSelection } from "./live-scrapbook-
 import { ScrapbookQuickPanel } from "./ScrapbookQuickPanel";
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, BadgeCheck, Inbox, Book as BookIcon, Camera, ChartNoAxesColumn, BookOpen, ChevronRight, ChevronsLeft, ChevronsRight, GripHorizontal, FolderOpen, Image as ImageIcon, Megaphone, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Inbox, Redo2, Undo2, Book as BookIcon, Camera, ChartNoAxesColumn, BookOpen, ChevronRight, ChevronsLeft, ChevronsRight, GripHorizontal, FolderOpen, Image as ImageIcon, Megaphone, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/pf/Chrome";
 import { ScrapbookDialog, type ScrapbookPanel } from "@/components/pf/FoldoutSettings";
@@ -11,10 +11,12 @@ import { ProjectSettings } from "@/components/pf/ProjectSettings";
 import { ShareActions } from "@/components/pf/ShareActions";
 import { LeadSettings } from "@/components/pf/LeadSettings";
 import { BrandingSettings } from "@/components/pf/BrandingSettings";
+import { StylePresets } from "@/components/pf/StylePresets";
+import { useAppearanceHistory } from "@/lib/portfolia/appearance-history";
 import { StyleForm } from "@/components/pf/StyleForm";
 import { Segmented } from "@/components/pf/viewer-ui";
 import { formatBytes } from "@/lib/portfolia/assets";
-import { DEFAULT_VIEWER, isPaid, patchPortfolio, useDoc, type Portfolio } from "@/lib/portfolia/store";
+import { DEFAULT_VIEWER, isPaid, patchPortfolio, redoAppearance, undoAppearance, useDoc, type Portfolio } from "@/lib/portfolia/store";
 import { OPEN_EMAIL_GAP_HOURS } from "@/lib/portfolia/open-notify";
 
 /** Opt-in "someone opened your portfolio" email (Personal, signed in: it goes to the account's address). */
@@ -103,6 +105,7 @@ export function EditorBar({
   useEffect(() => subscribePreviewLook(setLook), []);
   useEffect(() => () => pinPreviewLook(null), []);
   const shown: PreviewLook = look ?? openingLook(viewer, viewer.mode);
+  const history = useAppearanceHistory(p.code);
   return (
     <header className="relative z-20 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-3 sm:px-5">
       <Link to="/dashboard" aria-label="Back to your portfolios" title="Your portfolios" className="rounded-lg p-2 hover:bg-muted"><ArrowLeft className="size-4" /></Link>
@@ -125,7 +128,10 @@ export function EditorBar({
           </div>
         )}
       </div>
-      {onSave && <Button size="sm" onClick={onSave} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>}
+      <div className="flex items-center" role="group" aria-label="Undo and redo">
+        <Button size="icon-sm" variant="quiet" aria-label="Undo design change" title="Undo (Ctrl+Z)" disabled={!history.canUndo} onClick={() => undoAppearance()}><Undo2 /></Button>
+        <Button size="icon-sm" variant="quiet" aria-label="Redo design change" title="Redo (Ctrl+Shift+Z)" disabled={!history.canRedo} onClick={() => redoAppearance()}><Redo2 /></Button>
+      </div>      {onSave && <Button size="sm" onClick={onSave} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>}
       <Button asChild size="sm" variant="line">
         <Link to="/p/$slug" params={{ slug: p.code }} search={{ preview: "1" }}>Preview</Link>
       </Button>
@@ -197,6 +203,13 @@ export function EditorStage({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !scrapbook) setTool(null);
+      // Ctrl/Cmd+Z undoes a design change and Ctrl+Shift+Z (or Ctrl+Y) redoes it, except while typing in a field.
+      const typing = (e.target as Element | null)?.closest?.("input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color]), textarea, select, [contenteditable=true]");
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !typing) {
+        const key = e.key.toLowerCase();
+        if (key === "z" && !e.shiftKey) { if (undoAppearance()) e.preventDefault(); }
+        else if ((key === "z" && e.shiftKey) || key === "y") { if (redoAppearance()) e.preventDefault(); }
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -312,6 +325,7 @@ export function EditorStage({
           </div>
           {tool === "customise" && <div className="space-y-5">
             <label className="block text-xs">Portfolio name<input aria-label="Portfolio name" className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/40" value={p.name ?? ""} maxLength={120} placeholder={p.pdf?.name ?? "My portfolio"} onChange={e=>patchPortfolio({name:e.target.value})} /></label>
+            <StylePresets p={p} onSaveError={onSaveError} />
             {([["Design", TOOL_GROUPS[0]!], ["On the pages", TOOL_GROUPS[1]!.filter(([id]) => id !== "shoot")], ["More", [["profile", "Profile details", BookOpen] as [Tool, string, typeof Sun], ...TOOL_GROUPS[2]!.filter(([id]) => id !== "share")]]] as const).map(([heading, items]) => (
               <div key={heading} className="space-y-1.5">
                 <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{heading}</h3>

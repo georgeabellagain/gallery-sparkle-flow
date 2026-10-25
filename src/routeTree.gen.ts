@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as UsernameRouteImport } from './routes/$username'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as ArchitecturePortfolioRouteImport } from './routes/architecture-portfolio'
 import { Route as ArtPortfolioRouteImport } from './routes/art-portfolio'
 import { Route as BookMarketingRouteImport } from './routes/book-marketing'
@@ -84,6 +85,11 @@ const IndexRoute = IndexRouteImport.update({
 const UsernameRoute = UsernameRouteImport.update({
   id: '/$username',
   path: '/$username',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ArchitecturePortfolioRoute = ArchitecturePortfolioRouteImport.update({
@@ -415,6 +421,7 @@ const LovableEmailAuthWebhookRoute = LovableEmailAuthWebhookRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$username': typeof UsernameRoute
+  '/account': typeof AccountRoute
   '/architecture-portfolio': typeof ArchitecturePortfolioRoute
   '/art-portfolio': typeof ArtPortfolioRoute
   '/book-marketing': typeof BookMarketingRoute
@@ -483,6 +490,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/$username': typeof UsernameRoute
+  '/account': typeof AccountRoute
   '/architecture-portfolio': typeof ArchitecturePortfolioRoute
   '/art-portfolio': typeof ArtPortfolioRoute
   '/book-marketing': typeof BookMarketingRoute
@@ -552,6 +560,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$username': typeof UsernameRoute
+  '/account': typeof AccountRoute
   '/architecture-portfolio': typeof ArchitecturePortfolioRoute
   '/art-portfolio': typeof ArtPortfolioRoute
   '/book-marketing': typeof BookMarketingRoute
@@ -622,6 +631,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$username'
+    | '/account'
     | '/architecture-portfolio'
     | '/art-portfolio'
     | '/book-marketing'
@@ -690,6 +700,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/$username'
+    | '/account'
     | '/architecture-portfolio'
     | '/art-portfolio'
     | '/book-marketing'
@@ -758,6 +769,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$username'
+    | '/account'
     | '/architecture-portfolio'
     | '/art-portfolio'
     | '/book-marketing'
@@ -827,6 +839,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   UsernameRoute: typeof UsernameRoute
+  AccountRoute: typeof AccountRoute
   ArchitecturePortfolioRoute: typeof ArchitecturePortfolioRoute
   ArtPortfolioRoute: typeof ArtPortfolioRoute
   BookMarketingRoute: typeof BookMarketingRoute
@@ -907,6 +920,13 @@ declare module '@tanstack/react-router' {
       path: '/$username'
       fullPath: '/$username'
       preLoaderRoute: typeof UsernameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/architecture-portfolio': {
@@ -1363,6 +1383,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   UsernameRoute: UsernameRoute,
+  AccountRoute: AccountRoute,
   ArchitecturePortfolioRoute: ArchitecturePortfolioRoute,
   ArtPortfolioRoute: ArtPortfolioRoute,
   BookMarketingRoute: BookMarketingRoute,

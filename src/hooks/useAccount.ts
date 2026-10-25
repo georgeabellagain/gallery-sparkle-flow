@@ -28,7 +28,15 @@ export function useAccount() {
       if (!s?.user) syncPlan(null); // signed out: never leave paid features on in this browser
       update((d) => ({ ...d, account: { signedIn: Boolean(s?.user) } }));
     });
-    void supabase.auth.getSession().then(({ data: { session } }) => {
+    void supabase.auth.getSession().then(async ({ data: { session } }) => {
+      // A two-step account that hasn't entered its code yet finishes signing in first.
+      if (session) {
+        const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+        if (aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2" && window.location.pathname !== "/signin") {
+          window.location.assign("/signin");
+          return;
+        }
+      }
       setUser(session?.user ?? null);
       if (!session) setLoading(false);
     });

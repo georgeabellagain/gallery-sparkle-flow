@@ -14,6 +14,7 @@ import { BookLoader } from "./book-loader";
 import { getBookInset, subscribeBookInset } from "@/lib/portfolia/book-framing";
 import { PageStickerMark } from "./AnimatedSticker";
 import { drawPageLayer, loadPageLayerPictures } from "./sticker-layer";
+import { playTurnSound } from "@/lib/portfolia/turn-sound";
 import { PageHotspotMark } from "./PageHotspots";
 import { PageSlideshowMark } from "./PageSlideshow";
 import { PageJumpLink, PageLinkAnchor } from "./PageLinks";
@@ -379,6 +380,7 @@ export function BookView({
   showPageNumber = true,
   showNavigation = true,
   showcaseOrbit = false,
+  turnSound = false,
 }: {
   doc: PDFDocumentProxy;
   sizes: { w: number; h: number }[];
@@ -390,6 +392,8 @@ export function BookView({
   showNavigation?: boolean;
   /** Homepage only: drift slowly round the book in 3D until the reader takes over. */
   showcaseOrbit?: boolean;
+  /** A soft paper sound as each page turns. */
+  turnSound?: boolean;
   viewer: ViewerSettings;
   /** The colour behind the book. */
   colour: string;
@@ -1331,6 +1335,7 @@ export function BookView({
     return () => { live = false; s.setStickerLayerLookup(() => null); };
   }, [ready, pageStickers, pageSlideshows, layout, ratio]);
   const overlayShown = bookReady && !busy && !wait && !fallback && !view3d;
+  useEffect(() => { if (busy && turnSound) playTurnSound(); }, [busy, turnSound]);
   useEffect(() => { scene.current?.setStickerLayerShown(!overlayShown); }, [overlayShown, ready]);
   const [litNotesKey, setLitNotesKey] = useState("");
   const notesForSpread = (pages: Array<number | null>) => pages.flatMap((n, side) => n === null ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side, seed: n + 1, exterior: n === 0 || n === layout.leaves.length - 1 })));

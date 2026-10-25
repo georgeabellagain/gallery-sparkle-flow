@@ -6,6 +6,7 @@ import { foldoutKeys } from "./foldouts";
 import { useSyncExternalStore } from "react";
 import { deleteBlob, deleteBlobs, setAssetRetention, uid } from "./assets";
 import { pageImageKeys, type PageImages } from "./page-images";
+import { recordAppearance, stepAppearance, withCurrentFiles, type AppearanceSnapshot } from "./appearance-history";
 
 /**
  * Portfolio store. A localStorage copy keeps the UI instant; once signed in,
@@ -85,6 +86,18 @@ export interface ViewerSettings {
   brandLink?: string;
   /** Book view: drift round the book in 3D on opening and after a minute idle ("start"), only when idle ("idle"), or never. */
   idleOrbit?: "off" | "start" | "idle";
+  /** The PDF page the portfolio opens on (links to a page or project still win); omitted is page 1. */
+  startPage?: number;
+  /** Book view: turn the page every this many seconds until the reader does anything (and again once idle); 0 or omitted is off. */
+  autoFlip?: number;
+  /** Book view: a soft paper sound as pages turn; omitted is off. */
+  turnSound?: boolean;
+  /** Which of the viewer's buttons readers see; omitted ones show. */
+  controls?: Partial<Record<ViewerControl, boolean>>;
+  /** Where your logo sits in the viewer; omitted is the top left. */
+  brandPosition?: "top-left" | "bottom-left" | "bottom-right";
+  /** The viewer controls' colour: suited to the background (omitted), or always light or dark. */
+  controlsTone?: "auto" | "light" | "dark";
   /** The shape of the page tabs. */
   tabStyle?: import("./tab-style").TabStyle;
   background: "midnight" | "black" | "paper" | "soft" | "oak" | "walnut";
@@ -111,6 +124,8 @@ export interface ViewerSettings {
 }
 
 export type BackgroundContext = "studio" | "clean" | "scroll" | "paged";
+/** The viewer buttons a creator can hide. */
+export type ViewerControl = "pages" | "search" | "pageNumber" | "zoom" | "fullscreen" | "share";
 
 export const DEFAULT_VIEWER: ViewerSettings = {
   mode: "scroll",
@@ -132,6 +147,14 @@ export const FONT_OPTIONS = [
   { label: "DM Sans", css: '"DM Sans", system-ui, sans-serif' },
   { label: "Space Grotesk", css: '"Space Grotesk", system-ui, sans-serif' },
   { label: "Archivo", css: '"Archivo", system-ui, sans-serif' },
+  { label: "Playfair Display", css: '"Playfair Display", Georgia, serif' },
+  { label: "Cormorant Garamond", css: '"Cormorant Garamond", Georgia, serif' },
+  { label: "Fraunces", css: '"Fraunces", Georgia, serif' },
+  { label: "Inter", css: '"Inter", system-ui, sans-serif' },
+  { label: "Manrope", css: '"Manrope", system-ui, sans-serif' },
+  { label: "Syne", css: '"Syne", system-ui, sans-serif' },
+  { label: "Bricolage Grotesque", css: '"Bricolage Grotesque", system-ui, sans-serif' },
+  { label: "Caveat (handwritten)", css: '"Caveat", "Comic Sans MS", cursive' },
 ];
 
 export const DEFAULT_STYLE: PageStyle = { font: FONT_OPTIONS[0]!.css, text: "#1f1d1a", background: "#fbfaf6", backdrop: "#191d3a" };
@@ -432,14 +455,34 @@ export function removePortfolioExtra(code:string,blobKey:string,kind:ExtraKind,i
 
 /** Appearance saves belong to their editor, even if an upload finishes after switching portfolios. */
 export function patchPortfolioAppearance(code: string, patch: { viewer?: Partial<ViewerSettings>; style?: Partial<PageStyle> }): boolean {
-  if (!allPortfolios(getDoc()).some(p => p.code === code)) return false;
-  return update(d => {
+  const current = allPortfolios(getDoc()).find(p => p.code === code);
+  if (!current) return false;
+  const saved = update(d => {
     const p = allPortfolios(d).find(item => item.code === code)!;
     if (patch.viewer) p.viewer = { ...DEFAULT_VIEWER, ...p.viewer, ...patch.viewer };
     if (patch.style) p.style = { ...DEFAULT_STYLE, ...p.style, ...patch.style };
     return d;
   });
+  if (saved) recordAppearance({ code, viewer: current.viewer, style: current.style }, [...Object.keys(patch.viewer ?? {}), ...Object.keys(patch.style ?? {}).map(k => `style.${k}`)].sort().join());
+  return saved;
 }
+
+/** Puts a remembered look back on a portfolio (files stay as they are now); returns how it looked before. */
+function restoreAppearance(snapshot: AppearanceSnapshot): AppearanceSnapshot | null {
+  const current = allPortfolios(getDoc()).find(p => p.code === snapshot.code);
+  if (!current) return null;
+  const before = { code: snapshot.code, viewer: current.viewer, style: current.style };
+  const next = withCurrentFiles(snapshot, before, backgroundKeys(current.viewer));
+  const saved = update(d => {
+    const p = allPortfolios(d).find(item => item.code === snapshot.code)!;
+    p.viewer = next.viewer;
+    p.style = next.style;
+    return d;
+  });
+  return saved ? before : null;
+}
+export const undoAppearance = () => stepAppearance("undo", restoreAppearance);
+export const redoAppearance = () => stepAppearance("redo", restoreAppearance);
 
 /** Older portfolios can share an asset key; changing one must not erase another's picture. */
 export function portfolioUsesAsset(key: string): boolean {

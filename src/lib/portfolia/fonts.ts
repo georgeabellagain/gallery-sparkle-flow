@@ -6,6 +6,14 @@ const OPTIONAL_FONTS: Record<string, string> = {
   "Space Grotesk": "Space+Grotesk:wght@300..700",
   "Archivo": "Archivo:ital,wght@0,100..900;1,100..900",
   "JetBrains Mono": "JetBrains+Mono:ital,wght@0,100..800;1,100..800",
+  "Playfair Display": "Playfair+Display:ital,wght@0,400..900;1,400..900",
+  "Cormorant Garamond": "Cormorant+Garamond:ital,wght@0,300..700;1,300..700",
+  "Fraunces": "Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900",
+  "Inter": "Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900",
+  "Manrope": "Manrope:wght@200..800",
+  "Syne": "Syne:wght@400..800",
+  "Bricolage Grotesque": "Bricolage+Grotesque:opsz,wght@12..96,200..800",
+  "Caveat": "Caveat:wght@400..700",
 };
 
 /** Load only the selected optional heading font, once per browser session. */

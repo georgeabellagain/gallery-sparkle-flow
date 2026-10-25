@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
-import { CornerDownRight, ExternalLink, Film, GalleryHorizontal, Link2, MousePointerClick, Plus, Search, Shapes, StickyNote, Tag, Trash2 } from "lucide-react";
+import { Copy, CornerDownRight, ExternalLink, Film, GalleryHorizontal, Link2, MousePointerClick, Plus, Search, Shapes, StickyNote, Tag, Trash2 } from "lucide-react";
 import { HotspotFields } from "./HotspotFields";
 import { SlideshowFields } from "./SlideshowFields";
 import { AnimatedSticker } from "./AnimatedSticker";
@@ -228,10 +228,27 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
       </div>
     );
   };
+  /** A copy of the selected item a little down and to the right of it, selected for moving (videos stay one per page). */
+  const duplicate = () => {
+    if (!selected || selected.kind === "videos") return;
+    const lists: Partial<Record<Kind, Array<{ id: string }>>> = { foldouts: notes, tags, links, jumps, spotlights, stickers, hotspots, slideshows };
+    const limits: Partial<Record<Kind, number>> = { foldouts: MAX_FOLDOUTS, tags: MAX_TAGS, links: MAX_LINKS, jumps: MAX_JUMPS, spotlights: spotlightLimit, stickers: MAX_STICKERS, hotspots: MAX_HOTSPOTS, slideshows: MAX_SLIDESHOWS };
+    const item = lists[selected.kind]?.find((i) => i.id === selected.id) as (Record<string, unknown> & { id: string }) | undefined;
+    const limit = limits[selected.kind];
+    if (!item || !limit) return;
+    const copy: Record<string, unknown> = { ...structuredClone(item), id: uid(selected.kind.replace(/s$/, "")) };
+    const nudge = (at: unknown, extent: unknown) => typeof at === "number" ? Math.max(0, Math.min(at + 0.04, 1 - (typeof extent === "number" ? extent : 0))) : at;
+    copy["x"] = nudge(item["x"], item["width"] ?? item["size"]);
+    copy["y"] = nudge(item["y"], item["height"] ?? item["size"]);
+    const ok = addPortfolioExtra(p.code, pdf.blobKey, selected.kind, copy as never, limit);
+    report(ok, `That would be more than ${limit} of these.`);
+    if (ok) select(selected.kind, copy["id"] as string);
+  };
   const editing = (children: ReactNode, what: string) => (
     <div className="space-y-3 border-t border-border/70 pt-3">
       {children}
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-1">
+        {selected?.kind !== "videos" && <Button size="xs" variant="quiet" onClick={duplicate} aria-label={`Duplicate selected ${what}`}><Copy className="size-3.5" />Duplicate</Button>}
         <Button size="xs" variant="quiet" onClick={remove} aria-label={`Delete selected ${what}`}><Trash2 className="size-3.5" />Delete</Button>
       </div>
     </div>

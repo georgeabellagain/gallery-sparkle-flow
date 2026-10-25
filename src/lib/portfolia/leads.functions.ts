@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAccount } from "@/lib/require-account";
 
 const code = z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/);
 /** The leads table and rate-limit function are not in the generated database types, so they are reached loosely. */
@@ -94,7 +94,7 @@ async function emailOwner(ownerId: string, portfolioName: string, lead: { email:
 }
 
 /** The leads left in one of the signed-in owner's portfolios, newest first. */
-export const ownerLeads = createServerFn({ method: "GET" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ code }).parse(d)).handler(async ({ data, context }) => {
+export const ownerLeads = createServerFn({ method: "GET" }).middleware([requireAccount]).inputValidator((d) => z.object({ code }).parse(d)).handler(async ({ data, context }) => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { setResponseHeader } = await import("@tanstack/react-start/server");
   setResponseHeader("Cache-Control", "private, no-store");
@@ -106,7 +106,7 @@ export const ownerLeads = createServerFn({ method: "GET" }).middleware([requireS
 });
 
 /** Removes one lead from one of the signed-in owner's portfolios. */
-export const deleteLead = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d) => z.object({ code, id: z.string().uuid() }).parse(d)).handler(async ({ data, context }) => {
+export const deleteLead = createServerFn({ method: "POST" }).middleware([requireAccount]).inputValidator((d) => z.object({ code, id: z.string().uuid() }).parse(d)).handler(async ({ data, context }) => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { getRequest } = await import("@tanstack/react-start/server");
   const req = getRequest();

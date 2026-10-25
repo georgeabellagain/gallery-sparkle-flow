@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireAccount } from "@/lib/require-account";
 
 /** A Personal plan still renewing must be cancelled first, so deleting an account never leaves a live charge. */
 export function deletionBlocked(sub: { status: string; cancel_at_period_end: boolean | null } | null) {
@@ -13,7 +13,7 @@ export function deletionBlocked(sub: { status: string; cancel_at_period_end: boo
  * because tax law requires them.
  */
 export const deleteAccount = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireAccount])
   .inputValidator((d) => z.object({ confirm: z.literal("DELETE") }).parse(d))
   .handler(async ({ context }) => {
     const { getRequest, setResponseHeader } = await import("@tanstack/react-start/server");

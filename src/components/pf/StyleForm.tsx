@@ -19,6 +19,7 @@ import {
   deleteUnusedPortfolioAsset,
   type PageStyle,
   type Portfolio,
+  type ViewerControl,
   type ViewerSettings,
 } from "@/lib/portfolia/store";
 import { backgroundColour } from "@/lib/portfolia/background";
@@ -27,6 +28,27 @@ import {
   DEFAULT_SIMPLE_SHADOW_OPACITY,
 } from "@/lib/portfolia/lighting";
 import { setPreviewLook } from "@/lib/portfolia/preview-look";
+
+/** Ready-made text and page colours for the profile page (and the backdrop that suits them). */
+const PAGE_PALETTES = [
+  { label: "Ivory", text: "#1f1d1a", background: "#fbfaf6", backdrop: "#191d3a" },
+  { label: "Paper", text: "#2b2622", background: "#f1ebe1", backdrop: "#3a2f27" },
+  { label: "Sage", text: "#22301f", background: "#e9efe6", backdrop: "#2e3d2b" },
+  { label: "Blush", text: "#3a1f22", background: "#f8e9e6", backdrop: "#5b2f36" },
+  { label: "Sky", text: "#14233b", background: "#e8f0fa", backdrop: "#1b2e57" },
+  { label: "Night", text: "#f1efe9", background: "#15161a", backdrop: "#0b0c0f" },
+  { label: "Cobalt", text: "#ffffff", background: "#2337c6", backdrop: "#111a66" },
+  { label: "Clay", text: "#fff6ef", background: "#c4583f", backdrop: "#5e2617" },
+] as const;
+
+const VIEWER_CONTROLS: ReadonlyArray<readonly [ViewerControl, string]> = [
+  ["pages", "Page thumbnails"],
+  ["search", "Search"],
+  ["pageNumber", "Page number"],
+  ["zoom", "Zoom"],
+  ["fullscreen", "Full screen"],
+  ["share", "Share link"],
+];
 
 export function StyleForm({
   p,
@@ -188,6 +210,22 @@ export function StyleForm({
                   <span>{style[key] ?? 100}%</span>
                 </label>
               ))}
+              <div className="space-y-1.5">
+                <span>Colour palettes</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {PAGE_PALETTES.map((palette) => {
+                    const on = style.text === palette.text && style.background === palette.background;
+                    return (
+                      <button key={palette.label} type="button" title={palette.label} aria-label={`${palette.label} palette`} aria-pressed={on}
+                        onClick={() => set({ text: palette.text, background: palette.background, backdrop: palette.backdrop })}
+                        className="flex h-8 w-11 items-center justify-center rounded-full border border-border text-[13px] font-semibold shadow-sm aria-pressed:ring-2 aria-pressed:ring-foreground"
+                        style={{ background: palette.background, color: palette.text, fontFamily: style.font }}>
+                        Aa
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               {(
                 [
                   ["text", "Details text"],
@@ -323,14 +361,68 @@ export function StyleForm({
                     onChange={(spreads) => setViewer({ spreads })}
                   />
                 </PanelSection>
-                <PanelSection title="Viewer">
-                  <SwitchRow label="Show profile icon">
+                <PanelSection title="Opens on" hint="Links to a page or project still open there.">
+                  <label className="flex items-center justify-between gap-3">
+                    <span>Page</span>
+                    <input
+                      type="number"
+                      aria-label="Opens on page"
+                      min={1}
+                      max={p.pdf?.pages ?? 1}
+                      value={viewer.startPage ?? 1}
+                      onChange={(e) => {
+                        const page = Math.round(e.target.valueAsNumber);
+                        if (Number.isFinite(page)) setViewer({ startPage: Math.min(p.pdf?.pages ?? 1, Math.max(1, page)) === 1 ? undefined : Math.min(p.pdf?.pages ?? 1, Math.max(1, page)) });
+                      }}
+                      className="w-20 rounded-lg border border-input bg-background px-2 py-1.5 text-right tabular-nums"
+                    />
+                  </label>
+                </PanelSection>
+                {enabledModes.includes("book") && (
+                  <PanelSection title="Flipbook extras">
+                    <SliderRow label="Auto-flip" value={viewer.autoFlip ? `Every ${viewer.autoFlip} s` : "Off"}>
+                      <input
+                        type="range"
+                        aria-label="Auto-flip"
+                        className="w-full"
+                        min={0}
+                        max={15}
+                        step={1}
+                        value={viewer.autoFlip ?? 0}
+                        onChange={(e) => { const s = Number(e.target.value); setViewer({ autoFlip: s === 0 ? undefined : Math.max(2, s) }); }}
+                      />
+                    </SliderRow>
+                    <p className="text-[11px] text-muted-foreground">Turns pages by itself, like a kiosk, until the reader touches anything; it starts again after a minute idle.</p>
+                    <SwitchRow label="Page-turn sound" hint="A soft paper sound as pages turn.">
+                      <input type="checkbox" checked={Boolean(viewer.turnSound)} onChange={(e) => setViewer({ turnSound: e.target.checked || undefined })} />
+                    </SwitchRow>
+                  </PanelSection>
+                )}
+                <PanelSection title="Viewer buttons" hint="Choose what readers see in the controls bar.">
+                  <SwitchRow label="Profile icon">
                     <input
                       type="checkbox"
                       checked={viewer.showHeader}
                       onChange={(e) => setViewer({ showHeader: e.target.checked })}
                     />
                   </SwitchRow>
+                  {VIEWER_CONTROLS.map(([control, label]) => (
+                    <SwitchRow key={control} label={label}>
+                      <input
+                        type="checkbox"
+                        checked={viewer.controls?.[control] !== false}
+                        onChange={(e) => setViewer({ controls: { ...viewer.controls, [control]: e.target.checked ? undefined : false } })}
+                      />
+                    </SwitchRow>
+                  ))}
+                </PanelSection>
+                <PanelSection title="Controls colour">
+                  <Segmented
+                    label="Controls colour"
+                    value={viewer.controlsTone ?? "auto"}
+                    options={[["auto", "Match background"], ["light", "Light"], ["dark", "Dark"]] as const}
+                    onChange={(controlsTone) => setViewer({ controlsTone: controlsTone === "auto" ? undefined : controlsTone })}
+                  />
                 </PanelSection>
               </div>
             )}

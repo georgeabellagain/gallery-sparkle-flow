@@ -6,6 +6,7 @@ import { normaliseUrl } from "@/lib/portfolia/page-extras";
 import { DEFAULT_VIEWER, deleteUnusedPortfolioAsset, isPaid, patchPortfolioAppearance, useDoc, type Portfolio, type ViewerSettings } from "@/lib/portfolia/store";
 import { useBlob, useObjectUrl } from "./Chrome";
 import { PanelSection, SliderRow } from "./panel-ui";
+import { Segmented } from "./viewer-ui";
 
 export const BRAND_HEIGHT = { min: 20, max: 72, default: 36 };
 
@@ -91,6 +92,14 @@ export function BrandingSettings({ p, onSaveError }: { p: Portfolio; onSaveError
           <SliderRow label="Size" value={`${viewer.brandLogoHeight ?? BRAND_HEIGHT.default} px`}>
             <input type="range" className="w-full" min={BRAND_HEIGHT.min} max={BRAND_HEIGHT.max} step={2} value={viewer.brandLogoHeight ?? BRAND_HEIGHT.default} onChange={(e) => save({ brandLogoHeight: Number(e.target.value) })} />
           </SliderRow>
+        )}
+        {viewer.brandLogoKey && (
+          <div className="space-y-1.5 text-xs">
+            <span>Position</span>
+            <Segmented label="Logo position" value={viewer.brandPosition ?? "top-left"}
+              options={[["top-left", "Top left"], ["bottom-left", "Bottom left"], ["bottom-right", "Bottom right"]] as const}
+              onChange={(brandPosition) => save({ brandPosition: brandPosition === "top-left" ? undefined : brandPosition })} />
+          </div>
         )}
         <label className="block text-xs">Goes to (optional)
           <input className="mt-1 w-full rounded-lg border border-border bg-background px-2.5 py-2 text-sm" inputMode="url" placeholder="yourstudio.com" value={link} onChange={(e) => setLink(e.target.value)} onBlur={commitLink} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commitLink(); } }} />

@@ -30,7 +30,7 @@ import { EditorFullscreenContext } from "./editor-fullscreen";
 import { toggleFullscreen, type FullscreenDocument } from "@/lib/portfolia/fullscreen";
 import { List, Copy } from "lucide-react";
 import { projectFromHash, projectPath, readableProjects, type PortfolioProject } from "@/lib/portfolia/projects";
-import { BookOpen, ChevronLeft, ChevronRight, Download, FileText, LayoutGrid, Maximize2, Minimize2, ScrollText, Search, User, ZoomIn, ZoomOut } from "lucide-react";
+import { BookOpen, Check, ChevronLeft, ChevronRight, Download, Share2, FileText, LayoutGrid, Maximize2, Minimize2, ScrollText, Search, User, ZoomIn, ZoomOut } from "lucide-react";
 import { BookSearch } from "./BookSearch";
 import { BrandMark } from "./BrandingSettings";
 import type { PDFDocumentProxy } from "pdfjs-dist";
@@ -43,7 +43,7 @@ import { getPreviewLook, pinPreviewLook, subscribePreviewLook } from "@/lib/port
 import { isTouchDevice } from "@/lib/portfolia/scan";
 import { useTouchGestures } from "@/components/pf/touch-gestures";
 import { BookLoader } from "@/components/pf/book-loader";
-import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
+import { DEFAULT_VIEWER, type ViewerControl, type ViewerSettings } from "@/lib/portfolia/store";
 import { backgroundColour, fitTransform, toneOfHex } from "@/lib/portfolia/background";
 import { BackdropLayer, IconButton, LogoMark, Panel, Segmented, ToolbarDivider, iconClass, useDismiss, useTone } from "@/components/pf/viewer-ui";
 
@@ -83,7 +83,7 @@ export function PdfViewer({
   startFullscreen,
   backdrop,
   viewer,
-  startPage = 1,
+  startPage,
   projects,
   foldouts,
   tags,
@@ -516,16 +516,20 @@ export function PdfViewer({
   }, [compact,startMode]);
   const liveScrapbook = useContext(LiveScrapbookContext);
   useEffect(()=>{if(liveScrapbook?.enabled)setMode("book");},[liveScrapbook?.enabled]);
-  // Idle 3D tour: the book drifts round as on the homepage, on opening and/or after a minute with nothing done. A press,
-  // key or scroll stops it at once; moving the pointer only puts off the next one.
+  // The reader's attention: "fresh" until they first do anything, "active" while they read, and "idle" after a minute
+  // with nothing done. A press, key or scroll makes them active at once; moving the pointer only puts off idling.
+  // The idle 3D tour (the book drifting round as on the homepage) and auto-flip both run only while not active.
   const idleOrbit = view.idleOrbit ?? "off";
-  const [idleDrift, setIdleDrift] = useState(false);
+  const autoFlip = Math.max(0, view.autoFlip ?? 0);
+  const [attention, setAttention] = useState<"fresh" | "active" | "idle">("fresh");
+  const idleDrift = idleOrbit !== "off" && (attention === "idle" || (idleOrbit === "start" && attention === "fresh"));
+  const readerAutoFlip = autoFlip > 0 && attention !== "active";
   useEffect(() => {
-    if (idleOrbit === "off" || liveScrapbook?.enabled || homepageExample || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) { setIdleDrift(false); return; }
+    setAttention("fresh");
+    if ((idleOrbit === "off" && !autoFlip) || liveScrapbook?.enabled || homepageExample || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) { setAttention("active"); return; }
     let timer = 0;
-    const rest = () => { clearTimeout(timer); timer = window.setTimeout(() => setIdleDrift(true), 60_000); };
-    const wake = () => { setIdleDrift(false); rest(); };
-    setIdleDrift(idleOrbit === "start");
+    const rest = () => { clearTimeout(timer); timer = window.setTimeout(() => setAttention("idle"), 60_000); };
+    const wake = () => { setAttention("active"); rest(); };
     rest();
     const options = { capture: true, passive: true } as const;
     const stops = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
@@ -536,7 +540,7 @@ export function PdfViewer({
       for (const type of stops) window.removeEventListener(type, wake, options);
       window.removeEventListener("pointermove", rest, options);
     };
-  }, [idleOrbit, liveScrapbook?.enabled, homepageExample]);
+  }, [idleOrbit, autoFlip > 0, liveScrapbook?.enabled, homepageExample]);
   const requestedLook = liveScrapbook?.enabled ? "clean" : previewLook ?? selectedLook;
   const activeLook = liveScrapbook?.enabled ? "clean" : enabledLooks.includes(requestedLook) ? requestedLook : openingLook(view, mode);
   const changeLook = (look: "clean" | "studio") => { setSelectedLook(look); if (compact) pinPreviewLook(look); };
@@ -559,7 +563,21 @@ export function PdfViewer({
   const modeBackgroundUrl = useBackgroundUrl(modeBackgroundBlob);
   const backgroundUrl = backgroundPicture(bgView, modeBackgroundUrl ?? (bgView.backgroundKey === view.backgroundKey ? uploadedBackgroundUrl : undefined));
   const colour = backgroundColour(bgView, bgOverride?.backgroundColor ? undefined : backdrop);
-  const tone = useTone(colour, backgroundUrl);
+  const autoTone = useTone(colour, backgroundUrl);
+  // The creator can fix the controls light or dark; otherwise they suit the background.
+  const tone = view.controlsTone === "light" || view.controlsTone === "dark" ? view.controlsTone : autoTone;
+  const shows = (control: ViewerControl) => view.controls?.[control] !== false;
+  const logoTopLeft = Boolean(view.brandLogoKey) && (view.brandPosition ?? "top-left") === "top-left";
+  const [shared, setShared] = useState(false);
+  const share = async () => {
+    const url = window.location.href.split("#")[0]!;
+    try {
+      if (navigator.share && matchMedia("(pointer: coarse)").matches) { await navigator.share({ title: document.title, url }); return; }
+      await navigator.clipboard.writeText(url);
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    } catch { /* closed the share sheet, or copying was refused */ }
+  };
   const warmFlatStudio = studio || contentReady;
   const lightingHost = useRef<HTMLDivElement>(null);
   const [pageLighting, setPageLighting] = useState<PageStudioRenderer | null>(null);
@@ -608,7 +626,9 @@ export function PdfViewer({
   }, [doc, zoom > 1, mode]);
   const openingPage = () => {
     const project = projectCode ? projectFromHash(window.location.hash, sections) : undefined;
-    return project?.startPage ?? Math.min(total, Math.max(1, Number.isFinite(startPage) ? Math.floor(startPage) : 1));
+    // A link's page (embed or project) comes first, then the page the creator chose to open on.
+    const wanted = startPage ?? (homepageExample ? 1 : view.startPage ?? 1);
+    return project?.startPage ?? Math.min(total, Math.max(1, Number.isFinite(wanted) ? Math.floor(wanted) : 1));
   };
   const currentLive = useRef(current);
   currentLive.current = current;
@@ -795,13 +815,18 @@ export function PdfViewer({
       {/* The lead form, once a public reader reaches its page (never on the homepage example). */}
       {projectCode && !homepageExample && doc && (() => { const form = readableLeadForm(leadForm, doc.numPages); return form ? <LeadGate form={form} code={projectCode} page={current} /> : null; })()}
 
-      {showControls && (
+      {showControls && !minimalControls && view.brandLogoKey && !logoTopLeft && (
+        // Clear of the Simple/Studio switch and the credit along the foot of the viewer.
+        <div className={cn("pointer-events-auto absolute bottom-12 z-50", view.brandPosition === "bottom-right" ? "right-3" : "left-3")}>
+          <BrandMark logoKey={view.brandLogoKey} height={view.brandLogoHeight} link={view.brandLink} tone={tone} />
+        </div>
+      )}      {showControls && (
         <div className="pointer-events-none sticky top-0 z-50 h-0">
-          {!minimalControls && (home || profile || bookMarketing || view.brandLogoKey) && (
+          {!minimalControls && (home || profile || bookMarketing || logoTopLeft) && (
             <div ref={profileRef} className="pointer-events-auto absolute left-3 top-3">
               <div className="flex items-center gap-2">
                 {/* The creator's own logo stays in view; the icons beside it fade with the other controls. */}
-                {view.brandLogoKey && <BrandMark logoKey={view.brandLogoKey} height={view.brandLogoHeight} link={view.brandLink} tone={tone} />}
+                {logoTopLeft && <BrandMark logoKey={view.brandLogoKey!} height={view.brandLogoHeight} link={view.brandLink} tone={tone} />}
                 <div className={cn("flex items-center gap-2 transition-opacity duration-300", fade)}>
                 {home && <LogoMark tone={tone} />}
                 {bookMarketing && <IconButton label="About this book" tone={tone} pressed={panel === "book"} onClick={() => togglePanel("book")}><BookOpen className="size-[17px]" /></IconButton>}
@@ -828,12 +853,12 @@ export function PdfViewer({
                   <ToolbarDivider />
                 </div>
               )}
-              {!minimalControls && doc && (
+              {!minimalControls && doc && shows("pages") && (
                 <IconButton label="Pages" tone={tone} flat pressed={panel === "pages"} onClick={() => togglePanel("pages")}>
                   <LayoutGrid className="size-[17px]" />
                 </IconButton>
               )}
-              {!minimalControls && doc && (
+              {!minimalControls && doc && shows("search") && (
                 <IconButton label="Search" tone={tone} flat pressed={panel === "search"} onClick={() => togglePanel("search")}>
                   <Search className="size-[17px]" />
                 </IconButton>
@@ -844,31 +869,36 @@ export function PdfViewer({
                 </IconButton>
               )}
               {/* Page numbers share the controls row in every reading mode. */}
-              {!minimalControls && doc && (
+              {!minimalControls && doc && shows("pageNumber") && (
                 <span className={cn("inline-flex shrink-0 whitespace-nowrap px-2 py-2 text-[11px] tabular-nums", tone === "dark" ? "text-white/85" : "text-slate-600")} aria-live="polite">
                   {current} / {doc.numPages}
                 </span>
               )}
-              {!minimalControls && doc && <ToolbarDivider className="hidden sm:block" />}
-              {!minimalControls && doc && (
+              {!minimalControls && doc && shows("zoom") && <ToolbarDivider className="hidden sm:block" />}
+              {!minimalControls && doc && shows("zoom") && (
                 <IconButton label="Zoom out" tone={tone} flat className="hidden sm:inline-flex" onClick={() => z(-zoomStep)} disabled={zoom <= minimumZoom}>
                   <ZoomOut className="size-[17px]" />
                 </IconButton>
               )}
-              {!minimalControls && doc && (
+              {!minimalControls && doc && shows("zoom") && (
                 <button type="button" onClick={() => setZoom(1)} aria-label="Reset zoom" className={cn("hidden w-10 rounded-full py-1 text-center text-[11px] tabular-nums transition-colors sm:inline", quiet, tone === "dark" ? "hover:text-white" : "hover:text-black")}>
                   {Math.round(zoom * 100)}%
                 </button>
               )}
-              {!minimalControls && doc && (
+              {!minimalControls && doc && shows("zoom") && (
                 <IconButton label="Zoom in" tone={tone} flat className="hidden sm:inline-flex" onClick={() => z(zoomStep)} disabled={zoom >= 3}>
                   <ZoomIn className="size-[17px]" />
                 </IconButton>
               )}
               {!minimalControls && doc && <ToolbarDivider />}
-              <IconButton label={full ? "Exit full screen" : "Full screen"} tone={tone} flat onClick={() => void toggleFull()}>
+              {(minimalControls || shows("fullscreen") || full) && <IconButton label={full ? "Exit full screen" : "Full screen"} tone={tone} flat onClick={() => void toggleFull()}>
                 {full ? <Minimize2 className="size-[17px]" /> : <Maximize2 className="size-[17px]" />}
-              </IconButton>
+              </IconButton>}
+              {!minimalControls && projectCode && !homepageExample && shows("share") && (
+                <IconButton label={shared ? "Link copied" : "Share"} tone={tone} flat onClick={() => void share()}>
+                  {shared ? <Check className="size-[17px]" /> : <Share2 className="size-[17px]" />}
+                </IconButton>
+              )}
               {!minimalControls && allowDownload && downloadUrl && (
                 <a href={downloadUrl} download={fileName} onClick={onDownload} aria-label="Download PDF" title="Download PDF" className={iconClass(tone, false, true)}>
                   <Download className="size-[17px]" />
@@ -945,7 +975,7 @@ export function PdfViewer({
       {mode === "book" && activeLook === "studio" && renderedStudio && !renderFailed && !compact ? (
         <RenderedBook fill={full || immersive} pack={renderedStudio} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} onReady={bookReadyChanged} onFallback={() => setRenderFailed(true)} />
       ) : mode === "book" ? (
-        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} hotspots={hotspots} slideshows={slideshows} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn} autoTurnDelay={autoTurnDelay} showcaseOrbit={showcaseOrbit || (idleDrift && mode === "book" && shown)} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
+        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} hotspots={hotspots} slideshows={slideshows} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn || readerAutoFlip} autoTurnDelay={autoTurn ? autoTurnDelay : readerAutoFlip ? autoFlip * 1000 : autoTurnDelay} turnSound={Boolean(view.turnSound) && !homepageExample} showcaseOrbit={showcaseOrbit || (idleDrift && mode === "book" && shown)} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>
