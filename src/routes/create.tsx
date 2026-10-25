@@ -67,7 +67,7 @@ function Create() {
           <p className="mt-2 text-sm text-muted-foreground">Start with your name. Everything else is optional.</p>
           <p className="mt-1 text-xs text-muted-foreground">{p.pdf.name} · {p.pdf.pages} pages</p>
           <div className="mt-6"><ProfileForm key={p.code} p={p} onSaveError={setSaveErr} /></div>
-          <details className="mt-6 rule-t pt-4"><summary className="cursor-pointer text-sm">Page style</summary><div className="mt-4"><StyleForm key={p.code} sidebar part="appearance" p={p} onSaveError={setSaveErr} /></div></details>
+          <details className="mt-4 rounded-xl border border-border p-4"><summary className="cursor-pointer text-sm font-medium">Page style</summary><div className="mt-4"><StyleForm key={p.code} sidebar part="appearance" p={p} onSaveError={setSaveErr} /></div></details>
           {saveErr && <p role="alert" className="mt-4 text-sm text-destructive">{saveErr}</p>}
           <div className="mt-8 rule-t pt-5">
             <OverLimitPanel className="mb-4" />

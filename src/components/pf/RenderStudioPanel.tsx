@@ -144,7 +144,7 @@ export function RenderStudioPanel({ p, onClose }: { p: Portfolio; onClose: () =>
       open
       aria-modal="true"
       aria-label="Render Studio flipbook"
-      className="fixed inset-0 z-[100] m-auto max-h-[95dvh] w-[min(95vw,48rem)] overflow-auto rounded-2xl border border-border bg-background p-5 text-foreground shadow-lift"
+      className="pf-sheet fixed inset-0 z-[100] m-auto max-h-[92dvh] w-[min(95vw,48rem)] overflow-auto rounded-3xl border border-border bg-background p-6 text-foreground"
     >
       <h2 className="text-lg font-medium">Render Studio flipbook</h2>
       <p className="mt-2 text-sm text-muted-foreground">
@@ -253,7 +253,7 @@ export function RenderedStudioPreview({ p, onClose }: { p: Portfolio; onClose: (
     return ()=>URL.revokeObjectURL(url);
   },[background]);
   if (!pack || typeof document === "undefined") return null;
-  return createPortal(<dialog open aria-modal="true" aria-label="Rendered portfolio preview" className="fixed inset-0 z-[110] m-auto h-[95dvh] w-[95vw] overflow-auto rounded-2xl border bg-background p-3 text-foreground shadow-lift">
+  return createPortal(<dialog open aria-modal="true" aria-label="Rendered portfolio preview" className="pf-sheet fixed inset-0 z-[110] m-auto h-[95dvh] w-[95vw] overflow-auto rounded-3xl border border-border bg-background p-3 text-foreground">
     <div className="flex items-center justify-between gap-2 pb-2">
       <h2 className="font-medium">Rendered version</h2>
       <Button size="sm" onClick={onClose}>Back to editing</Button>

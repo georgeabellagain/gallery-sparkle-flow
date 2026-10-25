@@ -4,7 +4,7 @@ import { createFileRoute, Link, useHydrated, useNavigate } from "@tanstack/react
 import { useMemo, useState } from "react";
 import { Check, Eye, Pencil, Share2, Upload } from "lucide-react";
 import { PERSONAL_FEATURES, YEARLY_PER_MONTH } from "@/lib/portfolia/plans";
-import { SiteHeader, SiteFooter, Modal, useBlob, useObjectUrl } from "@/components/pf/Chrome";
+import { CenteredPage, SiteHeader, SiteFooter, Modal, useBlob, useObjectUrl } from "@/components/pf/Chrome";
 import { DropZone } from "@/components/pf/DropZone";
 import { PdfViewer } from "@/components/pf/PdfViewer";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
@@ -59,7 +59,7 @@ function Dashboard() {
   // Portfolios published before page pictures existed get them here, on the owner's device.
   usePageImageBackfill();
 
-  if (!hydrated || loading) return <div className="flex min-h-screen flex-col"><SiteHeader /><main className="shell flex-1 py-16" aria-busy="true"><h1 className="display-title text-3xl">Your portfolios</h1><p role="status" className="mt-4 text-sm text-muted-foreground">Loading your workspace…</p></main></div>;
+  if (!hydrated || loading) return <CenteredPage title="Your portfolios" intro={<span role="status" aria-busy="true">Loading your workspace…</span>} />;
 
   const header = (
     <SiteHeader
@@ -77,13 +77,9 @@ function Dashboard() {
 
   if (!user) {
     return (
-      <div className="min-h-screen">{header}
-        <main className="mx-auto max-w-md px-5 py-24 text-center text-sm">
-          <p>Sign in to see your dashboard.</p>
-          <Button asChild className="mt-4"><Link to="/signin">Sign in</Link></Button>
-        </main>
-        <SiteFooter />
-      </div>
+      <CenteredPage title="Your portfolios" intro="Sign in to see, edit and share your portfolios.">
+        <Button asChild className="w-full"><Link to="/signin">Sign in</Link></Button>
+      </CenteredPage>
     );
   }
 
@@ -188,12 +184,12 @@ function Dashboard() {
           <AnalyticsPanel data={totalAnalytics(doc)} title="Total portfolio statistics" description="Combined visits and download clicks across all your portfolios. A browser viewing two portfolios counts as two visits and one estimated unique visitor." />
         </section>
         
-        <details className="mt-6 max-w-2xl rounded-xl border border-border p-4"><summary className="cursor-pointer text-sm">Send feedback or get help</summary><div className="mt-4"><FeedbackBox /></div></details>
+        <details className="mt-6 max-w-2xl rounded-xl border border-border p-4"><summary className="cursor-pointer text-sm font-medium">Send feedback or get help</summary><div className="mt-4"><FeedbackBox /></div></details>
         {doc.account.signedIn && <YourData email={user?.email} />}
       </main>
       <SiteFooter />
 
-      <Modal open={dialog === "share"} onClose={() => setDialog(null)} title="Share portfolio">
+      <Modal open={dialog === "share"} onClose={() => setDialog(null)} title="Share portfolio" description="Copy your link, make a QR code or embed it on your website." wide>
         <ShareActions key={p.code} p={p} />
       </Modal>
       <UpgradeModal open={dialog === "upgrade"} onClose={() => setDialog(null)} />

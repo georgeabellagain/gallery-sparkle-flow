@@ -101,7 +101,7 @@ function EditPortfolio() {
           home
           onUpload={() => setDialog("replace")}
           p={p}
-          profile={<><ProfileForm key={p.code} p={p} onSaveError={setSaveErr} /><details className="mt-5"><summary className="cursor-pointer text-sm">Profile appearance</summary><StyleForm sidebar part="appearance" p={p} onSaveError={setSaveErr} /></details></>}
+          profile={<><ProfileForm key={p.code} p={p} onSaveError={setSaveErr} /><details className="mt-5 rounded-xl border border-border p-4"><summary className="cursor-pointer text-sm font-medium">Profile appearance</summary><div className="mt-4"><StyleForm sidebar part="appearance" p={p} onSaveError={setSaveErr} /></div></details></>}
           statistics={doc.account.signedIn ? <AnalyticsPanel data={doc.analytics} title="This portfolio" description={p.pdf.name} /> : undefined}
           onSaveError={setSaveErr}
           onDialog={setDialog}

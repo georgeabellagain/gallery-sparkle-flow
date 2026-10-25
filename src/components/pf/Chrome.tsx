@@ -77,15 +77,41 @@ export const LOCAL_NOTE =
   "Your PDF and details are saved to your Portfolia account when you sign in, so your link opens on any device.";
 
 /** Accessible modal built on the native <dialog> element. */
+/**
+ * A short page (sign in, a message, a single form): the content in a card centred in the space between the header
+ * and a footer that stays at the bottom of the screen.
+ */
+export function CenteredPage({ title, intro, children, right, wide = false }: { title?: ReactNode; intro?: ReactNode; children?: ReactNode; right?: ReactNode; wide?: boolean }) {
+  return (
+    <div className="flex min-h-[100dvh] flex-col">
+      <SiteHeader right={right} />
+      <main className="flex flex-1 items-center justify-center bg-muted/40 px-4 py-12 sm:py-16">
+        <div className={cn("w-full rounded-3xl border border-border bg-card p-7 shadow-soft sm:p-9", wide ? "max-w-lg" : "max-w-sm")}>
+          {title && <h1 className="display-title text-center text-3xl">{title}</h1>}
+          {intro && <div className="mt-2 text-center text-sm text-muted-foreground">{intro}</div>}
+          {children && <div className={title || intro ? "mt-7" : ""}>{children}</div>}
+        </div>
+      </main>
+      <SiteFooter />
+    </div>
+  );
+}
+
 export function Modal({
   open,
   onClose,
   title,
+  description,
+  wide = false,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
+  /** One line under the title saying what the pop-up is for. */
+  description?: ReactNode;
+  /** Room for wider content, such as sharing options. */
+  wide?: boolean;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -114,19 +140,21 @@ export function Modal({
         onClose();
       }}
       aria-labelledby={titleId}
-      className="m-auto w-[min(92vw,30rem)] rounded-3xl border border-border bg-card p-0 text-foreground shadow-lift backdrop:bg-foreground/30"
+      aria-describedby={description ? `${titleId}-d` : undefined}
+      className={cn("pf-modal m-auto max-h-[min(88dvh,48rem)] overflow-hidden rounded-3xl border border-border bg-card p-0 text-foreground shadow-lift", wide ? "w-[min(94vw,40rem)]" : "w-[min(94vw,30rem)]")}
     >
       {open && (
-        <div className="p-6">
-          <div className="flex items-start justify-between gap-4">
-            <h2 id={titleId} className="text-base font-medium">
-              {title}
-            </h2>
-            <button type="button" onClick={onClose} aria-label="Close" className="-m-1 p-1 text-muted-foreground hover:text-foreground">
+        <div className="flex max-h-[min(88dvh,48rem)] flex-col">
+          <div className="flex items-start justify-between gap-4 px-6 pb-3 pt-6">
+            <div className="min-w-0">
+              <h2 id={titleId} className="text-lg font-semibold leading-snug tracking-tight">{title}</h2>
+              {description && <p id={`${titleId}-d`} className="mt-1 text-sm text-muted-foreground">{description}</p>}
+            </div>
+            <button type="button" onClick={onClose} aria-label="Close" className="-mr-2 -mt-1 flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
               <X className="size-4" />
             </button>
           </div>
-          <div className="mt-4 text-sm">{children}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6 pt-1 text-sm [&_p]:leading-relaxed">{children}</div>
         </div>
       )}
     </dialog>

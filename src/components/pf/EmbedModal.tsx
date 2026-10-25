@@ -14,8 +14,8 @@ export function EmbedModal({ open, onClose, url, title }: { open: boolean; onClo
   const safeTitle = title.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
   const code = `<iframe src="${url}" title="${safeTitle} portfolio" loading="lazy" allow="fullscreen" style="width:100%;aspect-ratio:16/10;border:0"></iframe><p><a href="${url.replace("/embed/", "/p/")}">View ${safeTitle} portfolio</a></p>`;
   return (
-    <Modal open={open} onClose={onClose} title="Embed portfolio">
-      <p className="text-muted-foreground">Paste this code into a website that accepts embeds. It shows your portfolio exactly as you have set it up in the editor (the same reading modes, look and background) and always the published version.</p>
+    <Modal open={open} onClose={onClose} title="Embed portfolio" description={<>Paste this code into a website that accepts embeds. It shows your portfolio exactly as you have set it up in the editor (the same reading modes, look and background) and always the published version.</>}>
+      
       <details className="mt-4 rounded-xl border border-border p-4 text-sm">
         <summary className="cursor-pointer font-medium">How to add this to your website</summary>
         <ol className="mt-3 list-decimal space-y-2 pl-5 text-muted-foreground">

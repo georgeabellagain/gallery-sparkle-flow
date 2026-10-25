@@ -39,9 +39,9 @@ export function PortfolioQrCode({ open, onClose, url, name }: { open: boolean; o
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Your portfolio QR code">
-      <p className="text-muted-foreground">Anyone who scans this code will open the same public portfolio address shown in your dashboard. On a phone it opens full screen.</p>
-      <div className="mx-auto mt-5 aspect-square w-full max-w-72 overflow-hidden rounded-2xl border border-border bg-card p-4">
+    <Modal open={open} onClose={onClose} title="Your portfolio QR code" description="Anyone who scans it opens your public portfolio. On a phone it opens full screen.">
+      
+      <div className="mx-auto mt-2 aspect-square w-full max-w-72 overflow-hidden rounded-2xl border border-border bg-card p-4">
         {image ? <img src={image} alt={`QR code for ${name || "your portfolio"}`} className="size-full" /> : <div className="flex size-full items-center justify-center text-xs text-muted-foreground">Creating QR code…</div>}
       </div>
       <p className="mt-3 break-all text-center font-mono text-xs text-muted-foreground">{url}</p>

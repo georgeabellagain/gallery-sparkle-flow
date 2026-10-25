@@ -52,15 +52,16 @@ export function HomeWorkspace() {
     finally { busy.current = false; setPhase(null); if (input.current) input.current.value = ""; }
   };
   return <div className="pf-home-workspace flex min-h-[100dvh] flex-col bg-[#eae6df]">
-    <header className="relative z-50 flex h-14 shrink-0 items-center justify-between gap-3 bg-background/95 px-5 sm:px-8">
-      <Wordmark />
-      <div className="flex items-center gap-4 text-xs sm:text-sm">
-        <Link to="/book-marketing">For authors</Link>
-        <Link to="/pricing">Pricing</Link>
-        {(doc.account.signedIn || allPortfolios(doc).length > 0) && <Link to="/dashboard">My portfolios</Link>}
-        {!doc.account.signedIn && <Link to="/signin" search={{ next: "home" }}>Sign in</Link>}
-        <button onClick={() => setDialog("help")} className="text-muted-foreground">Help</button>
-      </div>
+    <header className="relative z-50 flex h-14 shrink-0 items-center justify-between gap-3 bg-background/95 px-4 sm:px-8">
+      <Wordmark className="shrink-0" />
+      {/* On phones: only what a visitor needs first; the rest is in the footer. Every label stays on one line. */}
+      <nav aria-label="Main" className="flex min-w-0 items-center gap-3 whitespace-nowrap text-xs sm:gap-5 sm:text-sm">
+        <Link to="/book-marketing" className="hidden underline-offset-4 hover:underline sm:inline">For authors</Link>
+        <Link to="/pricing" className="underline-offset-4 hover:underline">Pricing</Link>
+        {(doc.account.signedIn || allPortfolios(doc).length > 0) && <Link to="/dashboard" className="underline-offset-4 hover:underline"><span className="sm:hidden">Portfolios</span><span className="hidden sm:inline">My portfolios</span></Link>}
+        {!doc.account.signedIn && <Link to="/signin" search={{ next: "home" }} className="rounded-full bg-foreground px-3 py-1.5 font-medium text-background hover:opacity-90">Sign in</Link>}
+        <button onClick={() => setDialog("help")} className="hidden text-muted-foreground hover:text-foreground sm:inline">Help</button>
+      </nav>
     </header>
     <HomeScrollContext.Provider value={true}><main id="upload" className="relative flex-1" onDragOver={e => { if (!e.defaultPrevented && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setOver(true); } }} onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(false); }} onDrop={e => { if (e.defaultPrevented || !e.dataTransfer.files.length) return; e.preventDefault(); setOver(false); void upload(e.dataTransfer.files[0]); }}>
       <input ref={input} type="file" accept="application/pdf,.pdf" className="sr-only" aria-label="Upload portfolio PDF" onChange={e => void upload(e.target.files?.[0])} />
@@ -91,9 +92,9 @@ export function HomeWorkspace() {
     <Modal open={dialog === "upload"} onClose={closeUpload} title="Start a new portfolio">
       {canCreate() ? <><p className="mb-4 text-sm text-muted-foreground">Upload a PDF to open its own editor. Your existing portfolios stay separate.</p><DropZone small allowPreview limitMb={uploadLimitMb(doc)} onAccepted={accepted} /><p className="mt-3 text-xs text-muted-foreground">No sign-up to preview. Sign in to save and publish.</p></> : <><p className="text-sm">Your plan’s portfolio limit has been reached. Open a portfolio from My portfolios to replace its PDF, or choose Personal for more portfolios.</p><Button className="mt-5" onClick={() => { setDialog(null); setUpgrade(true); }}>View Personal</Button></>}
     </Modal>
-    <Modal open={dialog === "portfolios"} onClose={() => setDialog(null)} title="My portfolios">
+    <Modal open={dialog === "portfolios"} onClose={() => setDialog(null)} title="My portfolios" description="Pick one to open it in the editor.">
       <div className="grid gap-2">{allPortfolios(doc).map(item => <Button key={item.code} variant="line" className="justify-start" onClick={() => { if (item.code !== p?.code && !switchPortfolio(item.code)) { setError("Couldn’t open this portfolio. Please try again."); return; } setDialog(null); void navigate({ to: "/edit" }); }}>{item.name?.trim() || item.pdf?.name?.replace(/\.pdf$/i, "") || item.profile.name || "Untitled portfolio"}{item.code === p?.code ? " · Current" : ""}</Button>)}</div>
-      <Button className="mt-5" onClick={() => { if (canCreate()) { setDialog("upload"); } else { setDialog(null); setUpgrade(true); } }}>New portfolio</Button>
+      <Button className="mt-5 w-full" onClick={() => { if (canCreate()) { setDialog("upload"); } else { setDialog(null); setUpgrade(true); } }}>New portfolio</Button>
     </Modal>
     <Modal open={dialog === "help"} onClose={() => setDialog(null)} title="About Portfolia">
       <div id="about" className="space-y-4 text-sm"><p>Upload a PDF to open its editor, customise its presentation and share one link. Visit My portfolios to return to an existing portfolio.</p><p>Contact <a href="mailto:hello@portfolia.site" className="underline">hello@portfolia.site</a> for help.</p><div className="flex flex-wrap gap-4"><Link to="/terms">Terms</Link><Link to="/privacy">Privacy</Link><Link to="/refund">Refund policy</Link><Link to="/marketing-portfolio">Marketing portfolios</Link><Link to="/flipbook-alternatives">Portfolio guides</Link></div></div>

@@ -10,7 +10,8 @@ export function portfolioCanonical(p: NonNullable<PublicPortfolio>["portfolio"])
 export function portfolioHead(data: PublicPortfolio, fallback: string, preview = false) {
   const p = data?.portfolio;
   const name = p?.profile.name || fallback;
-  const title = p ? `${name}${p.profile.title ? ` — ${p.profile.title}` : ""} | PDF Portfolio` : "Page not found — Portfolia";
+  // A creator's preview of a draft isn't on the server yet; it is a preview, not a missing page.
+  const title = p ? `${name}${p.profile.title ? ` — ${p.profile.title}` : ""} | PDF Portfolio` : preview ? "Preview — Portfolia" : "Page not found — Portfolia";
   const description = p ? (p.profile.intro || `${name}’s PDF portfolio, hosted on Portfolia.`).slice(0, 160) : "There is no published page at this Portfolia address.";
   const image = p?.status === "published" && !preview ? shareImageUrl(p) ?? "https://portfolia.site/og-image.jpg" : undefined;
   const canonical = p ? portfolioCanonical(p) : undefined;

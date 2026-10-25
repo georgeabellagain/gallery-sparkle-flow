@@ -173,6 +173,57 @@
   ::selection {
     background-color: oklch(0.2 0.004 285 / 0.12);
   }
+
+  /* Disclosure rows: a quiet chevron at the end of the row instead of the browser's triangle. Summaries that draw
+     their own marker opt out with list-none. */
+  details > summary:not(.list-none) {
+    list-style: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    cursor: pointer;
+    user-select: none;
+  }
+  details > summary:not(.list-none)::-webkit-details-marker {
+    display: none;
+  }
+  details > summary:not(.list-none)::after {
+    content: "";
+    flex: none;
+    width: 0.45rem;
+    height: 0.45rem;
+    margin-inline-end: 0.25rem;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    opacity: 0.5;
+    transform: translateY(-25%) rotate(45deg);
+    transition: transform 0.2s ease;
+  }
+  details[open] > summary:not(.list-none)::after {
+    transform: translateY(25%) rotate(-135deg);
+  }
+}
+
+/* --- Pop-ups ---------------------------------------------------------- */
+
+dialog.pf-modal[open] {
+  animation: pf-modal-in 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+dialog.pf-modal::backdrop {
+  background: oklch(0.2 0.01 85 / 0.38);
+  backdrop-filter: blur(3px);
+}
+@keyframes pf-modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+}
+/* Pop-ups opened in place (not as the browser's modal) dim the page around them the same way. */
+dialog.pf-sheet[open] {
+  box-shadow: 0 24px 48px -24px oklch(0.25 0.01 85 / 0.3), 0 0 0 100vmax oklch(0.2 0.01 85 / 0.4);
+  animation: pf-modal-in 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog.pf-modal[open], dialog.pf-sheet[open] { animation: none; }
 }
 
 /* --- Typographic utilities ------------------------------------------- */

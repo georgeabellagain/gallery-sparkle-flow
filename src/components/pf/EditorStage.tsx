@@ -3,7 +3,7 @@ import { LiveScrapbookContext, type ScrapbookSelection } from "./live-scrapbook-
 import { ScrapbookQuickPanel } from "./ScrapbookQuickPanel";
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, BadgeCheck, Inbox, Redo2, Undo2, Book as BookIcon, Camera, ChartNoAxesColumn, BookOpen, ChevronRight, ChevronsLeft, ChevronsRight, GripHorizontal, FolderOpen, Image as ImageIcon, Megaphone, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Eye, Inbox, Redo2, Undo2, Book as BookIcon, Camera, ChartNoAxesColumn, BookOpen, ChevronRight, ChevronsLeft, ChevronsRight, GripHorizontal, FolderOpen, Image as ImageIcon, Megaphone, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/pf/Chrome";
 import { ScrapbookDialog, type ScrapbookPanel } from "@/components/pf/FoldoutSettings";
@@ -107,15 +107,16 @@ export function EditorBar({
   const shown: PreviewLook = look ?? openingLook(viewer, viewer.mode);
   const history = useAppearanceHistory(p.code);
   return (
-    <header className="relative z-20 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background px-3 sm:px-5">
-      <Link to="/dashboard" aria-label="Back to your portfolios" title="Your portfolios" className="rounded-lg p-2 hover:bg-muted"><ArrowLeft className="size-4" /></Link>
-      <Wordmark className="shrink-0" />
-      <span className="hidden h-6 w-px bg-border sm:block" aria-hidden />
-      <span className="hidden min-w-0 truncate text-sm text-muted-foreground sm:block">{p.name || p.profile.name || p.pdf?.name}</span>
-      <div className="mx-auto flex flex-col items-center gap-1 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <span className="size-1.5 rounded-full bg-current opacity-60" aria-hidden />
-          {status}
+    <header className="relative z-20 flex h-14 shrink-0 items-center gap-1.5 border-b border-border bg-background px-2 sm:gap-3 sm:px-5">
+      <Link to="/dashboard" aria-label="Back to your portfolios" title="Your portfolios" className="shrink-0 rounded-lg p-2 hover:bg-muted"><ArrowLeft className="size-4" /></Link>
+      {/* On phones the bar keeps only what is needed to edit: back, save state, undo and the main actions. */}
+      <Wordmark className="hidden shrink-0 sm:block" />
+      <span className="hidden h-6 w-px bg-border lg:block" aria-hidden />
+      <span className="hidden min-w-0 max-w-[14rem] truncate text-sm text-muted-foreground lg:block">{p.name || p.profile.name || p.pdf?.name}</span>
+      <div className="mx-auto flex min-w-0 flex-col items-center gap-1 text-xs text-muted-foreground">
+        <span className="flex min-w-0 items-center gap-1.5" title={typeof status === "string" ? status : undefined}>
+          <span className="size-1.5 shrink-0 rounded-full bg-current opacity-60" aria-hidden />
+          <span className="max-w-[7rem] truncate sm:max-w-none">{status}</span>
         </span>
         {(
           <div className="hidden w-fit rounded-full bg-muted p-0.5 sm:block">
@@ -128,17 +129,18 @@ export function EditorBar({
           </div>
         )}
       </div>
-      <div className="flex items-center" role="group" aria-label="Undo and redo">
+      <div className="flex shrink-0 items-center" role="group" aria-label="Undo and redo">
         <Button size="icon-sm" variant="quiet" aria-label="Undo design change" title="Undo (Ctrl+Z)" disabled={!history.canUndo} onClick={() => undoAppearance()}><Undo2 /></Button>
-        <Button size="icon-sm" variant="quiet" aria-label="Redo design change" title="Redo (Ctrl+Shift+Z)" disabled={!history.canRedo} onClick={() => redoAppearance()}><Redo2 /></Button>
-      </div>      {onSave && <Button size="sm" onClick={onSave} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>}
-      <Button asChild size="sm" variant="line">
-        <Link to="/p/$slug" params={{ slug: p.code }} search={{ preview: "1" }}>Preview</Link>
+        <Button size="icon-sm" variant="quiet" className="hidden sm:inline-flex" aria-label="Redo design change" title="Redo (Ctrl+Shift+Z)" disabled={!history.canRedo} onClick={() => redoAppearance()}><Redo2 /></Button>
+      </div>
+      {onSave && <Button size="sm" className="shrink-0" onClick={onSave} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>}
+      <Button asChild size="sm" variant="line" className="shrink-0">
+        <Link to="/p/$slug" params={{ slug: p.code }} search={{ preview: "1" }} aria-label="Preview"><Eye className="sm:hidden" /><span className="hidden sm:inline">Preview</span></Link>
       </Button>
       {p.status === "published" ? (
-        <Button size="sm" variant="line" onClick={onUnpublish}>Unpublish</Button>
+        <Button size="sm" variant="line" className="shrink-0" onClick={onUnpublish}>Unpublish</Button>
       ) : (
-        <Button size="sm" onClick={onPublish}>Publish</Button>
+        <Button size="sm" className="shrink-0" onClick={onPublish}>Publish</Button>
       )}
     </header>
   );

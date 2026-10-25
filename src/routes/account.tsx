@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
-import { SiteHeader, SiteFooter } from "@/components/pf/Chrome";
+import { CenteredPage, SiteHeader, SiteFooter } from "@/components/pf/Chrome";
 import { TwoStepSettings } from "@/components/pf/TwoStepSettings";
 import { YourData } from "@/components/pf/YourData";
 import { Button } from "@/components/ui/button";
@@ -47,16 +47,12 @@ function Account() {
     void navigate({ to: "/" });
   };
 
-  if (loading) return <div className="min-h-screen"><SiteHeader /><main className="shell py-16" aria-busy="true"><h1 className="display-title text-3xl">Account</h1></main></div>;
+  if (loading) return <CenteredPage title="Account" intro={<span role="status" aria-busy="true">Loading your account…</span>} />;
   if (!user) {
     return (
-      <div className="min-h-screen"><SiteHeader />
-        <main className="mx-auto max-w-md px-5 py-24 text-center text-sm">
-          <p>Sign in to manage your account.</p>
-          <Button asChild className="mt-4"><Link to="/signin" search={{ next: "account" }}>Sign in</Link></Button>
-        </main>
-        <SiteFooter />
-      </div>
+      <CenteredPage title="Account" intro="Sign in to manage your email, password and two-step sign-in.">
+        <Button asChild className="w-full"><Link to="/signin" search={{ next: "account" }}>Sign in</Link></Button>
+      </CenteredPage>
     );
   }
   const providers = [...new Set((user.identities ?? []).map((i) => i.provider))];

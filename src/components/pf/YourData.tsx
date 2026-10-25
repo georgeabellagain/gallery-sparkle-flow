@@ -28,15 +28,15 @@ export function YourData({ email, open: startOpen = false }: { email?: string; o
     } catch (e) { setError(e instanceof Error ? e.message : "Couldn’t delete your account. Nothing was deleted."); }
     finally { setBusy(false); }
   };
-  return <details open={startOpen} className="mt-4 max-w-2xl rounded-xl border border-border p-4">
-    <summary className="cursor-pointer text-sm">Your data</summary>
+  return <details open={startOpen} className={startOpen ? "max-w-2xl rounded-xl border border-border p-4" : "mt-4 max-w-2xl rounded-xl border border-border p-4"}>
+    <summary className="cursor-pointer text-sm font-medium">Your data</summary>
     <div className="mt-4 space-y-4 text-sm">
       <div><Button size="sm" variant="line" onClick={download}>Download my data</Button><p className="mt-1 text-xs text-muted-foreground">A JSON file of your portfolios, settings and visit statistics. Your PDFs and pictures are the files you uploaded.</p></div>
       <div><Button size="sm" variant="quiet" className="text-destructive" onClick={() => { setOpen(true); setTyped(""); setError(""); }}>Delete my account</Button><p className="mt-1 text-xs text-muted-foreground">Removes every portfolio, file and link for good. Cancel Personal first if it is still renewing.</p></div>
     </div>
     <Modal open={open} onClose={() => !busy && setOpen(false)} title="Delete your account?">
       <p className="text-muted-foreground">Every portfolio, PDF, picture, link and statistic is deleted permanently and shared links stop working. Paid time left on a cancelled plan is lost. Billing records are kept for tax.</p>
-      <label className="mt-4 block text-sm">Type DELETE to confirm<input aria-label="Type DELETE to confirm" className="mt-1 w-full rounded-lg border border-border bg-background p-2" value={typed} onChange={e => setTyped(e.target.value)} /></label>
+      <label className="mt-4 block text-sm">Type DELETE to confirm<input aria-label="Type DELETE to confirm" autoComplete="off" className="mt-1.5 w-full rounded-full border border-input bg-background px-4 py-2 text-sm" value={typed} onChange={e => setTyped(e.target.value)} /></label>
       {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
       <div className="mt-6 flex justify-end gap-2">
         <Button variant="line" disabled={busy} onClick={() => setOpen(false)}>Keep my account</Button>

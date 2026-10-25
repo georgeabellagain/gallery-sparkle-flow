@@ -1,6 +1,6 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { SiteHeader, SiteFooter } from "@/components/pf/Chrome";
+import { CenteredPage } from "@/components/pf/Chrome";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,24 +45,22 @@ function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen">
-      <SiteHeader />
-      <main className="mx-auto max-w-sm px-5 py-20">
-        <h1 className="display-title text-3xl">Choose a new password</h1>
-        {!ready ? (
-          <p className="mt-6 text-sm text-muted-foreground">Open this page from the link in your reset email. If the link has expired, request a new one from the sign-in page.</p>
-        ) : (
-          <form onSubmit={submit} className="mt-6 space-y-4">
-            <div>
-              <Label htmlFor="pw" className="text-xs">New password</Label>
-              <Input id="pw" type="password" required minLength={8} autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} className="mt-1.5 rounded-full" />
-            </div>
-            {err && <p role="alert" className="text-sm text-destructive">{err}</p>}
-            <Button type="submit" className="w-full" disabled={busy}>{busy ? "Saving…" : "Save password"}</Button>
-          </form>
-        )}
-      </main>
-      <SiteFooter />
-    </div>
+    <CenteredPage title="Choose a new password" intro={ready ? "At least 8 characters." : "Open this page from the link in your reset email."}>
+      {!ready ? (
+        <div className="space-y-4 text-center text-sm text-muted-foreground">
+          <p>If the link has expired, ask for a new one from the sign-in page.</p>
+          <Button asChild variant="line" className="w-full"><Link to="/signin">Back to sign in</Link></Button>
+        </div>
+      ) : (
+        <form onSubmit={submit} className="space-y-4">
+          <div>
+            <Label htmlFor="pw" className="text-xs">New password</Label>
+            <Input id="pw" type="password" required minLength={8} autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} className="mt-1.5 rounded-full" />
+          </div>
+          {err && <p role="alert" className="text-sm text-destructive">{err}</p>}
+          <Button type="submit" className="w-full" disabled={busy}>{busy ? "Saving…" : "Save password"}</Button>
+        </form>
+      )}
+    </CenteredPage>
   );
 }

@@ -843,8 +843,23 @@ export function PdfViewer({
           <div ref={clusterRef} style={!minimalControls && (home || profile || bookMarketing) ? { maxWidth: `calc(100% - ${1.25 + 2.75 * [home, profile, bookMarketing].filter(Boolean).length}rem)` } : undefined} className={cn("pointer-events-auto absolute right-1.5 top-1.5 flex max-w-[calc(100%-0.75rem)] flex-col items-end gap-2 transition-opacity duration-300", fade)}>
             {/* One row on phones: zoom moves to pinch there, and a rare extra-long bar scrolls rather than wrapping. */}
             <div ref={toolbarRef} role="toolbar" aria-label="Viewer controls" className={cn("flex max-w-full flex-nowrap items-center justify-start gap-0.5 overflow-x-auto sm:justify-end rounded-full p-1 shadow-sm backdrop-blur-md [scrollbar-width:none] sm:flex-wrap sm:overflow-visible", tone === "dark" ? "bg-slate-950/80 text-white" : "bg-white/90 text-slate-700")}>
+              {/* Phones get one button that steps through the reading modes, so the whole bar fits on one row. */}
+              {!minimalControls && doc && availableModes.length > 1 && (() => {
+                const modes = MODES.filter(([m]) => availableModes.includes(m));
+                const at = Math.max(0, modes.findIndex(([m]) => m === mode));
+                const [, label, Icon] = modes[at]!;
+                const [nextMode, nextLabel] = modes[(at + 1) % modes.length]!;
+                return (
+                  <div className="flex shrink-0 items-center sm:hidden">
+                    <IconButton label={`${label}. Switch to ${nextLabel}`} tone={tone} flat onClick={() => setMode(nextMode)}>
+                      <Icon className="size-[17px]" />
+                    </IconButton>
+                    <ToolbarDivider />
+                  </div>
+                );
+              })()}
               {!minimalControls && doc && availableModes.length > 1 && (
-                <div role="radiogroup" aria-label="Reading mode" className="flex shrink-0 items-center">
+                <div role="radiogroup" aria-label="Reading mode" className="hidden shrink-0 items-center sm:flex">
                   {MODES.filter(([m]) => availableModes.includes(m)).map(([m, label, Icon]) => (
                     <IconButton key={m} label={label} tone={tone} flat checked={mode === m} onClick={() => setMode(m)}>
                       <Icon className="size-[17px]" />

@@ -73,7 +73,7 @@ export function VideoExportPanel({ p, onClose, share }: { p: Portfolio; onClose:
     setShareNote(`${fileName} downloaded${copied ? " and your caption with the link is copied" : ""}. Attach the video${copied ? " and paste the caption" : ""} in your post.`);
   };
   if (typeof document === "undefined" || !personal) return null;
-  return createPortal(<dialog open aria-modal="true" aria-label="Export HD flipbook video" className="fixed inset-0 z-[110] m-auto max-h-[95dvh] w-[min(95vw,36rem)] overflow-auto border bg-background p-6 text-foreground shadow-lift">
+  return createPortal(<dialog open aria-modal="true" aria-label="Export HD flipbook video" className="pf-sheet fixed inset-0 z-[110] m-auto max-h-[92dvh] w-[min(95vw,36rem)] overflow-auto rounded-3xl border border-border bg-background p-6 text-foreground">
     <h2 className="text-lg font-medium">{share ? "Share with a flip-through video" : "Export HD video"}</h2>
     <p className="mt-2 text-sm text-muted-foreground">Download a 1920 × 1080 video that flips through your portfolio in Studio, with your lighting, paper and background. 60 FPS MP4 where supported; other browsers may export WebM. Keep this tab visible until finished.</p>
     <p role="status" className="mt-4 text-sm">{!busy && !result && exporter ? "Ready to export." : status}</p>

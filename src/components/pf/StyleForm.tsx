@@ -611,7 +611,7 @@ function BannerCropper({ file, onCancel, onSave }: { file: File; onCancel: () =>
   };
 
   return (
-    <dialog open aria-modal="true" aria-labelledby="banner-crop-title" className="fixed inset-0 z-50 m-auto w-[min(94vw,38rem)] rounded-3xl border border-border bg-card p-0 text-foreground shadow-lift backdrop:bg-foreground/40">
+    <dialog open aria-modal="true" aria-labelledby="banner-crop-title" className="pf-sheet fixed inset-0 z-50 m-auto w-[min(94vw,38rem)] rounded-3xl border border-border bg-card p-0 text-foreground">
       <div className="p-5 sm:p-6">
         <div className="flex items-center justify-between gap-4">
           <div><h2 id="banner-crop-title" className="font-medium">Crop banner</h2><p className="mt-0.5 text-xs text-muted-foreground">Drag to position, then zoom as needed.</p></div>
