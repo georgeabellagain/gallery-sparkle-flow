@@ -135,6 +135,8 @@ export function createPageVideo() {
       for (const s of states.values()) { s.layer = s.canvas ? layerLookup(s.canvas) : null; refreshLayer(s); }
       pruneLayers();
     },
+    /** The sticker layers were drawn again (their stickers moved): send the new pictures to the graphics card. */
+    refreshLayers() { for (const t of layerTextures.values()) t.needsUpdate = true; },
     /** Sticker layers show only while the flat overlay of moving stickers is away (turning, tilted, preparing). */
     setLayerShown(value: boolean) { layerShown = value; for (const s of states.values()) refreshLayer(s); },
     /** Reduced motion and exports show only the printed stills. */

@@ -86,12 +86,12 @@ export interface ViewerSettings {
   brandLink?: string;
   /** Book view: drift round the book in 3D on opening and after a minute idle ("start"), only when idle ("idle"), or never. */
   idleOrbit?: "off" | "start" | "idle";
+  /** PDF pages readers never see, in any reading style (hidden-pages.ts). */
+  hiddenPages?: number[];
   /** The PDF page the portfolio opens on (links to a page or project still win); omitted is page 1. */
   startPage?: number;
   /** Book view: turn the page every this many seconds until the reader does anything (and again once idle); 0 or omitted is off. */
   autoFlip?: number;
-  /** Book view: a soft paper sound as pages turn; omitted is off. */
-  turnSound?: boolean;
   /** Which of the viewer's buttons readers see; omitted ones show. */
   controls?: Partial<Record<ViewerControl, boolean>>;
   /** Where your logo sits in the viewer; omitted is the top left. */

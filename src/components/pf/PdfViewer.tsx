@@ -33,6 +33,7 @@ import { projectFromHash, projectPath, readableProjects, type PortfolioProject }
 import { BookOpen, Check, ChevronLeft, ChevronRight, Download, Share2, FileText, LayoutGrid, Maximize2, Minimize2, ScrollText, Search, User, ZoomIn, ZoomOut } from "lucide-react";
 import { BookSearch } from "./BookSearch";
 import { BrandMark } from "./BrandingSettings";
+import { nearestVisible, readableHiddenPages, stepVisible, visiblePageList, visiblePosition } from "@/lib/portfolia/hidden-pages";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
 import { downloadLink, isStreamedPdf, markStreamedPdf, openRemotePdf, PDF_RANGE_CHUNK, type RemotePdf } from "@/lib/portfolia/remote-pdf";
@@ -384,7 +385,18 @@ export function PdfViewer({
   const zoomStep = mode === "scroll" ? 0.05 : 0.25;
   const total = doc?.numPages ?? 0;
   const sections = useMemo(() => readableProjects(projects, total), [projects, total]);
-  const go = (d: number) => setCurrent((c) => Math.min(total, Math.max(1, c + d)));
+  // Pages the creator hid are skipped in every reading style (but shown while placing scrapbook items, so each
+  // page's items can still be reached).
+  const scrapbookEditing = Boolean(useContext(LiveScrapbookContext)?.enabled);
+  const hiddenKey = JSON.stringify(view.hiddenPages ?? []);
+  const hiddenPages = useMemo(() => new Set(scrapbookEditing ? [] : readableHiddenPages(view.hiddenPages, total)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [scrapbookEditing, hiddenKey, total]);
+  const visible = useMemo(() => visiblePageList(total, hiddenPages), [total, hiddenPages]);
+  const go = (d: number) => setCurrent((c) => stepVisible(c, d, visible));
+  // Anything placed on a hidden page goes with it (tabs would otherwise point at a page that isn't there).
+  const shownTags = useMemo(() => (hiddenPages.size ? tags?.filter((t) => !hiddenPages.has(t.page)) : tags), [tags, hiddenPages]);
+  useEffect(() => { if (hiddenPages.has(current)) setCurrent(nearestVisible(current, visible)); }, [hiddenPages, current, visible]);
   // A portfolio opened from its QR code fills the screen on a phone. (A browser only allows real full screen after
   // a tap, so this is the in-page full screen: it hides the rest of the site and keeps the exit icon.)
   const startedFull = useRef(false);
@@ -491,7 +503,9 @@ export function PdfViewer({
     onPinch: (asked) => setZoom(Math.min(3, Math.max(1, Math.round(asked * 20) / 20))),
   });
 
-  const jumpTo = (n: number) => {
+  const jumpTo = (to: number) => {
+    // A link, tab or search result for a hidden page opens the nearest page readers can see.
+    const n = nearestVisible(to, visible);
     setCurrent(n);
     setJump({ page: n, t: Date.now() });
     if (mode === "scroll") rootRef.current?.querySelector(`[data-page="${n}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -628,7 +642,7 @@ export function PdfViewer({
     const project = projectCode ? projectFromHash(window.location.hash, sections) : undefined;
     // A link's page (embed or project) comes first, then the page the creator chose to open on.
     const wanted = startPage ?? (homepageExample ? 1 : view.startPage ?? 1);
-    return project?.startPage ?? Math.min(total, Math.max(1, Number.isFinite(wanted) ? Math.floor(wanted) : 1));
+    return nearestVisible(project?.startPage ?? Math.min(total, Math.max(1, Number.isFinite(wanted) ? Math.floor(wanted) : 1)), visible);
   };
   const currentLive = useRef(current);
   currentLive.current = current;
@@ -665,12 +679,12 @@ export function PdfViewer({
     const on = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t.closest("input, textarea, [contenteditable]")) return;
-      if (e.key === "ArrowRight" || e.key === "PageDown") setCurrent((c) => Math.min(total, c + 1));
-      if (e.key === "ArrowLeft" || e.key === "PageUp") setCurrent((c) => Math.max(1, c - 1));
+      if (e.key === "ArrowRight" || e.key === "PageDown") setCurrent((c) => stepVisible(c, 1, visible));
+      if (e.key === "ArrowLeft" || e.key === "PageUp") setCurrent((c) => stepVisible(c, -1, visible));
     };
     window.addEventListener("keydown", on);
     return () => window.removeEventListener("keydown", on);
-  }, [mode, total]);
+  }, [mode, total, visible]);
 
   // In the full portfolio and in full screen the icons rest out of sight and show when the mouse moves.
   // They show on arrival first, so a new reader sees the book can be turned. On touch screens they stay.
@@ -722,13 +736,14 @@ export function PdfViewer({
   const streamedDoc = doc ? isStreamedPdf(doc) : false;
   const gatedDoc = useRef<PDFDocumentProxy | null>(null);
   const scrollGate = useMemo(() => {
-    if (!streamedDoc || !total) return createPageReadiness(total);
+    // Hidden pages are never drawn, so only visible ones are waited for.
+    if (!streamedDoc || !total) return createPageReadiness(total, hiddenPages.size ? visible : undefined);
     // A new document opens where the link points; a change of reading mode keeps the reader's page.
-    const first = gatedDoc.current === doc ? currentLive.current : openingPage();
+    const first = nearestVisible(gatedDoc.current === doc ? currentLive.current : openingPage(), visible);
     gatedDoc.current = doc;
-    return createPageReadiness(total, [first, first + 1]);
+    return createPageReadiness(total, [first, stepVisible(first, 1, visible)]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [doc, total, mode, studio, studio ? pageLighting : null, studio && pageLightingReady, studio && pageLightingFailed]);
+  }, [doc, total, mode, studio, studio ? pageLighting : null, studio && pageLightingReady, studio && pageLightingFailed, visible]);
   useLayoutEffect(() => { if (mode === "scroll") setContentReady(false); }, [scrollGate, mode]);
   const scrollPrepared = useCallback((page: number, success: boolean) => {
     if (mode !== "scroll" || (success && studio && !pageLightingReady && !pageLightingFailed)) return;
@@ -785,7 +800,7 @@ export function PdfViewer({
           label={side === "left" ? "Previous page" : "Next page"}
           tone={tone}
           large
-          disabled={side === "left" ? current <= 1 : current >= total}
+          disabled={side === "left" ? current <= (visible[0] ?? 1) : current >= (visible[visible.length - 1] ?? total)}
           onClick={() => go(side === "left" ? -1 : 1)}
         >
           {side === "left" ? <ChevronLeft className="size-6" /> : <ChevronRight className="size-6" />}
@@ -886,7 +901,7 @@ export function PdfViewer({
               {/* Page numbers share the controls row in every reading mode. */}
               {!minimalControls && doc && shows("pageNumber") && (
                 <span className={cn("inline-flex shrink-0 whitespace-nowrap px-2 py-2 text-[11px] tabular-nums", tone === "dark" ? "text-white/85" : "text-slate-600")} aria-live="polite">
-                  {current} / {doc.numPages}
+                  {visiblePosition(current, visible)} / {visible.length}
                 </span>
               )}
               {!minimalControls && doc && shows("zoom") && <ToolbarDivider className="hidden sm:block" />}
@@ -942,13 +957,13 @@ export function PdfViewer({
             )}
             {!minimalControls && panel === "search" && doc && (
               <Panel label="Search" style={panelFit} className="w-[min(24rem,calc(100vw-1.5rem))] max-w-full overflow-auto overscroll-contain">
-                <BookSearch doc={doc} onGo={(page) => { jumpTo(page); setPanel(null); }} />
+                <BookSearch doc={doc} hidden={hiddenPages} onGo={(page) => { jumpTo(page); setPanel(null); }} />
               </Panel>
             )}
             {!minimalControls && panel === "pages" && doc && (
               <Panel label="Pages" style={panelFit} className="w-[min(24rem,calc(100vw-1.5rem))] max-w-full overflow-auto overscroll-contain">
                 <div className="grid grid-cols-4 gap-2">
-                  {sizes.map((s, i) => (
+                  {sizes.map((s, i) => hiddenPages.has(i + 1) ? null : (
                     <button
                       key={i}
                       type="button"
@@ -990,7 +1005,7 @@ export function PdfViewer({
       {mode === "book" && activeLook === "studio" && renderedStudio && !renderFailed && !compact ? (
         <RenderedBook fill={full || immersive} pack={renderedStudio} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} onReady={bookReadyChanged} onFallback={() => setRenderFailed(true)} />
       ) : mode === "book" ? (
-        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} hotspots={hotspots} slideshows={slideshows} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn || readerAutoFlip} autoTurnDelay={autoTurn ? autoTurnDelay : readerAutoFlip ? autoFlip * 1000 : autoTurnDelay} turnSound={Boolean(view.turnSound) && !homepageExample} showcaseOrbit={showcaseOrbit || (idleDrift && mode === "book" && shown)} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
+        <Suspense fallback={null}><BookView showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={shownTags} visiblePages={hiddenPages.size ? visible : undefined} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} hotspots={hotspots} slideshows={slideshows} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn || readerAutoFlip} autoTurnDelay={autoTurn ? autoTurnDelay : readerAutoFlip ? autoFlip * 1000 : autoTurnDelay} showcaseOrbit={showcaseOrbit || (idleDrift && mode === "book" && shown)} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>
@@ -1018,7 +1033,7 @@ export function PdfViewer({
             className={cn("mx-auto flex flex-col gap-4 pb-6", compact ? "px-3" : "px-3 sm:px-8")}
             style={{ paddingTop: topGap, width: `calc(min(100%, ${compact ? 900 : 1100}px) * ${zoom})` }}
           >
-            {sizes.map((s, i) => (
+            {sizes.map((s, i) => hiddenPages.has(i + 1) ? null : (
               <PdfPage links={pageLinks(i + 1)} videos={pageVideos(i + 1)} spotlights={pageSpotlights(i + 1)} onSpotlight={openSpotlightById} jumps={pageJumps(i + 1)} stickers={pageStickers(i + 1)} hotspots={pageHotspots(i + 1)} slideshows={pageSlideshows(i + 1)} onJump={jumpTo} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={setCurrent} eager={!streamedDoc} renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
             ))}
           </div>

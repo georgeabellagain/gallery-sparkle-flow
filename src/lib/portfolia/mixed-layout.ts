@@ -14,11 +14,15 @@ export function coverWithSpreads(sizes: { w: number; h: number }[]): boolean {
   return sizes.slice(1).every((size) => size.w > size.h * MARGIN);
 }
 
-/** The cover alone on the right, then each landscape sheet as a spread of its left and right halves. */
-export function coverThenSpreads(count: number): { leaves: Leaf[]; spreads: Spread[] } {
+/**
+ * The cover alone on the right, then each landscape sheet as a spread of its left and right halves. Hidden sheets
+ * (pages not in `visible`) are left out; the cover always stays, as the book needs it to open from.
+ */
+export function coverThenSpreads(count: number, visible?: readonly number[]): { leaves: Leaf[]; spreads: Spread[] } {
   const leaves: Leaf[] = [{ page: 1 }];
   const spreads: Spread[] = [[null, 0]];
   for (let page = 2; page <= count; page++) {
+    if (visible && !visible.includes(page)) continue;
     const left = leaves.length;
     leaves.push({ page, half: "left" }, { page, half: "right" });
     spreads.push([left, left + 1]);

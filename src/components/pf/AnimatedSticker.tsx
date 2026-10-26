@@ -62,6 +62,9 @@ function Scribble({ kind }: { kind: "circle" | "underline" }) {
   );
 }
 
+/** Set once, when a sticker appears: how far into its loop the page's clock already is. */
+const stampClock = (el: HTMLSpanElement | null) => { el?.style.setProperty("--pf-stk-delay", `${-(performance.now() / 1000).toFixed(3)}s`); };
+
 /** One sticker, drawn in its colour and moving its own way (motion rules are in styles.css, .pf-sticker-*). */
 export function AnimatedSticker({ sticker, colour, className, still = false }: { sticker: StickerId; colour: string; className?: string; still?: boolean }) {
   const motion = stickerInfo(sticker)?.motion ?? "pulse";
@@ -73,7 +76,9 @@ export function AnimatedSticker({ sticker, colour, className, still = false }: {
     : sticker === "underline" ? <Scribble kind="underline" />
     : (() => { const Drawn = Icon ?? Star; return <Drawn className="h-full w-full" strokeWidth={2.2} absoluteStrokeWidth={false} />; })();
   return (
-    <span aria-hidden className={cn("pf-sticker block h-full w-full", !still && `pf-sticker-${motion}`, className)} style={{ color: colour }}>
+    // Timed from the page's clock (as the copy drawn on turning paper is), so the hand-over after a turn is seamless.
+    <span aria-hidden ref={stampClock}
+      className={cn("pf-sticker block h-full w-full", !still && `pf-sticker-${motion}`, className)} style={{ color: colour }}>
       {art}
     </span>
   );

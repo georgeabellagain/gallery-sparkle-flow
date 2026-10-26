@@ -1,9 +1,12 @@
 export type Leaf = { page: number; half?: "left" | "right" };
 export type Spread = [number | null, number | null];
 
-/** Keep the physical book identical on phones; only the camera framing changes. */
-export function bookLayout(count: number, readySpreads: boolean) {
-  const leaves: Leaf[] = Array.from({ length: count }, (_, i) => ({ page: i + 1 }));
+/**
+ * Keep the physical book identical on phones; only the camera framing changes. `pages` lists the pages readers
+ * see (hidden ones left out); omitted, every page is in the book.
+ */
+export function bookLayout(count: number, readySpreads: boolean, pages?: readonly number[]) {
+  const leaves: Leaf[] = (pages ?? Array.from({ length: count }, (_, i) => i + 1)).map((page) => ({ page }));
   if (readySpreads) {
     const halves = leaves.flatMap(({ page }) => [
       { page, half: "left" as const },
@@ -12,7 +15,7 @@ export function bookLayout(count: number, readySpreads: boolean) {
     return { leaves: halves, spreads: leaves.map((_, i): Spread => [i * 2, i * 2 + 1]) };
   }
   const spreads: Spread[] = [[null, 0]];
-  for (let i = 1; i < count; i += 2) spreads.push([i, i + 1 < count ? i + 1 : null]);
+  for (let i = 1; i < leaves.length; i += 2) spreads.push([i, i + 1 < leaves.length ? i + 1 : null]);
   return { leaves, spreads };
 }
 

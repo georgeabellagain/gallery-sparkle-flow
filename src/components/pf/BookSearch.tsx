@@ -6,7 +6,7 @@ type Hit = { page: number; before: string; match: string; after: string };
 const MAX_HITS = 60;
 
 /** Finds words in the PDF's own text and lists every page they're on, with the words around them. */
-export function BookSearch({ doc, onGo }: { doc: PDFDocumentProxy; onGo: (page: number) => void }) {
+export function BookSearch({ doc, onGo, hidden }: { doc: PDFDocumentProxy; onGo: (page: number) => void; hidden?: ReadonlySet<number> }) {
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<Hit[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -24,6 +24,8 @@ export function BookSearch({ doc, onGo }: { doc: PDFDocumentProxy; onGo: (page: 
       const found: Hit[] = [];
       const needle = words.toLocaleLowerCase();
       for (let page = 1; page <= doc.numPages && found.length < MAX_HITS && live; page++) {
+        // Hidden pages aren't searched: readers can't open them.
+        if (hidden?.has(page)) continue;
         let text = texts.current.get(page);
         if (text === undefined) {
           try {
@@ -42,7 +44,7 @@ export function BookSearch({ doc, onGo }: { doc: PDFDocumentProxy; onGo: (page: 
       if (live) { setHits(found); setSearching(false); }
     }, 250);
     return () => { live = false; clearTimeout(timer); };
-  }, [query, doc]);
+  }, [query, doc, hidden]);
   return (
     <div className="space-y-3">
       <label className="flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2">

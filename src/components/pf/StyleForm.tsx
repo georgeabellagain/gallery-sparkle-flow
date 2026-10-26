@@ -1,5 +1,6 @@
 import { StudioLightingSettings, PaperSettings } from "./StudioAppearanceSettings";
 import { PageTurnSettings } from "./PageTurnSettings";
+import { HiddenPagesSettings } from "./HiddenPagesSettings";
 import { isPortfolioDraft } from "@/lib/portfolia/store";
 import { ChoiceTile } from "./ChoiceTile";
 import { ShadeStylePicker } from "./ShadeStylePicker";
@@ -361,6 +362,11 @@ export function StyleForm({
                     onChange={(spreads) => setViewer({ spreads })}
                   />
                 </PanelSection>
+                {p.pdf && (
+                  <PanelSection title="Hidden pages" hint="Readers skip these in every reading style, with anything placed on them. They stay in your PDF; the scrapbook editor still shows them.">
+                    <HiddenPagesSettings pages={p.pdf.pages} hidden={viewer.hiddenPages} onChange={(hiddenPages) => setViewer({ hiddenPages })} />
+                  </PanelSection>
+                )}
                 <PanelSection title="Opens on" hint="Links to a page or project still open there.">
                   <label className="flex items-center justify-between gap-3">
                     <span>Page</span>
@@ -393,9 +399,6 @@ export function StyleForm({
                       />
                     </SliderRow>
                     <p className="text-[11px] text-muted-foreground">Turns pages by itself, like a kiosk, until the reader touches anything; it starts again after a minute idle.</p>
-                    <SwitchRow label="Page-turn sound" hint="A soft paper sound as pages turn.">
-                      <input type="checkbox" checked={Boolean(viewer.turnSound)} onChange={(e) => setViewer({ turnSound: e.target.checked || undefined })} />
-                    </SwitchRow>
                   </PanelSection>
                 )}
                 <PanelSection title="Viewer buttons" hint="Choose what readers see in the controls bar.">

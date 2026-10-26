@@ -1119,6 +1119,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     /** Which sticker layer is drawn over a page picture while the stickers' flat overlay is away. */
     setStickerLayerLookup(lookup: (canvas: HTMLCanvasElement) => HTMLCanvasElement | null) { pageVideo.setLayerLookup(lookup); requestPaint(false); },
     setStickerLayerShown(shown: boolean) { pageVideo.setLayerShown(shown); requestPaint(false); },
+    /** The sticker layers moved: redraw without recomputing shadows. */
+    stickerLayerFrame() { pageVideo.refreshLayers(); requestPaint(false); },
     /** A new video frame is ready: redraw without recomputing shadows. */
     videoFrame() { requestPaint(false); },
     setCoverColour(canvas:HTMLCanvasElement,board:"front"|"back"="front"){binding.setCoverColour(sampleCoverColour(canvas),board);requestPaint();},

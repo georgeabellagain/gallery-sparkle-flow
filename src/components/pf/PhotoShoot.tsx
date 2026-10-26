@@ -5,7 +5,10 @@ import { BackgroundPresetPicker } from "./BackgroundPresetPicker";
 import { PHOTO_EXPORT_REASON, PHOTO_SIZE_PRESETS, photoExportAction, photoSizeError, type PhotoSize } from "@/lib/portfolia/photo-export";
 import { UpgradeModal } from "./UpgradeModal";
 import { Segmented } from "./viewer-ui";
-import { backgroundFor } from "@/lib/portfolia/background-settings";
+import { backgroundColour } from "@/lib/portfolia/background";
+import { BACKGROUND_SCENES, sceneImageUrl } from "@/lib/portfolia/background-scenes";
+import { readableHiddenPages } from "@/lib/portfolia/hidden-pages";
+import { BackgroundScenePicker } from "./BackgroundScenePicker";
 import { backgroundPicture } from "@/lib/portfolia/background-presets";
 import { useBlob, useObjectUrl } from "./Chrome";
 import { useEffect, useRef, useState } from "react";
@@ -19,21 +22,37 @@ import { createPhotoShoot, SHOOT_ELEVATION, SHOOT_PRESETS, type ShootOptions } f
 import { RIBBON_COLOURS, readableRibbonColour, ribbonSpreadPage } from "@/lib/portfolia/book-details";
 import { DEFAULT_VIEWER, type ViewerSettings, type Portfolio } from "@/lib/portfolia/store";
 
+/** What a photo shoot keeps between visits, per portfolio and on this device: the camera, book, light and paper. */
+const REMEMBERED = ["style", "layout", "yaw", "elevation", "zoom", "hdri", "finish", "brightness", "strength", "topLight", "ribbonColour"] as const;
+const shootKey = (code: string) => `pf-shoot:${code}`;
+function rememberedShoot(code: string): Partial<ShootOptions> {
+  try {
+    const saved = JSON.parse(localStorage.getItem(shootKey(code)) ?? "null") as Record<string, unknown> | null;
+    return saved ? Object.fromEntries(REMEMBERED.filter((k) => saved[k] !== undefined).map((k) => [k, saved[k]])) : {};
+  } catch { return {}; }
+}
+function rememberShoot(code: string, options: ShootOptions) {
+  try { localStorage.setItem(shootKey(code), JSON.stringify(Object.fromEntries(REMEMBERED.map((k) => [k, options[k]])))); } catch { /* not remembered */ }
+}
+
 export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }) {
+  const hiddenPages = readableHiddenPages(p.viewer?.hiddenPages, p.pdf?.pages ?? 0);
   const frameHost = useRef<HTMLDivElement>(null),
     host = useRef<HTMLDivElement>(null),
     stage = useRef<ReturnType<typeof createPhotoShoot> | null>(null);
-  const [startingBackground] = useState(() =>
-    backgroundFor({ ...DEFAULT_VIEWER, ...p.viewer }, "studio"),
-  );
-  const initialBlob = useBlob(startingBackground.backgroundKey),
+  // The wall and floor both start as the portfolio's main background: its picture, texture, colour scene or colour.
+  const [main] = useState(() => ({ ...DEFAULT_VIEWER, ...p.viewer }));
+  const initialBlob = useBlob(main.backgroundKey),
     initialPicture = useObjectUrl(initialBlob),
-    wallEdited = useRef(false);
+    surfaceEdited = useRef(false);
+  const mainColour = backgroundColour(main);
+  const mainPicture = (uploaded?: string) => (main.backgroundKey ? uploaded : sceneImageUrl(main.backgroundPreset) ?? backgroundPicture(main));
   const [options, setOptions] = useState<ShootOptions>(() => ({
     style: readableBookStyle(p.viewer?.bookStyle),
-    colour: startingBackground.backgroundColor ?? "#ded9cf",
-    wall: backgroundPicture(startingBackground),
-    floorColour: startingBackground.backgroundColor ?? "#ded9cf",
+    colour: mainColour,
+    wall: mainPicture(),
+    floorColour: mainColour,
+    floor: mainPicture(),
     ...photoLighting(p.viewer),
     ribbon: p.viewer?.ribbon,
     ribbonColour: p.viewer?.ribbonColour,
@@ -41,7 +60,11 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
     yaw: 20,
     elevation: 10,
     zoom: 1,
+    // The camera, lighting and paper chosen last time for this portfolio.
+    ...rememberedShoot(p.code),
   }));
+  // Wall and floor change together unless the creator separates them.
+  const [linked, setLinked] = useState(true);
   const elevationRange = SHOOT_ELEVATION[options.layout ?? "lean"];
   const activePreset = SHOOT_PRESETS.find((preset) => preset.layout === (options.layout ?? "lean") && preset.yaw === options.yaw && preset.elevation === options.elevation && preset.zoom === options.zoom)?.id;
   const [tool, setTool] = useState<"customise" | "camera" | "export" | null>(null),
@@ -54,8 +77,8 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
   const sizeError = photoSizeError(size, deviceLimit),
     aspect = photoSizeError(size) ? 4 / 5 : size.width / size.height;
   useEffect(() => {
-    if (initialPicture && !wallEdited.current)
-      setOptions((current) => ({ ...current, wall: initialPicture }));
+    if (initialPicture && !surfaceEdited.current)
+      setOptions((current) => ({ ...current, wall: initialPicture, floor: initialPicture }));
   }, [initialPicture]);
   useEffect(() => {
     const node = frameHost.current;
@@ -76,7 +99,7 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
   const [error, setError] = useState(""),
     [ready, setReady] = useState(false),
     [saving, setSaving] = useState(false),
-    [uploads, setUploads] = useState<{ wall?: string; floor?: string }>({});
+    [upload, setUpload] = useState<string>();
   useEffect(() => {
     if (ready && !sizeError) stage.current?.setSize(size);
   }, [size.width, size.height, ready, sizeError]);
@@ -183,7 +206,8 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
   }, [p.pdf?.blobKey]);
   useEffect(() => {
     stage.current?.set(options);
-  }, [options]);
+    rememberShoot(p.code, options);
+  }, [options, p.code]);
   useEffect(() => {
     if (!ready || !stage.current || !pageRenderer.current) return;
     let cancelled = false;
@@ -317,12 +341,27 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
         : {}),
       ...(patch.studioTopLight !== undefined ? { topLight: patch.studioTopLight } : {}),
     });
-  const colourKey = surface === "wall" ? "colour" : "floorColour";
-  const changeSurface = (patch: Partial<ShootOptions>) => {
+  // With wall and floor linked, every choice goes on both; otherwise on the surface being edited.
+  const editing = linked ? (["wall", "floor"] as const) : ([surface] as const);
+  const colourOf = (s: "wall" | "floor") => (s === "wall" ? options.colour : options.floorColour);
+  const setPicture = (url: string | undefined, colour?: string) => {
     setError("");
-    if (surface === "wall") wallEdited.current = true;
+    surfaceEdited.current = true;
+    const patch: Partial<ShootOptions> = {};
+    for (const s of editing) {
+      patch[s] = url;
+      if (colour) patch[s === "wall" ? "colour" : "floorColour"] = colour;
+    }
     change(patch);
   };
+  const setColour = (colour: string) => {
+    surfaceEdited.current = true;
+    const patch: Partial<ShootOptions> = {};
+    for (const s of editing) { patch[s] = undefined; patch[s === "wall" ? "colour" : "floorColour"] = colour; }
+    change(patch);
+  };
+  const shown = options[editing[0]];
+  const usingMain = (["wall", "floor"] as const).every((s) => options[s] === mainPicture(initialPicture ?? undefined) && colourOf(s) === mainColour);
   return (
     <section
       aria-label="Book photo shoot"
@@ -480,7 +519,7 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                     <option value={0}>Closed book</option>
                     {Array.from({ length: p.pdf?.pages ?? 0 }, (_, i) => (
                       <option key={i + 1} value={i + 1}>
-                        Open at page {i + 1}
+                        Open at page {i + 1}{hiddenPages.includes(i + 1) ? " (hidden from readers)" : ""}
                       </option>
                     ))}
                   </select>
@@ -519,28 +558,40 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                   <PaperSettings viewer={shootViewer} setViewer={changeAppearance} />
                 )}
                 {tab === "background" && (
-                  <div className="space-y-3">
-                    <Segmented
-                      label="Photo background surface"
-                      value={surface}
-                      options={
-                        [
-                          ["wall", "Wall"],
-                          ["floor", "Floor"],
-                        ] as const
-                      }
-                      onChange={setSurface}
-                    />
+                  <div className="space-y-4">
+                    <button
+                      type="button"
+                      aria-pressed={usingMain}
+                      onClick={() => {
+                        surfaceEdited.current = false;
+                        const picture = mainPicture(initialPicture ?? undefined);
+                        change({ wall: picture, floor: picture, colour: mainColour, floorColour: mainColour });
+                      }}
+                      className="flex w-full items-center gap-3 rounded-xl border border-border p-2 text-left text-sm hover:bg-muted/60 aria-pressed:ring-2 aria-pressed:ring-foreground"
+                    >
+                      <span className="size-10 shrink-0 rounded-lg border border-border bg-cover bg-center" style={{ background: mainPicture(initialPicture ?? undefined) ? `url("${mainPicture(initialPicture ?? undefined)!.replace(/"/g, "%22")}") center / cover` : mainColour }} />
+                      <span>Your portfolio background<span className="block text-xs text-muted-foreground">The one chosen in Background, on wall and floor</span></span>
+                    </button>
                     <label className="flex items-center justify-between gap-3">
-                      Colour
+                      <span>Same on wall and floor</span>
+                      <input type="checkbox" checked={linked} onChange={(e) => setLinked(e.target.checked)} />
+                    </label>
+                    {!linked && (
+                      <Segmented
+                        label="Photo background surface"
+                        value={surface}
+                        options={[["wall", "Wall"], ["floor", "Floor"]] as const}
+                        onChange={setSurface}
+                      />
+                    )}
+                    <label className="flex items-center justify-between gap-3">
+                      Plain colour
                       <input
-                        aria-label={`${surface} colour`}
+                        aria-label={linked ? "Wall and floor colour" : `${surface} colour`}
                         className="h-10 w-12 cursor-pointer rounded border border-border"
                         type="color"
-                        value={options[colourKey]}
-                        onChange={(e) =>
-                          changeSurface({ [colourKey]: e.target.value, [surface]: undefined })
-                        }
+                        value={colourOf(editing[0])}
+                        onChange={(e) => setColour(e.target.value)}
                       />
                     </label>
                     <input
@@ -558,8 +609,8 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                         }
                         const url = URL.createObjectURL(file);
                         uploadUrls.current.add(url);
-                        setUploads((current) => ({ ...current, [surface]: url }));
-                        changeSurface({ [surface]: url });
+                        setUpload(url);
+                        setPicture(url);
                       }}
                     />
                     <Button
@@ -569,31 +620,26 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                     >
                       Upload picture
                     </Button>
-                    {uploads[surface] && (
+                    {upload && (
                       <button
                         type="button"
-                        aria-pressed={options[surface] === uploads[surface]}
-                        onClick={() => changeSurface({ [surface]: uploads[surface] })}
-                        className="block w-full overflow-hidden rounded border border-border text-left aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-1"
+                        aria-pressed={shown === upload}
+                        onClick={() => setPicture(upload)}
+                        className="block w-full overflow-hidden rounded-xl border border-border text-left aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-1"
                       >
-                        <img
-                          src={uploads[surface]}
-                          alt="Uploaded picture"
-                          className="h-16 w-full object-cover"
-                        />
-                        <span className="block p-2">Uploaded picture</span>
+                        <img src={upload} alt="Uploaded picture" className="h-16 w-full object-cover" />
+                        <span className="block p-2 text-xs">Uploaded picture</span>
                       </button>
                     )}
-                    <p className="font-medium">Presets</p>
+                    <p className="font-medium">Colour scenes</p>
+                    <BackgroundScenePicker
+                      selected={BACKGROUND_SCENES.find((scene) => sceneImageUrl(scene.id) === shown)?.id}
+                      onSelect={(id, base) => setPicture(sceneImageUrl(id), base)}
+                    />
+                    <p className="font-medium">Textures</p>
                     <BackgroundPresetPicker
-                      selected={
-                        BACKGROUND_PRESETS.find((preset) => preset.url === options[surface])?.id
-                      }
-                      onSelect={(id) =>
-                        changeSurface({
-                          [surface]: BACKGROUND_PRESETS.find((preset) => preset.id === id)!.url,
-                        })
-                      }
+                      selected={BACKGROUND_PRESETS.find((preset) => preset.url === shown)?.id}
+                      onSelect={(id) => setPicture(BACKGROUND_PRESETS.find((preset) => preset.id === id)!.url)}
                     />
                   </div>
                 )}

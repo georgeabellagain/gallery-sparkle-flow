@@ -18,9 +18,11 @@ export function BookLoader({ tone, label = "Preparing your portfolio…", detail
   const ink = tone === "dark" ? "255,255,255" : "28,27,26";
   const paper = tone === "dark" ? "#f3efe6" : "#ffffff";
   return (
-    <div role="status" aria-live="polite" aria-label={label || "Loading portfolio"} className="flex flex-col items-center gap-4" style={{ "--pf-paper": paper, "--pf-loop": `${LOOP_S}s`, "--pf-first": `${FIRST_TURN_S}s` } as CSSProperties}>
+    <div role="status" aria-live="polite" aria-label={label || "Loading portfolio"} className="flex flex-col items-center gap-3" style={{ "--pf-paper": paper, "--pf-loop": `${LOOP_S}s`, "--pf-first": `${FIRST_TURN_S}s` } as CSSProperties}>
       <style>{`
-        .pf-lb { position: relative; width: 76px; height: 52px; perspective: 260px; perspective-origin: 50% 0%; }
+        /* Drawn at 76 × 52 and shown at 70%, so every line and shadow keeps its proportions. */
+        .pf-lb-frame { width: 53px; height: 36px; }
+        .pf-lb { position: relative; width: 76px; height: 52px; perspective: 260px; perspective-origin: 50% 0%; transform: scale(.7); transform-origin: 0 0; }
         .pf-lb-book { position: absolute; inset: 0; transform-style: preserve-3d; transform: rotateX(38deg) rotateZ(-14deg) scaleZ(.5); }
         .pf-lb-book > * { position: absolute; box-sizing: border-box; }
         .pf-lb-floor { left: -10%; right: -10%; bottom: -28%; height: 40%; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,0,0,.22), rgba(0,0,0,0)); transform: translateZ(-2px); }
@@ -48,7 +50,7 @@ export function BookLoader({ tone, label = "Preparing your portfolio…", detail
         }
         @media (prefers-reduced-motion: reduce) { .pf-lb-leaf { animation: none; } }
       `}</style>
-      <div className="pf-lb" aria-hidden>
+      <div className="pf-lb-frame" aria-hidden><div className="pf-lb">
         <div className="pf-lb-book">
           <span className="pf-lb-floor" />
           <span className="pf-lb-block" />
@@ -57,7 +59,7 @@ export function BookLoader({ tone, label = "Preparing your portfolio…", detail
           <span className="pf-lb-gutter" />
           <span className="pf-lb-leaf" />
         </div>
-      </div>
+      </div></div>
       {label ? (
         <p className="text-xs" style={{ color: `rgba(${ink}, 0.7)` }}>
           {label}

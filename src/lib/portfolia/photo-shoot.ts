@@ -8,6 +8,7 @@ import { loadPreparedEnvironment } from "./prepared-environment";
 import { createEnvironmentDiffuser } from "./environment-diffusion";
 import { createPaperTextures } from "./paper-textures";
 import { backgroundSurfaceMaps } from "./background-presets";
+import { SCENE_IMAGE_MARK } from "./background-scenes";
 import { studioExposure, studioTopLight, presetShadow, presetDirectLight, HDRI_PRESETS, type HdriId } from "./lighting";
 import { dappleTexture } from "./dapple-light";
 import { createBookBinding, sideShare, type BindingSide } from "./book-binding";
@@ -102,8 +103,10 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
    const load=async(file:string)=>{const t=await loader.loadAsync(file);if(disposed||failed||token!==state.revision){t.dispose();throw new Error("Surface replaced");}acquired.add(t);return t;};
    state.pending=Promise.all([load(url),maps?load(maps.normal):Promise.resolve(null),maps?load(maps.roughness):Promise.resolve(null)]).then(loaded=>{
      if(disposed||token!==state.revision){loaded.forEach(t=>t?.dispose());return;}
-     clear();loaded.forEach((t,i)=>{if(!t)return;t.colorSpace=i===0?THREE.SRGBColorSpace:THREE.NoColorSpace;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
-       const image=loaded[0]!.image as HTMLImageElement,rx=30/4,ry=30/(4*(image.naturalHeight/image.naturalWidth||1));t.repeat.set(rx,ry);t.offset.set(.5-.5*rx,index===0?.5-((ratio*.52-5)/30+.5)*ry:.5-.5*ry);textures.add(t);state.maps.push(t);});
+     // A colour scene is one soft picture, stretched once round the book (its edges carry on beyond it); a texture tiles every 4 units.
+     const scene=url.endsWith(SCENE_IMAGE_MARK),span=scene?9:4;
+     clear();loaded.forEach((t,i)=>{if(!t)return;t.colorSpace=i===0?THREE.SRGBColorSpace:THREE.NoColorSpace;t.wrapS=t.wrapT=scene?THREE.ClampToEdgeWrapping:THREE.RepeatWrapping;t.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
+       const image=loaded[0]!.image as HTMLImageElement,rx=30/span,ry=30/(span*(image.naturalHeight/image.naturalWidth||1));t.repeat.set(rx,ry);t.offset.set(.5-.5*rx,index===0?.5-((ratio*.52-5)/30+.5)*ry:.5-.5*ry);textures.add(t);state.maps.push(t);});
      acquired.clear();[m.map,m.normalMap,m.roughnessMap]=loaded;m.normalScale.set(1,1);m.roughness=maps?1:.94;m.needsUpdate=true;request();
    }).catch(()=>{failed=true;acquired.forEach(t=>t.dispose());acquired.clear();if(!disposed&&token===state.revision)onError(`The ${index===0?"wall":"floor"} surface could not load.`);throw new Error("A photo surface could not load. Choose another preset.");});void state.pending.catch(()=>{});
  };

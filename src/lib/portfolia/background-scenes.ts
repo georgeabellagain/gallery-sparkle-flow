@@ -59,3 +59,36 @@ export const BACKGROUND_SCENES: readonly BackgroundScene[] = [
 
 export const backgroundScene = (id: string | undefined): BackgroundScene | null => BACKGROUND_SCENES.find((s) => s.id === id) ?? null;
 export const isBackgroundScene = (id: string | undefined) => Boolean(backgroundScene(id));
+
+const sceneImages = new Map<string, string>();
+/** Marks a picture made from a scene, so surfaces stretch it once instead of tiling it. */
+export const SCENE_IMAGE_MARK = "#scene";
+/**
+ * A still picture of a scene, for places that need an image rather than the live layer (the photo shoot's wall and
+ * floor). Drawn the way BackgroundSceneLayer draws it, at rest; made once per scene and kept.
+ */
+export function sceneImageUrl(id: string | undefined, size = 1536): string | undefined {
+  const scene = backgroundScene(id);
+  if (!scene || typeof document === "undefined") return undefined;
+  const cached = sceneImages.get(scene.id);
+  if (cached) return cached;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return undefined;
+  ctx.fillStyle = scene.base;
+  ctx.fillRect(0, 0, size, size);
+  for (const b of scene.blobs) {
+    // As in the layer: a square 1.4 × size wide, its circular gradient reaching the square's corners.
+    const box = b.size * 1.4 * size, radius = (box / 2) * Math.SQRT2, cx = b.x * size, cy = b.y * size;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+    g.addColorStop(0, b.colour);
+    g.addColorStop(0.22, `${b.colour}cc`);
+    g.addColorStop(0.68, `${b.colour}00`);
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - box / 2, cy - box / 2, box, box);
+  }
+  const url = canvas.toDataURL("image/jpeg", 0.9) + SCENE_IMAGE_MARK;
+  sceneImages.set(scene.id, url);
+  return url;
+}

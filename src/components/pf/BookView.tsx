@@ -14,7 +14,6 @@ import { BookLoader } from "./book-loader";
 import { getBookInset, subscribeBookInset } from "@/lib/portfolia/book-framing";
 import { PageStickerMark } from "./AnimatedSticker";
 import { drawPageLayer, loadPageLayerPictures } from "./sticker-layer";
-import { playTurnSound } from "@/lib/portfolia/turn-sound";
 import { PageHotspotMark } from "./PageHotspots";
 import { PageSlideshowMark } from "./PageSlideshow";
 import { PageJumpLink, PageLinkAnchor } from "./PageLinks";
@@ -377,10 +376,10 @@ export function BookView({
   stickers,
   hotspots,
   slideshows,
+  visiblePages,
   showPageNumber = true,
   showNavigation = true,
   showcaseOrbit = false,
-  turnSound = false,
 }: {
   doc: PDFDocumentProxy;
   sizes: { w: number; h: number }[];
@@ -392,8 +391,6 @@ export function BookView({
   showNavigation?: boolean;
   /** Homepage only: drift slowly round the book in 3D until the reader takes over. */
   showcaseOrbit?: boolean;
-  /** A soft paper sound as each page turns. */
-  turnSound?: boolean;
   viewer: ViewerSettings;
   /** The colour behind the book. */
   colour: string;
@@ -447,13 +444,16 @@ export function BookView({
   hotspots?: PageHotspot[];
   /** Picture slideshows on pages. */
   slideshows?: PageSlideshow[];
+  /** The pages readers see, when some are hidden; omitted, every page is in the book. */
+  visiblePages?: number[];
 }) {
   // A portrait first page followed only by landscape pages is a front cover and then two-page spreads.
   // The flipbook shows it that way whatever "My PDF contains" says; the other reading modes are unaffected.
   const coverAndSpreads = useMemo(() => coverWithSpreads(sizes), [sizes]);
   const layout = useMemo(
-    () => (coverAndSpreads ? coverThenSpreads(doc.numPages) : bookLayout(doc.numPages, viewer.spreads === "ready")),
-    [doc, viewer.spreads, coverAndSpreads],
+    () => (coverAndSpreads ? coverThenSpreads(doc.numPages, visiblePages) : bookLayout(doc.numPages, viewer.spreads === "ready", visiblePages)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [doc, viewer.spreads, coverAndSpreads, visiblePages?.join()],
   );
   const first = sizes[coverAndSpreads ? 1 : 0] ?? { w: 1, h: 1.4 };
   const ratio = first.h / (coverAndSpreads || viewer.spreads === "ready" ? first.w / 2 : first.w);
@@ -480,6 +480,10 @@ export function BookView({
     { x: 92, y: 86 },
   ]);
   const [pageBounds, setPageBounds] = useState<PageBounds[]>([]);
+  /** Sticker layers drawn so far (one per page face with stickers), redrawn while they ride on turning paper. */
+  const pageLayers = useRef<Array<{ canvas: HTMLCanvasElement; stickers: PageSticker[]; slides: PageSlideshow[] }>>([]);
+  /** The outer page corner the mouse rests near (it lifts slightly), if any. */
+  const [peek, setPeek] = useState<{ side: 1 | -1; corner: "top" | "bottom" } | null>(null);
   const [tabRects, setTabRects] = useState<Array<{ id: string; x: number; y: number; width: number; height: number }>>([]);
   // Positions are only handed to React when they actually moved, so panning, zooming and turning do not re-render the whole book for nothing.
   const keep = <T,>(next: T) => (previous: T): T => (JSON.stringify(previous) === JSON.stringify(next) ? previous : next);
@@ -1323,20 +1327,45 @@ export function BookView({
     if (!s || (!pageStickers.length && !pageSlideshows.length)) return;
     let live = true;
     const layers = new Map<number, HTMLCanvasElement | null>();
+    pageLayers.current = [];
     void loadPageLayerPictures(pageStickers, pageSlideshows).then(() => {
       if (!live) return;
       s.setStickerLayerLookup((canvas) => {
         const n = Number(canvas.dataset["seed"]), at = layout.leaves[n];
         if (!at) return null;
-        if (!layers.has(n)) layers.set(n, drawPageLayer(stickersForLeaf(pageStickers, at), slideshowsForLeaf(pageSlideshows, at), ratio));
+        if (!layers.has(n)) {
+          const stickers = stickersForLeaf(pageStickers, at), slides = slideshowsForLeaf(pageSlideshows, at);
+          const layer = drawPageLayer(stickers, slides, ratio);
+          layers.set(n, layer);
+          if (layer && stickers.length) pageLayers.current.push({ canvas: layer, stickers, slides });
+        }
         return layers.get(n) ?? null;
       });
     });
-    return () => { live = false; s.setStickerLayerLookup(() => null); };
+    return () => { live = false; pageLayers.current = []; s.setStickerLayerLookup(() => null); };
   }, [ready, pageStickers, pageSlideshows, layout, ratio]);
   const overlayShown = bookReady && !busy && !wait && !fallback && !view3d;
-  useEffect(() => { if (busy && turnSound) playTurnSound(); }, [busy, turnSound]);
   useEffect(() => { scene.current?.setStickerLayerShown(!overlayShown); }, [overlayShown, ready]);
+  // While the stickers ride on the turning (or tilted) paper, they keep moving: their layers are drawn again from
+  // the page's clock about 30 times a second. Reduced motion keeps them still.
+  useEffect(() => {
+    if (overlayShown || !pageStickers.length || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    let frame = 0, last = 0;
+    const tick = (now: number) => {
+      frame = requestAnimationFrame(tick);
+      if (now - last < 33 || !pageLayers.current.length) return;
+      last = now;
+      for (const l of pageLayers.current) drawPageLayer(l.stickers, l.slides, ratio, l.canvas, now / 1000);
+      scene.current?.stickerLayerFrame();
+    };
+    frame = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(frame);
+      // Back to the still pictures, ready for the next turn.
+      for (const l of pageLayers.current) drawPageLayer(l.stickers, l.slides, ratio, l.canvas);
+      scene.current?.stickerLayerFrame();
+    };
+  }, [overlayShown, pageStickers.length, ratio]);
   const [litNotesKey, setLitNotesKey] = useState("");
   const notesForSpread = (pages: Array<number | null>) => pages.flatMap((n, side) => n === null ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side, seed: n + 1, exterior: n === 0 || n === layout.leaves.length - 1 })));
   useEffect(() => { noteProgresses.current.clear(); setOpenNote(false); }, [leaf, additions]);
@@ -1651,9 +1680,17 @@ export function BookView({
               }}
               aria-label={d === 1 ? "Turn to next page" : "Turn to previous page"}
               disabled={wait || (d === 1 ? atEnd : atStart)}
-              onPointerDown={(e) => beginCornerDrag(e, d)}
+              onPointerDown={(e) => { setPeek(null); beginCornerDrag(e, d); }}
+              onPointerLeave={() => setPeek(null)}
               onPointerMove={(e) => {
                 const gesture = drag.current;
+                // A mouse resting near a page's outer corner lifts it a little, a hint that pressing turns the page.
+                if (!gesture && e.pointerType === "mouse") {
+                  const r = e.currentTarget.getBoundingClientRect(), rx = (e.clientX - r.left) / r.width, ry = (e.clientY - r.top) / r.height;
+                  const outer = side === "right" ? rx > 0.8 : rx < 0.2;
+                  const corner = !outer ? null : ry > 0.82 ? "bottom" : ry < 0.18 ? "top" : null;
+                  setPeek((was) => (corner ? (was?.side === d && was.corner === corner ? was : { side: d, corner }) : null));
+                }
                 if (!gesture || gesture.id !== e.pointerId) return;
                 if (Math.abs(e.clientX - gesture.x) > 4 || Math.abs(e.clientY - gesture.y) > 4) gesture.moved = true;
                 gesture.lastX = e.clientX;
@@ -1677,6 +1714,21 @@ export function BookView({
               onClick={(e) => { if (e.detail === 0) void move(d); }}
             />
           ))}
+        {peek && !busy && !wait && bookReady && !view3d && !fallback && !narrow && (() => {
+          const bounds = pageBounds[peek.side === 1 ? 1 : 0];
+          if (!bounds) return null;
+          const right = peek.side === 1, bottom = peek.corner === "bottom";
+          // A small square, about a twelfth of the page's width on screen.
+          const size = Math.round(Math.max(14, Math.min(44, (bounds.width / 100) * (viewportRef.current?.clientWidth ?? 800) * 0.085)));
+          return (
+            <span aria-hidden className={cn("pf-corner-fold", right ? "pf-fold-right" : "pf-fold-left", bottom ? "pf-fold-bottom" : "pf-fold-top")}
+              style={{
+                left: right ? undefined : `${bounds.x}%`, right: right ? `${100 - bounds.x - bounds.width}%` : undefined,
+                top: bottom ? undefined : `${bounds.y}%`, bottom: bottom ? `${100 - bounds.y - bounds.height}%` : undefined,
+                width: size, height: size,
+              }} />
+          );
+        })()}
         {wait && !error && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <BookLoader tone={tone} label="" />
