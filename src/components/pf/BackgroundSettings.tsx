@@ -16,6 +16,9 @@ import { DEFAULT_FIT } from "@/lib/portfolia/background";
 import { putBlob, uid } from "@/lib/portfolia/assets";
 import { type ViewerSettings, type BackgroundContext } from "@/lib/portfolia/store";
 import { setPreviewLook, setPreviewMode } from "@/lib/portfolia/preview-look";
+/** A texture you pick starts at half size (finer grain behind the book); style presets set their own size. */
+const TEXTURE_FIT = { ...DEFAULT_FIT, scale: 0.5, tile: true };
+
 const contexts = [
   ["studio", "Flipbook · Studio"],
   ["clean", "Flipbook · Simple"],
@@ -184,7 +187,7 @@ export function BackgroundSettings({
         <BackgroundScenePicker selected={!choice.backgroundKey ? choice.backgroundPreset : undefined} onSelect={(id, base) => choose({ backgroundPreset: id, backgroundColor: base })} />
       </PanelSection>
       <PanelSection title="Surfaces" hint="Photographed textures. Warm wood and Soft concrete are included on Free; the others and uploads need Personal to save.">
-        <BackgroundPresetPicker selected={!choice.backgroundKey?choice.backgroundPreset:undefined} onSelect={id=>choose({backgroundPreset:id,backgroundFit:{...DEFAULT_FIT,tile:true}})} />
+        <BackgroundPresetPicker selected={!choice.backgroundKey?choice.backgroundPreset:undefined} onSelect={id=>choose({backgroundPreset:id,backgroundFit:TEXTURE_FIT})} />
       </PanelSection>
       <PanelSection title="Your own">
         <label className="flex items-center justify-between gap-3 text-xs">
@@ -228,7 +231,7 @@ export function BackgroundSettings({
         )}
       </PanelSection>
       {(choice.backgroundKey || choice.backgroundPreset) && !sceneChosen && (
-        <PanelSection title="Size & position" aside={<button type="button" className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline" onClick={() => setFit(DEFAULT_FIT)}>Reset</button>}>
+        <PanelSection title="Size & position" aside={<button type="button" className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline" onClick={() => setFit(choice.backgroundPreset && !choice.backgroundKey ? TEXTURE_FIT : DEFAULT_FIT)}>Reset</button>}>
           {(
             [
               [
@@ -259,7 +262,7 @@ export function BackgroundSettings({
         </PanelSection>
       )}
       <PanelSection title="Studio lighting">
-        <SwitchRow label="Light background with HDRI" hint="The Studio light falls on the background too.">
+        <SwitchRow label="Light background with HDRI" hint={sceneChosen ? "On: the book casts its Studio shadow on the colour scene. Off: no shadow behind the book." : "The Studio light falls on the background too."}>
           <input
             type="checkbox"
             checked={viewer.backgroundLighting ?? true}

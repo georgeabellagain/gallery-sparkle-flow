@@ -15,7 +15,7 @@ import { createBookBinding, sideShare, type BindingSide } from "./book-binding";
 import { createPhotoGrounding } from "./photo-grounding";
 import { createGutterShade } from "./gutter-shade";
 import { pageRelief } from "./page-relief";
-import { applyCloth, disposeCloth, hasHeadbands, hasRibbon, headbandTexture, readableRibbonColour, ribbonGeometry, ribbonMaterial, ribbonShadowGeometry, ribbonShadowMaterial } from "./book-details";
+import { applyCloth, disposeCloth, hasRibbon, headbandTexture, readableRibbonColour, ribbonGeometry, ribbonMaterial, ribbonShadowGeometry, ribbonShadowMaterial } from "./book-details";
 import { ribbonPath, RIBBON_PAGE, stackDepth } from "./book-binding";
 import type { SurfaceKind } from "./surface";
 /** `lean` stands the book against the wall; `flat` lays it on the floor for a top-down flat lay. */
@@ -58,7 +58,7 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
  const add=(geometry:THREE.BufferGeometry,mat:THREE.Material,parent=closed)=>{const m=new THREE.Mesh(geometry,mat);m.castShadow=m.receiveShadow=true;parent.add(m);return m;};
  const spine=add(spineGeometry,coverMaterial),block=add(box,pageMaterial),frontBoard=add(box,coverMaterial),backBoard=add(box,coverMaterial),art=add(plane,artMaterial),rear=add(plane.clone(),backMaterial);geometries.add(rear.geometry);rear.rotation.y=Math.PI;
  const fan=[add(plane.clone(),pageMaterial),add(plane.clone(),pageMaterial)];fan.forEach(m=>geometries.add(m.geometry));
- // Hardback headbands at the head and tail of the closed book's spine.
+ // Headbands are left off in photographs (the meshes stay, hidden, so the shapes below need no special cases).
  const bandGeometry=new THREE.CylinderGeometry(1,1,1,12,1),bandMaterial=material({roughness:.45});geometries.add(bandGeometry);
  const bands=[1,-1].map(()=>{const band=add(bandGeometry,bandMaterial);band.rotation.x=Math.PI/2;return band;});let bandColour="";
  // The ribbon tail lies on the floor in world space, so it drapes the same way in either layout.
@@ -134,8 +134,8 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
    const style=readableBookStyle(options.style),profile=bookStyleProfile(style),hard=style==="hardback",soft=style==="softcover",flat=options.layout==="flat",showRibbon=hasRibbon(style,options.ribbon),marked=open&&options.ribbonMarked===true,stamp=`${style}|${open}|${flat}|${showRibbon}|${marked}|${spreadPages.map(mesh=>Boolean(mesh.userData["coverBoard"])).join()}`;
    const ribbonShade=readableRibbonColour(options.ribbonColour),silk=ribbonMesh.material as THREE.MeshPhysicalMaterial;silk.color.set(ribbonShade);silk.sheenColor.set(ribbonShade).lerp(new THREE.Color("#ffffff"),.55);
    if(bandColour!==ribbonShade){if(bandMaterial.map){textures.delete(bandMaterial.map);bandMaterial.map.dispose();}bandMaterial.map=headbandTexture(ribbonShade);textures.add(bandMaterial.map);bandColour=ribbonShade;bandMaterial.needsUpdate=true;}
-   // The spread's binding draws the headbands; the photo's own ribbon replaces the reader's table ribbon.
-   binding.setDetails({ribbon:false,ribbonColour:ribbonShade});
+   // No headbands in photographs; the photo's own ribbon replaces the reader's table ribbon.
+   binding.setDetails({ribbon:false,ribbonColour:ribbonShade,headbands:false});
    if(hard)applyCloth(coverMaterial,1+2*profile.overhang,ratio);
    else if(coverMaterial.normalMap){disposeCloth(coverMaterial);coverMaterial.userData["cloth"]=undefined;coverMaterial.normalMap=coverMaterial.roughnessMap=null;coverMaterial.roughness=.6;coverMaterial.needsUpdate=true;}
    closed.visible=!open;spread.visible=open;
@@ -154,7 +154,7 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
      art.scale.set(coverWidth,coverHeight,1);art.position.z=thickness/2+board+.002;rear.scale.copy(art.scale);rear.position.z=-thickness/2-board-.002;
      for(const mesh of [art,rear]){const positions=mesh.geometry.getAttribute("position") as THREE.BufferAttribute;for(let i=0;i<positions.count;i++){const x=positions.getX(i),hinge=mesh===art?x+.5:.5-x;positions.setZ(i,soft?.012*Math.sin(Math.PI*(x+.5)):hard?-.0015*Math.exp(-Math.pow((hinge-.04)/.018,2)):0);}positions.needsUpdate=true;mesh.geometry.computeVertexNormals();}
      fan.forEach((mesh,i)=>{mesh.visible=style==="flipbook";mesh.scale.set(1,ratio,1);mesh.rotation.z=(i+1)*.018;mesh.position.z=-thickness/2-(i+1)*.002;});
-     bands.forEach((band,index)=>{band.visible=hasHeadbands(style);band.scale.set(.006,thickness,.006);band.position.set(-.5+.004,(index===0?1:-1)*(ratio-.035)/2,0);});
+     bands.forEach((band,index)=>{band.visible=false;band.scale.set(.006,thickness,.006);band.position.set(-.5+.004,(index===0?1:-1)*(ratio-.035)/2,0);});
      const height=ratio+2*profile.overhang,depth=open?.07:thickness+2*board;
      if(flat){
        // Lying on the floor, cover (or spread) facing up and the head of the page away from the camera.
@@ -202,7 +202,9 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
    }
    binding.set(style,true);binding.setLeaves(pages);binding.sync([spreadPages[0]!.visible,spreadPages[1]!.visible],spreadPages.map((mesh,index)=>({kind:hard&&mesh.userData["coverBoard"]===true?"open" as const:"page" as const,share:sideShare(index as 0|1,Number(mesh.userData["leaf"]),pages)})) as [BindingSide,BindingSide]);
    for(const m of [artMaterial,backMaterial,...spreadMaterials])paper.apply(m,options.finish);
-   setSurface(0,options.wall,options.colour);setSurface(1,options.floor,options.floorColour);scene.background=new THREE.Color(options.colour);setLighting();request();
+   // A flat lay is the book lying on one plain surface, seen from above: the wall's surface, with no second plane.
+   const flatLay=options.layout==="flat";wall.visible=!flatLay;
+   setSurface(0,options.wall,options.colour);setSurface(1,flatLay?options.wall:options.floor,flatLay?options.colour:options.floorColour);scene.background=new THREE.Color(options.colour);setLighting();request();
  };
  apply();
  return {

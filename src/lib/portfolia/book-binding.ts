@@ -166,7 +166,7 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
   // Hardback headbands: small striped silk beads at the head and tail of the spine.
   const bandGeometry=new THREE.CylinderGeometry(1,1,1,12,1),bandMaterial=new THREE.MeshStandardMaterial({roughness:.45});
   let bandColour="";
-  const bands=[1,-1].map(()=>{const band=mesh(bandGeometry,bandMaterial);band.name="Headband";band.visible=false;group.add(band);return band;});
+  const bands=[1,-1].map(()=>{const band=mesh(bandGeometry,bandMaterial);band.name="Headband";band.visible=false;group.add(band);return band;});let bandsOn=true;
   // The ribbon bookmark: across its marked spread, otherwise a tail from between the pages onto the table.
   const ribbon=mesh(new THREE.BufferGeometry(),ribbonMaterial());ribbon.visible=false;group.add(ribbon);
   const ribbonShadow=new THREE.Mesh(new THREE.BufferGeometry(),ribbonShadowMaterial());ribbonShadow.renderOrder=1;ribbonShadow.visible=false;group.add(ribbonShadow);
@@ -228,7 +228,8 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
     /** Leaf count of the open document, for block thickness. */
     setLeaves(count:number){leaves=Math.max(0,count|0);},
     /** Ribbon bookmark (hardback and soft cover) and the colour shared by ribbon and headbands. */
-    setDetails(details:{ribbon?:boolean;ribbonColour?:string;ribbonGutter?:number}){ribbonOn=details.ribbon===true;ribbonColour=readableRibbonColour(details.ribbonColour);ribbonGutter=details.ribbonGutter;colour();},
+    /** `headbands: false` leaves them off (the photo shoot shows none). */
+    setDetails(details:{ribbon?:boolean;ribbonColour?:string;ribbonGutter?:number;headbands?:boolean}){ribbonOn=details.ribbon===true;bandsOn=details.headbands!==false;ribbonColour=readableRibbonColour(details.ribbonColour);ribbonGutter=details.ribbonGutter;colour();},
     set(value:unknown,lit:boolean){
       studio=lit;
       const profile=bookStyleProfile(value),changed=profile.id!==style;style=profile.id;
@@ -298,7 +299,7 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
       // Only an open book shows them; a closed one keeps them inside its case, where their ends would poke past the spine.
       // Beside a hardback cover lying open (first and last spreads) they would sit on the cover's inside, so they hide.
       const openCover=(index:0|1)=>hard&&visible[index]&&layout[index]!.kind==="open";
-      const showBands=hasHeadbands(style)&&shown&&visible[0]&&visible[1]&&!openCover(0)&&!openCover(1);
+      const showBands=bandsOn&&hasHeadbands(style)&&shown&&visible[0]&&visible[1]&&!openCover(0)&&!openCover(1);
       bands.forEach((band,index)=>{band.visible=showBands;band.rotation.set(0,0,Math.PI/2);band.scale.set(.0042,.03,.0042);band.position.set(0,(index===0?1:-1)*((ratio-.004)/2+.003),PAGE_TOP);});
       // The ribbon lies across its marked spread; elsewhere it leaves the block it is held in at the foot of the gutter
       // and drapes onto the table. A turn that leaves or reaches the marked spread drives it frame by frame (turnRibbon).

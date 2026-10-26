@@ -235,6 +235,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const shadowCatcher = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.ShadowMaterial({ opacity: 0.38 }));
   shadowCatcher.position.z = -BOOK_LIFT;
   shadowCatcher.receiveShadow = true;
+  /** Whether the book casts its Studio shadow on the background (off over an unlit colour scene). */
+  let backdropShadow = true;
   scene.add(shadowCatcher);
 
   // A soft shadow that is always under the book in the Simple look. There is one for the open book and one
@@ -863,7 +865,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     contactOpacity = next.studio ? .2 : THREE.MathUtils.clamp(next.simpleShadowOpacity, 0, 1);
     applyContact();
     shadowCatcher.material.opacity = .3;
-    shadowCatcher.visible = next.studio;
+    shadowCatcher.visible = next.studio && backdropShadow;
     light.castShadow = next.studio && (!pattern || mix.hdri === 0);
     if (variantChanged) variant = nextVariant;
     airDust.setIntensity(next.studio ? next.imperfections ?? 0 : 0);
@@ -1131,6 +1133,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     /** `shown` false leaves the canvas clear behind the book, for a colour-and-motion scene drawn underneath it. */
     setBackdrop(url: string | undefined, fit: Parameters<typeof backdrop.set>[1], lit: boolean, colour: string, surface = false, shown = true) {
       backdrop.set(url, fit, shown, colour, lit, surface);
+      // Over a colour-and-motion scene, the book's shadow falls on it only while the scene is lit by the Studio light.
+      backdropShadow = shown || lit;
+      shadowCatcher.visible = settings.studio && backdropShadow;
+      requestPaint();
     },
     setNotes: notes.set,
     notesReady: notes.has,

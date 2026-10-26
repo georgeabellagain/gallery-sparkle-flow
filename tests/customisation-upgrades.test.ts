@@ -69,3 +69,14 @@ test("undo steps back through changes, a dragged slider is one step, and removed
   assert.equal(kept.style!.bannerKey, "banner_new");
   clearAppearanceHistory();
 });
+
+test("the presets carry the chosen light, background size and opening look", () => {
+  const get = (id: string) => STYLE_PRESETS.find((p) => p.id === id)!.viewer;
+  assert.deepEqual([get("gallery").look, get("gallery").backgroundPreset, get("gallery").backgroundFit?.scale, get("gallery").studioBrightness, get("gallery").studioLightingStrength], ["studio", "white_stucco_02", 0.35, 1.3, 0.9]);
+  assert.deepEqual([get("editorial").look, get("editorial").studioLighting, get("editorial").studioBrightness, get("editorial").studioLightingStrength], ["clean", "2", 1.5, 1]);
+  assert.deepEqual([get("lookbook").backgroundFit?.scale, get("lookbook").studioLighting, get("lookbook").studioLightingStrength, get("lookbook").studioTopLight], [0.5, "6", 0.8, 0.05]);
+  assert.equal(get("minimal").turnStyle, "classic");
+  assert.deepEqual([get("night").look, get("night").studioLighting, get("night").studioBrightness], ["studio", "3", 1.2]);
+  assert.equal(get("zine").simpleShadowOpacity, 0.06);
+  assert.deepEqual([get("daylight").backgroundPreset, get("daylight").backgroundFit?.scale, get("daylight").studioLighting, get("daylight").studioBrightness, get("daylight").studioTopLight], ["marble_tiles_02", 0.5, "8", 0.6, 0.11]);
+});

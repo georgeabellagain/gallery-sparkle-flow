@@ -19,7 +19,7 @@ import { loadPdfjs } from "@/lib/portfolia/pdf";
 import { BOOK_STYLES, readableBookStyle } from "@/lib/portfolia/book-style";
 import { BACKGROUND_PRESETS } from "@/lib/portfolia/background-presets";
 import { createPhotoShoot, SHOOT_ELEVATION, SHOOT_PRESETS, type ShootOptions } from "@/lib/portfolia/photo-shoot";
-import { RIBBON_COLOURS, readableRibbonColour, ribbonSpreadPage } from "@/lib/portfolia/book-details";
+import { ribbonSpreadPage } from "@/lib/portfolia/book-details";
 import { DEFAULT_VIEWER, type ViewerSettings, type Portfolio } from "@/lib/portfolia/store";
 
 /** What a photo shoot keeps between visits, per portfolio and on this device: the camera, book, light and paper. */
@@ -342,7 +342,8 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
       ...(patch.studioTopLight !== undefined ? { topLight: patch.studioTopLight } : {}),
     });
   // With wall and floor linked, every choice goes on both; otherwise on the surface being edited.
-  const editing = linked ? (["wall", "floor"] as const) : ([surface] as const);
+  const flatLay = options.layout === "flat";
+  const editing = linked || flatLay ? (["wall", "floor"] as const) : ([surface] as const);
   const colourOf = (s: "wall" | "floor") => (s === "wall" ? options.colour : options.floorColour);
   const setPicture = (url: string | undefined, colour?: string) => {
     setError("");
@@ -486,28 +487,6 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                     </button>
                   ))}
                 </div>
-                {/* The ribbon bookmark is set aside for now; a hardback keeps its headband colour. */}
-                {options.style === "hardback" && (
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span>Headband colour</span>
-                    {(
-                      <div className="flex gap-1.5" role="radiogroup" aria-label="Headband colour">
-                        {RIBBON_COLOURS.map((colour) => (
-                          <button
-                            key={colour}
-                            type="button"
-                            role="radio"
-                            aria-checked={readableRibbonColour(options.ribbonColour) === colour}
-                            aria-label={`Ribbon colour ${colour}`}
-                            onClick={() => change({ ribbonColour: colour })}
-                            className="size-5 rounded-full border border-black/15 aria-checked:ring-2 aria-checked:ring-foreground aria-checked:ring-offset-1"
-                            style={{ background: colour }}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
                 <label className="block space-y-2">
                   <span>Show</span>
                   <select
@@ -572,11 +551,15 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                       <span className="size-10 shrink-0 rounded-lg border border-border bg-cover bg-center" style={{ background: mainPicture(initialPicture ?? undefined) ? `url("${mainPicture(initialPicture ?? undefined)!.replace(/"/g, "%22")}") center / cover` : mainColour }} />
                       <span>Your portfolio background<span className="block text-xs text-muted-foreground">The one chosen in Background, on wall and floor</span></span>
                     </button>
-                    <label className="flex items-center justify-between gap-3">
-                      <span>Same on wall and floor</span>
-                      <input type="checkbox" checked={linked} onChange={(e) => setLinked(e.target.checked)} />
-                    </label>
-                    {!linked && (
+                    {flatLay ? (
+                      <p className="text-xs text-muted-foreground">A flat lay is one surface under the book, seen from above.</p>
+                    ) : (
+                      <label className="flex items-center justify-between gap-3">
+                        <span>Same on wall and floor</span>
+                        <input type="checkbox" checked={linked} onChange={(e) => setLinked(e.target.checked)} />
+                      </label>
+                    )}
+                    {!linked && !flatLay && (
                       <Segmented
                         label="Photo background surface"
                         value={surface}
