@@ -805,7 +805,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const configure = (next: StudioSettings) => {
     next = {...next, material:paperFinish(next.material)};
     settings = next;
-    binding.setDetails({ribbon:next.ribbon,ribbonColour:next.ribbonColour,ribbonGutter:next.ribbonGutter});
+    // The ribbon bookmark and hardback headbands are retired: neither is drawn.
+    binding.setDetails({ribbon:false,ribbonColour:next.ribbonColour,headbands:false});
     binding.set(next.bookStyle,next.studio);
     const rest: CoverRest = left.visible && right.visible ? "open" : "closed";
     [left,right].forEach((mesh,i)=>{
@@ -1015,7 +1016,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
    */
   const ribbonTurnFor = (from: BookFaces, to: BookFaces, dir: 1 | -1): RibbonTurn | null => {
     const mark = settings.ribbonGutter;
-    if (mark === undefined || !settings.ribbon || settings.bookStyle === "flipbook") return null;
+    if (mark === undefined || !settings.ribbon || settings.bookStyle === "flipbook") return null; // never, while the ribbon is retired
     if (gutterOf(from) === mark) return dir === 1 ? { carried: true, sign: 1, revealing: false } : { carried: false, sign: 1, revealing: false };
     if (gutterOf(to) === mark) return dir === 1 ? { carried: false, sign: 1, revealing: true } : { carried: true, sign: -1, revealing: false };
     return null;

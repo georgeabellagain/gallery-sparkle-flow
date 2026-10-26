@@ -19,11 +19,10 @@ import { loadPdfjs } from "@/lib/portfolia/pdf";
 import { BOOK_STYLES, readableBookStyle } from "@/lib/portfolia/book-style";
 import { BACKGROUND_PRESETS } from "@/lib/portfolia/background-presets";
 import { createPhotoShoot, SHOOT_ELEVATION, SHOOT_PRESETS, type ShootOptions } from "@/lib/portfolia/photo-shoot";
-import { ribbonSpreadPage } from "@/lib/portfolia/book-details";
 import { DEFAULT_VIEWER, type ViewerSettings, type Portfolio } from "@/lib/portfolia/store";
 
 /** What a photo shoot keeps between visits, per portfolio and on this device: the camera, book, light and paper. */
-const REMEMBERED = ["style", "layout", "yaw", "elevation", "zoom", "hdri", "finish", "brightness", "strength", "topLight", "ribbonColour"] as const;
+const REMEMBERED = ["style", "layout", "yaw", "elevation", "zoom", "hdri", "finish", "brightness", "strength", "topLight"] as const;
 const shootKey = (code: string) => `pf-shoot:${code}`;
 function rememberedShoot(code: string): Partial<ShootOptions> {
   try {
@@ -54,8 +53,6 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
     floorColour: mainColour,
     floor: mainPicture(),
     ...photoLighting(p.viewer),
-    ribbon: p.viewer?.ribbon,
-    ribbonColour: p.viewer?.ribbonColour,
     layout: "lean",
     yaw: 20,
     elevation: 10,
@@ -295,11 +292,6 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
   }, [selectedPage, ready, p.pdf?.pages, p.viewer?.spreads]);
   const change = (patch: Partial<ShootOptions>) =>
     setOptions((current) => ({ ...current, ...patch }));
-  // The ribbon lies across the pages only on the spread the creator marked in the reader.
-  useEffect(() => {
-    const marked = ribbonSpreadPage(p.viewer?.ribbonPage, p.pdf!.pages);
-    change({ ribbonMarked: marked !== undefined && selectedPage > 0 && (selectedPage === marked || (p.viewer?.spreads !== "ready" && photoSpreadPages(selectedPage, p.pdf!.pages).includes(marked))) });
-  }, [selectedPage, p.viewer?.ribbonPage, p.viewer?.spreads, p.pdf?.pages]);
   const [upgrade, setUpgrade] = useState(false),
     gate = photoExportAction(p.plan);
   const download = async () => {
@@ -552,7 +544,7 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                       <span>Your portfolio background<span className="block text-xs text-muted-foreground">The one chosen in Background, on wall and floor</span></span>
                     </button>
                     {flatLay ? (
-                      <p className="text-xs text-muted-foreground">A flat lay is one surface under the book, seen from above.</p>
+                      <p className="text-xs text-muted-foreground">In a flat lay the book lies flat against the wall; there is no floor in the picture.</p>
                     ) : (
                       <label className="flex items-center justify-between gap-3">
                         <span>Same on wall and floor</span>

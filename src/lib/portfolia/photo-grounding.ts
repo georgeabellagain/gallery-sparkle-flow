@@ -61,20 +61,22 @@ export function createPhotoGrounding(scene: THREE.Scene, floorY: number, wallZ: 
   return {
     /**
      * `bounds` is the book's world box; `depth` its thickness. Leaning, the book touches the floor along its
-     * foot and the wall behind it; lying flat, its whole underside meets the floor.
+     * foot and the wall behind it; laid flat on the wall (no floor in the picture), its back meets the wall all over.
      */
     update(bounds: THREE.Box3, depth: number, layout: "lean" | "flat" = "lean") {
       const width = bounds.max.x - bounds.min.x, cx = (bounds.min.x + bounds.max.x) / 2, height = bounds.max.y - floorY;
-      behind.visible = layout === "lean";
-      if (layout === "flat") {
-        const length = bounds.max.z - bounds.min.z, cz = (bounds.min.z + bounds.max.z) / 2;
-        // The rounded core sits just inside the outline, so the dark band hugs the edges the book rests on.
-        footprint.scale.set(width * 1.08, length * 1.08, 1);
-        footprint.position.set(cx, floorY + .0008, cz);
-        spread.scale.set(width * 1.45, length * 1.4, 1);
-        spread.position.set(cx + .02, floorY + .0007, cz + .03);
+      const onWall = layout === "flat";
+      for (const mesh of [footprint, spread, cornerFloor, cornerWall]) mesh.visible = !onWall;
+      behind.visible = true;
+      if (onWall) {
+        // A soft, even shadow round the whole book, slightly larger than it, on the wall it lies against.
+        const tall = bounds.max.y - bounds.min.y, cy = (bounds.min.y + bounds.max.y) / 2;
+        behind.material.map = soft; behind.material.opacity = .22;
+        behind.scale.set(width * 1.18, tall * 1.14, 1);
+        behind.position.set(cx + width * .015, cy - tall * .02, wallZ + .0008);
         return;
       }
+      behind.material.map = behindMap; behind.material.opacity = .3;
       footprint.scale.set(width * 1.1, depth + .07, 1);
       footprint.position.set(cx, floorY + .0008, bounds.max.z - depth / 2 - .005);
       spread.scale.set(width * 1.5, depth + .6, 1);

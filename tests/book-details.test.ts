@@ -6,7 +6,7 @@ import { bookLayout } from "../src/lib/portfolia/book-layout";
 import { PAGE_TOP } from "../src/lib/portfolia/rigid-cover";
 import { createBookBinding } from "../src/lib/portfolia/book-binding";
 import { pageRelief } from "../src/lib/portfolia/page-relief";
-import { flatCamera, SHOOT_ELEVATION, SHOOT_PRESETS } from "../src/lib/portfolia/photo-shoot";
+import { SHOOT_ELEVATION, SHOOT_PRESETS } from "../src/lib/portfolia/photo-shoot";
 
 test("ribbon and headbands belong only to bound books, with safe colour defaults", () => {
   assert.equal(hasHeadbands("hardback"), true);
@@ -67,14 +67,10 @@ test("the ribbon drapes onto the table, only when switched on, on the side the b
   binding.dispose();
 });
 
-test("flat-lay camera looks down on the book from within its allowed heights", () => {
-  const centre = new THREE.Vector3(0, .02, 2.2);
-  for (const elevation of [0, 40, 72, 88, 120]) {
-    const pose = flatCamera(0, elevation, 1, 1.4, .8, 2, centre), dir = pose.target.clone().sub(pose.position).normalize();
-    const pitch = THREE.MathUtils.radToDeg(Math.asin(-dir.y));
-    assert.ok(pitch >= 40 - 1e-6 && pitch <= 88 + 1e-6);
-    assert.ok(pose.position.y > centre.y);
-  }
+test("a flat lay faces the book on the wall straight on, and every preset's camera height is allowed", () => {
+  const flat = SHOOT_PRESETS.find((preset) => preset.layout === "flat")!;
+  assert.deepEqual([flat.yaw, flat.elevation], [0, 2]);
+  assert.deepEqual(SHOOT_ELEVATION.flat, SHOOT_ELEVATION.lean, "the same camera as a leaning book, in front of the wall");
   for (const preset of SHOOT_PRESETS) {
     const [low, high] = SHOOT_ELEVATION[preset.layout];
     assert.ok(preset.elevation >= low && preset.elevation <= high, preset.id);

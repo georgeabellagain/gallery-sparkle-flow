@@ -16,7 +16,7 @@ const viewer: ViewerSettings = {
   background: "midnight", backgroundColor: "#ffffff", backgroundPreset: "painted_plaster_wall", backgroundLighting: true, background3D: false,
   backgroundFit: { scale: 0.85, tile: true, x: 0, y: 0 },
   finish: "satin", paper: "smooth", paperTextureStrength: 0, light: "soft", shadow: "subtle", simpleShadow: true, simpleShadowOpacity: 0.19,
-  thickness: "thin", spreads: "single", showHeader: false, ribbon: true, ribbonPage: 6,
+  thickness: "thin", spreads: "single", showHeader: false,
   studioBrightness: 0.53, studioImperfections: 0, studioLighting: "10", studioLightingStrength: 0.71, studioPlayback: "live", studioTopLight: 0,
   turnCurve: "soft", turnSpeed: 1.45,
 } as ViewerSettings;

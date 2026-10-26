@@ -5,7 +5,6 @@ import { TAB_STYLES, readableTabStyle, type TabStyle } from "@/lib/portfolia/tab
 import { TURN_STYLES, readableTurnSpeed, readableTurnStyle } from "@/lib/portfolia/turn-motion";
 import { setPreviewMode } from "@/lib/portfolia/preview-look";
 import type { ViewerSettings } from "@/lib/portfolia/store";
-import { RIBBON_COLOURS, readableRibbonColour } from "@/lib/portfolia/book-details";
 import { PanelSection, SliderRow, optionClass } from "./panel-ui";
 
 /** Each tab shape in miniature (the book draws the real ones from tab-style.ts). */
@@ -16,7 +15,6 @@ const TAB_PREVIEW: Record<TabStyle, CSSProperties> = {
   angled: { clipPath: "polygon(0 0, 100% 16%, 100% 84%, 0 100%)" },
   ribbon: { clipPath: "polygon(0 0, 100% 0, 76% 50%, 100% 100%, 0 100%)" },
 };
-const RIBBON_NAMES: Record<string, string> = { "#8c1d2c": "Deep red", "#1f3a5f": "Navy", "#2f5d3a": "Forest green", "#c9a227": "Gold", "#1c1c1c": "Black", "#efe9dc": "Ivory" };
 
 export function PageTurnSettings({viewer,setViewer,pages=0}:{viewer:ViewerSettings;setViewer:(patch:Partial<ViewerSettings>)=>boolean;pages?:number}) {
   useEffect(()=>()=>setPreviewMode(null),[]);
@@ -28,15 +26,6 @@ export function PageTurnSettings({viewer,setViewer,pages=0}:{viewer:ViewerSettin
       <div className="grid grid-cols-3 gap-2" role="group" aria-label="Book style">
         {BOOK_STYLES.map(option=><button key={option.id} type="button" aria-pressed={book===option.id} className={optionClass} onClick={()=>change({bookStyle:option.id})}>{option.label}</button>)}
       </div>
-      {/* The ribbon bookmark is set aside for now; a hardback still shows its headbands in this colour. */}
-      {book==="hardback" && <div className="rounded-2xl bg-muted/50 p-3">
-        <p className="text-xs text-muted-foreground">Headband colour</p>
-        <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label="Headband colour">
-          {RIBBON_COLOURS.map(colour=><button key={colour} type="button" role="radio" aria-checked={readableRibbonColour(viewer.ribbonColour)===colour} aria-label={RIBBON_NAMES[colour]} title={RIBBON_NAMES[colour]}
-            className="size-6 rounded-full border border-black/15 transition-transform hover:scale-110 aria-checked:ring-2 aria-checked:ring-foreground aria-checked:ring-offset-2" style={{background:colour}}
-            onClick={()=>change({ribbonColour:colour})} />)}
-        </div>
-      </div>}
     </PanelSection>
     <PanelSection title="Page tabs" hint={`${TAB_STYLES.find(option=>option.id===tabStyle)!.description} Add tabs in Scrapbook.`}>
       <div className="grid grid-cols-5 gap-1.5" role="radiogroup" aria-label="Page tab style">

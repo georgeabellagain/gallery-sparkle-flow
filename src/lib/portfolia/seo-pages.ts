@@ -16,7 +16,7 @@ export const DISCIPLINE_PAGES: Record<string, Page> = {
     points: [
       { title: "Leaning, spine and flat lay shots", body: "Camera presets stand the book against a wall, show off the spine or lay it flat on a table. Drag the preview to fine-tune the angle." },
       { title: "Closed or open at any spread", body: "Show the cover, or open the book at any page so the spread sits under real light with gutter shading and contact shadows." },
-      { title: "Hardback, soft cover or flipbook", body: "Choose the binding, paper finish, lighting, wall and floor, and add a silk ribbon bookmark to hardbacks and soft covers." },
+      { title: "Hardback, soft cover or flipbook", body: "Choose the binding, paper finish, lighting, wall and floor, then pick the angle and export the photograph." },
     ],
     sections: [
       { title: "What the photo shoot makes", body: "A PNG photograph of your book at the size you choose, from Amazon A+ tiles and square product images to 16:9 website heroes and 9:16 stories, up to the limit your device's graphics allow. Everyone can open the photo shoot and preview every setting; downloading the picture is part of Personal." },
