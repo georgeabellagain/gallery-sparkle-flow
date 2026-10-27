@@ -28,11 +28,12 @@ import { readableLeadForm, type LeadForm } from "@/lib/portfolia/lead-form";
 import { lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { EditorFullscreenContext } from "./editor-fullscreen";
 import { toggleFullscreen, type FullscreenDocument } from "@/lib/portfolia/fullscreen";
-import { List, Copy } from "lucide-react";
+import { List, Copy, X } from "lucide-react";
 import { projectFromHash, projectPath, readableProjects, type PortfolioProject } from "@/lib/portfolia/projects";
 import { BookOpen, Check, ChevronLeft, ChevronRight, Download, Share2, FileText, LayoutGrid, Maximize2, Minimize2, ScrollText, Search, User, ZoomIn, ZoomOut } from "lucide-react";
 import { BookSearch } from "./BookSearch";
 import { BrandMark } from "./BrandingSettings";
+import { pageFromHash } from "@/lib/portfolia/page-link";
 import { nearestVisible, readableHiddenPages, stepVisible, visiblePageList, visiblePosition } from "@/lib/portfolia/hidden-pages";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { describePdfError, loadPdfjs } from "@/lib/portfolia/pdf";
@@ -85,6 +86,7 @@ export function PdfViewer({
   backdrop,
   viewer,
   startPage,
+  onReaderPage,
   projects,
   foldouts,
   tags,
@@ -135,6 +137,8 @@ export function PdfViewer({
   backdrop?: string;
   viewer?: ViewerSettings;
   startPage?: number;
+  /** Told each time the reader's page changes (reader insights). */
+  onReaderPage?: (page: number) => void;
   projects?: PortfolioProject[];
   foldouts?: Foldout[];
   tags?: PageTag[];
@@ -583,8 +587,12 @@ export function PdfViewer({
   const shows = (control: ViewerControl) => view.controls?.[control] !== false;
   const logoTopLeft = Boolean(view.brandLogoKey) && (view.brandPosition ?? "top-left") === "top-left";
   const [shared, setShared] = useState(false);
+  const [announcementClosed, setAnnouncementClosed] = useState(false);
+  useEffect(() => setAnnouncementClosed(false), [view.announcement?.text]);
   const share = async () => {
-    const url = window.location.href.split("#")[0]!;
+    // Past the opening page, the link opens on the page being read.
+    const base = window.location.href.split("#")[0]!;
+    const url = current > (visible[0] ?? 1) ? `${base}#page=${current}` : base;
     try {
       if (navigator.share && matchMedia("(pointer: coarse)").matches) { await navigator.share({ title: document.title, url }); return; }
       await navigator.clipboard.writeText(url);
@@ -640,10 +648,12 @@ export function PdfViewer({
   }, [doc, zoom > 1, mode]);
   const openingPage = () => {
     const project = projectCode ? projectFromHash(window.location.hash, sections) : undefined;
-    // A link's page (embed or project) comes first, then the page the creator chose to open on.
-    const wanted = startPage ?? (homepageExample ? 1 : view.startPage ?? 1);
+    // A link's page (embed, project, or a shared "#page=5" link) comes first, then the page the creator chose to open on.
+    const linked = projectCode ? pageFromHash(window.location.hash) : undefined;
+    const wanted = startPage ?? linked ?? (homepageExample ? 1 : view.startPage ?? 1);
     return nearestVisible(project?.startPage ?? Math.min(total, Math.max(1, Number.isFinite(wanted) ? Math.floor(wanted) : 1)), visible);
   };
+  useEffect(() => { if (doc) onReaderPage?.(current); }, [current, doc, onReaderPage]);
   const currentLive = useRef(current);
   currentLive.current = current;
   useEffect(() => {
@@ -824,6 +834,17 @@ export function PdfViewer({
       {backgroundUrl && mode !== "book" && (
         <div aria-hidden className="pointer-events-none sticky top-0 -z-10 -mb-[100svh] h-[100svh] w-full overflow-hidden">
           <BackdropLayer colour={colour} imageUrl={backgroundUrl} fit={bgView.backgroundFit} scene={bgView.backgroundKey ? undefined : bgView.backgroundPreset} />
+        </div>
+      )}
+
+      {/* The creator's announcement, until the reader closes it (never on the homepage example). */}
+      {!homepageExample && !announcementClosed && view.announcement?.text && showControls && (
+        <div role="status" className="pointer-events-none absolute inset-x-0 z-[55] flex justify-center px-3" style={{ top: toolbarHeight ? toolbarHeight + 14 : 64 }}>
+          <div className="pointer-events-auto flex max-w-xl items-center gap-3 rounded-full bg-slate-950/90 py-1.5 pl-4 pr-1.5 text-sm text-white shadow-lg backdrop-blur">
+            <span className="min-w-0 truncate">{view.announcement.text}</span>
+            {view.announcement.url && <a href={view.announcement.url} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-medium text-slate-900 hover:bg-white/90">{view.announcement.label || "Find out more"}</a>}
+            <button type="button" aria-label="Close announcement" onClick={() => setAnnouncementClosed(true)} className="shrink-0 rounded-full p-1.5 text-white/70 hover:bg-white/10 hover:text-white"><X className="size-3.5" /></button>
+          </div>
         </div>
       )}
 

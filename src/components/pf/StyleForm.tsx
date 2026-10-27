@@ -1,6 +1,7 @@
 import { StudioLightingSettings, PaperSettings } from "./StudioAppearanceSettings";
 import { PageTurnSettings } from "./PageTurnSettings";
 import { HiddenPagesSettings } from "./HiddenPagesSettings";
+import { normaliseUrl } from "@/lib/portfolia/page-extras";
 import { isPortfolioDraft } from "@/lib/portfolia/store";
 import { ChoiceTile } from "./ChoiceTile";
 import { ShadeStylePicker } from "./ShadeStylePicker";
@@ -41,6 +42,35 @@ const PAGE_PALETTES = [
   { label: "Cobalt", text: "#ffffff", background: "#2337c6", backdrop: "#111a66" },
   { label: "Clay", text: "#fff6ef", background: "#c4583f", backdrop: "#5e2617" },
 ] as const;
+
+/** The announcement banner's words, link and button, saved as you leave each box. */
+function AnnouncementFields({ value, onChange }: { value?: ViewerSettings["announcement"]; onChange: (next: ViewerSettings["announcement"]) => void }) {
+  const [text, setText] = useState(value?.text ?? "");
+  const [url, setUrl] = useState(value?.url ?? "");
+  const [label, setLabel] = useState(value?.label ?? "");
+  const [problem, setProblem] = useState("");
+  useEffect(() => { setText(value?.text ?? ""); setUrl(value?.url ?? ""); setLabel(value?.label ?? ""); }, [value?.text, value?.url, value?.label]);
+  const commit = (next = { text, url, label }) => {
+    const words = next.text.trim().slice(0, 140);
+    if (!words) { setProblem(""); onChange(undefined); return; }
+    const link = next.url.trim() ? normaliseUrl(next.url) : undefined;
+    if (next.url.trim() && !link) { setProblem("That address doesn't look right."); return; }
+    setProblem("");
+    onChange({ text: words, ...(link ? { url: link, label: next.label.trim().slice(0, 30) || undefined } : {}) });
+  };
+  const box = "mt-1 w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-sm";
+  return (
+    <div className="space-y-2">
+      <label className="block">Words<input className={box} maxLength={140} value={text} placeholder="New collection out now" onChange={(e) => setText(e.target.value)} onBlur={() => commit()} /></label>
+      <div className="grid grid-cols-[1fr_7rem] gap-2">
+        <label className="block">Link (optional)<input className={box} inputMode="url" value={url} placeholder="yourshop.com/new" onChange={(e) => setUrl(e.target.value)} onBlur={() => commit()} /></label>
+        <label className="block">Button<input className={box} maxLength={30} value={label} placeholder="Shop now" onChange={(e) => setLabel(e.target.value)} onBlur={() => commit()} /></label>
+      </div>
+      {problem && <p role="alert" className="text-destructive">{problem}</p>}
+      {value?.text && <button type="button" className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline" onClick={() => { setText(""); setUrl(""); setLabel(""); onChange(undefined); }}>Remove the banner</button>}
+    </div>
+  );
+}
 
 const VIEWER_CONTROLS: ReadonlyArray<readonly [ViewerControl, string]> = [
   ["pages", "Page thumbnails"],
@@ -367,7 +397,10 @@ export function StyleForm({
                     <HiddenPagesSettings pages={p.pdf.pages} hidden={viewer.hiddenPages} onChange={(hiddenPages) => setViewer({ hiddenPages })} />
                   </PanelSection>
                 )}
-                <PanelSection title="Opens on" hint="Links to a page or project still open there.">
+                <PanelSection title="Announcement" hint="A short banner readers see when they open the portfolio: news, an offer or an event. They can close it.">
+                  <AnnouncementFields value={viewer.announcement} onChange={(announcement) => setViewer({ announcement })} />
+                </PanelSection>
+                <PanelSection title="Opens on" hint="Links to a page or project still open there. Share a link to any page by adding #page=5 to the address.">
                   <label className="flex items-center justify-between gap-3">
                     <span>Page</span>
                     <input

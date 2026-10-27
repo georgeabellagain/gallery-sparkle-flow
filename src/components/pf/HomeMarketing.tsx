@@ -7,6 +7,7 @@ import {Button} from "@/components/ui/button";
 import type {PdfFile} from "@/lib/portfolia/store";
 import {PRICE} from "@/lib/portfolia/store";
 import {PLAN_FAQ} from "@/lib/portfolia/plans";
+import {FactStrip, FeatureGrid, PdfVersusLink, UseCases} from "./HomeHighlights";
 const FeatureShowcase=lazy(()=>import("./FeatureShowcase").then(m=>({default:m.FeatureShowcase})));
 
 const REASONS = [
@@ -31,6 +32,7 @@ const SWITCH = [
 
 export function HomeMarketing({onUpgrade,onAccepted,limitMb}:{onUpgrade:(billing:Billing)=>void;onAccepted:(pdf:PdfFile)=>void;limitMb:number}) {
  return <div className="bg-background">
+   <FactStrip />
    <section aria-labelledby="why-title" className="rule-t">
     <div className="shell py-14 sm:py-20">
      <p className="label-xs">Why Portfolia</p>
@@ -59,13 +61,16 @@ export function HomeMarketing({onUpgrade,onAccepted,limitMb}:{onUpgrade:(billing
     </div>
    </section>
 
+   <PdfVersusLink />
+   <FeatureGrid />
    <Suspense fallback={<div className="min-h-[32rem]" aria-label="Loading portfolio features" />}><FeatureShowcase onAccepted={onAccepted} limitMb={limitMb} /></Suspense>
+   <UseCases />
 
    <section aria-labelledby="switch-title" className="rule-t">
     <div className="shell py-14 sm:py-16">
      <p className="label-xs">Switching?</p>
-     <h2 id="switch-title" className="display-title mt-2 text-3xl sm:text-4xl">Made for portfolios, not catalogues.</h2>
-     <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">General flipbook tools are built for magazines and marketing teams. Portfolia does one job: presenting a finished creative portfolio as well as it can be presented.</p>
+     <h2 id="switch-title" className="display-title mt-2 text-3xl sm:text-4xl">The same features, at a fraction of the price.</h2>
+     <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Hotspots, video, lead forms and reader insights usually sit on business plans costing tens of pounds a month. On Portfolia they start free, and Personal is {PRICE.month} a month.</p>
      <div className="mt-8 grid gap-4 sm:grid-cols-3">
       {SWITCH.map(s => <a key={s.slug} href={`/${s.slug}`} className="group flex flex-col border border-border p-5 transition-colors hover:border-border-strong">
        <span className="text-sm font-medium">Portfolia vs {s.name}</span>

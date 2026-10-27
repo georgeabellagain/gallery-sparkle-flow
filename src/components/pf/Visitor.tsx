@@ -1,7 +1,9 @@
 import { currentRender } from "@/lib/portfolia/rendered-studio";
 import { AnalyticsPanel } from "./AnalyticsPanel";
+import { ReaderInsights } from "./ReaderInsights";
 import { portfolioAnalytics } from "@/lib/portfolia/analytics";
 import { StudioDemo } from "./StudioDemo";
+import { useReading } from "./use-reading";
 import { useEffect, useState } from "react";
 import { Link, useHydrated } from "@tanstack/react-router";
 import { Eye } from "lucide-react";
@@ -21,6 +23,8 @@ export function OwnVisitor({ p, preview, trackActivity = true }: { p: Portfolio;
   const { pdf, photoUrl } = useStoredMedia(p.pdf?.blobKey, p.profile.photoKey, p.pdf);
   // A portfolio opened by scanning its QR code opens full screen on a phone.
   const fromQr = useOpenedFromQr();
+  // Reader insights: pages, time, presses and plays, for published portfolios opened by someone else.
+  const reading = useReading(p.code, trackActivity && !preview && p.status === "published");
   useEffect(() => {
     if (trackActivity && !preview && p.status === "published") recordVisit(p.code);
   }, [p.code, p.status, preview, trackActivity]);
@@ -32,7 +36,7 @@ export function OwnVisitor({ p, preview, trackActivity = true }: { p: Portfolio;
     if (p.name || p.profile.name) document.title = `${p.name || p.profile.name} — Portfolio`;
   }, [p.name, p.profile.name]);
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" onClickCapture={reading.onClickCapture}>
       {preview && (
         <div className="flex items-center justify-between gap-3 border-b border-border bg-muted px-5 py-2 text-xs">
           <span className="flex items-center gap-2"><Eye className="size-3.5" /> Creator preview — not counted as a visit.</span>
@@ -54,6 +58,7 @@ export function OwnVisitor({ p, preview, trackActivity = true }: { p: Portfolio;
         cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined}
         immersive
         startFullscreen={fromQr}
+        onReaderPage={reading.onPage}
       />
     </div>
   );
@@ -107,7 +112,7 @@ export function CloudVisitor({ data }: { data: NonNullable<PublicPortfolio> }) {
         </div>
       )}
       {editError && <p role="alert" className="fixed bottom-16 left-3 z-[70] rounded-lg border bg-background p-3 text-xs">Couldn’t open the editor. Free some browser storage and try again.</p>}
-      {hydrated && own && doc.account.signedIn && <Modal open={showStats} onClose={() => setShowStats(false)} title="Portfolio statistics"><AnalyticsPanel data={portfolioAnalytics(doc, data.portfolio.code)} title="This portfolio only" description={data.portfolio.pdf?.name} /></Modal>}
+      {hydrated && own && doc.account.signedIn && <Modal open={showStats} onClose={() => setShowStats(false)} title="Portfolio statistics" wide><AnalyticsPanel data={portfolioAnalytics(doc, data.portfolio.code)} title="This portfolio only" description={data.portfolio.pdf?.name} /><ReaderInsights code={data.portfolio.code} pages={data.portfolio.pdf?.pages ?? 0} name={data.portfolio.name} /></Modal>}
       <OwnVisitor p={data.portfolio} preview={false} trackActivity={hydrated && !own} />
     </div>
   );

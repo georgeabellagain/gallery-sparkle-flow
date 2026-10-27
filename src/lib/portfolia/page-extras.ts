@@ -347,6 +347,8 @@ export const HOTSPOT_STYLES = [
   { id: "dot", label: "Pulsing dot" },
   { id: "tag", label: "Tag" },
   { id: "button", label: "Button" },
+  { id: "info", label: "Info icon" },
+  { id: "video", label: "Video player" },
 ] as const;
 export type HotspotStyle = (typeof HOTSPOT_STYLES)[number]["id"];
 export interface PageHotspot {
@@ -367,17 +369,23 @@ export interface PageHotspot {
   text?: string;
   price?: string;
   imageKey?: string;
-  /** A YouTube or Vimeo address, played in the pop-up. */
+  /** A YouTube or Vimeo address: played in the pop-up, or on the page itself by a video player hotspot. */
   video?: string;
+  /** Video player: starts playing (muted) as soon as its page is open; otherwise it plays when pressed. */
+  autoplay?: boolean;
   /** Where the link (or the pop-up's button) goes: a website, mailto: or tel:. */
   url?: string;
   buttonLabel?: string;
 }
 export const MAX_HOTSPOTS = 60;
-export const HOTSPOT_SIZE = { min: 0.025, max: 0.7, dot: 0.05, tag: 0.22, button: 0.32 };
+export const HOTSPOT_SIZE = { min: 0.025, max: 0.9, dot: 0.05, tag: 0.22, button: 0.32, info: 0.05, video: 0.55 };
+/** A hotspot's starting width for each look. */
+export const hotspotStartSize = (style: HotspotStyle) => HOTSPOT_SIZE[style];
 export const HOTSPOT_LIMITS = { label: 40, title: 80, text: 600, price: 24, button: 30 };
 /** How tall a hotspot is as a fraction of the page (for keeping it on the page): a dot is square, a pill is short. */
-export const hotspotHeight = (h: Pick<PageHotspot, "style" | "size">, ratio = 1.4) => (h.style === "dot" ? h.size : h.size * 0.28) / ratio;
+/** (An info icon is round like a dot; a video player is 16:9.) */
+export const hotspotHeight = (h: Pick<PageHotspot, "style" | "size">, ratio = 1.4) =>
+  (h.style === "dot" || h.style === "info" ? h.size : h.style === "video" ? h.size * 0.5625 : h.size * 0.28) / ratio;
 /** A website, email or phone link, made safe: "shop.com/x" becomes https://shop.com/x; anything else is null. */
 export function hotspotHref(input: string): string | null {
   const text = (input ?? "").trim();
@@ -385,6 +393,19 @@ export function hotspotHref(input: string): string | null {
   if (/^[^\s@:/]+@[^\s@]+\.[^\s@]+$/.test(text)) return `mailto:${text}`;
   if (/^tel:\+?[0-9 ()-]{5,24}$/i.test(text)) return text.replace(/\s+/g, "");
   return normaliseUrl(text);
+}
+/** A YouTube video's still picture (Vimeo gives none without asking its servers), shown before it plays. */
+export function videoThumbnail(input: string): string | null {
+  const embed = videoEmbedUrl(input);
+  const id = embed?.match(/youtube-nocookie\.com\/embed\/([A-Za-z0-9_-]+)/)?.[1];
+  return id ? `https://i.ytimg.com/vi/${id}/hqdefault.jpg` : null;
+}
+/** The player address set to play now: inline on phones, muted when it starts by itself (browsers require it). */
+export function videoPlayUrl(input: string, muted = false): string | null {
+  const embed = videoEmbedUrl(input);
+  if (!embed) return null;
+  const join = embed.includes("?") ? "&" : "?";
+  return `${embed}${join}autoplay=1&playsinline=1${muted ? "&mute=1&muted=1" : ""}${embed.includes("youtube") ? "&rel=0&modestbranding=1" : ""}`;
 }
 /** The privacy-friendly player address for a YouTube or Vimeo link, or null. */
 export function videoEmbedUrl(input: string): string | null {
@@ -413,6 +434,7 @@ export function validatePageHotspot(h: PageHotspot, pages: number): string | nul
   if (!within(h.label, HOTSPOT_LIMITS.label) || !within(h.title, HOTSPOT_LIMITS.title) || !within(h.text, HOTSPOT_LIMITS.text) || !within(h.price, HOTSPOT_LIMITS.price) || !within(h.buttonLabel, HOTSPOT_LIMITS.button)) return "Keep the hotspot's words shorter.";
   if (h.imageKey !== undefined && (typeof h.imageKey !== "string" || !key.test(h.imageKey))) return "Choose a valid picture.";
   if (h.video !== undefined && (typeof h.video !== "string" || !videoEmbedUrl(h.video))) return "Use a YouTube or Vimeo address.";
+  if (h.autoplay !== undefined && typeof h.autoplay !== "boolean") return "Choose whether the video starts by itself.";
   if (h.url !== undefined && (typeof h.url !== "string" || hotspotHref(h.url) !== h.url)) return "Use a website, email address or phone number.";
   if (h.action === "link" && !h.url) return "Add where the link goes.";
   if (![h.x, h.y, h.size].every(Number.isFinite) || h.size < HOTSPOT_SIZE.min - 1e-9 || h.size > HOTSPOT_SIZE.max + 1e-9) return "Choose a valid hotspot size.";

@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
-import { Copy, CornerDownRight, ExternalLink, Film, GalleryHorizontal, Link2, MousePointerClick, Plus, Search, Shapes, StickyNote, Tag, Trash2 } from "lucide-react";
+import { Copy, CornerDownRight, ExternalLink, Info, Youtube, Film, GalleryHorizontal, Link2, MousePointerClick, Plus, Search, Shapes, StickyNote, Tag, Trash2 } from "lucide-react";
 import { HotspotFields } from "./HotspotFields";
 import { SlideshowFields } from "./SlideshowFields";
 import { AnimatedSticker } from "./AnimatedSticker";
@@ -8,7 +8,7 @@ import type { ScrapbookPanel } from "./FoldoutSettings";
 import type { ScrapbookSelection } from "./live-scrapbook-context";
 import { deleteBlob, putBlob, uid } from "@/lib/portfolia/assets";
 import { MAX_FOLDOUTS, MAX_NOTE_ROTATION, newFoldout, noteRotation, readableFoldouts, rotateFoldout, type Foldout } from "@/lib/portfolia/foldouts";
-import { MAX_SLIDESHOWS, SLIDESHOW_SIZE, SLIDE_INTERVAL, placeSlideshow, readablePageSlideshows, type PageSlideshow, HOTSPOT_SIZE, MAX_HOTSPOTS, placeHotspot, readablePageHotspots, type HotspotStyle, type PageHotspot, MAX_STICKERS, STICKERS, STICKER_COLOURS, STICKER_SIZE, placeSticker, readablePageStickers, stickerInfo, type PageSticker, type StickerId, JUMP_SIZE, LINK_SIZE, MAX_JUMPS, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, SPOTLIGHT_CAPTION_LIMIT, SPOTLIGHT_LIMITS, SPOTLIGHT_SIZE, TAG_COLOURS, VIDEO_MAX_MB, VIDEO_WIDTH, hostOf, normaliseUrl, placeJump, placeVideo, readablePageJumps, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { MAX_SLIDESHOWS, SLIDESHOW_SIZE, SLIDE_INTERVAL, placeSlideshow, readablePageSlideshows, type PageSlideshow, hotspotStartSize, MAX_HOTSPOTS, placeHotspot, readablePageHotspots, type HotspotStyle, type PageHotspot, MAX_STICKERS, STICKERS, STICKER_COLOURS, STICKER_SIZE, placeSticker, readablePageStickers, stickerInfo, type PageSticker, type StickerId, JUMP_SIZE, LINK_SIZE, MAX_JUMPS, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, SPOTLIGHT_CAPTION_LIMIT, SPOTLIGHT_LIMITS, SPOTLIGHT_SIZE, TAG_COLOURS, VIDEO_MAX_MB, VIDEO_WIDTH, hostOf, normaliseUrl, placeJump, placeVideo, readablePageJumps, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { readVideo, videoFileProblem, videoMime } from "@/lib/portfolia/page-video-file";
 import { gifFileProblem, gifToVideo, isGif } from "@/lib/portfolia/gif-to-video";
 import { addPortfolioExtra, deleteUnusedPortfolioAsset, isPaid, patchPortfolioExtra, removePortfolioExtra, useDoc, type Portfolio } from "@/lib/portfolia/store";
@@ -177,9 +177,11 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
   };
   /** A new hotspot in the middle of the page in view, ready to fill in. */
   const addHotspot = (style: HotspotStyle) => {
-    const size = style === "dot" ? HOTSPOT_SIZE.dot : style === "tag" ? HOTSPOT_SIZE.tag : HOTSPOT_SIZE.button;
+    const size = hotspotStartSize(style);
     const step = hotspots.filter((h) => h.page === page.page).length % 4;
-    const h = placeHotspot({ id: uid("hotspot"), page: page.page, half, style, x: 0, y: 0, size, colour: style === "button" ? "#1c1c1c" : TAG_COLOURS[0]!, action: "popup", label: style === "dot" ? undefined : style === "tag" ? "See details" : "Find out more" }, 0.5 - size / 2, 0.35 + step * 0.08, size);
+    const extra: Partial<PageHotspot> = style === "info" ? { title: "Did you know?", text: "Add the words readers see when they hover here." }
+      : style === "video" ? { title: "Video" } : { label: style === "dot" ? undefined : style === "tag" ? "See details" : "Find out more" };
+    const h = placeHotspot({ id: uid("hotspot"), page: page.page, half, style, x: 0, y: 0, size, colour: style === "button" || style === "info" ? "#1c1c1c" : TAG_COLOURS[0]!, action: "popup", ...extra }, 0.5 - size / 2, (style === "video" ? 0.3 : 0.35) + step * 0.08, size);
     const ok = addPortfolioExtra(p.code, pdf.blobKey, "hotspots", h, MAX_HOTSPOTS);
     report(ok, `Use up to ${MAX_HOTSPOTS} hotspots.`);
     if (ok) select("hotspots", h.id);
@@ -244,6 +246,7 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
     report(ok, `That would be more than ${limit} of these.`);
     if (ok) select(selected.kind, copy["id"] as string);
   };
+  const hotspotFields = (h: PageHotspot) => <HotspotFields hotspot={h} save={(next: PageHotspot, message?: string) => { const ok = patchPortfolioExtra(p.code, pdf.blobKey, "hotspots", next.id, next); report(ok, message ?? "That change couldn't be saved. Check the words aren't too long."); return ok; }} />;
   const editing = (children: ReactNode, what: string) => (
     <div className="space-y-3 border-t border-border/70 pt-3">
       {children}
@@ -283,10 +286,20 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
 
       <FeatureBox icon={MousePointerClick} title="Hotspots & buttons" count={`${hotspots.length} of ${MAX_HOTSPOTS}`} hint="Product tags, pop-ups with a picture, price, video or shop button, and call-to-action buttons to your site, email or phone." active={Boolean(hotspot)}
         action={<div className="flex gap-1">{add("Dot", () => addHotspot("dot"), hotspots.length >= MAX_HOTSPOTS)}{add("Tag", () => addHotspot("tag"), hotspots.length >= MAX_HOTSPOTS)}{add("Button", () => addHotspot("button"), hotspots.length >= MAX_HOTSPOTS)}</div>}>
-        {chips("hotspots", hotspots.map((h) => ({ id: h.id, page: h.page, label: h.title || h.label || (h.style === "dot" ? "Dot" : "Hotspot") })))}
-        {hotspot && editing(
-          <HotspotFields hotspot={hotspot} save={(next: PageHotspot, message?: string) => { const ok = patchPortfolioExtra(p.code, pdf.blobKey, "hotspots", next.id, next); report(ok, message ?? "That change couldn't be saved. Check the words aren't too long."); return ok; }} />,
-        "hotspot")}
+        {chips("hotspots", hotspots.filter((h) => h.style !== "info" && h.style !== "video").map((h) => ({ id: h.id, page: h.page, label: h.title || h.label || (h.style === "dot" ? "Dot" : "Hotspot") })))}
+        {hotspot && hotspot.style !== "info" && hotspot.style !== "video" && editing(hotspotFields(hotspot), "hotspot")}
+      </FeatureBox>
+
+      <FeatureBox icon={Info} title="Info icons" count={`${hotspots.filter((h) => h.style === "info").length}`} hint="A small (i) on the page that shows extra words when readers hover over it, or tap it on a phone." active={hotspot?.style === "info"}
+        action={add("Info icon", () => addHotspot("info"), hotspots.length >= MAX_HOTSPOTS)}>
+        {chips("hotspots", hotspots.filter((h) => h.style === "info").map((h) => ({ id: h.id, page: h.page, label: h.title || "Info" })))}
+        {hotspot?.style === "info" && editing(hotspotFields(hotspot), "info icon")}
+      </FeatureBox>
+
+      <FeatureBox icon={Youtube} title="YouTube & Vimeo" count={`${hotspots.filter((h) => h.style === "video").length}`} hint="Paste a link and the video plays right on the page. Resize it like any item; it can start by itself, muted." active={hotspot?.style === "video"}
+        action={add("Video", () => addHotspot("video"), hotspots.length >= MAX_HOTSPOTS)}>
+        {chips("hotspots", hotspots.filter((h) => h.style === "video").map((h) => ({ id: h.id, page: h.page, label: h.title || "Video" })))}
+        {hotspot?.style === "video" && editing(hotspotFields(hotspot), "video")}
       </FeatureBox>
 
       <FeatureBox icon={GalleryHorizontal} title="Slideshows" count={`${slideshows.length} of ${MAX_SLIDESHOWS}`} hint="A box of your pictures on the page that changes by itself. Readers can step through with arrows." active={Boolean(slideshow)}

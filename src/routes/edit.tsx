@@ -6,6 +6,7 @@ import { beginPortfolioDraft, discardPortfolioDraft, savePortfolioDraft, portfol
 import { ProfileForm } from "@/components/pf/ProfileForm";
 import { StyleForm } from "@/components/pf/StyleForm";
 import { AnalyticsPanel } from "@/components/pf/AnalyticsPanel";
+import { ReaderInsights } from "@/components/pf/ReaderInsights";
 import { createFileRoute, Link, useNavigate, useBlocker, useHydrated } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Modal, useBlob } from "@/components/pf/Chrome";
@@ -102,7 +103,7 @@ function EditPortfolio() {
           onUpload={() => setDialog("replace")}
           p={p}
           profile={<><ProfileForm key={p.code} p={p} onSaveError={setSaveErr} /><details className="mt-5 rounded-xl border border-border p-4"><summary className="cursor-pointer text-sm font-medium">Profile appearance</summary><div className="mt-4"><StyleForm sidebar part="appearance" p={p} onSaveError={setSaveErr} /></div></details></>}
-          statistics={doc.account.signedIn ? <AnalyticsPanel data={doc.analytics} title="This portfolio" description={p.pdf.name} /> : undefined}
+          statistics={doc.account.signedIn ? <><AnalyticsPanel data={doc.analytics} title="This portfolio" description={p.pdf.name} /><ReaderInsights code={p.code} pages={p.pdf.pages} name={p.name || p.pdf.name} /></> : undefined}
           onSaveError={setSaveErr}
           onDialog={setDialog}
           onPublish={publish}

@@ -64,14 +64,52 @@ export function HotspotFields({ hotspot, ratio = 1.4, save }: { hotspot: PageHot
       if (input.current) input.current.value = "";
     }
   };
+  const colours = (
+    <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Colour">
+      {TAG_COLOURS.map((colour) => <button key={colour} type="button" role="radio" aria-checked={h.colour === colour} aria-label={`Colour ${colour}`} className={cn("size-6 rounded-full border border-black/15 aria-checked:ring-2 aria-checked:ring-foreground aria-checked:ring-offset-1")} style={{ background: colour }} onClick={() => set({ colour })} />)}
+      <input type="color" aria-label="Any colour" className="h-6 w-8 cursor-pointer rounded border border-border" value={h.colour} onChange={(e) => set({ colour: e.target.value })} />
+    </div>
+  );
+  // An info icon is only its words; a video player is only its video.
+  if (h.style === "info") {
+    return (
+      <div className="space-y-3">
+        <label className="block text-xs">Heading (optional)
+          <input className={field} maxLength={HOTSPOT_LIMITS.title} value={h.title ?? ""} placeholder="Did you know?" onChange={(e) => set({ title: e.target.value || undefined })} />
+        </label>
+        <label className="block text-xs">Words shown on hover
+          <textarea className={field} rows={3} maxLength={HOTSPOT_LIMITS.text} value={h.text ?? ""} placeholder="Printed on 100% recycled card." onChange={(e) => set({ text: e.target.value || undefined })} />
+        </label>
+        <p className="text-[11px] text-muted-foreground">On a phone, readers tap the icon to read it.</p>
+        <p className="text-xs text-muted-foreground">Icon colour</p>
+        {colours}
+      </div>
+    );
+  }
+  if (h.style === "video") {
+    return (
+      <div className="space-y-3">
+        <AddressField label="YouTube or Vimeo link" value={h.video} placeholder="youtube.com/watch?v=… or vimeo.com/…" check={(t) => (videoEmbedUrl(t) ? t.trim() : null)} onSave={(video) => set({ video })} />
+        <label className="block text-xs">Title (read out to screen readers)
+          <input className={field} maxLength={HOTSPOT_LIMITS.title} value={h.title ?? ""} placeholder="Behind the scenes" onChange={(e) => set({ title: e.target.value || undefined })} />
+        </label>
+        <label className="flex items-start justify-between gap-3 text-xs">
+          <span>Start by itself<span className="block text-[11px] text-muted-foreground">Plays muted when its page opens (browsers only allow muted autoplay). Off: readers press play.</span></span>
+          <input type="checkbox" className="mt-0.5" checked={Boolean(h.autoplay)} onChange={(e) => set({ autoplay: e.target.checked || undefined })} />
+        </label>
+        <p className="text-xs text-muted-foreground">Play button colour</p>
+        {colours}
+      </div>
+    );
+  }
   return (
     <div className="space-y-3">
       <div className="space-y-1">
         <p className="text-xs text-muted-foreground">Looks like</p>
         <div className="flex gap-1 rounded-full bg-muted p-0.5">
-          {HOTSPOT_STYLES.map((s) => (
+          {HOTSPOT_STYLES.filter((s) => s.id !== "info" && s.id !== "video").map((s) => (
             <button key={s.id} type="button" aria-pressed={h.style === s.id} className={seg}
-              onClick={() => save(placeHotspot({ ...h, style: s.id }, h.x, h.y, s.id === "dot" ? HOTSPOT_SIZE.dot : s.id === "tag" ? HOTSPOT_SIZE.tag : HOTSPOT_SIZE.button, ratio))}>{s.label}</button>
+              onClick={() => save(placeHotspot({ ...h, style: s.id }, h.x, h.y, HOTSPOT_SIZE[s.id], ratio))}>{s.label}</button>
           ))}
         </div>
       </div>
@@ -119,10 +157,7 @@ export function HotspotFields({ hotspot, ratio = 1.4, save }: { hotspot: PageHot
           <input className={field} maxLength={HOTSPOT_LIMITS.button} value={h.buttonLabel ?? ""} placeholder="Find out more" onChange={(e) => set({ buttonLabel: e.target.value || undefined })} />
         </label>
       )}
-      <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Hotspot colour">
-        {TAG_COLOURS.map((colour) => <button key={colour} type="button" role="radio" aria-checked={h.colour === colour} aria-label={`Colour ${colour}`} className={cn("size-6 rounded-full border border-black/15 aria-checked:ring-2 aria-checked:ring-foreground aria-checked:ring-offset-1")} style={{ background: colour }} onClick={() => set({ colour })} />)}
-        <input type="color" aria-label="Any colour" className="h-6 w-8 cursor-pointer rounded border border-border" value={h.colour} onChange={(e) => set({ colour: e.target.value })} />
-      </div>
+      {colours}
     </div>
   );
 }

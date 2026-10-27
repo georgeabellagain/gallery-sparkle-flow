@@ -86,6 +86,8 @@ export interface ViewerSettings {
   brandLink?: string;
   /** Book view: drift round the book in 3D on opening and after a minute idle ("start"), only when idle ("idle"), or never. */
   idleOrbit?: "off" | "start" | "idle";
+  /** A short banner shown to readers when they open the portfolio (news, an offer, an event), with an optional link. */
+  announcement?: { text: string; url?: string; label?: string };
   /** PDF pages readers never see, in any reading style (hidden-pages.ts). */
   hiddenPages?: number[];
   /** The PDF page the portfolio opens on (links to a page or project still win); omitted is page 1. */
@@ -674,9 +676,11 @@ function visitorId() {
   return visitorSession.visitor(storage);
 }
 
-function isBot() {
+export function isBot() {
   return navigator.webdriver || /bot|crawl|spider|slurp|headless/i.test(navigator.userAgent);
 }
+/** The same anonymous, random visitor id the visit count uses (reader insights group events by it). */
+export const readerVisitor = () => visitorId();
 
 /** Records at most one visit per browser tab session per portfolio. */
 export function recordVisit(code: string) {

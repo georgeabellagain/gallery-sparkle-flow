@@ -35,6 +35,7 @@ export function PortfolioPage({
   viewer,
   embed,
   startPage,
+  onReaderPage,
   projects,
   foldouts,
   tags,
@@ -64,6 +65,8 @@ export function PortfolioPage({
   viewer?: ViewerSettings;
   embed?: boolean;
   startPage?: number;
+  /** Told each time the reader's page changes (reader insights). */
+  onReaderPage?: (page: number) => void;
   projects?: PortfolioProject[];
   foldouts?: Foldout[];
   tags?: PageTag[];
@@ -115,6 +118,7 @@ export function PortfolioPage({
           backdrop={pageStyle?.backdrop}
           viewer={view}
           startPage={startPage}
+          onReaderPage={onReaderPage}
           projects={projects}
           foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} hotspots={hotspots} slideshows={slideshows} leadForm={leadForm}
           projectCode={projectCode}

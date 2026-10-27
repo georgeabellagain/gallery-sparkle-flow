@@ -364,7 +364,7 @@ export function LiveScrapbookPage({
             key={h.id}
             data-selected={selected === h.id || undefined}
             className="absolute pointer-events-auto ring-1 ring-blue-500/50 data-[selected]:ring-2 data-[selected]:ring-blue-600"
-            style={{ left: `${h.x * 100}%`, top: `${h.y * 100}%`, width: `${h.size * 100}%`, aspectRatio: h.style === "dot" ? "1" : "3.6", containerType: "inline-size" }}
+            style={{ left: `${h.x * 100}%`, top: `${h.y * 100}%`, width: `${h.size * 100}%`, aspectRatio: h.style === "dot" || h.style === "info" ? "1" : h.style === "video" ? "16 / 9" : "3.6", containerType: "inline-size" }}
           >
             <HotspotFace hotspot={h} />
             <button
