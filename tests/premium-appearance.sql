@@ -1,5 +1,7 @@
 BEGIN;
 INSERT INTO public.portfolios(code, owner_id, status, data) VALUES ('__pf_premium_test','00000000-0000-0000-0000-000000000216','draft','{"plan":"personal","profile":{},"viewer":{"studioLighting":"4","backgroundPreset":"wood_floor"}}');
+UPDATE public.portfolios SET data=jsonb_set(data,'{viewer,backgroundPreset}','"scene:sorbet"') WHERE code='__pf_premium_test';
+UPDATE public.portfolios SET data=jsonb_set(data,'{viewer,backgroundPreset}','"scene:aurora"') WHERE code='__pf_premium_test';
 DO $$ BEGIN
   BEGIN
     UPDATE public.portfolios SET data=jsonb_set(data,'{viewer,studioLighting}','"15"') WHERE code='__pf_premium_test';

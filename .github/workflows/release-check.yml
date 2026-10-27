@@ -1,0 +1,59 @@
+name: Release checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.11
+      - run: bun install --frozen-lockfile
+      - run: npm run check
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: local-test-only
+          POSTGRES_DB: release_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: local-test-only
+      PGDATABASE: release_test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test database entitlement and event rules
+        run: |
+          psql -v ON_ERROR_STOP=1 -f tests/fixtures/release-schema.sql
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE FUNCTION public.portfolio_owner_has_personal(owner_uuid uuid)
+          RETURNS boolean LANGUAGE sql AS $$
+            SELECT EXISTS (SELECT 1 FROM public.subscriptions
+              WHERE user_id=owner_uuid AND environment='live' AND status='active');
+          $$;
+          SQL
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261027160000_launch_backgrounds.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261027161000_atomic_subscription_events.sql
+          psql -v ON_ERROR_STOP=1 -f tests/premium-appearance.sql
+          psql -v ON_ERROR_STOP=1 -f tests/subscription-events.sql

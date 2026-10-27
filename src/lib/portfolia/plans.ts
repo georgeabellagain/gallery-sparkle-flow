@@ -55,7 +55,7 @@ export const PLAN_COMPARISON: { group: string; rows: { label: string; free: Comp
     rows: [
       { label: "3D Studio flipbook, Simple, Scroll and Page by page", free: true, personal: true },
       { label: "Studio lighting sets", free: "4", personal: "All 15" },
-      { label: "Backdrops", free: "2", personal: "All, plus uploads" },
+      { label: "Backdrops", free: "4", personal: "All, plus uploads" },
       { label: "Website links and page tabs", free: true, personal: true },
       { label: "Hotspots, info icons, YouTube and Vimeo videos on pages", free: true, personal: true },
       { label: "Search, thumbnails and links to any page", free: true, personal: true },

@@ -232,6 +232,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_subscription_event: { Args: { snapshot: Json }; Returns: undefined }
       domain_available: {
         Args: { _code: string; _name: string }
         Returns: boolean

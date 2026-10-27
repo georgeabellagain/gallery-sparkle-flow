@@ -41,6 +41,8 @@ export const submitLead = createServerFn({ method: "POST" })
       if (error || !allowed) return { ok: false, message: "Too many tries. Please wait a few minutes." };
     }
     const { data: row } = await supabaseAdmin.from("portfolios").select("code, owner_id, username, data").eq("code", data.code).eq("status", "published").maybeSingle();
+    const { requestAccess } = await import("./access.server");
+    if (!row || (await requestAccess(row.code)).state !== "open") return { ok: false, message: "This form isn't taking replies just now." };
     const portfolio = row?.data as StoredPortfolio;
     const form = readableLeadForm(portfolio?.leadForm, portfolio?.pdf?.pages ?? 0);
     if (!row || !form?.enabled) return { ok: false, message: "This form isn't taking replies just now." };
