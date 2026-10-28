@@ -13,6 +13,10 @@ export const YEARLY_SAVING = Math.round((1 - yearlyTotal / monthlyTotal) * 100);
 /** The yearly plan expressed per month, e.g. "£2.08". */
 export const YEARLY_PER_MONTH = `£${(yearlyTotal / 12).toFixed(2)}`;
 
+/** How each Personal price is billed, worded the same everywhere. */
+export const MONTHLY_BILLING = `${PRICE.month}/month, billed monthly`;
+export const YEARLY_BILLING = `${PRICE.year} billed yearly (${YEARLY_PER_MONTH}/month equivalent)`;
+
 export const FREE_FEATURES = [
   `One portfolio, PDFs up to ${FREE_UPLOAD_LIMIT_MB} MB`,
   "3D Studio flipbook, Scroll and Page-by-page readers",

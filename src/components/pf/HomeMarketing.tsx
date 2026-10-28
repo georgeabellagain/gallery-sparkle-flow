@@ -44,41 +44,12 @@ export function HomeMarketing({onUpgrade,onAccepted,limitMb}:{onUpgrade:(billing
        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{text}</p>
       </div>)}
      </div>
-    </div>
-   </section>
-
-   <section aria-labelledby="steps-title" className="rule-t bg-canvas">
-    <div className="shell py-14 sm:py-16">
-     <h2 id="steps-title" className="display-title text-3xl sm:text-4xl">Online in about a minute.</h2>
-     <ol className="mt-8 grid gap-6 sm:grid-cols-3">
-      {STEPS.map(([title, text], i) => <li key={title} className="border-t border-border-strong pt-5">
-       <span className="display-title text-4xl text-leaf">{i + 1}</span>
-       <h3 className="mt-2 text-base font-medium">{title}</h3>
-       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{text}</p>
-      </li>)}
-     </ol>
-     <Button asChild size="lg" className="mt-10 bg-black text-white hover:bg-black/80"><a href="#upload">Try it with your PDF <ArrowRight aria-hidden /></a></Button>
-    </div>
-   </section>
-
-   <PdfVersusLink />
-   <FeatureGrid />
-   <Suspense fallback={<div className="min-h-[32rem]" aria-label="Loading portfolio features" />}><FeatureShowcase onAccepted={onAccepted} limitMb={limitMb} /></Suspense>
-   <UseCases />
-
-   <section aria-labelledby="switch-title" className="rule-t">
-    <div className="shell py-14 sm:py-16">
-     <p className="label-xs">Switching?</p>
-     <h2 id="switch-title" className="display-title mt-2 text-3xl sm:text-4xl">The same features, at a fraction of the price.</h2>
-     <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Hotspots, video, lead forms and reader insights usually sit on business plans costing tens of pounds a month. On Portfolia they start free, and Personal is {PRICE.month} a month.</p>
-     <div className="mt-8 grid gap-4 sm:grid-cols-3">
-      {SWITCH.map(s => <a key={s.slug} href={`/${s.slug}`} className="group flex flex-col border border-border p-5 transition-colors hover:border-border-strong">
-       <span className="text-sm font-medium">Portfolia vs {s.name}</span>
-       <span className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{s.text}</span>
-       <span className="mt-4 inline-flex items-center gap-1 text-xs text-leaf">Compare <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" aria-hidden /></span>
-      </a>)}
-     </div>
-     <p className="mt-5 text-xs text-muted-foreground"><a href="/flipbook-alternatives" className="underline underline-offset-4">See every comparison</a>, with sources.</p>
+     <details className="group mt-10 max-w-3xl border-y border-border py-4">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium [&::-webkit-details-marker]:hidden">How it works: online in about a minute<span aria-hidden className="text-lg leading-none text-muted-foreground transition-transform group-open:rotate-45">+</span></summary>
+      <ol className="mt-4 grid gap-4 sm:grid-cols-3">
+       {STEPS.map(([title, text], i) => <li key={title}><span className="display-title text-2xl text-leaf">{i + 1}</span><h3 className="mt-1 text-sm font-medium">{title}</h3><p className="mt-1 text-sm leading-relaxed text-muted-foreground">{text}</p></li>)}
+      </ol>
+     </details>
     </div>
    </section>
 
@@ -90,6 +61,29 @@ export function HomeMarketing({onUpgrade,onAccepted,limitMb}:{onUpgrade:(billing
      <p className="mt-6 text-center text-sm"><Link to="/pricing" className="underline underline-offset-4">Compare every feature</Link></p>
     </div>
    </section>
+
+
+   <PdfVersusLink />
+   <FeatureGrid />
+   <Suspense fallback={<div className="min-h-[32rem]" aria-label="Loading portfolio features" />}><FeatureShowcase onAccepted={onAccepted} limitMb={limitMb} /></Suspense>
+   <UseCases />
+
+   <section aria-labelledby="switch-title" className="rule-t">
+    <div className="shell py-14 sm:py-16">
+     <p className="label-xs">Switching?</p>
+     <h2 id="switch-title" className="display-title mt-2 text-3xl sm:text-4xl">The same features, at a fraction of the price.</h2>
+     <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Features that usually sit on business plans costing tens of pounds a month. On Free you get hotspots, info icons, YouTube and Vimeo videos on pages, plus visit and download counts. Lead capture forms, detailed reader insights and uploaded videos come with Personal, at {PRICE.month} billed monthly or {PRICE.year} billed yearly.</p>
+     <div className="mt-8 grid gap-4 sm:grid-cols-3">
+      {SWITCH.map(s => <a key={s.slug} href={`/${s.slug}`} className="group flex flex-col border border-border p-5 transition-colors hover:border-border-strong">
+       <span className="text-sm font-medium">Portfolia vs {s.name}</span>
+       <span className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{s.text}</span>
+       <span className="mt-4 inline-flex items-center gap-1 text-xs text-leaf">Compare <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" aria-hidden /></span>
+      </a>)}
+     </div>
+     <p className="mt-5 text-xs text-muted-foreground"><a href="/flipbook-alternatives" className="underline underline-offset-4">See every comparison</a>, with sources.</p>
+    </div>
+   </section>
+
 
    <section aria-labelledby="faq-title" className="rule-t">
     <div className="shell grid gap-8 py-14 sm:py-16 lg:grid-cols-[1fr_2fr]">

@@ -51,6 +51,7 @@ export function LookCompare({ show, sweep, children }: { show: boolean; sweep: b
           role="slider"
           tabIndex={0}
           aria-label="Compare the Simple and Studio looks"
+          aria-describedby="demo-guide"
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(split * 100)}

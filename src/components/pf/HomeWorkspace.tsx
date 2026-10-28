@@ -81,7 +81,7 @@ export function HomeWorkspace() {
         </div>
         <div className="relative min-w-0 h-[70svh] min-h-[30rem] lg:h-[calc(100dvh-3.5rem)] lg:min-h-0">
         <div className="absolute inset-0"><Suspense fallback={<div className="flex h-full items-center justify-center"><BookLoader tone="light" label="" /></div>}><StudioDemo workspace className="relative h-full w-full" /></Suspense></div>
-        <span className="pointer-events-none absolute left-4 top-5 z-20 rounded-full bg-background/90 px-3 py-1.5 text-[11px] shadow-soft">Live example · try turning the pages</span>
+        <span className="pointer-events-none absolute left-4 top-5 z-20 rounded-full bg-background/90 px-3 py-1.5 text-[11px] shadow-soft">Live example</span>
 
         </div>
       </div>
