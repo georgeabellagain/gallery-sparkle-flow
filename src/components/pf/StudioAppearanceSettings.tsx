@@ -57,6 +57,12 @@ export function StudioLightingSettings({
           </div>
         </section>
       ))}
+      <div className="flex justify-end">
+        <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          onClick={() => setViewer({ studioLighting: "4", studioBrightness: 0.5, studioLightingStrength: 0.75, studioTopLight: 0 })}>
+          Reset lighting
+        </button>
+      </div>
       <SliderRow label="Brightness" value={`${Math.round(studioBrightness * 100)}%`}>
         <input
           className="w-full accent-leaf"
@@ -83,11 +89,11 @@ export function StudioLightingSettings({
           }
         />
       </SliderRow>
-      <SliderRow label="White top light" value={`${Math.round((viewer.studioTopLight ?? 0) * 100)}%`}>
+      <SliderRow label="White fill light" value={`${Math.round((viewer.studioTopLight ?? 0) * 100)}%`}>
         <input
           className="w-full accent-leaf"
           type="range"
-          aria-label="Studio white top light"
+          aria-label="Studio white fill light"
           min="0"
           max="100"
           value={Math.round((viewer.studioTopLight ?? 0) * 100)}

@@ -6,11 +6,11 @@ import { cn } from "@/lib/utils";
  * Draws a colour-and-motion background: soft blobs of colour on a base, each a radial gradient that only moves
  * (transform), so the browser composites it smoothly without repainting. Still for reduced motion.
  */
-export function BackgroundSceneLayer({ scene, className }: { scene: BackgroundScene; className?: string }) {
+export function BackgroundSceneLayer({ scene, className, animate = true }: { scene: BackgroundScene; className?: string; animate?: boolean }) {
   return (
     <div aria-hidden className={cn("pf-scene absolute inset-0 overflow-hidden", className)} style={{ background: scene.base }}>
       {/* Motion rules live in styles.css (.pf-scene-*). */}
-      <div className={cn("absolute inset-0", !scene.animated && "pf-scene-still")}>
+      <div className={cn("absolute inset-0", (!scene.animated || !animate) && "pf-scene-still")}>
         {scene.blobs.map((b, i) => {
           // Sized to the container (so small previews match the full view); drift is a share of the blob's own size.
           const style = {
@@ -22,7 +22,7 @@ export function BackgroundSceneLayer({ scene, className }: { scene: BackgroundSc
           } as CSSProperties;
           return <span key={i} className="pf-scene-blob" style={style} />;
         })}
-        {scene.animated && scene.sweep && <span className="pf-scene-sweep" style={{ background: `linear-gradient(100deg, transparent 35%, ${scene.sweep} 50%, transparent 65%)` }} />}
+        {animate && scene.animated && scene.sweep && <span className="pf-scene-sweep" style={{ background: `linear-gradient(100deg, transparent 35%, ${scene.sweep} 50%, transparent 65%)` }} />}
       </div>
     </div>
   );

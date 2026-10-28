@@ -19,6 +19,8 @@ import { applyTurnPose, bakeTurnGeometry, createTurnGeometryCache, turnGeometryW
 import { createRestingPageShadows } from "./resting-page-shadows";
 import { createAirDust, setNaturalImperfections } from "./natural-imperfections";
 import { turnEase, captureFrames, turnRestVisible, styledTurnEase, turnDurationScale, readableTurnStyle, type TurnStyle } from "./turn-motion";
+import { studioSettingsChange } from "./studio-settings-change";
+import { createResourceCache } from "./resource-cache";
 import { createEnvironmentDiffuser } from "./environment-diffusion";
 import { dappleTexture } from "./dapple-light";
 import { bookSurfaceRatio, bookMotionBudget } from "./render-budget";
@@ -118,7 +120,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
 
   // The lighting environments are real photographs, downloaded the first time one is chosen and
   // prefiltered for paper. They are held as half-floats, which every device can filter.
-  const environments = new Map<HdriId, THREE.WebGLRenderTarget>();
+  const environments = createResourceCache<HdriId, THREE.WebGLRenderTarget>(3, target => {
+    diffuser.releaseSource(target);
+    target.dispose();
+  });
+  let environmentInUse: HdriId | undefined;
   const environmentColours = new Map<HdriId, [number, number, number]>();
   const diffuser = createEnvironmentDiffuser(renderer);
   const loading = new Map<HdriId, Promise<THREE.WebGLRenderTarget | null>>();
@@ -150,19 +156,25 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     environmentColours.set(id, colour);
     const target = toEnvironment(pixels, width, height);
     environments.set(id, target);
+    // Keep the displayed light alive while a different selection is downloading.
+    environments.trim([id, settings.hdri, ...(environmentInUse ? [environmentInUse] : [])]);
     return target;
   };
   /** The full photograph replaces its preview only while no page is turning, so a turn never stalls on it. */
   const upgradeEnvironment = (id: HdriId, prepared: PreparedEnvironment) => {
     if (disposed) return;
-    if (turning) { setTimeout(() => upgradeEnvironment(id, prepared), 250); return; }
+    if (turning || (environmentInUse === id && settings.hdri !== id)) {
+      setTimeout(() => upgradeEnvironment(id, prepared), 250); return;
+    }
     const previous = environments.get(id);
+    // A late download must not recreate GPU maps already evicted by newer choices.
+    if (!previous) return;
     const target = install(id, prepared);
     if (settings.studio && settings.hdri === id) {
+      environmentInUse = id;
       scene.environment = diffuser.apply(target, studioLightMix(settings.strength).hdri, environmentColours.get(id));
       requestPaint(false);
     }
-    if (previous && previous !== target) previous.dispose();
   };
   const loadEnvironment = (id: HdriId): Promise<THREE.WebGLRenderTarget | null> => {
     const hit = environments.get(id);
@@ -643,7 +655,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     diffuser.reset();
     evenLight = null;
     scene.environment = null;
+    environmentInUse = undefined;
     warmedLooks.clear(); // the shaders were lost with the old context
+    configured = false; // reapply even when the saved choices are identical
     configure(settings);
     paint();
     onRestored?.();
@@ -802,9 +816,19 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let variant = "";
   const backdrop = createLitBackdrop(scene, () => requestPaint(false));
   cachedLightMask.apply(backdrop.material);
+  let configured = false;
   const configure = (next: StudioSettings) => {
     next = {...next, material:paperFinish(next.material)};
+    const change = configured ? studioSettingsChange(settings, next) : "full";
     settings = next;
+    configured = true;
+    if (change === "none") return;
+    if (change === "exposure") {
+      renderer.toneMappingExposure = next.studio ? studioExposure(next.brightness) : 1;
+      topLight.intensity = next.studio ? studioTopLight(next.topLight) : 0;
+      requestPaint(false);
+      return;
+    }
     // The ribbon bookmark and hardback headbands are retired: neither is drawn.
     binding.setDetails({ribbon:false,ribbonColour:next.ribbonColour,headbands:false});
     binding.set(next.bookStyle,next.studio);
@@ -824,15 +848,21 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     renderer.toneMappingExposure = next.studio ? studioExposure(next.brightness) : 1;
     // The lighting is a real photograph. While one downloads, the previous lighting (or a plain even light) stays.
     const request = ++environmentRequest;
-    if (!next.studio) scene.environment = null;
+    if (!next.studio) { scene.environment = null; environmentInUse = undefined; }
     else {
       const ready = environments.get(next.hdri);
-      if (ready) scene.environment = diffuser.apply(ready, mix.hdri, environmentColours.get(next.hdri));
+      if (ready) {
+        environmentInUse = next.hdri;
+        scene.environment = diffuser.apply(ready, mix.hdri, environmentColours.get(next.hdri));
+        environments.trim([next.hdri]);
+      }
       else {
         if (!scene.environment) scene.environment = even().texture;
         void loadEnvironment(next.hdri).then((target) => {
           if (disposed || request !== environmentRequest) return;
+          environmentInUse = target ? next.hdri : undefined;
           scene.environment = diffuser.apply(target ?? even(), mix.hdri, environmentColours.get(next.hdri));
+          environments.trim(target ? [next.hdri] : []);
           paint();
         });
       }
@@ -1464,7 +1494,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       cancelAnimationFrame(contactFrame);
       spreadArt.texture.dispose();
       pageArt.texture.dispose();
-      environments.forEach((target) => target.dispose());
+      environments.clear();
       environmentGenerator?.dispose();
       evenLight?.dispose();
       cachedLightMask.dispose();

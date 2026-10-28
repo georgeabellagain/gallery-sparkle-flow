@@ -38,7 +38,7 @@ function Picture({
     uploaded = useObjectUrl(blob);
   const url = backgroundPicture(choice, uploaded);
   const scene = !choice.backgroundKey ? backgroundScene(choice.backgroundPreset) : null;
-  if (scene) return <span aria-label={label} className={`${className} relative block overflow-hidden`}><BackgroundSceneLayer scene={scene} /></span>;
+  if (scene) return <span aria-label={label} className={`${className} relative block overflow-hidden`}><BackgroundSceneLayer scene={scene} animate={false} /></span>;
   return url ? (
     <img src={url} alt={label} className={className} />
   ) : (

@@ -22,7 +22,15 @@ export function createEnvironmentDiffuser(renderer: THREE.WebGLRenderer) {
       const key = `${source.texture.uuid}:${source.texture.version}|${source.width}|${source.height}|${amount}|${colour.join(",")}`;
       const cached = blends.get(key);
       if (cached) { blends.delete(key); blends.set(key, cached); return cached.texture; }
-      const output = new THREE.WebGLRenderTarget(source.width, source.height, { type: THREE.HalfFloatType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, generateMipmaps: false });
+      // Recycle the least recently used target while scrubbing the diffusion slider.
+      // Keep four distinct results for quick back-and-forth changes without reallocating VRAM.
+      let output: THREE.WebGLRenderTarget | undefined;
+      if (blends.size >= 4) {
+        const oldest = blends.keys().next().value!;
+        output = blends.get(oldest)!; blends.delete(oldest);
+        if (output.width !== source.width || output.height !== source.height) output.setSize(source.width, source.height);
+      }
+      output ??= new THREE.WebGLRenderTarget(source.width, source.height, { type: THREE.HalfFloatType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, generateMipmaps: false });
       output.texture.mapping = THREE.CubeUVReflectionMapping;
       output.texture.colorSpace = source.texture.colorSpace;
       material.uniforms["source"]!.value = source.texture; material.uniforms["strength"]!.value = amount;
@@ -34,6 +42,11 @@ export function createEnvironmentDiffuser(renderer: THREE.WebGLRenderer) {
       blends.set(key, output);
       while (blends.size > 4) { const oldest = blends.keys().next().value!; blends.get(oldest)!.dispose(); blends.delete(oldest); }
       return output.texture;
+    },
+    releaseSource(source: THREE.WebGLRenderTarget) {
+      for (const [key, target] of blends) if (key.startsWith(`${source.texture.uuid}:`)) {
+        target.dispose(); blends.delete(key);
+      }
     },
     reset: clear,
     dispose() { clear(); material.dispose(); geometry.dispose(); },
