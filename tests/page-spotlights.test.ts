@@ -61,3 +61,15 @@ test("a free owner's public portfolio keeps only the first few spotlights", () =
   assert.equal(publicPortfolioPlan(p, false).pdf?.spotlights?.length, SPOTLIGHT_LIMITS.free);
   assert.equal(publicPortfolioPlan(p, true).pdf?.spotlights?.length, 5);
 });
+
+test("magnifier customisation validates without invalidating existing spotlights", () => {
+  assert.equal(validatePageSpotlight(spot({ iconX: 0, iconY: 1, iconScale: 3, hideIcon: true }), 5), null);
+  for (const patch of [{ iconX: -0.1 }, { iconY: Infinity }, { iconScale: 0 }, { iconScale: 3.1 }, { hideIcon: "yes" }]) {
+    assert.ok(validatePageSpotlight(spot(patch as Partial<PageSpotlight>), 5));
+  }
+  const s = spot({ iconX: 0.3, iconY: 0.7, iconScale: 1.5, hideIcon: true });
+  const moved = placeSpotlight(s, 0, 0, 0.5, 0.5);
+  assert.equal(moved.iconX, 0.3);
+  assert.equal(moved.hideIcon, true);
+  assert.equal(spotlightsForPage([s], 2, true)[0].iconScale, 1.5);
+});

@@ -66,6 +66,10 @@ export interface PageSpotlight {
   height: number;
   /** Optional words shown under the enlarged detail. */
   caption?: string;
+  iconX?: number;
+  iconY?: number;
+  iconScale?: number;
+  hideIcon?: boolean;
 }
 /**
  * A box on a page that takes the reader to another page: typically one per line of a contents page. In the book
@@ -200,6 +204,8 @@ export function validatePageSpotlight(s: PageSpotlight, pages: number): string |
   if (!Number.isInteger(s.page) || s.page < 1 || s.page > pages) return "Choose a page in this PDF.";
   if (s.half !== "left" && s.half !== "right") return "Choose a page half.";
   if (s.caption !== undefined && (typeof s.caption !== "string" || s.caption.length > SPOTLIGHT_CAPTION_LIMIT)) return `Keep the caption to ${SPOTLIGHT_CAPTION_LIMIT} characters.`;
+  if (s.hideIcon !== undefined && typeof s.hideIcon !== "boolean") return "Choose whether to show the magnifier.";
+  if ([s.iconX, s.iconY].some(v => v !== undefined && (!Number.isFinite(v) || v < 0 || v > 1)) || (s.iconScale !== undefined && (!Number.isFinite(s.iconScale) || s.iconScale < 0.5 || s.iconScale > 3))) return "Choose a valid magnifier position and scale.";
   if (![s.x, s.y, s.width, s.height].every(Number.isFinite)) return "Choose a valid spotlight size.";
   if (s.width < SPOTLIGHT_SIZE.min - 1e-9 || s.height < SPOTLIGHT_SIZE.min - 1e-9 || s.width > 1.0001 || s.height > 1.0001) return "Choose a valid spotlight size.";
   if (s.x < -1e-9 || s.y < -1e-9 || s.x + s.width > 1.0001 || s.y + s.height > 1.0001) return "Keep the spotlight on the page.";

@@ -22,7 +22,7 @@ import { isBackgroundScene } from "@/lib/portfolia/background-scenes";
 import { loadLinkIcons, paintPageLinks, type LinkIcons } from "@/lib/portfolia/link-paint";
 import { PageTabButtons } from "./PageTabs";
 import { planTabs, tabEdge } from "@/lib/portfolia/tab-geometry";
-import { jumpsForLeaf, linksForLeaf, readablePageJumps, readablePageStickers, stickersForLeaf, readablePageHotspots, hotspotsForLeaf, type PageHotspot, readablePageSlideshows, slideshowsForLeaf, type PageSlideshow, type PageSticker, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, spotlightRegion, spotlightsForLeaf, tabSlots, videosForLeaf, type PageJump, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { videoThumbnail, hotspotHeight, jumpsForLeaf, linksForLeaf, readablePageJumps, readablePageStickers, stickersForLeaf, readablePageHotspots, hotspotsForLeaf, type PageHotspot, readablePageSlideshows, slideshowsForLeaf, type PageSlideshow, type PageSticker, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, spotlightRegion, spotlightsForLeaf, tabSlots, videosForLeaf, type PageJump, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { SpotlightLightbox, SpotlightTarget, type SpotlightView } from "./PageSpotlights";
 import { getBlob, publicAssetUrl, resolveAssetUrl } from "@/lib/portfolia/assets";
 import { videoUvRect } from "@/lib/portfolia/page-video";
@@ -106,6 +106,7 @@ function pageLoader(
   links: PageLink[] = [],
   previewTextureCap = 1600,
   videos: PageVideo[] = [],
+  hotspots: PageHotspot[] = [],
 ) {
   const linkIcons: LinkIcons = new Map();
   /** Each video's still, printed into its box: what shows before it plays, where motion is off, and in captures. */
@@ -113,6 +114,14 @@ function pageLoader(
     const out = new Map<string, ImageBitmap>();
     await Promise.all(videos.filter((v) => v.page === page).map(async (v) => {
       try { const blob = await getBlob(v.posterKey); if (blob) out.set(v.id, await createImageBitmap(blob)); } catch { /* the box stays dark until the video plays */ }
+    }));
+    await Promise.all(hotspots.filter(h => h.page === page && h.style === "video").map(async h => {
+      const url = h.video && videoThumbnail(h.video);
+      if (!url) return;
+      try {
+        const response = await fetch(url, { signal: AbortSignal.timeout(2500), mode: "cors" });
+        if (response.ok) out.set("embed:" + h.id, await createImageBitmap(await response.blob()));
+      } catch { /* Blocked thumbnails must never prevent opening the book. */ }
     }));
     return out;
   };
@@ -212,6 +221,16 @@ function pageLoader(
       ctx.fillStyle = "#111";
       ctx.fillRect(v.x * canvas.width, v.y * canvas.height, v.width * canvas.width, v.height * canvas.height);
       if (poster) ctx.drawImage(poster, v.x * canvas.width, v.y * canvas.height, v.width * canvas.width, v.height * canvas.height);
+    }
+    for (const h of hotspotsForLeaf(hotspots, leaf).filter(h => h.style === "video")) {
+      const poster = posters.get("embed:" + h.id);
+      const x = h.x * canvas.width, y = h.y * canvas.height, w = h.size * canvas.width, height = hotspotHeight(h, ratio) * canvas.height;
+      ctx.fillStyle = "#1e293b"; ctx.fillRect(x, y, w, height);
+      if (poster) {
+        const crop = Math.min(poster.width / w, poster.height / height);
+        const sw = w * crop, sh = height * crop;
+        ctx.drawImage(poster, (poster.width - sw) / 2, (poster.height - sh) / 2, sw, sh, x, y, w, height);
+      }
     }
     paintClosedNotes(canvas, foldoutsForLeaf(notes, leaf), noteImages);
     // Links are printed on the page itself, so they curve, turn and catch the light with it.
@@ -758,7 +777,7 @@ export function BookView({
     setNarrow(!fullSpread && element.clientWidth < 720);
     // The detail of the images inside the PDF is read once, in the background; pages wait for it before drawing.
     const density = lightweight ? Promise.resolve(0) : loadPdfjs().then((pdfjs) => detectDensity(doc, pdfjs.OPS as never)).catch(() => 0);
-    const source = pageLoader(doc, ratio, layout, density, () => scene.current?.maxTextureSize ?? 4096, lightweight, additions, pageLinks, previewTextureCap, pageVideos);
+    const source = pageLoader(doc, ratio, layout, density, () => scene.current?.maxTextureSize ?? 4096, lightweight, additions, pageLinks, previewTextureCap, pageVideos, pageHotspots);
     loader.current = source;
     // The newly built scene starts its actual selected lighting in parallel.
     let lightingPreparation: Promise<void> | undefined;
@@ -868,7 +887,7 @@ export function BookView({
       scene.current?.dispose();
       scene.current = null;
     };
-  }, [doc, ratio, layout, lightweight, previewTextureCap, captureQuality, fullSpread, additions, pageLinks, pageVideos]);
+  }, [doc, ratio, layout, lightweight, previewTextureCap, captureQuality, fullSpread, additions, pageLinks, pageVideos, pageHotspots]);
 
   const faces = useCallback(
     async (value: Spread): Promise<BookFaces> => {

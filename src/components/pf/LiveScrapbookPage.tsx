@@ -306,9 +306,9 @@ export function LiveScrapbookPage({
             className="absolute pointer-events-auto border-2 border-dashed border-blue-600/80 bg-blue-500/10 data-[selected]:border-solid data-[selected]:bg-blue-500/15"
             style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${s.width * 100}%`, height: `${s.height * 100}%` }}
           >
-            <span aria-hidden className="pointer-events-none absolute right-1 top-1 inline-flex items-center gap-1 rounded bg-blue-600 px-1.5 py-0.5 text-[10px] text-white">
-              <Search className="size-3" />Spotlight
-            </span>
+            {!s.hideIcon && <span aria-hidden className="pointer-events-none absolute flex size-5 items-center justify-center rounded-full bg-slate-950/70 text-white ring-1 ring-white/40" style={{ left: s.iconX === undefined ? "calc(100% - 14px)" : String(s.iconX * 100) + "%", top: s.iconY === undefined ? "14px" : String(s.iconY * 100) + "%", transform: "translate(-50%, -50%) scale(" + (s.iconScale ?? 1) + ")" }}>
+              <Search className="size-2.5" />
+            </span>}
             <button
               type="button"
               aria-label={`Move spotlight ${s.caption ?? ""}`}
