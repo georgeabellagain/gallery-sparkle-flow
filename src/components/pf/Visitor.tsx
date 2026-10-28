@@ -55,6 +55,7 @@ export function OwnVisitor({ p, preview, trackActivity = true }: { p: Portfolio;
         viewer={p.viewer}
         projects={p.pdf?.projects} foldouts={p.pdf?.foldouts} tags={p.pdf?.tags} links={p.pdf?.links} videos={p.pdf?.videos} spotlights={p.pdf?.spotlights} jumps={p.pdf?.jumps} stickers={p.pdf?.stickers} hotspots={p.pdf?.hotspots} slideshows={p.pdf?.slideshows} leadForm={p.leadForm}
         projectCode={p.code}
+        leadPreview={preview}
         cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined}
         immersive
         startFullscreen={fromQr}

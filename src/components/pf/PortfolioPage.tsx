@@ -48,6 +48,7 @@ export function PortfolioPage({
   slideshows,
   leadForm,
   projectCode,
+  leadPreview,
   startFullscreen,
 }: {
   bookMarketing?: Portfolio["bookMarketing"];
@@ -79,6 +80,7 @@ export function PortfolioPage({
   slideshows?: PageSlideshow[];
   leadForm?: import("@/lib/portfolia/lead-form").LeadForm;
   projectCode?: string;
+  leadPreview?: boolean;
   /** Open full screen on a phone or tablet (a portfolio opened from its QR code). */
   startFullscreen?: boolean;
 }) {
@@ -122,6 +124,7 @@ export function PortfolioPage({
           projects={projects}
           foldouts={foldouts} tags={tags} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} hotspots={hotspots} slideshows={slideshows} leadForm={leadForm}
           projectCode={projectCode}
+          leadPreview={leadPreview}
           startFullscreen={startFullscreen}
           bookMarketing={bookDetails}
           profile={details}
