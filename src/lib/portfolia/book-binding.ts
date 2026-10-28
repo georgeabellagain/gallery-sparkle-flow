@@ -1,4 +1,4 @@
-import { paperLayerPlan } from "./paper-layers";
+import { paperLayerPlan, paperLayerShade } from "./paper-layers";
 import { pageBlockGeometry, coverBoardGeometry, caseSpineGeometry, closedSpineGeometry } from "./book-model";
 import { COVER_GAP, PAGE_TOP, coverArtZ, coverTurnPose, type CoverRest } from "./rigid-cover";
 import * as THREE from "three";
@@ -148,6 +148,16 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
   // Front and back boards take their colours from their own cover artwork.
   const boardMaterial=new THREE.MeshStandardMaterial({roughness:.62}),backBoardMaterial=new THREE.MeshStandardMaterial({roughness:.62});
   const pageMaterial=new THREE.MeshStandardMaterial({map:edges,roughness:.98});
+  // Printed contact shading also works in Simple, without extra shadow passes.
+  const shadePixels=new Uint8Array(64*64*4);
+  for(let y=0;y<64;y++)for(let x=0;x<64;x++){
+    const value=Math.round(255*paperLayerShade(x/63,y/63));
+    shadePixels.set([value,value,value,255],(y*64+x)*4);
+  }
+  const layerShade=new THREE.DataTexture(shadePixels,64,64);
+  layerShade.colorSpace=THREE.SRGBColorSpace;layerShade.magFilter=layerShade.minFilter=THREE.LinearFilter;layerShade.needsUpdate=true;
+  const layerMaterial=new THREE.MeshStandardMaterial({map:layerShade,roughness:.98});
+  const layerBox=new THREE.BoxGeometry(1,1,1);
   const spineMaterial=new THREE.MeshStandardMaterial({roughness:.6,envMapIntensity:1.15});
   const box=pageBlockGeometry(),cylinder=caseSpineGeometry();
   let boardGeometry:THREE.BufferGeometry=coverBoardGeometry(1,ratio,.018);
@@ -156,7 +166,7 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
     // `board` lies under the block (or alone, for an open cover); `top` is the front board of a closed book.
     // The left side rests on the front board and the right on the back board; a closed book shows the other board on top.
     const root=new THREE.Group(),board=mesh(boardGeometry,side<0?boardMaterial:backBoardMaterial),top=mesh(boardGeometry,side<0?backBoardMaterial:boardMaterial),pages=mesh(box,pageMaterial);
-    const layers=new THREE.InstancedMesh(box,pageMaterial,24);
+    const layers=new THREE.InstancedMesh(layerBox,layerMaterial,24);
     layers.name="Layered paper";layers.count=0;layers.castShadow=layers.receiveShadow=true;
     layers.frustumCulled=false;
     root.position.x=side*.5;root.add(board,pages,top,layers);group.add(root);
@@ -249,6 +259,9 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
       if(style==="hardback"){applyCloth(boardMaterial,1+2*profile.overhang,ratio);applyCloth(backBoardMaterial,1+2*profile.overhang,ratio);applyCloth(spineMaterial,.08,ratio);}
       else for(const material of [boardMaterial,backBoardMaterial,spineMaterial])if(material.normalMap){disposeCloth(material);material.userData["cloth"]=undefined;material.normalMap=material.roughnessMap=null;material.roughness=.62;material.needsUpdate=true;}
       colour();
+      layerMaterial.color.set(studio?"#ffffff":"#000000");layerMaterial.emissive.set(studio?"#000000":"#ffffff");
+      const layerEmissive=studio?null:layerShade;
+      if(layerMaterial.emissiveMap!==layerEmissive){layerMaterial.emissiveMap=layerEmissive;layerMaterial.needsUpdate=true;}
       pageMaterial.color.set(studio?"#ffffff":"#000000");pageMaterial.emissive.set(studio?"#000000":"#ffffff");
       const emissiveMap=studio?null:edges;
       if(pageMaterial.emissiveMap!==emissiveMap){pageMaterial.emissiveMap=emissiveMap;pageMaterial.needsUpdate=true;}
@@ -271,7 +284,7 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
         const block=info.kind==="page"?Math.max(blockOf(index),level):blockOf(index);
         board.position.x=top.position.x=hard?sign*profile.overhang:0;
         pages.visible=block>0;pages.scale.z=Math.max(block,1e-4);pages.position.z=PAGE_TOP-block/2;
-        const plan=paperLayerPlan(leaves,info.share,block,layered&&block>0);
+        const plan=paperLayerPlan(leaves,info.share,block,layered&&block>0,info.leaf);
         layers.count=plan.length;layers.visible=plan.length>0;
         const matrix=new THREE.Matrix4(),rotation=new THREE.Quaternion();
         plan.forEach((layer,i)=>{
@@ -279,7 +292,7 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
           layers.setMatrixAt(i,matrix);
         });
         layers.instanceMatrix.needsUpdate=true;
-        if(layered)pages.visible=false;
+        if(plan.length>0||(layered&&style==="flipbook"))pages.visible=false;
         top.visible=info.kind==="closed";top.position.z=PAGE_TOP+B/2;
         // An open cover is just its board, directly beneath the artwork; beside a page block it reaches down to the
         // same level as the board under that block, so the two lie flat together at the spine.
@@ -401,6 +414,6 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
       turning.rotation.y=-dir*pose.angle;
       turning.visible=true;
     },
-    dispose(){sides.forEach(({layers})=>layers.dispose());parent.remove(group);box.dispose();closedSpineShape.dispose();boardGeometry.dispose();faceGeometry.dispose();bandGeometry.dispose();bandMaterial.map?.dispose();bandMaterial.dispose();ribbon.geometry.dispose();(ribbon.material as THREE.Material).dispose();ribbonShadow.geometry.dispose();(ribbonShadow.material as THREE.Material).dispose();[boardMaterial,backBoardMaterial,spineMaterial].forEach(disposeCloth);cylinder.dispose();edges.dispose();boardMaterial.dispose();backBoardMaterial.dispose();pageMaterial.dispose();spineMaterial.dispose();},
+    dispose(){sides.forEach(({layers})=>layers.dispose());parent.remove(group);layerBox.dispose();layerMaterial.dispose();layerShade.dispose();box.dispose();closedSpineShape.dispose();boardGeometry.dispose();faceGeometry.dispose();bandGeometry.dispose();bandMaterial.map?.dispose();bandMaterial.dispose();ribbon.geometry.dispose();(ribbon.material as THREE.Material).dispose();ribbonShadow.geometry.dispose();(ribbonShadow.material as THREE.Material).dispose();[boardMaterial,backBoardMaterial,spineMaterial].forEach(disposeCloth);cylinder.dispose();edges.dispose();boardMaterial.dispose();backBoardMaterial.dispose();pageMaterial.dispose();spineMaterial.dispose();},
   };
 }
