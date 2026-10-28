@@ -387,6 +387,10 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
         action={add("Add", addSpotlight, spotlights.length >= spotlightLimit)}>
         {chips("spotlights", spotlights.map((s) => ({ id: s.id, page: s.page, label: s.caption || "Spotlight" })))}
         {spotlight && editing(<>
+          <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={!spotlight.hideIcon} onChange={e => report(patchPortfolioExtra(p.code, pdf.blobKey, "spotlights", spotlight.id, { ...spotlight, hideIcon: !e.target.checked }), "Could not update the magnifier.")} />Show magnifying icon</label>
+          {!spotlight.hideIcon && <>
+            {([["iconX", "Icon horizontal position", spotlight.iconX ?? 0.95, 0, 1, 0.01], ["iconY", "Icon vertical position", spotlight.iconY ?? 0.05, 0, 1, 0.01], ["iconScale", "Icon scale", spotlight.iconScale ?? 1, 0.5, 3, 0.1]] as const).map(([key, label, value, min, max, step]) => <label key={key} className="block text-xs">{label} · {Math.round(value * 100)}%<input aria-label={label} type="range" className="block w-full" min={min} max={max} step={step} value={value} onChange={e => report(patchPortfolioExtra(p.code, pdf.blobKey, "spotlights", spotlight.id, { ...spotlight, [key]: Number(e.target.value) }), "Could not update the magnifier.")} /></label>)}
+          </>}
           <label className="block text-xs">Caption (optional)
             <textarea className={field} rows={2} maxLength={SPOTLIGHT_CAPTION_LIMIT} value={spotlight.caption ?? ""} onChange={(e) => report(patchPortfolioExtra(p.code, pdf.blobKey, "spotlights", spotlight.id, { ...spotlight, caption: e.target.value || undefined }), `Keep the caption to ${SPOTLIGHT_CAPTION_LIMIT} characters.`)} />
           </label>

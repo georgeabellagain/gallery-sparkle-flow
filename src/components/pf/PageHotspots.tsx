@@ -1,6 +1,6 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { ExternalLink, Play, X } from "lucide-react";
+import { ExternalLink, Pause, Play, Volume2, VolumeX, X } from "lucide-react";
 import { useBlob, useObjectUrl } from "./Chrome";
 import { noteInk } from "@/lib/portfolia/foldout-paint";
 import { videoEmbedUrl, videoPlayUrl, videoThumbnail, type PageHotspot } from "@/lib/portfolia/page-extras";
@@ -121,17 +121,28 @@ function InfoIcon({ hotspot, style }: { hotspot: PageHotspot; style: CSSProperti
  */
 function VideoPlayer({ hotspot, style }: { hotspot: PageHotspot; style: CSSProperties }) {
   const [playing, setPlaying] = useState(Boolean(hotspot.autoplay));
+  const [paused, setPaused] = useState(false);
+  const [muted, setMuted] = useState(Boolean(hotspot.autoplay));
+  const player = useRef<HTMLIFrameElement>(null);
+  const youtube = Boolean(hotspot.video && videoEmbedUrl(hotspot.video)?.includes("youtube-nocookie.com"));
+  const command = (func: string) => player.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args: [] }), "https://www.youtube-nocookie.com");
   const thumb = hotspot.video ? videoThumbnail(hotspot.video) : null;
   const src = hotspot.video ? videoPlayUrl(hotspot.video, !playing || Boolean(hotspot.autoplay)) : null;
   const title = hotspot.title || "Video";
   return (
-    <span className="pointer-events-auto absolute block overflow-hidden rounded-[3px] bg-black shadow-md" style={style}>
+    <span className="group pointer-events-auto absolute block overflow-hidden rounded-[3px] bg-black shadow-md" style={style}>
       {playing && src ? (
-        <iframe src={src} title={title} className="h-full w-full" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
+        <>
+        <iframe ref={player} src={youtube ? src + "&controls=0&enablejsapi=1" : src} title={title} className="relative h-full w-full" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
+        {youtube && <span className="pointer-events-none group-hover:pointer-events-auto group-focus-within:pointer-events-auto absolute inset-x-0 bottom-0 flex justify-center gap-2 bg-black/60 p-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+          <button type="button" aria-label={paused ? "Play video" : "Pause video"} onClick={() => { command(paused ? "playVideo" : "pauseVideo"); setPaused(!paused); }} className="rounded-full p-2 text-white focus-visible:outline-2">{paused ? <Play className="size-4" /> : <Pause className="size-4" />}</button>
+          <button type="button" aria-label={muted ? "Unmute video" : "Mute video"} onClick={() => { command(muted ? "unMute" : "mute"); setMuted(!muted); }} className="rounded-full p-2 text-white focus-visible:outline-2">{muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}</button>
+        </span>}
+        </>
       ) : (
         <button type="button" aria-label={`Play ${title}`} disabled={!src} onClick={() => setPlaying(true)} className="group relative block h-full w-full">
           {thumb ? <img src={thumb} alt="" draggable={false} className="h-full w-full object-cover" /> : <span className="block h-full w-full bg-gradient-to-br from-slate-700 to-slate-900" />}
-          <span className="absolute inset-0 flex items-center justify-center bg-black/15 transition-colors group-hover:bg-black/5">
+          <span className="absolute inset-0 flex items-center justify-center bg-black/15 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
             <span className="flex aspect-square w-[16%] min-w-8 max-w-16 items-center justify-center rounded-full shadow-lg transition-transform group-hover:scale-110" style={{ background: hotspot.colour }}>
               <Play className="ml-[8%] size-[45%]" style={{ color: noteInk(hotspot.colour) }} fill="currentColor" />
             </span>

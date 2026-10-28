@@ -35,9 +35,9 @@ export function SpotlightTarget({ spotlight, onOpen }: { spotlight: PageSpotligh
         onOpen();
       }}
     >
-      <span aria-hidden className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-slate-950/70 text-white shadow ring-1 ring-white/40 backdrop-blur-sm transition-transform duration-150 group-hover:scale-110">
+      {!spotlight.hideIcon && <span aria-hidden style={{ left: spotlight.iconX === undefined ? "calc(100% - 14px)" : String(spotlight.iconX * 100) + "%", top: spotlight.iconY === undefined ? "14px" : String(spotlight.iconY * 100) + "%", transform: "translate(-50%, -50%) scale(" + (spotlight.iconScale ?? 1) + ")" }} className="absolute flex size-5 items-center justify-center rounded-full bg-slate-950/70 text-white shadow ring-1 ring-white/40 backdrop-blur-sm transition-transform duration-150 group-hover:scale-110">
         <Search className="size-2.5" />
-      </span>
+      </span>}
     </button>
   );
 }
@@ -103,6 +103,22 @@ export function SpotlightLightbox({ doc, views, index, onIndex, onClose }: {
   const closeButton = useRef<HTMLButtonElement>(null);
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
   const [shape, setShape] = useState(1);
+  const [zoom, setZoom] = useState(1);
+  const [origin, setOrigin] = useState({ x: 50, y: 50 });
+  const zoomArea = useRef<HTMLDivElement>(null);
+  useEffect(() => { setZoom(1); setOrigin({ x: 50, y: 50 }); }, [view]);
+  useEffect(() => {
+    const el = zoomArea.current;
+    if (!el) return;
+    const wheel = (e: WheelEvent) => {
+      e.preventDefault(); e.stopPropagation();
+      const box = el.getBoundingClientRect();
+      setOrigin({ x: Math.max(0, Math.min(100, (e.clientX - box.left) / box.width * 100)), y: Math.max(0, Math.min(100, (e.clientY - box.top) / box.height * 100)) });
+      setZoom(z => Math.max(1, Math.min(4, z * Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.04 : 0.002)))));
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => el.removeEventListener("wheel", wheel);
+  }, []);
   const many = views.length > 1;
   const go = (step: number) => onIndex((index + step + views.length) % views.length);
 
@@ -171,8 +187,9 @@ export function SpotlightLightbox({ doc, views, index, onIndex, onClose }: {
         <X className="size-5" />
       </button>
       <figure className="flex max-w-full flex-col items-center gap-3" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-        <div className="relative overflow-hidden rounded-md bg-white shadow-2xl ring-1 ring-white/20" style={{ aspectRatio: String(shape), width: `min(92vw, calc(78vh * ${shape}))` }}>
-          <canvas ref={canvas} aria-hidden className="block h-full w-full" />
+        <div ref={zoomArea} title="Scroll to zoom · double-click to reset" onDoubleClick={() => setZoom(1)} className="relative overflow-hidden rounded-md bg-white shadow-2xl ring-1 ring-white/20" style={{ aspectRatio: String(shape), width: `min(92vw, calc(78vh * ${shape}))` }}>
+          <canvas ref={canvas} aria-hidden className="block h-full w-full" style={{ transform: "scale(" + zoom + ")", transformOrigin: origin.x + "% " + origin.y + "%" }} />
+          <button type="button" aria-label="Reset spotlight zoom" onClick={() => setZoom(1)} className="absolute bottom-2 right-2 rounded-full bg-slate-950/75 px-3 py-1 text-xs text-white">{Math.round(zoom * 100)}% · Reset</button>
           {state !== "ready" && (
             <span className="absolute inset-0 flex items-center justify-center text-sm text-slate-500" aria-live="polite">
               {state === "failed" ? "This detail couldn't be drawn. Please try again." : "Sharpening…"}
