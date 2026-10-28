@@ -47,6 +47,8 @@ export interface ViewerSettings {
   turnSpeed?: number;
   turnCurve?: import("./turn-curve").TurnCurve;
   bookStyle?: import("./book-style").BookStyle;
+  /** Individual paper layers behind the open spread; omitted is off. */
+  pageStack?: boolean;
   /** Silk ribbon bookmark on hardback and soft-cover books; omitted is off. */
   ribbon?: boolean;
   /** Ribbon (and hardback headband) colour; omitted uses the default deep red. */

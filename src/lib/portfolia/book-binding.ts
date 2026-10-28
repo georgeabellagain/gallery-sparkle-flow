@@ -1,3 +1,4 @@
+import { paperLayerPlan } from "./paper-layers";
 import { pageBlockGeometry, coverBoardGeometry, caseSpineGeometry, closedSpineGeometry } from "./book-model";
 import { COVER_GAP, PAGE_TOP, coverArtZ, coverTurnPose, type CoverRest } from "./rigid-cover";
 import * as THREE from "three";
@@ -155,8 +156,11 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
     // `board` lies under the block (or alone, for an open cover); `top` is the front board of a closed book.
     // The left side rests on the front board and the right on the back board; a closed book shows the other board on top.
     const root=new THREE.Group(),board=mesh(boardGeometry,side<0?boardMaterial:backBoardMaterial),top=mesh(boardGeometry,side<0?backBoardMaterial:boardMaterial),pages=mesh(box,pageMaterial);
-    root.position.x=side*.5;root.add(board,pages,top);group.add(root);
-    return {root,board,top,pages};
+    const layers=new THREE.InstancedMesh(box,pageMaterial,24);
+    layers.name="Layered paper";layers.count=0;layers.castShadow=layers.receiveShadow=true;
+    layers.frustumCulled=false;
+    root.position.x=side*.5;root.add(board,pages,top,layers);group.add(root);
+    return {root,board,top,pages,layers};
   });
   const spine=mesh(cylinder,spineMaterial);group.add(spine);
   // The board that turns with a hardback cover. Its two faces carry the cover artwork.
@@ -206,6 +210,7 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
     ribbonGeometry(points,.03,facing,ribbon.geometry,72,shape);
     ribbonShadowGeometry(points,.03,facing,ribbonShadow.geometry,72,shape);
   };
+  let layered=false;
   let style:BookStyle="flipbook",studio=false,coverColour:string|undefined,backColour:string|undefined,leaves=0;
   const colour=()=>{
     const value=coverColour??bookStyleProfile(style).colour,back=backColour??value;
@@ -230,10 +235,10 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
     /** Ribbon bookmark (hardback and soft cover) and the colour shared by ribbon and headbands. */
     /** `headbands: false` leaves them off (the photo shoot shows none). */
     setDetails(details:{ribbon?:boolean;ribbonColour?:string;ribbonGutter?:number;headbands?:boolean}){ribbonOn=details.ribbon===true;bandsOn=details.headbands!==false;ribbonColour=readableRibbonColour(details.ribbonColour);ribbonGutter=details.ribbonGutter;colour();},
-    set(value:unknown,lit:boolean){
-      studio=lit;
+    set(value:unknown,lit:boolean,showLayers=false){
+      studio=lit;layered=showLayers;
       const profile=bookStyleProfile(value),changed=profile.id!==style;style=profile.id;
-      group.visible=style!=="flipbook";
+      group.visible=style!=="flipbook"||layered;
       if(changed&&profile.board>0)setBoardGeometry(coverBoardGeometry(1+2*profile.overhang,ratio+2*profile.overhang,profile.board));
       for(const {board,top,pages} of sides){
         board.scale.set(1+2*profile.overhang,ratio+2*profile.overhang,profile.board);top.scale.copy(board.scale);
@@ -253,19 +258,28 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
      * at the same depth, so a cover leaving or landing never makes the rest of the book jump.
      */
     sync(visible:readonly [boolean,boolean],layout:readonly [BindingSide,BindingSide]=[PAGE_SIDE,PAGE_SIDE]){
-      const profile=bookStyleProfile(style),hard=style==="hardback",depth=stackDepth(style,leaves),B=profile.board;
+      const profile=bookStyleProfile(style),hard=style==="hardback",depth=stackDepth(layered&&style==="flipbook"?"softcover":style,leaves),B=profile.board;
       let deepest=0;
       const infoOf=(index:number)=>hard?layout[index]!:{...layout[index]!,kind:"page" as const};
       const blockOf=(index:number)=>{const info=infoOf(index);return info.kind==="open"?0:info.kind==="closed"?depth:Math.max(.002,depth*info.share);};
       // An open book lies level: both boards rest at the same depth and meet the spine there, the thinner side's
       // page block reaching down to it (seen only from the side, in the 3D view). Page tops stay at PAGE_TOP.
       const level=Math.max(0,...([0,1] as const).filter(index=>visible[index]&&infoOf(index).kind==="page").map(blockOf));
-      sides.forEach(({root,board,top,pages},index)=>{
+      sides.forEach(({root,board,top,pages,layers},index)=>{
         root.visible=visible[index]!;
         const sign=index===0?-1:1,info=infoOf(index);
         const block=info.kind==="page"?Math.max(blockOf(index),level):blockOf(index);
         board.position.x=top.position.x=hard?sign*profile.overhang:0;
         pages.visible=block>0;pages.scale.z=Math.max(block,1e-4);pages.position.z=PAGE_TOP-block/2;
+        const plan=paperLayerPlan(leaves,info.share,block,layered&&block>0);
+        layers.count=plan.length;layers.visible=plan.length>0;
+        const matrix=new THREE.Matrix4(),rotation=new THREE.Quaternion();
+        plan.forEach((layer,i)=>{
+          matrix.compose(new THREE.Vector3(sign*layer.offset,layer.offset*.3,PAGE_TOP-layer.z),rotation,new THREE.Vector3(.997,ratio-.004,layer.thickness));
+          layers.setMatrixAt(i,matrix);
+        });
+        layers.instanceMatrix.needsUpdate=true;
+        if(layered)pages.visible=false;
         top.visible=info.kind==="closed";top.position.z=PAGE_TOP+B/2;
         // An open cover is just its board, directly beneath the artwork; beside a page block it reaches down to the
         // same level as the board under that block, so the two lie flat together at the spine.
@@ -387,6 +401,6 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
       turning.rotation.y=-dir*pose.angle;
       turning.visible=true;
     },
-    dispose(){parent.remove(group);box.dispose();closedSpineShape.dispose();boardGeometry.dispose();faceGeometry.dispose();bandGeometry.dispose();bandMaterial.map?.dispose();bandMaterial.dispose();ribbon.geometry.dispose();(ribbon.material as THREE.Material).dispose();ribbonShadow.geometry.dispose();(ribbonShadow.material as THREE.Material).dispose();[boardMaterial,backBoardMaterial,spineMaterial].forEach(disposeCloth);cylinder.dispose();edges.dispose();boardMaterial.dispose();backBoardMaterial.dispose();pageMaterial.dispose();spineMaterial.dispose();},
+    dispose(){sides.forEach(({layers})=>layers.dispose());parent.remove(group);box.dispose();closedSpineShape.dispose();boardGeometry.dispose();faceGeometry.dispose();bandGeometry.dispose();bandMaterial.map?.dispose();bandMaterial.dispose();ribbon.geometry.dispose();(ribbon.material as THREE.Material).dispose();ribbonShadow.geometry.dispose();(ribbonShadow.material as THREE.Material).dispose();[boardMaterial,backBoardMaterial,spineMaterial].forEach(disposeCloth);cylinder.dispose();edges.dispose();boardMaterial.dispose();backBoardMaterial.dispose();pageMaterial.dispose();spineMaterial.dispose();},
   };
 }

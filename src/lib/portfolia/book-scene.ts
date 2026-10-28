@@ -46,6 +46,7 @@ export type StudioSettings = {
   turnSpeed?: number;
   turnCurve?: TurnCurve;
   bookStyle?: BookStyle;
+  pageStack?: boolean;
   ribbon?: boolean;
   ribbonColour?: string;
   /** Gutter of the spread the ribbon marks (see ribbonPlacement); omitted is the plain tail. */
@@ -831,7 +832,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     }
     // The ribbon bookmark and hardback headbands are retired: neither is drawn.
     binding.setDetails({ribbon:false,ribbonColour:next.ribbonColour,headbands:false});
-    binding.set(next.bookStyle,next.studio);
+    binding.set(next.bookStyle,next.studio,next.pageStack === true);
     const rest: CoverRest = left.visible && right.visible ? "open" : "closed";
     [left,right].forEach((mesh,i)=>{
       const rigid=next.bookStyle==="hardback"&&Boolean(mesh.userData["coverBoard"]);
