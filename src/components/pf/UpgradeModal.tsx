@@ -5,7 +5,7 @@ import { Modal } from "./Chrome";
 import type { Billing } from "./PricingPlans";
 import { Button } from "@/components/ui/button";
 import { getDoc, PRICE } from "@/lib/portfolia/store";
-import { PERSONAL_FEATURES, YEARLY_PER_MONTH, YEARLY_SAVING } from "@/lib/portfolia/plans";
+import { MONTHLY_BILLING, YEARLY_BILLING, PERSONAL_FEATURES, YEARLY_PER_MONTH, YEARLY_SAVING } from "@/lib/portfolia/plans";
 import { supabase } from "@/integrations/supabase/client";
 import { getPaddleEnvironment, openCheckout } from "@/lib/paddle";
 
@@ -63,7 +63,7 @@ export function UpgradeModal({ open, onClose, initialBilling = "year", reason }:
               <label key={b} className={`relative cursor-pointer rounded-2xl border px-4 py-3 ${billing === b ? "border-foreground ring-1 ring-foreground" : "border-border"}`}>
                 <input type="radio" name="billing" className="sr-only" checked={billing === b} onChange={() => setBilling(b)} />
                 <span className="block font-medium">{b === "year" ? "Yearly" : "Monthly"}</span>
-                <span className="block text-xs text-muted-foreground">{b === "year" ? `${PRICE.year}/year · ${YEARLY_PER_MONTH}/mo` : `${PRICE.month}/month`}</span>
+                <span className="block text-xs text-muted-foreground">{b === "year" ? YEARLY_BILLING : MONTHLY_BILLING}</span>
                 {b === "year" && <span className="absolute -top-2 right-3 rounded-full bg-leaf px-2 py-0.5 text-xxs font-medium text-white">Save {YEARLY_SAVING}%</span>}
               </label>
             ))}

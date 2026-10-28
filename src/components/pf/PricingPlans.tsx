@@ -31,8 +31,8 @@ export function PricingPlans({ freeAction, onChoosePersonal, className }: {
         <PlanCard
           name="Personal"
           price={yearly ? YEARLY_PER_MONTH : PRICE.month}
-          period="/month"
-          alternative={yearly ? `${PRICE.year} billed yearly. Save ${YEARLY_SAVING}%` : `or ${PRICE.year} a year (save ${YEARLY_SAVING}%)`}
+          period={yearly ? "/month equivalent" : "/month"}
+          alternative={yearly ? `${PRICE.year} billed yearly. Save ${YEARLY_SAVING}%` : `Billed monthly. Or ${PRICE.year} billed yearly (save ${YEARLY_SAVING}%)`}
           featured
           badge="Most popular"
           description="Make it unmistakably yours, with your own address, privacy controls and no Portfolia branding."

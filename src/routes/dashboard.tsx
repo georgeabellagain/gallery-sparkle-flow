@@ -4,6 +4,7 @@ import { createFileRoute, Link, useHydrated, useNavigate } from "@tanstack/react
 import { useMemo, useState } from "react";
 import { Check, Eye, Pencil, Share2, Upload } from "lucide-react";
 import { PERSONAL_FEATURES, YEARLY_PER_MONTH } from "@/lib/portfolia/plans";
+import { PRICE } from "@/lib/portfolia/store";
 import { CenteredPage, SiteHeader, SiteFooter, Modal, useBlob, useObjectUrl } from "@/components/pf/Chrome";
 import { DropZone } from "@/components/pf/DropZone";
 import { PdfViewer } from "@/components/pf/PdfViewer";
@@ -173,7 +174,7 @@ function Dashboard() {
               <ul className="mt-3 space-y-1.5 text-sm text-muted-foreground">
                 {PERSONAL_FEATURES.slice(0, 4).map(f => <li key={f} className="flex gap-2"><Check className="mt-1 size-3.5 shrink-0 text-leaf" aria-hidden />{f}</li>)}
               </ul>
-              <p className="mt-3 text-xs text-muted-foreground">From {YEARLY_PER_MONTH}/month, billed yearly. Cancel anytime.</p>
+              <p className="mt-3 text-xs text-muted-foreground">From {YEARLY_PER_MONTH}/month equivalent, {PRICE.year} billed yearly, or {PRICE.month} billed monthly. Cancel anytime.</p>
             </div>}
             <div className="mt-4 flex flex-wrap gap-2">
               {p.plan === "free" ? <Button size="sm" onClick={() => setDialog("upgrade")}>Upgrade to Personal</Button> : <>
