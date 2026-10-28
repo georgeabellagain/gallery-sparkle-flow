@@ -30,8 +30,9 @@ test("diffusion cache bounds GPU targets and invalidates updated source textures
   const diffuser=createEnvironmentDiffuser(renderer),source=new THREE.WebGLRenderTarget(16,16);
   diffuser.apply(source,.1);let disposed=0;targets[0]!.addEventListener("dispose",()=>disposed++);
   for(const value of [.2,.3,.4,.5])diffuser.apply(source,value);
-  assert.equal(disposed,1,"least recently used GPU target is released");
+  assert.equal(disposed,0,"least recently used GPU target is recycled without reallocating");
+  assert.equal(new Set(targets).size,4,"scrubbing stays within four targets");
   diffuser.apply(source,.1);assert.equal(draws,6);
   source.texture.needsUpdate=true;diffuser.apply(source,.1);assert.equal(draws,7,"source changes cannot reuse a stale blend");
-  diffuser.dispose();source.dispose();
+  diffuser.dispose();assert.equal(disposed,1,"recycled target is released when the viewer closes");source.dispose();
 });

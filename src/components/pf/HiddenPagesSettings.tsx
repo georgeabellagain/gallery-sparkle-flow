@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 /** "2, 5-7" as page numbers, ignoring anything that isn't a page of this PDF. */
 export function parsePageList(text: string, pages: number): number[] {
   const out = new Set<number>();
-  for (const part of text.split(/[,\s]+/).filter(Boolean)) {
+  for (const part of text.replace(/\s*([-–])\s*/g, "$1").split(/[,\s]+/).filter(Boolean)) {
     const range = /^(\d+)\s*[-–]\s*(\d+)$/.exec(part);
     const [from, to] = range ? [Number(range[1]), Number(range[2])] : [Number(part), Number(part)];
     if (!Number.isInteger(from) || !Number.isInteger(to)) continue;
@@ -33,6 +33,11 @@ export function formatPageList(list: number[]): string {
  */
 export function HiddenPagesSettings({ pages, hidden, onChange }: { pages: number; hidden?: number[]; onChange: (next: number[] | undefined) => void }) {
   const current = readableHiddenPages(hidden, pages);
+  const [batch, setBatch] = useState(0);
+  const lastBatch = Math.max(0, Math.ceil(pages / 64) - 1);
+  const shownBatch = Math.min(batch, lastBatch);
+  const first = shownBatch * 64 + 1;
+  const lastPage = Math.min(pages, first + 63);
   const [text, setText] = useState(formatPageList(current));
   useEffect(() => setText(formatPageList(current)), [current.join()]); // eslint-disable-line react-hooks/exhaustive-deps
   const save = (list: number[]) => { const next = readableHiddenPages(list, pages); onChange(next.length ? next : undefined); };
@@ -41,7 +46,7 @@ export function HiddenPagesSettings({ pages, hidden, onChange }: { pages: number
   return (
     <div className="space-y-3 text-xs">
       <div className="grid grid-cols-8 gap-1" role="group" aria-label="Pages">
-        {Array.from({ length: pages }, (_, i) => i + 1).map((n) => {
+        {Array.from({ length: lastPage - first + 1 }, (_, i) => i + first).map((n) => {
           const off = current.includes(n);
           const last = !off && current.length >= pages - 1;
           return (
@@ -55,6 +60,11 @@ export function HiddenPagesSettings({ pages, hidden, onChange }: { pages: number
           );
         })}
       </div>
+      {pages > 64 && <nav className="flex items-center justify-between gap-2" aria-label="Page choices">
+        <button type="button" disabled={shownBatch === 0} className="disabled:opacity-40" onClick={() => setBatch(shownBatch - 1)}>Previous</button>
+        <span className="text-muted-foreground" aria-live="polite">{first}–{lastPage} of {pages}</span>
+        <button type="button" disabled={shownBatch === lastBatch} className="disabled:opacity-40" onClick={() => setBatch(shownBatch + 1)}>Next</button>
+      </nav>}
       <label className="block">Or type them
         <input value={text} onChange={(e) => setText(e.target.value)} onBlur={() => save(parsePageList(text, pages))} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(parsePageList(text, pages)); } }}
           placeholder="e.g. 2, 5-7" className="mt-1 w-full rounded-lg border border-input bg-background px-2.5 py-1.5 text-sm" />

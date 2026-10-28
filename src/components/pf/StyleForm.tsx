@@ -470,7 +470,7 @@ export function StyleForm({
                   <p className="pb-4 text-xs text-muted-foreground">Turn on the flipbook in Reading modes to choose a book type and page turns.</p>
                 )}
                 <PanelSection title="Paper" hint="The finish of the pages under Studio light.">
-                  <div data-studio-background onPointerDownCapture={() => setPreviewLook("studio")}>
+                  <div data-studio-background onPointerDownCapture={() => setPreviewLook("studio")} onFocusCapture={() => setPreviewLook("studio")}>
                     <PaperSettings viewer={viewer} setViewer={setViewer} heading={false} />
                   </div>
                 </PanelSection>
@@ -525,7 +525,7 @@ export function StyleForm({
                   </div>
                 )}
                 {editedLook === "clean" ? (
-                  <div onPointerDownCapture={() => setPreviewLook("clean")}>
+                  <div onPointerDownCapture={() => setPreviewLook("clean")} onFocusCapture={() => setPreviewLook("clean")}>
                     <PanelSection title="Shadow behind the book" hint="Pages turning always shade the pages under them.">
                       <SliderRow label="Strength" value={`${Math.round((shadowOn ? shadowOpacity : 0) * 100)}%`}>
                         <input
@@ -549,7 +549,7 @@ export function StyleForm({
                     </PanelSection>
                   </div>
                 ) : (
-                  <div onPointerDownCapture={() => setPreviewLook("studio")}>
+                  <div onPointerDownCapture={() => setPreviewLook("studio")} onFocusCapture={() => setPreviewLook("studio")}>
                     <PanelSection title="Light" hint="Preview any light. Free includes 1–4; Personal unlocks all 15 when saving.">
                       <StudioLightingSettings viewer={viewer} setViewer={setViewer} heading={false} />
                     </PanelSection>

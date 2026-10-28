@@ -459,6 +459,20 @@ export function BookView({
   const ratio = first.h / (coverAndSpreads || viewer.spreads === "ready" ? first.w / 2 : first.w);
   const host = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const [automaticMotion, setAutomaticMotion] = useState(false);
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    let visible = false;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setAutomaticMotion(visible && !document.hidden && !reduced.matches);
+    const observer = new IntersectionObserver(([entry]) => { visible = Boolean(entry?.isIntersecting); update(); });
+    observer.observe(viewport);
+    document.addEventListener("visibilitychange", update);
+    reduced.addEventListener("change", update);
+    update();
+    return () => { observer.disconnect(); document.removeEventListener("visibilitychange", update); reduced.removeEventListener("change", update); };
+  }, []);
   const wheelZoom = useRef(zoom);
   const zoomFrame = useRef(0);
   const scene = useRef<BookScene | null>(null);
@@ -615,7 +629,7 @@ export function BookView({
   };
   // The homepage shows the 3D view off with a slow drift round the book until the reader takes over.
   useEffect(() => {
-    if (!showcaseOrbit || !ready) return;
+    if (!showcaseOrbit || !ready || !automaticMotion) return;
     let frame = 0, last = 0;
     const started = performance.now();
     const drift = (now: number) => {
@@ -638,7 +652,7 @@ export function BookView({
       glideOrbit({ yaw: 0, pitch: 0 }, 900);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showcaseOrbit, ready]);
+  }, [showcaseOrbit, ready, automaticMotion]);
   const prefetchToken = useRef(0);
   const index = spreadIndex(layout.spreads, leaf);
   const spread = layout.spreads[index]!;
@@ -1502,12 +1516,12 @@ export function BookView({
 
   const autoDirection = useRef<1 | -1>(1);
   useEffect(() => {
-    if (!autoTurn || !bookReady || busy || wait || error || (atStart && atEnd)) return;
+    if (!autoTurn || !automaticMotion || !bookReady || busy || wait || error || (atStart && atEnd)) return;
     if (atEnd) autoDirection.current = -1;
     else if (atStart) autoDirection.current = 1;
     const timer = setTimeout(() => { void move(autoDirection.current); }, Math.max(800, autoTurnDelay));
     return () => clearTimeout(timer);
-  }, [autoTurn, autoTurnDelay, bookReady, busy, wait, error, atStart, atEnd, move]);
+  }, [autoTurn, automaticMotion, autoTurnDelay, bookReady, busy, wait, error, atStart, atEnd, move]);
 
   // Recordings, the live scrapbook editor and the flat fallback keep the straight-down view.
   const allow3d = !frameAspect && !editingExtras && !fallback;

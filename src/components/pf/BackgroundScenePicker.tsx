@@ -15,7 +15,7 @@ export function BackgroundScenePicker({ selected, onSelect }: { selected?: strin
           className="group overflow-hidden rounded-xl border border-border text-left transition-shadow hover:shadow-sm aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-1"
         >
           <span className="relative block h-14 overflow-hidden">
-            <BackgroundSceneLayer scene={scene} />
+            <BackgroundSceneLayer scene={scene} animate={false} />
             {scene.animated && <span className="absolute right-1.5 top-1.5 rounded-full bg-black/35 px-1.5 py-0.5 text-[9px] font-medium text-white backdrop-blur-sm">Moving</span>}
           </span>
           <span className="block px-2 py-1.5 text-xs">
