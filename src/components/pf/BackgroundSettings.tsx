@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { backgroundPicture } from "@/lib/portfolia/background-presets";
 import {
   backgroundFor,
+  backgroundForEveryMode,
   backgroundKeys,
   type BackgroundChoice,
 } from "@/lib/portfolia/background-settings";
@@ -178,11 +179,16 @@ export function BackgroundSettings({
               className="overflow-hidden rounded-xl border border-border text-left text-xs aria-pressed:ring-2 aria-pressed:ring-foreground aria-pressed:ring-offset-1"
             >
               <Picture choice={backgroundFor(viewer, id)} label={label} className="h-12 w-full object-cover" />
-              <span className="block px-2 py-1.5">{label}</span>
+              <span className="block px-2 py-1.5">{label}<span className="block text-[10px] text-muted-foreground">{viewer.backgrounds?.[id] ? "Custom background" : "Uses default"}</span></span>
             </button>
           ))}
         </div>
       </PanelSection>
+      <div className="space-y-2 rounded-xl bg-muted/50 p-3 text-xs">
+        <p>{target === "main" ? "Changes to the default apply to modes marked Uses default." : viewer.backgrounds?.[target] ? "This mode has its own background. Use default here reconnects it to the default." : "This mode follows the default. Editing it creates a separate background."}</p>
+        <button type="button" className="font-medium underline underline-offset-2" onClick={() => setViewer(backgroundForEveryMode(viewer, target === "main" ? undefined : target))}>Use this background in every mode</button>
+        <p className="text-[10px] text-muted-foreground">Replaces per-mode backgrounds. Undo restores your previous choices.</p>
+      </div>
       <PanelSection title="Colour & motion" hint="Minimal fields of colour; the moving ones drift slowly behind the book. Sorbet and Aurora are included on Free.">
         <BackgroundScenePicker selected={!choice.backgroundKey ? choice.backgroundPreset : undefined} onSelect={(id, base) => choose({ backgroundPreset: id, backgroundColor: base })} />
       </PanelSection>

@@ -1,8 +1,10 @@
+import { readableHiddenPages } from "@/lib/portfolia/hidden-pages";
 import { BOOK_STYLES, readableBookStyle } from "@/lib/portfolia/book-style";
 import { TURN_CURVES, readableTurnCurve } from "@/lib/portfolia/turn-curve";
 import { useEffect, type CSSProperties } from "react";
 import { TAB_STYLES, readableTabStyle, type TabStyle } from "@/lib/portfolia/tab-style";
 import { TURN_STYLES, readableTurnSpeed, readableTurnStyle } from "@/lib/portfolia/turn-motion";
+import { requestPreviewTurn, cancelPreviewTurn } from "@/lib/portfolia/preview-turn";
 import { setPreviewMode } from "@/lib/portfolia/preview-look";
 import type { ViewerSettings } from "@/lib/portfolia/store";
 import { PanelSection, SliderRow, optionClass } from "./panel-ui";
@@ -17,11 +19,13 @@ const TAB_PREVIEW: Record<TabStyle, CSSProperties> = {
 };
 
 export function PageTurnSettings({viewer,setViewer,pages=0}:{viewer:ViewerSettings;setViewer:(patch:Partial<ViewerSettings>)=>boolean;pages?:number}) {
-  useEffect(()=>()=>setPreviewMode(null),[]);
+  useEffect(()=>()=>{ setPreviewMode(null); cancelPreviewTurn(); },[]);
   const style=readableTurnStyle(viewer.turnStyle), speed=readableTurnSpeed(viewer.turnSpeed), book=readableBookStyle(viewer.bookStyle), tabStyle=readableTabStyle(viewer.tabStyle);
   // Every change here shows the flipbook in the preview.
   const change=(patch:Partial<ViewerSettings>)=>{setPreviewMode("book");setViewer(patch);};
   return <div>
+    <button type="button" className="mb-4 w-full rounded-xl border border-border px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-40" disabled={pages - readableHiddenPages(viewer.hiddenPages, pages).length < 2} onClick={requestPreviewTurn}>Test page turn</button>
+    <p className="mb-4 text-xs text-muted-foreground">Try the current motion in the preview. Your opening page stays unchanged.</p>
     <PanelSection title="Book type" hint={BOOK_STYLES.find(option=>option.id===book)!.description}>
       <div className="grid grid-cols-3 gap-2" role="group" aria-label="Book style">
         {BOOK_STYLES.map(option=><button key={option.id} type="button" aria-pressed={book===option.id} className={optionClass} onClick={()=>change({bookStyle:option.id})}>{option.label}</button>)}

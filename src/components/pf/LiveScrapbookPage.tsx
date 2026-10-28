@@ -1,3 +1,4 @@
+import { nudgeStep, snapExtraToPage } from "@/lib/portfolia/extra-placement";
 import { useContext, useEffect, useRef, useState, type PointerEvent } from "react";
 import { LiveScrapbookContext } from "./live-scrapbook-context";
 import { NoteSurface } from "./FoldoutCard";
@@ -130,9 +131,10 @@ export function LiveScrapbookPage({
       d.handle,
       ratio,
     );
+    if (d.handle === "move" && context.snapToGuides !== false && !e.altKey) d.next = snapExtraToPage(d.kind, d.next, ratio);
     // While moving, it follows the pointer even past the page's edge, towards the other page.
     const across = d.handle === "move" && d.kind !== "tags" && neighbour;
-    setDraft({ kind: d.kind, item: across ? ({ ...d.next, x: ((d.item as { x: number }).x) + d.dx } as Extra) : d.next });
+    setDraft({ kind: d.kind, item: across && (((d.item as { x: number }).x + d.dx) < 0 || ((d.item as { x: number }).x + d.dx + extraWidth(d.kind, d.item)) > 1) ? ({ ...d.next, x: ((d.item as { x: number }).x) + d.dx } as Extra) : d.next });
   };
   const end = (e: PointerEvent<HTMLButtonElement>) => {
     e.stopPropagation();
@@ -179,8 +181,9 @@ export function LiveScrapbookPage({
         commit(kind, rotateFoldout(item as Foldout, noteRotation(item as Foldout) + (e.key === "ArrowRight" ? 3 : -3)));
         return;
       }
-      const dx = e.key === "ArrowRight" ? 0.005 : e.key === "ArrowLeft" ? -0.005 : 0,
-        dy = e.key === "ArrowDown" ? 0.005 : e.key === "ArrowUp" ? -0.005 : 0;
+      const step = nudgeStep(e);
+      const dx = e.key === "ArrowRight" ? step : e.key === "ArrowLeft" ? -step : 0,
+        dy = e.key === "ArrowDown" ? step : e.key === "ArrowUp" ? -step : 0;
       if (!dx && !dy) return;
       e.preventDefault();
       e.stopPropagation();
@@ -214,6 +217,9 @@ export function LiveScrapbookPage({
     <div ref={root} className={`absolute inset-0 ${context.draggingSticker ? "pointer-events-auto outline-2 outline-dashed outline-blue-500/50" : "pointer-events-none"}`} data-live-scrapbook
       onDragOver={(e) => { if (context.draggingSticker) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } }}
       onDrop={dropSticker}>
+      {draft && drag.current?.handle === "move" && context.snapToGuides !== false && <div aria-hidden className="pointer-events-none absolute inset-0 border border-dashed border-leaf/40">
+        <span className="absolute inset-y-0 left-1/2 border-l border-dashed border-leaf/40" /><span className="absolute inset-x-0 top-1/2 border-t border-dashed border-leaf/40" />
+      </div>}
       {foldoutsForLeaf(pdf.foldouts ?? [], leaf).map((original) => {
         const f = live(original);
         return (

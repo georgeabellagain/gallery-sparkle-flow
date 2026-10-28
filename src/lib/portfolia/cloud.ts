@@ -1,4 +1,4 @@
-import { backgroundKeys } from "./background-settings";
+import { portfolioAppearanceKeys, splitSavedLooks, readSavedLooks } from "./saved-looks";
 import { foldoutKeys } from "./foldouts";
 import { allAnalyticsEvents } from "./analytics";
 import { migrateDraftFiles } from "./sync-files";
@@ -35,6 +35,7 @@ let userId: string | null = null;
 let started = false;
 /** JSON of each portfolio as last stored in the cloud, by code. */
 let pushed = new Map<string, string>();
+let pushedLooks = new Map<string, string>();
 let timer: ReturnType<typeof setTimeout> | null = null;
 const pendingDeletes = new Set<string>();
 let pushing: Promise<void> | null = null;
@@ -45,7 +46,7 @@ export function markPortfolioDeleted(code: string) {
 }
 
 function fileKeys(p: Portfolio): string[] {
-  return [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey, p.style?.bannerKey, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf)].filter(Boolean) as string[];
+  return [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey, p.style?.bannerKey, ...portfolioAppearanceKeys(p), ...foldoutKeys(p.pdf)].filter(Boolean) as string[];
 }
 
 function schedulePush() {
@@ -86,18 +87,26 @@ async function pushOnce() {
       const savedPortfolio = { ...p, synced: true };
       const json = JSON.stringify(savedPortfolio);
       if (pushed.get(p.code) === json) continue;
+      const separated = splitSavedLooks(savedPortfolio);
       const { error } = await supabase.from("portfolios").upsert({
         code: p.code,
         owner_id: uid,
         username: p.username ?? null,
         status: p.status,
         search_indexing: Boolean(p.searchIndexing),
-        data: savedPortfolio as unknown as Json,
+        data: separated.portfolio as unknown as Json,
         updated_at: new Date().toISOString(),
       });
       if (error) {
         const taken = error.code === "23505";
         throw new Error(taken ? "That personalised address is already used by someone else. Choose another name." : "Couldn’t save to your account.");
+      }
+      const looksJson = JSON.stringify(separated.savedLooks);
+      if (pushedLooks.get(p.code) !== looksJson) {
+        const { error: looksError } = await supabase.from("portfolio_saved_looks").upsert({ portfolio_code: p.code, owner_id: uid, looks: separated.savedLooks as unknown as Json, updated_at: new Date().toISOString() });
+        if (looksError) throw new Error("Couldn’t save your reusable looks. Please try again.");
+        if (userId !== uid) return;
+        pushedLooks.set(p.code, looksJson);
       }
       const { error: domainDeleteError } = await supabase.from("portfolio_domains").delete().eq("portfolio_code", p.code);
       if (domainDeleteError) throw new Error("Couldn’t save your domains. Please try again.");
@@ -150,7 +159,12 @@ async function pull(uid: string) {
   const { data, error } = await supabase.from("portfolios").select("code, data").eq("owner_id", uid);
   if (error) return setStatus("error", "Couldn’t load your portfolios. Please refresh to try again.");
   if (userId !== uid) return;
-  const cloud = new Map((data ?? []).map((r) => [r.code, r.data as unknown as Portfolio]));
+  const { data: savedLookRows, error: looksError } = await supabase.from("portfolio_saved_looks").select("portfolio_code,looks").eq("owner_id", uid);
+  if (looksError) return setStatus("error", "Couldn’t load your reusable looks. Please refresh to try again.");
+  if (userId !== uid) return;
+  const libraries = new Map((savedLookRows ?? []).map(row => [row.portfolio_code, readSavedLooks(row.looks)]));
+  const cloud = new Map((data ?? []).map(r => [r.code, { ...(r.data as unknown as Portfolio), savedLooks: libraries.get(r.code) ?? [] }]));
+  pushedLooks = new Map([...cloud].map(([code, p]) => [code, JSON.stringify(p.savedLooks ?? [])]));
   pushed = new Map([...cloud].map(([c, p]) => [c, JSON.stringify(p)]));
 
   const local = getSavedDoc();
@@ -188,12 +202,13 @@ export function startCloudSync() {
       userId = null;
       setCloudUser(null);
       pushed = new Map();
+      pushedLooks = new Map();
       pendingDeletes.clear();
       resetAll(); // the browser copy belongs to the account; nothing is lost online
       setStatus("idle");
       return;
     }
-    if (id && id !== userId) {
+    if (id && (id !== userId || event === "MFA_CHALLENGE_VERIFIED")) {
       userId = id;
       setCloudUser(id);
       void pull(id);

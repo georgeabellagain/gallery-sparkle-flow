@@ -1,4 +1,7 @@
-import { useRef, useState, type ReactNode } from "react";
+import { ExtraPositionControls } from "./ExtraPositionControls";
+import { LiveScrapbookContext } from "./live-scrapbook-context";
+import type { Extra } from "@/lib/portfolia/scrapbook-transform";
+import { useRef, useState, useContext, type ReactNode } from "react";
 import { Copy, CornerDownRight, ExternalLink, Info, Youtube, Film, GalleryHorizontal, Link2, MousePointerClick, Plus, Search, Shapes, StickyNote, Tag, Trash2 } from "lucide-react";
 import { HotspotFields } from "./HotspotFields";
 import { SlideshowFields } from "./SlideshowFields";
@@ -14,7 +17,7 @@ import { gifFileProblem, gifToVideo, isGif } from "@/lib/portfolia/gif-to-video"
 import { addPortfolioExtra, deleteUnusedPortfolioAsset, isPaid, patchPortfolioExtra, removePortfolioExtra, useDoc, type Portfolio } from "@/lib/portfolia/store";
 import { cn } from "@/lib/utils";
 
-type Shown = { page: number; half?: "left" | "right" };
+type Shown = { page: number; half?: "left" | "right"; ratio?: number };
 type Kind = NonNullable<ScrapbookSelection>["kind"];
 
 /** One feature: its name, how many there are, an Add button, its items on the open pages and the chosen one's settings. */
@@ -56,6 +59,7 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
   counts?: { notes: number; tabs: number; links: number };
 }) {
   const pdf = p.pdf!;
+  const live = useContext(LiveScrapbookContext);
   const doc = useDoc();
   const [url, setUrl] = useState("");
   const [urlError, setUrlError] = useState("");
@@ -249,6 +253,11 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
   const hotspotFields = (h: PageHotspot) => <HotspotFields hotspot={h} save={(next: PageHotspot, message?: string) => { const ok = patchPortfolioExtra(p.code, pdf.blobKey, "hotspots", next.id, next); report(ok, message ?? "That change couldn't be saved. Check the words aren't too long."); return ok; }} />;
   const editing = (children: ReactNode, what: string) => (
     <div className="space-y-3 border-t border-border/70 pt-3">
+      {selected && (() => {
+        const item = ({ foldouts: note, tags: tab, links: link, videos: video, spotlights: spotlight, jumps: jump, stickers: sticker, hotspots: hotspot, slideshows: slideshow })[selected.kind];
+        const pageShown = item && shown.find(page => page.page === item.page && (!("half" in item) || !page.half || page.half === item.half));
+        return item && pageShown ? <ExtraPositionControls kind={selected.kind} item={item} ratio={pageShown.ratio ?? 1.4} onChange={(next: Extra) => report(patchPortfolioExtra(p.code, pdf.blobKey, selected.kind, next.id, next), "Couldn’t position that item.")} /> : null;
+      })()}
       {children}
       <div className="flex justify-end gap-1">
         {selected?.kind !== "videos" && <Button size="xs" variant="quiet" onClick={duplicate} aria-label={`Duplicate selected ${what}`}><Copy className="size-3.5" />Duplicate</Button>}
@@ -259,6 +268,7 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
 
   return (
     <div className="space-y-3 text-sm">
+      <label className="flex items-center justify-between gap-3 text-xs"><span>Snap to page edges & centre<br /><span className="text-muted-foreground">Hold Alt while dragging for free placement.</span></span><input type="checkbox" checked={live?.snapToGuides !== false} onChange={event => live?.onSnapChange?.(event.target.checked)} /></label>
       <p className="rounded-xl bg-muted/60 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
         New items appear on page {page.page}. Drag them anywhere, across onto the other page too; pull a corner to
         resize. Every item in the book is listed below; pick one on another page to turn to it. Save keeps your changes.

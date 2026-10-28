@@ -1,3 +1,4 @@
+import { SavedLooks } from "./SavedLooks";
 import { BookMarketingSettings } from "./BookMarketingSettings";
 import { LiveScrapbookContext, type ScrapbookSelection } from "./live-scrapbook-context";
 import { ScrapbookQuickPanel } from "./ScrapbookQuickPanel";
@@ -199,7 +200,8 @@ export function EditorStage({
   const toggleWide = () => setWide((current) => { try { localStorage.setItem(PANEL_WIDE_KEY, current ? "0" : "1"); } catch { /* not remembered */ } return !current; });
   const [scrapbook, setScrapbook] = useState<ScrapbookPanel | null>(null);
   const [selection, setSelection] = useState<ScrapbookSelection>(null);
-  const [shownPages, setShownPages] = useState<Array<{ page: number; half?: "left" | "right" }>>([]);
+  const [shownPages, setShownPages] = useState<Array<{ page: number; half?: "left" | "right"; ratio?: number }>>([]);
+  const [snapToGuides, setSnapToGuides] = useState(true);
   const [pageRequest, setPageRequest] = useState<{ page: number; t: number } | null>(null);
   const [draggingSticker, setDraggingSticker] = useState<string | null>(null);
   useEffect(() => {
@@ -229,7 +231,7 @@ export function EditorStage({
   const row = "flex items-center justify-between gap-3";
   return (
     <EditorFullscreenContext.Provider value={fullscreen}>
-    <LiveScrapbookContext.Provider value={{portfolio:p,enabled:tool==="scrapbook"&&!scrapbook,onError:onSaveError,selected:selection,onSelect:setSelection,onPages:setShownPages,pageRequest,draggingSticker}}>
+    <LiveScrapbookContext.Provider value={{portfolio:p,snapToGuides,onSnapChange:setSnapToGuides,enabled:tool==="scrapbook"&&!scrapbook,onError:onSaveError,selected:selection,onSelect:setSelection,onPages:setShownPages,pageRequest,draggingSticker}}>
     <div ref={stageRef} data-fullscreen={fullscreen.full || undefined} style={fullscreen.full ? { height: "100dvh" } : undefined} className={cn("pf-editor-stage overflow-hidden bg-muted/50", fullscreen.fallback ? "fixed inset-0 z-[200]" : "relative h-[calc(100dvh-3.5rem)]")}>
       <div className="absolute inset-0 overflow-auto" onPointerDown={() => undefined}>
         {preview}
@@ -328,6 +330,7 @@ export function EditorStage({
           {tool === "customise" && <div className="space-y-5">
             <label className="block text-xs">Portfolio name<input aria-label="Portfolio name" className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/40" value={p.name ?? ""} maxLength={120} placeholder={p.pdf?.name ?? "My portfolio"} onChange={e=>patchPortfolio({name:e.target.value})} /></label>
             <StylePresets p={p} onSaveError={onSaveError} />
+            <SavedLooks p={p} onError={onSaveError} />
             {([["Design", TOOL_GROUPS[0]!], ["On the pages", TOOL_GROUPS[1]!.filter(([id]) => id !== "shoot")], ["More", [["profile", "Profile details", BookOpen] as [Tool, string, typeof Sun], ...TOOL_GROUPS[2]!.filter(([id]) => id !== "share")]]] as const).map(([heading, items]) => (
               <div key={heading} className="space-y-1.5">
                 <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{heading}</h3>

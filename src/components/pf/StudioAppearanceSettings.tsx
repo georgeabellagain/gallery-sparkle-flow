@@ -4,7 +4,7 @@ import { PAPER_STYLES, paperFinish } from "@/lib/portfolia/surface";
 import type { ViewerSettings } from "@/lib/portfolia/store";
 import { Square, Layers, Origami, Newspaper } from "lucide-react";
 import { ChoiceTile } from "./ChoiceTile";
-import { SliderRow } from "./panel-ui";
+import { NumberSlider } from "./NumberSlider";
 type Props = {
   viewer: Partial<ViewerSettings>;
   setViewer: (patch: Partial<ViewerSettings>) => unknown;
@@ -46,7 +46,7 @@ export function StudioLightingSettings({
                 key={light.id}
                 type="button"
                 aria-pressed={studioLighting === light.id}
-                aria-label={`Lighting ${light.label}`}
+                aria-label={`Lighting ${light.id}: ${light.label}`}
                 onClick={() => setViewer({ studioLighting: light.id })}
                 className={`relative h-16 overflow-hidden rounded-xl border bg-cover text-white transition-shadow hover:shadow-sm ${studioLighting === light.id ? "ring-2 ring-foreground ring-offset-1 border-foreground" : "border-border"}`}
                 style={{ background: light.preview }}
@@ -63,43 +63,9 @@ export function StudioLightingSettings({
           Reset lighting
         </button>
       </div>
-      <SliderRow label="Brightness" value={`${Math.round(studioBrightness * 100)}%`}>
-        <input
-          className="w-full accent-leaf"
-          type="range"
-          aria-label="Studio brightness"
-          min="0"
-          max={MAX_STUDIO_BRIGHTNESS * 100}
-          value={Math.round(studioBrightness * 100)}
-          onChange={(e) => setViewer({ studioBrightness: Number(e.target.value) / 100 })}
-        />
-      </SliderRow>
-      <SliderRow label="Diffusion" value={`${Math.round((1 - (viewer.studioLightingStrength ?? 0.75)) * 100)}%`}>
-        <input
-          className="w-full accent-leaf"
-          type="range"
-          aria-label="Studio lighting diffusion"
-          min="0"
-          max="100"
-          value={Math.round((1 - (viewer.studioLightingStrength ?? 0.75)) * 100)}
-          onChange={(e) =>
-            setViewer({
-              studioLightingStrength: 1 - Number(e.target.value) / 100,
-            })
-          }
-        />
-      </SliderRow>
-      <SliderRow label="White fill light" value={`${Math.round((viewer.studioTopLight ?? 0) * 100)}%`}>
-        <input
-          className="w-full accent-leaf"
-          type="range"
-          aria-label="Studio white fill light"
-          min="0"
-          max="100"
-          value={Math.round((viewer.studioTopLight ?? 0) * 100)}
-          onChange={(e) => setViewer({ studioTopLight: Number(e.target.value) / 100 })}
-        />
-      </SliderRow>
+      <NumberSlider label="Studio brightness" value={studioBrightness * 100} max={MAX_STUDIO_BRIGHTNESS * 100} onChange={value => setViewer({ studioBrightness: value / 100 })} />
+      <NumberSlider label="Studio lighting diffusion" value={(1 - (viewer.studioLightingStrength ?? 0.75)) * 100} onChange={value => setViewer({ studioLightingStrength: 1 - value / 100 })} />
+      <NumberSlider label="Studio white fill light" value={(viewer.studioTopLight ?? 0) * 100} onChange={value => setViewer({ studioTopLight: value / 100 })} />
     </div>
   );
 }
