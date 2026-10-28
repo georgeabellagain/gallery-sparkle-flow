@@ -99,6 +99,7 @@ export function PdfViewer({
   slideshows,
   leadForm,
   projectCode,
+  leadPreview = false,
   profile,
   bookMarketing,
   profileImageUrl,
@@ -159,6 +160,8 @@ export function PdfViewer({
   leadForm?: LeadForm;
   /** Enables hash links on public readers. Editor previews never read the URL hash. */
   projectCode?: string;
+  /** Creator preview: the lead form shows at its page but sends nothing. */
+  leadPreview?: boolean;
   /** The person's details, shown from a small profile icon. */
   profile?: ReactNode;
   bookMarketing?: ReactNode;
@@ -849,7 +852,7 @@ export function PdfViewer({
       )}
 
       {/* The lead form, once a public reader reaches its page (never on the homepage example). */}
-      {projectCode && !homepageExample && doc && (() => { const form = readableLeadForm(leadForm, doc.numPages); return form ? <LeadGate form={form} code={projectCode} page={current} /> : null; })()}
+      {projectCode && !homepageExample && doc && (() => { const form = readableLeadForm(leadForm, doc.numPages); return form && (!leadPreview || current >= form.page) ? <LeadGate key={leadPreview ? "preview" : "live"} form={form} code={projectCode} page={current} preview={leadPreview} /> : null; })()}
 
       {showControls && !minimalControls && view.brandLogoKey && !logoTopLeft && (
         // Clear of the Simple/Studio switch and the credit along the foot of the viewer.
