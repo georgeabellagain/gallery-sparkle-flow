@@ -137,7 +137,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
       </LookCompare>}
       {workspace && rendered && state === "ready" && <p id="demo-guide" className="pointer-events-none absolute inset-x-3 bottom-16 z-30 mx-auto w-fit max-w-[calc(100%-1.5rem)] rounded-2xl bg-background/90 px-3 py-1.5 text-center text-[11px] leading-snug text-foreground shadow-soft sm:bottom-20">
         {showCompare
-          ? <>Drag the line, or focus it and press ← →, to compare Simple and Studio. Touch the book to start reading.</>
+          ? <>Drag the line, or focus it and press ← →, to compare Simple and Studio. Tap or click the book to start reading.</>
           : <>Drag a page across, or press ← → to turn pages.</>}
       </p>}
       {(!rendered || state === "error") && <div role="status" className={`absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950/80 px-6 text-center text-sm text-white/90`}>
