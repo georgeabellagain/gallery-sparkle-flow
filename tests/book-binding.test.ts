@@ -76,3 +76,19 @@ test("layered paper follows side shares, works for loose sheets and switches off
  assert.equal(shell.visible,false);assert.ok(layers.every(l=>l.count===0));
  binding.dispose();assert.equal(book.children.length,0);
 });
+
+test("page 2 and the closing page have no offset layers or layer shadows",()=>{
+ const book=new THREE.Group(),binding=createBookBinding(book,1.4),shell=book.children[0] as THREE.Group;
+ binding.setLeaves(20);binding.set("hardback",true,true);
+ binding.sync([true,true],[{kind:"page",share:.05,leaf:1},{kind:"page",share:.8,leaf:2}]);
+ const sides=shell.children.slice(0,2) as THREE.Group[];
+ const layers=sides.map(side=>side.children.find(o=>o instanceof THREE.InstancedMesh) as THREE.InstancedMesh);
+ assert.equal(layers[0]!.count,0);assert.ok(layers[1]!.count>0);
+ binding.sync([false,true],[{kind:"page",share:1,leaf:18},{kind:"closed",share:1,leaf:19}]);
+ assert.equal(layers[1]!.count,0);assert.equal(layers[1]!.visible,false);
+ binding.set("softcover",false,true);
+ binding.sync([true,true],[{kind:"page",share:.5,leaf:8},{kind:"page",share:.5,leaf:9}]);
+ const mat=layers[0]!.material as THREE.MeshStandardMaterial;
+ assert.ok(mat.emissiveMap,"Simple preserves the subtle contact shade");
+ binding.dispose();
+});
