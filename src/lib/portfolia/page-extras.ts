@@ -30,6 +30,10 @@ export interface PageLink {
   size: number;
   /** A logo the creator chose instead of the website's own. */
   iconKey?: string;
+  iconShape?: "rounded" | "square" | "circle";
+  iconFit?: "contain" | "cover";
+  iconPadding?: number;
+  iconBackground?: string;
 }
 /** A video printed on a page (Personal). It plays inside its box on the paper; its first frame is the still. */
 export interface PageVideo {
@@ -154,6 +158,10 @@ export function validatePageLink(l: PageLink, pages: number): string | null {
   if (l.label !== undefined && (typeof l.label !== "string" || l.label.length > 40)) return "Keep the link caption short.";
   if (l.fontSize !== undefined && (!Number.isFinite(l.fontSize) || l.fontSize < 25 || l.fontSize > 300)) return "Choose a caption font size from 25% to 300%.";
   if (l.iconKey !== undefined && (typeof l.iconKey !== "string" || !key.test(l.iconKey))) return "Choose a valid logo.";
+  if (l.iconShape !== undefined && !["rounded", "square", "circle"].includes(l.iconShape)) return "Choose a logo shape.";
+  if (l.iconFit !== undefined && !["contain", "cover"].includes(l.iconFit)) return "Choose how the logo fits.";
+  if (l.iconPadding !== undefined && (!Number.isFinite(l.iconPadding) || l.iconPadding < 0 || l.iconPadding > 40)) return "Choose logo padding from 0% to 40%.";
+  if (l.iconBackground !== undefined && !/^#[0-9a-f]{6}$/i.test(l.iconBackground)) return "Choose a logo background colour.";
   if (![l.x, l.y, l.size].every(Number.isFinite) || l.size < LINK_SIZE.min - 1e-9 || l.size > LINK_SIZE.max + 1e-9) return "Choose a valid link size.";
   if (l.x < 0 || l.y < 0 || l.x + l.size > 1.0001 || l.y > 1.0001) return "Keep the link on the page.";
   return null;

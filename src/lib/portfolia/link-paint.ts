@@ -1,3 +1,4 @@
+import { linkAppearance } from "./link-appearance";
 import { getBlob } from "./assets";
 import { linkName, siteIconUrl, hostOf, type PageLink } from "./page-extras";
 
@@ -9,19 +10,19 @@ export async function loadLinkIcons(links: PageLink[], cache: LinkIcons = new Ma
   await Promise.all(
     links.map(async (l) => {
       const key = iconKeyOf(l);
-      if (cache.has(key)) return;
+      if (cache.get(key)) return;
       try {
         // A slow or missing logo must never hold the book up: after a few seconds the link shows a letter tile.
         const load = async () => {
           let blob: Blob | undefined;
           if (l.iconKey) blob = await getBlob(l.iconKey);
           else {
-            const r = await fetch(siteIconUrl(l.url), { signal: AbortSignal.timeout(4000) });
+            const r = await fetch(siteIconUrl(l.url), { signal: AbortSignal.timeout(6500) });
             if (r.ok) blob = await r.blob();
           }
           return blob ? await createImageBitmap(blob) : null;
         };
-        cache.set(key, await Promise.race([load(), new Promise<null>((resolve) => setTimeout(() => resolve(null), 4500))]));
+        cache.set(key, await load());
       } catch {
         cache.set(key, null);
       }
@@ -46,12 +47,13 @@ const round = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h
  */
 export function paintPageLinks(ctx: CanvasRenderingContext2D, w: number, h: number, links: PageLink[], icons: LinkIcons) {
   for (const l of links) {
+    const appearance = linkAppearance(l);
     const size = l.size * w;
     const x = l.x * w,
       y = l.y * h;
     ctx.save();
-    ctx.fillStyle = "#ffffff";
-    round(ctx, x, y, size, size, size * 0.22);
+    ctx.fillStyle = appearance.background;
+    round(ctx, x, y, size, size, size * appearance.radius);
     ctx.fill();
     ctx.lineWidth = Math.max(1, size * 0.02);
     ctx.strokeStyle = "rgba(0,0,0,0.14)";
@@ -59,11 +61,12 @@ export function paintPageLinks(ctx: CanvasRenderingContext2D, w: number, h: numb
     const icon = icons.get(iconKeyOf(l));
     if (icon) {
       ctx.save();
-      round(ctx, x, y, size, size, size * 0.22);
+      round(ctx, x, y, size, size, size * appearance.radius);
       ctx.clip();
-      const inset = l.iconKey ? 0 : size * 0.19;
+      const inset = size * appearance.padding;
       const box = size - inset * 2;
-      const scale = (l.iconKey ? Math.max : Math.min)(box / icon.width, box / icon.height);
+      ctx.beginPath(); ctx.rect(x + inset, y + inset, box, box); ctx.clip();
+      const scale = (appearance.fit === "cover" ? Math.max : Math.min)(box / icon.width, box / icon.height);
       ctx.drawImage(icon, x + (size - icon.width * scale) / 2, y + (size - icon.height * scale) / 2, icon.width * scale, icon.height * scale);
       ctx.restore();
     } else {

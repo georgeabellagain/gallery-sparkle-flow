@@ -1450,7 +1450,7 @@ function PdfPage({
     >
       {!thumb && linkLayer && createPortal(
         <div className="pointer-events-none absolute inset-0 z-10">
-          {linkLayer.links.map((link) => <PageLinkAnchor key={link.id} link={link} />)}
+          {linkLayer.links.map((link) => <PageLinkAnchor key={link.id} link={link} visible painted />)}
           {/* Inside the drawn page layer, which replaces the page's children whenever it redraws. */}
           {videos && videos.length > 0 && <PageVideoHtml videos={videos} />}
           {spotlights?.map((s) => <SpotlightTarget key={s.id} spotlight={s} onOpen={() => onSpotlight?.(s.id)} />)}
