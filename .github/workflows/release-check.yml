@@ -57,3 +57,6 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261027161000_atomic_subscription_events.sql
           psql -v ON_ERROR_STOP=1 -f tests/premium-appearance.sql
           psql -v ON_ERROR_STOP=1 -f tests/subscription-events.sql
+          psql -v ON_ERROR_STOP=1 -f tests/fixtures/saved-look-auth.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261028120000_private_saved_looks.sql
+          psql -v ON_ERROR_STOP=1 -f tests/private-saved-looks.sql

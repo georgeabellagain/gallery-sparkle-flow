@@ -15,6 +15,7 @@ registerHooks({
   },
 });
 const { StyleForm } = await import("../src/components/pf/StyleForm");
+import { HDRI_PRESETS } from "../src/lib/portfolia/lighting";
 import { DEFAULT_VIEWER, type Portfolio } from "../src/lib/portfolia/store";
 const p = {
   code: "test",
@@ -31,12 +32,17 @@ test("visual style presents three mode tiles and a separate first-view selection
   for (const label of ["Scroll", "Page by page", "Flipbook"])
     assert.equal(html.split(`>${label}</span>`).length - 1, 1);
   assert.ok(html.includes('aria-pressed="true"'));
+  assert.ok(html.includes("One page per PDF page"));
+  assert.ok(html.includes("A spread per PDF page"));
 });
 test("lighting and paper have separate panels and all fifteen HDRIs are selectable", () => {
   const lighting = renderToStaticMarkup(
     createElement(StyleForm, { p, part: "look", onSaveError: () => {} }),
   );
-  assert.equal((lighting.match(/aria-label="Lighting \d+"/g) ?? []).length, 15);
+  for (const light of HDRI_PRESETS) assert.ok(lighting.includes(`aria-label="Lighting ${light.id}: ${light.label}"`));
+  assert.equal((lighting.match(/type="number"/g) ?? []).length, 3, "each lighting slider has precise number entry");
+  assert.ok(lighting.includes('max="200"'));
+  assert.ok(lighting.includes("Reset lighting"));
   // Opens on the look the book opens in; the other is one tab away.
   assert.ok(lighting.includes("Adjust Simple"));
   assert.ok(lighting.includes("Open in Studio"));
@@ -46,6 +52,8 @@ test("lighting and paper have separate panels and all fifteen HDRIs are selectab
   );
   for (const label of ["Matte", "Satin", "Crumbled", "Newspaper"]) assert.ok(paper.includes(label));
   assert.ok(!paper.includes("Studio HDRI"));
+  assert.ok(paper.includes("Test page turn"));
+  assert.ok(paper.includes("Preview paper in Studio"));
 });
 test("background panel displays per-view previews, a colour wheel and texture presets", () => {
   const html = renderToStaticMarkup(

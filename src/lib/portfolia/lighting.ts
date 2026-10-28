@@ -9,21 +9,21 @@ export type HdriId = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" 
  * Kept apart from the 3D scene so the editor can list them without loading the 3D library.
  */
 export const HDRI_PRESETS: readonly { id: HdriId; label: string; file: string; preview: string; dapple?: "pine" | "leaves" | "blinds" | "window" }[] = [
-  { id: "1", label: "1", file: "/studio/hdri/lighting-1.hdr", preview: "url(/studio/hdri/lighting-1.jpg) center / cover" },
-  { id: "2", label: "2", file: "/studio/hdri/lighting-2.hdr", preview: "url(/studio/hdri/lighting-2.jpg) center / cover" },
-  { id: "3", label: "3", file: "/studio/hdri/lighting-3.hdr", preview: "url(/studio/hdri/lighting-3.jpg) center / cover" },
-  { id: "4", label: "4", file: "/studio/hdri/lighting-4.hdr", preview: "url(/studio/hdri/lighting-4.jpg) center / cover" },
-  { id: "5", label: "5", file: "/studio/hdri/lighting-5.hdr", preview: "url(/studio/hdri/lighting-5.jpg) center / cover", dapple: "pine" },
-  { id: "6", label: "6", file: "/studio/hdri/lighting-6.hdr", preview: "url(/studio/hdri/lighting-6.jpg) center / cover", dapple: "leaves" },
-  { id: "7", label: "7", file: "/studio/hdri/lighting-7.hdr", preview: "url(/studio/hdri/lighting-7.jpg) center / cover", dapple: "blinds" },
-  { id: "8", label: "8", file: "/studio/hdri/lighting-8.hdr", preview: "url(/studio/hdri/lighting-8.jpg) center / cover", dapple: "window" },
-  { id: "9", label: "9", file: "/studio/hdri/lighting-9.hdr", preview: "url(/studio/hdri/lighting-9.jpg) center / cover", dapple: "window" },
-  { id: "10", label: "10", file: "/studio/hdri/lighting-10.hdr", preview: "url(/studio/hdri/lighting-10.jpg) center / cover", dapple: "blinds" },
-  { id: "11", label: "11", file: "/studio/hdri/lighting-11.hdr", preview: "url(/studio/hdri/lighting-11.jpg) center / cover", dapple: "window" },
-  { id: "12", label: "12", file: "/studio/hdri/lighting-12.hdr", preview: "url(/studio/hdri/lighting-12.jpg) center / cover", dapple: "window" },
-  { id: "13", label: "13", file: "/studio/hdri/lighting-13.hdr", preview: "url(/studio/hdri/lighting-13.jpg) center / cover", dapple: "blinds" },
-  { id: "14", label: "14", file: "/studio/hdri/lighting-14.hdr", preview: "url(/studio/hdri/lighting-14.jpg) center / cover", dapple: "leaves" },
-  { id: "15", label: "15", file: "/studio/hdri/lighting-15.hdr", preview: "url(/studio/hdri/lighting-15.jpg) center / cover", dapple: "pine" },
+  { id: "1", label: "Side light", file: "/studio/hdri/lighting-1.hdr", preview: "url(/studio/hdri/lighting-1.jpg) center / cover" },
+  { id: "2", label: "Warm studio", file: "/studio/hdri/lighting-2.hdr", preview: "url(/studio/hdri/lighting-2.jpg) center / cover" },
+  { id: "3", label: "Soft daylight", file: "/studio/hdri/lighting-3.hdr", preview: "url(/studio/hdri/lighting-3.jpg) center / cover" },
+  { id: "4", label: "Even studio", file: "/studio/hdri/lighting-4.hdr", preview: "url(/studio/hdri/lighting-4.jpg) center / cover" },
+  { id: "5", label: "Pine canopy", file: "/studio/hdri/lighting-5.hdr", preview: "url(/studio/hdri/lighting-5.jpg) center / cover", dapple: "pine" },
+  { id: "6", label: "Leaf shade", file: "/studio/hdri/lighting-6.hdr", preview: "url(/studio/hdri/lighting-6.jpg) center / cover", dapple: "leaves" },
+  { id: "7", label: "Window blinds", file: "/studio/hdri/lighting-7.hdr", preview: "url(/studio/hdri/lighting-7.jpg) center / cover", dapple: "blinds" },
+  { id: "8", label: "Open window", file: "/studio/hdri/lighting-8.hdr", preview: "url(/studio/hdri/lighting-8.jpg) center / cover", dapple: "window" },
+  { id: "9", label: "Window glow", file: "/studio/hdri/lighting-9.hdr", preview: "url(/studio/hdri/lighting-9.jpg) center / cover", dapple: "window" },
+  { id: "10", label: "Slatted light", file: "/studio/hdri/lighting-10.hdr", preview: "url(/studio/hdri/lighting-10.jpg) center / cover", dapple: "blinds" },
+  { id: "11", label: "High window", file: "/studio/hdri/lighting-11.hdr", preview: "url(/studio/hdri/lighting-11.jpg) center / cover", dapple: "window" },
+  { id: "12", label: "Window crosslight", file: "/studio/hdri/lighting-12.hdr", preview: "url(/studio/hdri/lighting-12.jpg) center / cover", dapple: "window" },
+  { id: "13", label: "Soft blinds", file: "/studio/hdri/lighting-13.hdr", preview: "url(/studio/hdri/lighting-13.jpg) center / cover", dapple: "blinds" },
+  { id: "14", label: "Garden shade", file: "/studio/hdri/lighting-14.hdr", preview: "url(/studio/hdri/lighting-14.jpg) center / cover", dapple: "leaves" },
+  { id: "15", label: "Forest light", file: "/studio/hdri/lighting-15.hdr", preview: "url(/studio/hdri/lighting-15.jpg) center / cover", dapple: "pine" },
 ];
 
 /** The shadow the Simple look starts with: light, so it is there without being heavy. */

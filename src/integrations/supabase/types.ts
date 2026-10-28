@@ -14,6 +14,13 @@ export type Database = {
   }
   public: {
     Tables: {
+      portfolio_saved_looks: {
+        Row: { portfolio_code: string; owner_id: string; looks: Json; updated_at: string }
+        Insert: { portfolio_code: string; owner_id: string; looks?: Json; updated_at?: string }
+        Update: { portfolio_code?: string; owner_id?: string; looks?: Json; updated_at?: string }
+        Relationships: [{ foreignKeyName: "portfolio_saved_looks_portfolio_code_fkey"; columns: ["portfolio_code"]; isOneToOne: true; referencedRelation: "portfolios"; referencedColumns: ["code"] }]
+      }
+
       feedback: {
         Row: {
           created_at: string

@@ -1,3 +1,4 @@
+import { portfolioAppearanceKeys } from "./saved-looks";
 import { validateFoldout } from "./foldouts";
 import { validatePageTag, validatePageLink, validatePageVideo, validatePageSpotlight, validatePageJump, validatePageSticker, validatePageHotspot, validatePageSlideshow, type PageVideo } from "./page-extras";
 import type { ExtraKind, Extra } from "./scrapbook-transform";
@@ -211,6 +212,8 @@ export interface Profile {
 }
 
 export interface Portfolio {
+  /** Private reusable visual presets; saved and synced with this portfolio. */
+  savedLooks?: import("./saved-looks").SavedLook[];
   name?: string;
   bookMarketing?: { description: string; buyUrl: string; label: string };
   code: string; // free address: /p/<code>
@@ -257,7 +260,7 @@ const empty = (): Doc => ({ v: 1, account: { signedIn: false }, portfolio: null,
 let state: Doc = empty();
 let portfolioDraft: Portfolio | null = null;
 let draftView: Doc | null = null;
-const assetKeys = (p: Portfolio | null) => p ? [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey, p.style?.bannerKey, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf), ...pageImageKeys(p.pdf)].filter((key): key is string => Boolean(key)) : [];
+const assetKeys = (p: Portfolio | null) => p ? [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey, p.style?.bannerKey, ...portfolioAppearanceKeys(p), ...foldoutKeys(p.pdf), ...pageImageKeys(p.pdf)].filter((key): key is string => Boolean(key)) : [];
 const notify = () => { draftView = null; listeners.forEach(l => l()); };
 export function getSavedDoc(): Doc { load(); return state; }
 export function beginPortfolioDraft(code: string) {
@@ -489,7 +492,7 @@ export const redoAppearance = () => stepAppearance("redo", restoreAppearance);
 /** Older portfolios can share an asset key; changing one must not erase another's picture. */
 export function portfolioUsesAsset(key: string): boolean {
   return [...allPortfolios(getDoc()), ...allPortfolios(getSavedDoc())].some(p => [p.pdf?.blobKey, p.pdf?.coverKey, p.profile.photoKey, p.profile.cv?.blobKey,
-    p.style?.bannerKey, ...backgroundKeys(p.viewer), ...foldoutKeys(p.pdf), ...pageImageKeys(p.pdf)].includes(key));
+    p.style?.bannerKey, ...portfolioAppearanceKeys(p), ...foldoutKeys(p.pdf), ...pageImageKeys(p.pdf)].includes(key));
 }
 export async function deleteUnusedPortfolioAsset(key?: string) {
   if (key && !portfolioUsesAsset(key)) await deleteBlob(key);

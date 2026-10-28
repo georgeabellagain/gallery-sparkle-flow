@@ -45,3 +45,31 @@ test("switching portfolios cannot park unsaved previews in the saved list", () =
   switchPortfolio("second");
   assert.equal(getSavedDoc().others.find(item => item.portfolio.code === "drafttest")?.portfolio.name, "Saved book");
 });
+
+test("saved looks participate in explicit Save, discard, persistence and shared-asset retention", async () => {
+  const { captureLook } = await import("../src/lib/portfolia/saved-looks");
+  const { portfolioUsesAsset } = await import("../src/lib/portfolia/store");
+  replaceDoc(fixture()); let commits = 0; setCommitHook(() => commits++);
+  const look = { id: "mylook", name: "My light", viewer: captureLook({ ...DEFAULT_VIEWER, backgroundKey: "look_only_bg" }) };
+  beginPortfolioDraft("drafttest"); patchPortfolio({ savedLooks: [look] });
+  assert.equal(getSavedDoc().portfolio?.savedLooks, undefined); assert.equal(commits, 0);
+  discardPortfolioDraft(); assert.equal(getDoc().portfolio?.savedLooks, undefined);
+  beginPortfolioDraft("drafttest"); patchPortfolio({ savedLooks: [look] });
+  assert.equal(savePortfolioDraft(), true); assert.equal(commits, 1);
+  const persisted = JSON.parse(cache.get("portfolia.simple.v1")!);
+  assert.equal(persisted.portfolio.savedLooks[0].name, "My light");
+  assert.equal(portfolioUsesAsset("look_only_bg"), true);
+  patchPortfolio({ savedLooks: [] });
+  assert.equal(portfolioUsesAsset("look_only_bg"), true, "the last saved version still protects its background");
+  discardPortfolioDraft(); assert.equal(getDoc().portfolio?.savedLooks?.length, 1);
+  setCommitHook(null);
+});
+
+test("failed saves of named looks leave the previous saved version intact", () => {
+  replaceDoc(fixture()); beginPortfolioDraft("drafttest");
+  patchPortfolio({ savedLooks: [{ id: "unsaved", name: "Draft look", viewer: { studioLighting: "4" } }] });
+  fail = true; assert.equal(savePortfolioDraft(), false); fail = false;
+  assert.equal(getSavedDoc().portfolio?.savedLooks, undefined);
+  assert.equal(getDoc().portfolio?.savedLooks?.[0]?.name, "Draft look");
+  discardPortfolioDraft();
+});

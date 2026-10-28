@@ -563,7 +563,7 @@ export function PdfViewer({
     };
   }, [idleOrbit, autoFlip > 0, liveScrapbook?.enabled, homepageExample]);
   const requestedLook = liveScrapbook?.enabled ? "clean" : previewLook ?? selectedLook;
-  const activeLook = liveScrapbook?.enabled ? "clean" : enabledLooks.includes(requestedLook) ? requestedLook : openingLook(view, mode);
+  const activeLook = liveScrapbook?.enabled ? "clean" : ((compact && previewLook !== null) || enabledLooks.includes(requestedLook)) ? requestedLook : openingLook(view, mode);
   const changeLook = (look: "clean" | "studio") => { setSelectedLook(look); if (compact) pinPreviewLook(look); };
   const studio = activeLook === "studio";
   // Studio's lighting downloads and is prepared (in a worker) while the pages and the 3D code load, instead of

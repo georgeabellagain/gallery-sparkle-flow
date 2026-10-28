@@ -1,3 +1,4 @@
+import { PageLayoutGuide } from "./PageLayoutGuide";
 import { StudioLightingSettings, PaperSettings } from "./StudioAppearanceSettings";
 import { PageTurnSettings } from "./PageTurnSettings";
 import { HiddenPagesSettings } from "./HiddenPagesSettings";
@@ -29,7 +30,7 @@ import { Segmented } from "@/components/pf/viewer-ui";
 import {
   DEFAULT_SIMPLE_SHADOW_OPACITY,
 } from "@/lib/portfolia/lighting";
-import { setPreviewLook } from "@/lib/portfolia/preview-look";
+import { setPreviewLook, setPreviewMode } from "@/lib/portfolia/preview-look";
 
 /** Ready-made text and page colours for the profile page (and the backdrop that suits them). */
 const PAGE_PALETTES = [
@@ -391,6 +392,7 @@ export function StyleForm({
                     }
                     onChange={(spreads) => setViewer({ spreads })}
                   />
+                  <PageLayoutGuide spreads={viewer.spreads} />
                 </PanelSection>
                 {p.pdf && (
                   <PanelSection title="Hidden pages" hint="Readers skip these in every reading style, with anything placed on them. They stay in your PDF; the scrapbook editor still shows them.">
@@ -469,7 +471,8 @@ export function StyleForm({
                 ) : (
                   <p className="pb-4 text-xs text-muted-foreground">Turn on the flipbook in Reading modes to choose a book type and page turns.</p>
                 )}
-                <PanelSection title="Paper" hint="The finish of the pages under Studio light.">
+                <PanelSection title="Paper" hint="Paper finish, grain and relief appear under Studio lighting. The preview can show Studio without changing the looks you offer visitors.">
+                  <button type="button" className="text-xs font-medium underline underline-offset-2" onClick={() => { setPreviewLook("studio"); setPreviewMode("book"); }}>Preview paper in Studio</button>
                   <div data-studio-background onPointerDownCapture={() => setPreviewLook("studio")} onFocusCapture={() => setPreviewLook("studio")}>
                     <PaperSettings viewer={viewer} setViewer={setViewer} heading={false} />
                   </div>

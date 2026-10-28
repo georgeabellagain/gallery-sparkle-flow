@@ -30,3 +30,11 @@ export function backgroundKeys(view?: Partial<ViewerSettings>): string[] {
     ),
   ];
 }
+
+/** Make the selected effective background the default and clear per-reader overrides. */
+export function backgroundForEveryMode(view: ViewerSettings, context?: BackgroundContext): Partial<ViewerSettings> {
+  const choice = context ? backgroundFor(view, context) : view;
+  return { backgroundColor: choice.backgroundColor, backgroundKey: choice.backgroundKey,
+    backgroundPreset: choice.backgroundPreset, backgroundFit: choice.backgroundFit,
+    backgrounds: undefined };
+}

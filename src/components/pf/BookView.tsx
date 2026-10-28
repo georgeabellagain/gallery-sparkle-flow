@@ -1,3 +1,4 @@
+import { takePreviewTurn, subscribePreviewTurn } from "@/lib/portfolia/preview-turn";
 import { ribbonGutterFor } from "@/lib/portfolia/book-details";
 import { coverLeaf } from "@/lib/portfolia/rigid-cover";
 import { createPreparationGate } from "@/lib/portfolia/preparation-gate";
@@ -582,7 +583,7 @@ export function BookView({
   const lookFor = (): Look => {
     const base = { ...lookFrom(viewer), ribbonGutter: ribbonGutterFor(viewer.ribbonPage, layout) };
     if (editingExtras) return {...base,studio:false};
-    return previewLook && offered.includes(previewLook) ? { ...base, studio: previewLook === "studio" } : base;
+    return previewLook && (previewable || offered.includes(previewLook)) ? { ...base, studio: previewLook === "studio" } : base;
   };
   const [settings, setSettings] = useState<Look>(lookFor);
   const latestSettings = useRef(settings);
@@ -697,7 +698,7 @@ export function BookView({
   const atEnd = narrow ? leaf === layout.leaves.length - 1 : index === layout.spreads.length - 1;
   const current = layout.leaves[leaf]!;
   const pages = spread.filter((n): n is number => n !== null).map((n) => layout.leaves[n]!.page);
-  const onScrapbookPages = liveScrapbook?.onPages, shownLeaves = JSON.stringify(spread.filter((n): n is number => n !== null && (!narrow || n === leaf)).map((n) => layout.leaves[n]!));
+  const onScrapbookPages = liveScrapbook?.onPages, shownLeaves = JSON.stringify(spread.filter((n): n is number => n !== null && (!narrow || n === leaf)).map((n) => ({ ...layout.leaves[n]!, ratio })));
   // The editor adds new notes, tabs and links to the pages in view.
   useEffect(() => { if (editingExtras) onScrapbookPages?.(JSON.parse(shownLeaves)); }, [editingExtras, onScrapbookPages, shownLeaves]);
   const tabEntries = useMemo(
@@ -1513,6 +1514,16 @@ export function BookView({
     }});
     return () => onExporter(null);
   }, [onExporter, bookReady, fallback, ready, settings.studio, layout, faces, additions, pageLinks, pageTags]);
+
+  const [testTurn, setTestTurn] = useState(0);
+  useEffect(() => {
+    if (!previewable) return;
+    return subscribePreviewTurn(() => setTestTurn(value => value + 1));
+  }, [previewable]);
+  useEffect(() => {
+    if (!previewable || !bookReady || busy || wait || error || (atStart && atEnd)) return;
+    if (takePreviewTurn()) void move(atEnd ? -1 : 1);
+  }, [previewable, testTurn, bookReady, busy, wait, error, atStart, atEnd, move]);
 
   const autoDirection = useRef<1 | -1>(1);
   useEffect(() => {
