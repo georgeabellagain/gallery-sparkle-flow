@@ -14,13 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      portfolio_saved_looks: {
-        Row: { portfolio_code: string; owner_id: string; looks: Json; updated_at: string }
-        Insert: { portfolio_code: string; owner_id: string; looks?: Json; updated_at?: string }
-        Update: { portfolio_code?: string; owner_id?: string; looks?: Json; updated_at?: string }
-        Relationships: [{ foreignKeyName: "portfolio_saved_looks_portfolio_code_fkey"; columns: ["portfolio_code"]; isOneToOne: true; referencedRelation: "portfolios"; referencedColumns: ["code"] }]
-      }
-
       feedback: {
         Row: {
           created_at: string
@@ -130,6 +123,35 @@ export type Database = {
             foreignKeyName: "portfolio_events_portfolio_code_fkey"
             columns: ["portfolio_code"]
             isOneToOne: false
+            referencedRelation: "portfolios"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      portfolio_saved_looks: {
+        Row: {
+          looks: Json
+          owner_id: string
+          portfolio_code: string
+          updated_at: string
+        }
+        Insert: {
+          looks?: Json
+          owner_id: string
+          portfolio_code: string
+          updated_at?: string
+        }
+        Update: {
+          looks?: Json
+          owner_id?: string
+          portfolio_code?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_saved_looks_portfolio_code_fkey"
+            columns: ["portfolio_code"]
+            isOneToOne: true
             referencedRelation: "portfolios"
             referencedColumns: ["code"]
           },
@@ -265,6 +287,7 @@ export type Database = {
         Args: { object_metadata: Json; object_name: string }
         Returns: boolean
       }
+      saved_looks_mfa_satisfied: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
