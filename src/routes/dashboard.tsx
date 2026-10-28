@@ -4,6 +4,7 @@ import { createFileRoute, Link, useHydrated, useNavigate } from "@tanstack/react
 import { useMemo, useState } from "react";
 import { Check, Eye, Pencil, Share2, Upload } from "lucide-react";
 import { PERSONAL_FEATURES, YEARLY_PER_MONTH } from "@/lib/portfolia/plans";
+import { PRICE } from "@/lib/portfolia/store";
 import { CenteredPage, SiteHeader, SiteFooter, Modal, useBlob, useObjectUrl } from "@/components/pf/Chrome";
 import { DropZone } from "@/components/pf/DropZone";
 import { PdfViewer } from "@/components/pf/PdfViewer";
