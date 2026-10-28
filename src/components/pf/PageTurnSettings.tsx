@@ -31,6 +31,10 @@ export function PageTurnSettings({viewer,setViewer,pages=0}:{viewer:ViewerSettin
         {BOOK_STYLES.map(option=><button key={option.id} type="button" aria-pressed={book===option.id} className={optionClass} onClick={()=>change({bookStyle:option.id})}>{option.label}</button>)}
       </div>
     </PanelSection>
+    <PanelSection title="Pages behind the spread" hint="Show individual paper layers beneath the open pages for a fuller 3D booklet. Updates as you turn; works in Simple and Studio.">
+      <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={viewer.pageStack === true} onChange={e => change({pageStack:e.target.checked})} />Show layered pages</label>
+      <p className="mt-2 text-xs text-muted-foreground">Shows paper edges, without loading every hidden PDF page.</p>
+    </PanelSection>
     <PanelSection title="Page tabs" hint={`${TAB_STYLES.find(option=>option.id===tabStyle)!.description} Add tabs in Scrapbook.`}>
       <div className="grid grid-cols-5 gap-1.5" role="radiogroup" aria-label="Page tab style">
         {TAB_STYLES.map(option=><button key={option.id} type="button" role="radio" aria-checked={tabStyle===option.id} title={option.description} onClick={()=>change({tabStyle:option.id})}

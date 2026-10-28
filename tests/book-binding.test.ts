@@ -58,3 +58,21 @@ test("shadow detail scales with output without reducing the preset's physical so
  assert.equal(studioShadowSize(1920,1080,2,1024),1024);
  for(const radius of [1.5,3,7])for(const size of [512,1024,2048])assert.equal(studioShadowRadius(radius,size)/size,radius/512);
 });
+
+test("layered paper follows side shares, works for loose sheets and switches off cleanly",()=>{
+ const book=new THREE.Group(),binding=createBookBinding(book,1.4),shell=book.children[0] as THREE.Group;
+ binding.setLeaves(40);binding.set("flipbook",true,true);
+ binding.sync([true,true],[{kind:"page",share:.2},{kind:"page",share:.8}]);
+ assert.equal(shell.visible,true);
+ const layers:THREE.InstancedMesh[]=[];
+ shell.traverse(o=>{if(o instanceof THREE.InstancedMesh)layers.push(o);});
+ assert.equal(layers.length,2);assert.equal(layers[0]!.count,4);assert.equal(layers[1]!.count,16);
+ const m=new THREE.Matrix4();
+ for(const layer of layers)for(let i=0;i<layer.count;i++){
+  layer.getMatrixAt(i,m);const p=new THREE.Vector3(),q=new THREE.Quaternion(),s=new THREE.Vector3();m.decompose(p,q,s);
+  assert.ok(p.z+s.z/2<-.0049,"paper stays below the current spread");
+ }
+ binding.set("flipbook",true,false);binding.sync([true,true]);
+ assert.equal(shell.visible,false);assert.ok(layers.every(l=>l.count===0));
+ binding.dispose();assert.equal(book.children.length,0);
+});

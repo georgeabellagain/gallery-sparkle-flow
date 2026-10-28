@@ -59,13 +59,14 @@ import { BackdropLayer, IconButton, Segmented, type Tone } from "@/components/pf
 /** Full screen is the visible height of the window, which on a phone changes as the address bar slides away. */
 const FULL_HEIGHT = typeof CSS !== "undefined" && CSS.supports?.("height", "100dvh") ? "100dvh" : "100vh";
 
-type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri" | "simpleShadow" | "simpleShadowOpacity" | "shadeStyle" | "tabStyle" | "strength" | "textureStrength" | "topLight" | "imperfections" | "turnStyle" | "turnSpeed" | "turnCurve" | "bookStyle" | "ribbon" | "ribbonColour" | "ribbonGutter">;
+type Look = Pick<StudioSettings, "studio" | "material" | "brightness" | "hdri" | "simpleShadow" | "simpleShadowOpacity" | "shadeStyle" | "tabStyle" | "strength" | "textureStrength" | "topLight" | "imperfections" | "turnStyle" | "turnSpeed" | "turnCurve" | "bookStyle" | "pageStack" | "ribbon" | "ribbonColour" | "ribbonGutter">;
 const lookFrom = (viewer: ViewerSettings): Look => ({
   studio: viewer.look === "studio",
   turnStyle: viewer.turnStyle,
   turnSpeed: viewer.turnSpeed,
   turnCurve: viewer.turnCurve,
   bookStyle: viewer.bookStyle,
+  pageStack: viewer.pageStack === true,
   // The ribbon bookmark is set aside for now (its saved settings are kept for when it returns).
   ribbon: false,
   ribbonColour: viewer.ribbonColour,
@@ -612,7 +613,7 @@ export function BookView({
   useEffect(() => {
     setSettings(lookFor());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer.bookStyle, viewer.ribbon, viewer.ribbonColour, viewer.ribbonPage, layout, viewer.turnCurve, viewer.turnStyle, viewer.turnSpeed, viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioTopLight, viewer.studioImperfections, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.simpleShading, viewer.tabStyle, viewer.studioLightingStrength, previewLook, editingExtras]);
+  }, [viewer.bookStyle, viewer.pageStack, viewer.ribbon, viewer.ribbonColour, viewer.ribbonPage, layout, viewer.turnCurve, viewer.turnStyle, viewer.turnSpeed, viewer.look, viewer.finish, viewer.studioBrightness, viewer.studioTopLight, viewer.studioImperfections, viewer.studioLighting, viewer.simpleShadow, viewer.simpleShadowOpacity, viewer.simpleShading, viewer.tabStyle, viewer.studioLightingStrength, previewLook, editingExtras]);
   const touch = useRef<{ x: number; y: number } | null>(null);
   const drag = useRef<{ id: number; x: number; y: number; dir: 1 | -1; from: number; progress: number; prepared: Promise<void>; moved: boolean;
     /** Last pointer position, and whether the scene shapes this turn from the pointer itself (a soft turn). */

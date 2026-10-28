@@ -3,7 +3,7 @@ import { backgroundKeys } from "./background-settings";
 export const MAX_SAVED_LOOKS = 20;
 export interface SavedLook { id: string; name: string; viewer: Partial<ViewerSettings> }
 /** Explicit visual-only allowlist: copying a look must never copy reader content, access or identity. */
-export const LOOK_FIELDS = ["bookStyle", "finish", "look", "looks", "turnStyle", "turnCurve", "turnSpeed", "tabStyle", "studioLighting", "studioBrightness", "studioLightingStrength", "studioTopLight", "studioImperfections", "simpleShadow", "simpleShadowOpacity", "simpleShading", "background", "backgroundColor", "backgroundKey", "backgroundPreset", "backgroundFit", "backgrounds", "backgroundLighting", "background3D"] as const satisfies readonly (keyof ViewerSettings)[];
+export const LOOK_FIELDS = ["bookStyle", "pageStack", "finish", "look", "looks", "turnStyle", "turnCurve", "turnSpeed", "tabStyle", "studioLighting", "studioBrightness", "studioLightingStrength", "studioTopLight", "studioImperfections", "simpleShadow", "simpleShadowOpacity", "simpleShading", "background", "backgroundColor", "backgroundKey", "backgroundPreset", "backgroundFit", "backgrounds", "backgroundLighting", "background3D"] as const satisfies readonly (keyof ViewerSettings)[];
 export function captureLook(viewer: Partial<ViewerSettings>): Partial<ViewerSettings> {
   return structuredClone(Object.fromEntries(LOOK_FIELDS.map(key => [key, viewer[key]])));
 }
