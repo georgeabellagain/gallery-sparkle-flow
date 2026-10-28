@@ -1675,7 +1675,7 @@ export function BookView({
             }}
             onClickCapture={(e) => { if (handoff.current?.started) { e.preventDefault(); e.stopPropagation(); } }}>
             {editingExtras && <LiveScrapbookPage leaf={layout.leaves[n]!} side={side===0?'left':'right'} ratio={ratio} neighbour={spread[1-side] != null ? layout.leaves[spread[1-side]!] : undefined}/>}
-            {onLeaf.map(link => <PageLinkAnchor key={link.id} link={link} />)}
+            {onLeaf.map(link => <PageLinkAnchor key={link.id} link={link} visible painted />)}
             {videosForLeaf(pageVideos, layout.leaves[n]!).filter(v => !v.silent).map(v => <PageVideoSound key={v.id} video={v} on={videoSound === v.id} onToggle={() => videoPlayer.current?.toggleSound(v.id)} />)}
             {slideshowsForLeaf(pageSlideshows, layout.leaves[n]!).map(s => <PageSlideshowMark key={s.id} slideshow={s} />)}
             {stickersForLeaf(pageStickers, layout.leaves[n]!).map(s => <PageStickerMark key={s.id} sticker={s} />)}

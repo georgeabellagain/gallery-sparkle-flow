@@ -1,3 +1,4 @@
+import { LinkIconFields } from "./LinkIconFields";
 import { ExtraPositionControls } from "./ExtraPositionControls";
 import { LiveScrapbookContext } from "./live-scrapbook-context";
 import type { Extra } from "@/lib/portfolia/scrapbook-transform";
@@ -364,6 +365,7 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
         {urlError && <p role="alert" className="text-xs text-destructive">{urlError}</p>}
         {chips("links", links.map((l) => ({ id: l.id, page: l.page, label: hostOf(l.url) })))}
         {link && editing(<>
+          <LinkIconFields key={link.id} link={link} save={next => { const ok = patchPortfolioExtra(p.code, pdf.blobKey, "links", next.id, next); report(ok, "The logo could not be updated."); return ok; }} />
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><ExternalLink className="size-3.5" aria-hidden />Opens {hostOf(link.url)} in a new tab</p>
           <label className="block text-xs">Caption under the logo (optional)
             <input className={field} maxLength={40} value={link.label ?? ""} onChange={(e) => report(patchPortfolioExtra(p.code, pdf.blobKey, "links", link.id, { ...link, label: e.target.value || undefined }), "Keep the caption short.")} />

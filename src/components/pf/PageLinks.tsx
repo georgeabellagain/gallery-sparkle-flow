@@ -1,10 +1,12 @@
+import { linkAppearance } from "@/lib/portfolia/link-appearance";
 import { useEffect, useState } from "react";
 import { CornerDownRight, ExternalLink } from "lucide-react";
 import { hostOf, linkName, siteIconUrl, type PageJump, type PageLink } from "@/lib/portfolia/page-extras";
 import { useBlob, useObjectUrl } from "./Chrome";
 
 /** A website's logo on a tile: the creator's own picture if they chose one, otherwise the site's own icon. */
-export function LinkLogo({ link, className = "" }: { link: Pick<PageLink, "url" | "iconKey" | "label">; className?: string }) {
+export function LinkLogo({ link, className = "" }: { link: Pick<PageLink, "url" | "iconKey" | "label" | "iconShape" | "iconFit" | "iconPadding" | "iconBackground">; className?: string }) {
+  const appearance = linkAppearance(link);
   const custom = useObjectUrl(useBlob(link.iconKey));
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [link.url, link.iconKey]);
@@ -12,7 +14,8 @@ export function LinkLogo({ link, className = "" }: { link: Pick<PageLink, "url" 
   const letter = (linkName(link as PageLink) || "?").charAt(0).toUpperCase();
   return (
     <span
-      className={`flex aspect-square w-full items-center justify-center overflow-hidden rounded-[22%] bg-background ring-1 ring-border ${className}`}
+      className={`flex aspect-square w-full items-center justify-center overflow-hidden ring-1 ring-border ${className}`}
+      style={{ borderRadius: appearance.radius * 100 + "%", background: appearance.background, padding: appearance.padding * 100 + "%", boxSizing: "border-box" }}
     >
       {src && !failed ? (
         <img
@@ -20,7 +23,8 @@ export function LinkLogo({ link, className = "" }: { link: Pick<PageLink, "url" 
           alt=""
           draggable={false}
           referrerPolicy="no-referrer"
-          className={link.iconKey ? "h-full w-full object-cover" : "h-[62%] w-[62%] object-contain"}
+          className="h-full w-full"
+          style={{ objectFit: appearance.fit }}
           onError={() => setFailed(true)}
         />
       ) : (
@@ -65,7 +69,7 @@ export function PageJumpLink({ jump, onGo }: { jump: PageJump; onGo: (page: numb
  * The logo itself is painted into the page; hovering (or, on touch screens, always) shows a small "opens a
  * website" badge and where it goes, so readers know the logo is clickable.
  */
-export function PageLinkAnchor({ link, visible = false }: { link: PageLink; visible?: boolean }) {
+export function PageLinkAnchor({ link, visible = false, painted = false }: { link: PageLink; visible?: boolean; painted?: boolean }) {
   const name = linkName(link), host = hostOf(link.url);
   return (
     <a
@@ -85,7 +89,7 @@ export function PageLinkAnchor({ link, visible = false }: { link: PageLink; visi
     >
       <span className="block aspect-square w-full rounded-[22%] transition-[background-color,box-shadow] group-hover:bg-foreground/5 group-hover:ring-2 group-hover:ring-foreground/25 group-focus-visible:ring-2 group-focus-visible:ring-foreground/60 [container-type:inline-size]">
         {visible && <span className="block text-[36cqw]"><LinkLogo link={link} /></span>}
-        {visible && link.label?.trim() && <span className="relative -left-[45%] mt-[10%] block w-[190%] text-center font-medium leading-tight text-foreground text-[24cqw]" style={{ fontSize: `${24 * (link.fontSize ?? 100) / 100}cqw` }}>{link.label}</span>}
+        {visible && !painted && link.label?.trim() && <span className="relative -left-[45%] mt-[10%] block w-[190%] text-center font-medium leading-tight text-foreground text-[24cqw]" style={{ fontSize: `${24 * (link.fontSize ?? 100) / 100}cqw` }}>{link.label}</span>}
       </span>
       <span aria-hidden className="pointer-events-none absolute -right-2 -top-2 flex size-5 items-center justify-center rounded-full bg-foreground text-background opacity-0 shadow-md ring-2 ring-background transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-90">
         <ExternalLink className="size-3" />
