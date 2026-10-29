@@ -46,10 +46,13 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
   const [interacted, setInteracted] = useState(false);
   const [readerLook, setReaderLook] = useState<"simple" | "studio" | null>(null);
   const [studioFailed, setStudioFailed] = useState(false);
+  const [comparing, setComparing] = useState(workspace);
+  const [simpleReady, setSimpleReady] = useState(false);
   const [visible, setVisible] = useState(false);
   const [motionAllowed, setMotionAllowed] = useState(false);
   const figure = useRef<HTMLElement>(null);
   const readyChanged = useCallback((ready: boolean) => { if (ready) setRendered(true); }, []);
+  const studioRendered = useCallback(() => setRendered(true), []);
   const studioError = useCallback(() => setStudioFailed(true), []);
   const loadError = useCallback(() => setState("error"), []);
   useEffect(() => {
@@ -93,9 +96,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
   const p = data?.portfolio;
   const url = p?.pdf && data?.urls[p.pdf.blobKey];
   const source = useMemo(() => url ? { url } : null, [url]);
-  // Homepage only: Simple and Studio side by side, split by a line that sweeps across until the reader takes over.
-  const [comparing, setComparing] = useState(workspace);
-  const [simpleReady, setSimpleReady] = useState(false);
+  // Homepage only: Simple covers Studio until its final frame is ready, then the divider enters once.
   const simpleChanged = useCallback((ready: boolean) => { if (ready) setSimpleReady(true); }, []);
   const showCompare = comparing && rendered && simpleReady && state === "ready";
   const simpleActive = workspace && (comparing || readerLook === "simple");
@@ -129,7 +130,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
         autoTurnDelay={1600}
         autoTurn={rendered && visible && motionAllowed && !interacted && !comparing}
         onBookReadyChange={workspace ? undefined : readyChanged}
-        onDemoReady={workspace ? () => readyChanged(true) : undefined}
+        onDemoReady={workspace ? studioRendered : undefined}
         onLoadError={workspace ? studioError : loadError}
       /></div>}
       {workspace && state === "ready" && p?.pdf && source && <LookCompare show={showCompare} active={simpleActive} motion={motionAllowed}>
