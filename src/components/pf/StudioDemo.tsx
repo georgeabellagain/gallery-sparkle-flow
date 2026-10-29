@@ -98,7 +98,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
   const source = useMemo(() => url ? { url } : null, [url]);
   // Homepage only: Simple covers Studio until its final frame is ready, then the divider enters once.
   const simpleChanged = useCallback((ready: boolean) => { if (ready) setSimpleReady(true); }, []);
-  const showCompare = comparing && rendered && simpleReady && state === "ready";
+  const showCompare = comparing && rendered && simpleReady && !studioFailed && state === "ready";
   const simpleActive = workspace && (comparing || readerLook === "simple");
   const displayed = workspace ? simpleReady : rendered;
   const insideSlider = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest("[data-compare-slider]"));
@@ -113,7 +113,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
   };
   return <figure ref={figure} onPointerDownCapture={stop} onKeyDownCapture={e => { if (e.key !== "Tab") stop(e); }} className={className ?? "mx-auto w-full max-w-5xl"}>
     <div className={workspace ? "pf-workspace-demo relative h-full overflow-hidden [&:has([data-fullscreen=true])_[data-demo-guidance]]:hidden" : "pf-home-demo relative overflow-hidden rounded-3xl border border-border shadow-lift [&_.pf-book-viewport]:h-[28rem] sm:[&_.pf-book-viewport]:h-[36rem] lg:[&_.pf-book-viewport]:h-[40rem]"}>
-      {state === "ready" && p?.pdf && source && (!workspace || simpleReady) && !studioFailed && <div data-demo-studio style={{ opacity: rendered ? 1 : 0, pointerEvents: rendered && !simpleActive ? "auto" : "none" }} aria-hidden={!rendered || simpleActive} inert={!rendered || simpleActive}>
+      {state === "ready" && p?.pdf && source && (!workspace || simpleReady) && <div data-demo-studio style={{ opacity: rendered ? 1 : 0, pointerEvents: rendered && (!simpleActive || showCompare) ? "auto" : "none" }} aria-hidden={!rendered || (simpleActive && !showCompare)} inert={!rendered || (simpleActive && !showCompare)}>
       <PdfViewer
         source={source}
         fileName={p.pdf.name}
