@@ -129,6 +129,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   const environmentColours = new Map<HdriId, [number, number, number]>();
   const diffuser = createEnvironmentDiffuser(renderer);
   const loading = new Map<HdriId, Promise<THREE.WebGLRenderTarget | null>>();
+  const finalEnvironments = new Set<HdriId>();
   let environmentGenerator: THREE.PMREMGenerator | undefined;
   const toEnvironment = (data: Uint16Array, width: number, height: number) => {
     const hdr = new THREE.DataTexture(data, width, height, THREE.RGBAFormat, THREE.HalfFloatType);
@@ -171,6 +172,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // A late download must not recreate GPU maps already evicted by newer choices.
     if (!previous) return;
     const target = install(id, prepared);
+    finalEnvironments.add(id);
     if (settings.studio && settings.hdri === id) {
       environmentInUse = id;
       scene.environment = diffuser.apply(target, studioLightMix(settings.strength).hdri, environmentColours.get(id));
@@ -192,6 +194,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
         .then(({ prepared, final }) => {
           if (disposed) return null;
           const target = install(id, prepared);
+          if (final) finalEnvironments.add(id);
           if (!final) void full.then((better) => upgradeEnvironment(id, better), () => {});
           return target;
         })
@@ -1160,6 +1163,15 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     setCoverColour(canvas:HTMLCanvasElement,board:"front"|"back"="front"){binding.setCoverColour(sampleCoverColour(canvas),board);requestPaint();},
     setCaptureClock(clock?:()=>Promise<void>) {captureClock=clock;},
     async captureReady() { await paperTextures.ready(); await backdrop.ready(); if (!await loadEnvironment(settings.hdri)) throw new Error("Studio lighting could not be prepared."); },
+    /** Finish all Studio uploads behind the homepage's stable Simple reader. */
+    async demoReady() {
+      await Promise.all([paperTextures.ready(), backdrop.ready(), loadEnvironment(settings.hdri)]);
+      const id = settings.hdri;
+      const prepared = await loadPreparedEnvironment(id, "full");
+      if (disposed) throw new Error("The renderer closed.");
+      if (!finalEnvironments.has(id)) upgradeEnvironment(id, prepared);
+      warm();
+    },
     setFrameSink(sink?: (canvas: HTMLCanvasElement) => void) { frameSink = sink; paint(); },
     renderFrame: paint,
     /** `shown` false leaves the canvas clear behind the book, for a colour-and-motion scene drawn underneath it. */

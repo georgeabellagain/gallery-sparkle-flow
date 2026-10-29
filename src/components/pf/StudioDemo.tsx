@@ -9,6 +9,7 @@ import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
 import type { PublicPortfolio } from "@/lib/portfolia/public.functions";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
 import { DEFAULT_VIEWER } from "@/lib/portfolia/store";
+import { Button } from "@/components/ui/button";
 
 // Explicitly selected by the site owner. Never select an arbitrary account or draft.
 export const FEATURED_PORTFOLIO_CODE = "adu2v";
@@ -43,10 +44,16 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
   const [slow, setSlow] = useState(false);
   const [rendered, setRendered] = useState(false);
   const [interacted, setInteracted] = useState(false);
+  const [readerLook, setReaderLook] = useState<"simple" | "studio" | null>(null);
+  const [studioFailed, setStudioFailed] = useState(false);
+  const [comparing, setComparing] = useState(workspace);
+  const [simpleReady, setSimpleReady] = useState(false);
   const [visible, setVisible] = useState(false);
   const [motionAllowed, setMotionAllowed] = useState(false);
   const figure = useRef<HTMLElement>(null);
   const readyChanged = useCallback((ready: boolean) => { if (ready) setRendered(true); }, []);
+  const studioRendered = useCallback(() => setRendered(true), []);
+  const studioError = useCallback(() => setStudioFailed(true), []);
   const loadError = useCallback(() => setState("error"), []);
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -64,6 +71,11 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
     let cancelled = false;
     setState("loading");
     setRendered(false);
+    setSimpleReady(false);
+    setStudioFailed(false);
+    setReaderLook(null);
+    setComparing(workspace);
+    setInteracted(false);
     setSlow(false);
     setData(null);
     const timeout = setTimeout(() => { cancelled = true; setState("error"); }, 30000);
@@ -77,28 +89,31 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
     return () => { cancelled = true; clearTimeout(timeout); };
   }, [attempt, exampleCode, workspace]);
   useEffect(() => {
-    if (state !== "ready" || rendered) { setSlow(false); return; }
+    if (state !== "ready" || (workspace ? simpleReady : rendered)) { setSlow(false); return; }
     const timeout = setTimeout(() => setSlow(true), 60000);
     return () => clearTimeout(timeout);
-  }, [state, rendered, attempt]);
+  }, [state, rendered, simpleReady, workspace, attempt]);
   const p = data?.portfolio;
   const url = p?.pdf && data?.urls[p.pdf.blobKey];
   const source = useMemo(() => url ? { url } : null, [url]);
-  // Homepage only: Simple and Studio side by side, split by a line that sweeps across until the reader takes over.
-  const [comparing, setComparing] = useState(workspace);
-  const [simpleReady, setSimpleReady] = useState(false);
+  // Homepage only: Simple covers Studio until its final frame is ready, then the divider enters once.
   const simpleChanged = useCallback((ready: boolean) => { if (ready) setSimpleReady(true); }, []);
-  const showCompare = comparing && rendered && simpleReady && state === "ready";
+  const showCompare = comparing && rendered && simpleReady && !studioFailed && state === "ready";
+  const simpleActive = workspace && (comparing || readerLook === "simple");
+  const displayed = workspace ? simpleReady : rendered;
   const insideSlider = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest("[data-compare-slider]"));
   const stop = (e: { target: EventTarget | null }) => {
     // Dragging the line is comparing; anything else with the book means the reader is reading.
     if (insideSlider(e.target)) return;
+    // Scrolling the homepage does not end the comparison or change the visible look.
+    if (e.target instanceof Element && e.target.closest("[data-demo-guidance]")) return;
     setInteracted(true);
+    if (readerLook === null) setReaderLook(showCompare || !workspace ? "studio" : "simple");
     setComparing(false);
   };
-  return <figure ref={figure} onPointerDownCapture={stop} onKeyDownCapture={stop} onWheelCapture={stop} className={className ?? "mx-auto w-full max-w-5xl"}>
-    <div className={workspace ? "pf-workspace-demo relative h-full overflow-hidden" : "pf-home-demo relative overflow-hidden rounded-3xl border border-border shadow-lift [&_.pf-book-viewport]:h-[28rem] sm:[&_.pf-book-viewport]:h-[36rem] lg:[&_.pf-book-viewport]:h-[40rem]"} style={{ background: p?.viewer?.backgroundColor ?? "#02011e" }}>
-      {state === "ready" && p?.pdf && source && <div style={{ opacity: rendered ? 1 : 0, pointerEvents: rendered ? "auto" : "none" }} aria-hidden={!rendered} inert={!rendered}>
+  return <figure ref={figure} onPointerDownCapture={stop} onKeyDownCapture={e => { if (e.key !== "Tab") stop(e); }} className={className ?? "mx-auto w-full max-w-5xl"}>
+    <div className={workspace ? "pf-workspace-demo relative h-full overflow-hidden [&:has([data-fullscreen=true])_[data-demo-guidance]]:hidden" : "pf-home-demo relative overflow-hidden rounded-3xl border border-border shadow-lift [&_.pf-book-viewport]:h-[28rem] sm:[&_.pf-book-viewport]:h-[36rem] lg:[&_.pf-book-viewport]:h-[40rem]"}>
+      {state === "ready" && p?.pdf && source && (!workspace || simpleReady) && <div data-demo-studio style={{ opacity: rendered ? 1 : 0, pointerEvents: rendered && (!simpleActive || showCompare) ? "auto" : "none" }} aria-hidden={!rendered || (simpleActive && !showCompare)} inert={!rendered || (simpleActive && !showCompare)}>
       <PdfViewer
         source={source}
         fileName={p.pdf.name}
@@ -114,36 +129,36 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
         fullSpread
         autoTurnDelay={1600}
         autoTurn={rendered && visible && motionAllowed && !interacted && !comparing}
-        showcaseOrbit={workspace && rendered && visible && motionAllowed && !interacted}
-        onBookReadyChange={readyChanged}
-        onLoadError={loadError}
+        onBookReadyChange={workspace ? undefined : readyChanged}
+        onDemoReady={workspace ? studioRendered : undefined}
+        onLoadError={workspace ? studioError : loadError}
       /></div>}
-      {comparing && state === "ready" && p?.pdf && source && <LookCompare show={showCompare} sweep={visible && motionAllowed}>
+      {workspace && state === "ready" && p?.pdf && source && <LookCompare show={showCompare} active={simpleActive} motion={motionAllowed}>
         {/* The same book in the Simple look, framed identically and showing the same spread; it only ever shows, never takes input. */}
         <PdfViewer
           source={source}
           fileName={p.pdf.name}
           viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "clean", modes: ["book"], looks: ["clean"] }}
           startPage={HOME_EXAMPLE_START_PAGE}
-          controls={false}
+          controls={!showCompare}
           pageNumber={false}
           homepageExample
           projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} spotlights={p.pdf.spotlights} jumps={p.pdf.jumps} stickers={p.pdf.stickers} hotspots={p.pdf.hotspots} slideshows={p.pdf.slideshows}
           initialLook="clean"
           fullSpread
-          showcaseOrbit={rendered && visible && motionAllowed && !interacted}
           onBookReadyChange={simpleChanged}
+          onLoadError={loadError}
         />
       </LookCompare>}
-      {workspace && rendered && state === "ready" && <p id="demo-guide" className="pointer-events-none absolute inset-x-3 bottom-16 z-30 mx-auto w-fit max-w-[calc(100%-1.5rem)] rounded-2xl bg-background/90 px-3 py-1.5 text-center text-[11px] leading-snug text-foreground shadow-soft sm:bottom-20">
+      {workspace && displayed && state === "ready" && <p id="demo-guide" data-demo-guidance className="pointer-events-none absolute inset-x-3 bottom-16 z-30 mx-auto w-fit max-w-[calc(100%-1.5rem)] rounded-2xl bg-background/90 px-3 py-1.5 text-center text-[11px] leading-snug text-foreground shadow-soft sm:bottom-20">
         {showCompare
-          ? <>Drag the line, or focus it and press ← →, to compare Simple and Studio. Tap or click the book to start reading.</>
-          : <>Drag a page across, or press ← → to turn pages.</>}
+          ? <>Drag the line to compare. Go full screen to view the full flipbook.</>
+          : <>Go full screen to view the full flipbook.</>}
       </p>}
-      {(!rendered || state === "error") && <div role="status" className={`absolute inset-0 flex flex-col items-center justify-center gap-3 bg-slate-950/80 px-6 text-center text-sm text-white/90`}>
+      {(!displayed || state === "error") && <div role="status" className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-background/95 px-6 text-center text-sm text-foreground">
         {state !== "error" && <BookLoader tone="dark" label="" />}
         {(state === "error" || slow) && <p>{state === "error" ? "The example is temporarily unavailable." : "This is taking longer than usual. You can wait or try again."}</p>}
-        {(state === "error" || slow) && <button type="button" className="underline underline-offset-4" onClick={() => setAttempt((n) => n + 1)}>Try again</button>}
+        {(state === "error" || slow) && <Button variant="ghost" onClick={() => setAttempt((n) => n + 1)}>Try again</Button>}
       </div>}
     </div>
     {!workspace && <figcaption className="mt-3 text-center text-xs text-muted-foreground">{FEATURED_CREDIT}</figcaption>}

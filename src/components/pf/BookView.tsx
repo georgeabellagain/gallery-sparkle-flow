@@ -374,6 +374,7 @@ export function BookView({
   fullscreen,
   awake = true,
   onReadyChange,
+  onDemoReady,
   onRenderError,
   autoTurn = false,
   autoTurnDelay = 3200,
@@ -427,6 +428,8 @@ export function BookView({
   awake?: boolean;
   /** Told when the book has rendered and is ready to show, and when it is preparing again. */
   onReadyChange?: (ready: boolean) => void;
+  /** Homepage only: final lighting, backdrop, shaders and a painted frame. */
+  onDemoReady?: () => void;
   onRenderError?: (message: string) => void;
   /** Featured demo only; uses the normal animated turn path. */
   autoTurn?: boolean;
@@ -1422,6 +1425,20 @@ export function BookView({
   useEffect(() => {
     onReadyChange?.(bookReady);
   }, [bookReady, onReadyChange]);
+
+  useEffect(() => {
+    const renderer = scene.current;
+    if (!onDemoReady || !bookReady || fallback || !renderer) return;
+    let cancelled = false;
+    void import("@/lib/portfolia/demo-readiness").then(({ prepareDemoPresentation }) => prepareDemoPresentation(
+      () => renderer.demoReady(),
+      () => renderer.shadersReady(),
+      () => new Promise<void>(resolve => requestAnimationFrame(() => resolve())),
+    )).then(() => { if (!cancelled && scene.current === renderer) onDemoReady(); }).catch(() => {
+      // Failed Studio preparation must not obstruct the independent Simple reader.
+    });
+    return () => { cancelled = true; };
+  }, [bookReady, fallback, onDemoReady]);
 
   useEffect(() => {
     const renderer = scene.current;
