@@ -2,9 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAccount } from "@/lib/require-account";
 import { gatewayFetch, getPaddleClient, type PaddleEnv } from "./paddle.server";
+import { PLAN_PRICES } from "./portfolia/plan-prices";
 
 const envSchema = z.enum(["sandbox", "live"]);
-const PRICE_IDS = ["personal_monthly", "personal_yearly"] as const;
+const PRICE_IDS = PLAN_PRICES;
 
 async function paddlePriceId(env: PaddleEnv, externalId: string): Promise<string> {
   const res = await gatewayFetch(env, `/prices?external_id=${encodeURIComponent(externalId)}`);

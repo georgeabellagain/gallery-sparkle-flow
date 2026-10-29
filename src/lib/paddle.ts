@@ -33,7 +33,7 @@ export function initializePaddle(): Promise<void> {
   return ready;
 }
 
-export type PlanPrice = "personal_monthly" | "personal_yearly";
+export type PlanPrice = import("@/lib/portfolia/plan-prices").PlanPriceId;
 
 export async function openCheckout(o: { priceId: PlanPrice; email?: string; userId: string; successUrl: string }) {
   await initializePaddle();

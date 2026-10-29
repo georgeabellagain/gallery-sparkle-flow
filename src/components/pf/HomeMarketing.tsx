@@ -30,7 +30,7 @@ const SWITCH = [
  {name: "Heyzine", slug: "heyzine-alternative", text: "Heyzine is built for interactive publications. Portfolia is built to present your own creative work beautifully."},
 ];
 
-export function HomeMarketing({onUpgrade,onAccepted,limitMb}:{onUpgrade:(billing:Billing)=>void;onAccepted:(pdf:PdfFile)=>void;limitMb:number}) {
+export function HomeMarketing({onUpgrade,onAccepted,limitMb}:{onUpgrade:(billing:Billing,plan?:"personal"|"business")=>void;onAccepted:(pdf:PdfFile)=>void;limitMb:number}) {
  return <div className="bg-background">
    <FactStrip />
    <section aria-labelledby="why-title" className="rule-t">
@@ -57,7 +57,7 @@ export function HomeMarketing({onUpgrade,onAccepted,limitMb}:{onUpgrade:(billing
     <div className="shell">
      <h2 id="home-pricing-title" className="display-title text-center text-3xl sm:text-5xl">Start free. Make it yours.</h2>
      <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground">Free gets your portfolio online properly. Personal gives it your name, your privacy settings and no Portfolia branding.</p>
-     <PricingPlans className="mt-8" onChoosePersonal={onUpgrade} freeAction={<Button asChild variant="line" size="lg" className="w-full"><a href="#upload">Start for free</a></Button>} />
+     <PricingPlans className="mt-8" onChoosePersonal={(b) => onUpgrade(b, "personal")} onChooseBusiness={(b) => onUpgrade(b, "business")} freeAction={<Button asChild variant="line" size="lg" className="w-full"><a href="#upload">Start for free</a></Button>} />
      <p className="mt-6 text-center text-sm"><Link to="/pricing" className="underline underline-offset-4">Compare every feature</Link></p>
     </div>
    </section>

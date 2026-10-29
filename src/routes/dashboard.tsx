@@ -23,7 +23,7 @@ import { YourData } from "@/components/pf/YourData";
 import { usePageImageBackfill } from "@/lib/portfolia/make-page-images";
 import { PageImagesNote } from "@/components/pf/PageImagesNote";
 import {
-  allPortfolios, beginNewPortfolio, canAddPortfolio, isPaid, MAX_PORTFOLIOS, personalActive, switchPortfolio,
+  allPortfolios, beginNewPortfolio, canAddPortfolio, isBusiness, isPaid, MAX_BUSINESS_PORTFOLIOS, MAX_PORTFOLIOS, maxPortfolios, personalActive, switchPortfolio,
   getDoc, resetAll, startPortfolio, update, uploadLimitMb, useDoc, DEFAULT_VIEWER, type Portfolio,
 } from "@/lib/portfolia/store";
 
@@ -46,13 +46,14 @@ function Dashboard() {
   const hydrated = useHydrated();
   const navigate = useNavigate();
   const p = doc.portfolio;
-  const [dialog, setDialog] = useState<null | "share" | "upgrade" | "cancel" | "limit">(null);
+  const [dialog, setDialog] = useState<null | "share" | "upgrade" | "business" | "cancel" | "limit">(null);
   const [msg, setMsg] = useState<string | null>(null);
   const { user, sub, loading, refresh } = useAccount();
   const portal = useServerFn(getPortalUrl);
   const checkoutDone = typeof window !== "undefined" && window.location.search.includes("checkout=success");
   const all = allPortfolios(doc);
   const paid = isPaid(doc);
+  const business = isBusiness(doc);
   const pdfLimitMb = uploadLimitMb(doc);
   const profile = p?.profile ?? all[0]?.profile;
   const profilePhoto = useBlob(profile?.photoKey);
@@ -131,7 +132,7 @@ function Dashboard() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div><p className="label-xs">Library</p><h2 className="display-title mt-1 text-4xl">Portfolios</h2></div>
             <div className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground">{all.length}/{paid ? MAX_PORTFOLIOS : 1}</span>
+              <span className="text-xs text-muted-foreground">{all.length}/{maxPortfolios(doc)}</span>
               <Button size="sm" onClick={uploadNew}><Upload /> Upload portfolio</Button>
             </div>
           </div>
@@ -166,7 +167,7 @@ function Dashboard() {
           <div>
             <h2 className="text-sm font-medium">Plan and account</h2>
             <p className="mt-1 text-xs text-muted-foreground">Email, password, two-step sign-in and your data are in <Link to="/account" className="underline underline-offset-4">Account settings</Link>.</p>
-            <p className="mt-2 text-sm">{p.plan === "personal" ? `Personal — billed ${p.billing === "month" ? "monthly" : "yearly"}` : "Free"}</p>
+            <p className="mt-2 text-sm">{p.plan === "personal" ? `${business ? "Business" : "Personal"} — billed ${p.billing === "month" ? "monthly" : "yearly"}` : "Free"}</p>
             {checkoutDone && !sub && <p role="status" className="mt-1 text-xs text-muted-foreground">Payment received — confirming your plan…</p>}
             {sub?.status === "past_due" && <p role="alert" className="mt-1 text-xs text-destructive">Your last payment didn’t go through. Please update your card.</p>}
             {p.plan === "free" && <div className="mt-4 border border-leaf/40 bg-leaf-soft/50 p-5">
@@ -178,6 +179,7 @@ function Dashboard() {
             </div>}
             <div className="mt-4 flex flex-wrap gap-2">
               {p.plan === "free" ? <Button size="sm" onClick={() => setDialog("upgrade")}>Upgrade to Personal</Button> : <>
+                {!business && <Button size="sm" variant="line" onClick={() => setDialog("business")}>Move up to Business</Button>}
                 {sub && sub.status !== "canceled" && <Button size="sm" variant="quiet" onClick={() => setDialog("cancel")}>{sub.status === "past_due" ? "Update card" : "Manage billing"}</Button>}
               </>}
             </div>
@@ -193,10 +195,18 @@ function Dashboard() {
       <Modal open={dialog === "share"} onClose={() => setDialog(null)} title="Share portfolio" description="Copy your link, make a QR code or embed it on your website." wide>
         <ShareActions key={p.code} p={p} />
       </Modal>
-      <UpgradeModal open={dialog === "upgrade"} onClose={() => setDialog(null)} />
+      <UpgradeModal open={dialog === "upgrade" || dialog === "business"} plan={dialog === "business" ? "business" : "personal"} onClose={() => setDialog(null)} />
       <Modal open={dialog === "limit"} onClose={() => setDialog(null)} title={paid ? "Portfolio limit reached" : "Upload another portfolio"}>
-        {paid ? (
-          <p className="text-muted-foreground">You have {all.length} of {MAX_PORTFOLIOS} portfolios, the most a Personal plan includes.</p>
+        {business ? (
+          <p className="text-muted-foreground">You have {all.length} of {MAX_BUSINESS_PORTFOLIOS} portfolios, the most a Business plan includes. Remove one to add another, or email hello@portfolia.site if you need more.</p>
+        ) : paid ? (
+          <>
+            <p className="text-muted-foreground">You have {all.length} of {MAX_PORTFOLIOS} portfolios, the most a Personal plan includes. Business lets you keep up to {MAX_BUSINESS_PORTFOLIOS}.</p>
+            <div className="mt-6 flex justify-end gap-2">
+              <Button variant="line" onClick={() => setDialog(null)}>Not now</Button>
+              <Button onClick={() => setDialog("business")}>See Business plan</Button>
+            </div>
+          </>
         ) : (
           <>
             <p className="text-muted-foreground">The free plan includes one portfolio. Personal lets you keep up to {MAX_PORTFOLIOS}, each with its own link. Would you like to upgrade?</p>
@@ -207,7 +217,7 @@ function Dashboard() {
           </>
         )}
       </Modal>
-      <Modal open={dialog === "cancel"} onClose={() => setDialog(null)} title="Manage Personal">
+      <Modal open={dialog === "cancel"} onClose={() => setDialog(null)} title={business ? "Manage Business" : "Manage Personal"}>
         <p className="text-muted-foreground">Your portfolios remain available at their free addresses if you cancel. Nothing is deleted immediately.</p>
         <Confirm onCancel={() => setDialog(null)} label="Open billing page" onConfirm={async () => { setDialog(null); const w = window.open("", "_blank"); try { const url = await portal({ data: { environment: getPaddleEnvironment() } }); if (w) w.location.href = url; else window.location.href = url; } catch { w?.close(); setMsg("Couldn’t open the billing page — try again."); } }} />
       </Modal>

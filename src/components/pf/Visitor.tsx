@@ -4,6 +4,7 @@ import { ReaderInsights } from "./ReaderInsights";
 import { portfolioAnalytics } from "@/lib/portfolia/analytics";
 import { StudioDemo } from "./StudioDemo";
 import { useReading } from "./use-reading";
+import { useBusinessReader } from "./business-reader";
 import { useEffect, useState } from "react";
 import { Link, useHydrated } from "@tanstack/react-router";
 import { Eye } from "lucide-react";
@@ -25,6 +26,8 @@ export function OwnVisitor({ p, preview, trackActivity = true }: { p: Portfolio;
   const fromQr = useOpenedFromQr();
   // Reader insights: pages, time, presses and plays, for published portfolios opened by someone else.
   const reading = useReading(p.code, trackActivity && !preview && p.status === "published");
+  // Business: the owner's own Google Analytics (with the reader's consent) and logo as the tab icon.
+  const business = useBusinessReader(p, trackActivity && !preview && p.status === "published");
   useEffect(() => {
     if (trackActivity && !preview && p.status === "published") recordVisit(p.code);
   }, [p.code, p.status, preview, trackActivity]);
@@ -59,8 +62,9 @@ export function OwnVisitor({ p, preview, trackActivity = true }: { p: Portfolio;
         cvBlobKey={p.plan === "personal" ? p.profile.cv?.blobKey : undefined}
         immersive
         startFullscreen={fromQr}
-        onReaderPage={reading.onPage}
+        onReaderPage={(n) => { reading.onPage(n); business.page(n); }}
       />
+      {business.consent}
     </div>
   );
 }

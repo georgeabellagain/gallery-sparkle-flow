@@ -1,4 +1,4 @@
-import { FREE_UPLOAD_LIMIT_MB, MAX_PORTFOLIOS, PERSONAL_UPLOAD_LIMIT_MB, PRICE } from "./store";
+import { BUSINESS_PRICE, BUSINESS_UPLOAD_LIMIT_MB, FREE_UPLOAD_LIMIT_MB, MAX_BUSINESS_PORTFOLIOS, MAX_LEAD_RECIPIENTS, MAX_PORTFOLIOS, PERSONAL_UPLOAD_LIMIT_MB, PRICE } from "./store";
 
 /**
  * One source of truth for plan copy, so the homepage, pricing page, upgrade
@@ -16,6 +16,13 @@ export const YEARLY_PER_MONTH = `£${(yearlyTotal / 12).toFixed(2)}`;
 /** How each Personal price is billed, worded the same everywhere. */
 export const MONTHLY_BILLING = `${PRICE.month}/month, billed monthly`;
 export const YEARLY_BILLING = `${PRICE.year} billed yearly (${YEARLY_PER_MONTH}/month equivalent)`;
+
+/** The same figures for Business. */
+const businessYear = pounds(BUSINESS_PRICE.year), businessMonths = pounds(BUSINESS_PRICE.month) * 12;
+export const BUSINESS_YEARLY_SAVING = Math.round((1 - businessYear / businessMonths) * 100);
+export const BUSINESS_YEARLY_PER_MONTH = `£${(businessYear / 12).toFixed(2)}`;
+export const BUSINESS_MONTHLY_BILLING = `${BUSINESS_PRICE.month}/month, billed monthly`;
+export const BUSINESS_YEARLY_BILLING = `${BUSINESS_PRICE.year} billed yearly (${BUSINESS_YEARLY_PER_MONTH}/month equivalent)`;
 
 export const FREE_FEATURES = [
   `One portfolio, PDFs up to ${FREE_UPLOAD_LIMIT_MB} MB`,
@@ -42,13 +49,23 @@ export const PERSONAL_FEATURES = [
   "Photo shoot: studio-quality book photos and flat lays",
 ];
 
+/** What Business adds to Personal, each item enforced in code (plan-prices.ts, entitlements.server.ts, the business plan migration). */
+export const BUSINESS_FEATURES = [
+  `Up to ${MAX_BUSINESS_PORTFOLIOS} portfolios, PDFs up to ${BUSINESS_UPLOAD_LIMIT_MB} MB`,
+  "Your own Google Analytics 4 on every portfolio, with reader consent",
+  `Lead alerts to up to ${MAX_LEAD_RECIPIENTS} team email addresses`,
+  "Your logo as the browser tab icon on your portfolios",
+  "Priority email support",
+];
+
 export type ComparisonValue = boolean | string;
-export const PLAN_COMPARISON: { group: string; rows: { label: string; free: ComparisonValue; personal: ComparisonValue }[] }[] = [
+/** `business` is left out where it is the same as Personal. */
+export const PLAN_COMPARISON: { group: string; rows: { label: string; free: ComparisonValue; personal: ComparisonValue; business?: ComparisonValue }[] }[] = [
   {
     group: "Hosting",
     rows: [
-      { label: "Portfolios", free: "1", personal: String(MAX_PORTFOLIOS) },
-      { label: "PDF size", free: `${FREE_UPLOAD_LIMIT_MB} MB`, personal: `${PERSONAL_UPLOAD_LIMIT_MB} MB` },
+      { label: "Portfolios", free: "1", personal: String(MAX_PORTFOLIOS), business: String(MAX_BUSINESS_PORTFOLIOS) },
+      { label: "PDF size", free: `${FREE_UPLOAD_LIMIT_MB} MB`, personal: `${PERSONAL_UPLOAD_LIMIT_MB} MB`, business: `${BUSINESS_UPLOAD_LIMIT_MB} MB` },
       { label: "Permanent link (portfolia.site/p/…)", free: true, personal: true },
       { label: "Your own address (portfolia.site/yourname)", free: false, personal: true },
       { label: "Replace your PDF, keep the link", free: true, personal: true },
@@ -64,6 +81,7 @@ export const PLAN_COMPARISON: { group: string; rows: { label: string; free: Comp
       { label: "Hotspots, info icons, YouTube and Vimeo videos on pages", free: true, personal: true },
       { label: "Search, thumbnails and links to any page", free: true, personal: true },
       { label: "Your logo in the viewer", free: false, personal: true },
+      { label: "Your logo as the browser tab icon", free: false, personal: false, business: true },
       { label: "Videos uploaded onto pages", free: false, personal: true },
       { label: "Custom profile styling", free: false, personal: true },
       { label: "Downloadable CV", free: false, personal: true },
@@ -83,6 +101,15 @@ export const PLAN_COMPARISON: { group: string; rows: { label: string; free: Comp
       { label: "Reader insights (pages, time, clicks, plays, devices, countries, sources)", free: false, personal: true },
       { label: "Insights CSV export", free: false, personal: true },
       { label: "Lead capture forms", free: false, personal: true },
+      { label: "Lead alerts to team email addresses", free: false, personal: false, business: `Up to ${MAX_LEAD_RECIPIENTS}` },
+      { label: "Google Analytics 4 integration", free: false, personal: false, business: true },
+    ],
+  },
+  {
+    group: "Support",
+    rows: [
+      { label: "Help guides and email support", free: true, personal: true },
+      { label: "Priority email support", free: false, personal: false, business: true },
     ],
   },
 ];
@@ -90,7 +117,8 @@ export const PLAN_COMPARISON: { group: string; rows: { label: string; free: Comp
 export const PLAN_FAQ = [
   { q: "Is the Free plan really free?", a: "Yes. No card and no trial timer. Free keeps one portfolio online with a permanent link for as long as you like." },
   { q: "Do I need an account to try it?", a: "No. Drop a PDF on the homepage to preview it in every reader. Sign in only when you want to save and publish." },
-  { q: "Can I change plan later?", a: "Yes. Move between monthly and yearly billing, or back to Free, at any time from your dashboard." },
+  { q: "Can I change plan later?", a: "Yes. Move between monthly and yearly billing, between Personal and Business, or back to Free, at any time from your dashboard. Changes are charged or credited for the time left." },
+  { q: "Who is Business for?", a: `Studios, brands and teams publishing more: up to ${MAX_BUSINESS_PORTFOLIOS} portfolios, larger PDFs, your own Google Analytics, lead alerts for your team and priority support. It includes everything in Personal.` },
   { q: "What happens if I cancel Personal?", a: "Access continues to the end of the paid period. Your portfolios keep their permanent /p/ links and nothing is deleted." },
   { q: "Will links I have already shared keep working if I upgrade?", a: "Yes. Your permanent /p/ link never changes. Your personalised address is added alongside it." },
   { q: "How do people find my portfolio?", a: "Share your link or QR code, embed it on your own site, or opt in to search engine indexing for each portfolio." },

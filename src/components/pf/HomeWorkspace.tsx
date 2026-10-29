@@ -27,6 +27,7 @@ export function HomeWorkspace() {
   const [over, setOver] = useState(false);
   const [upgrade, setUpgrade] = useState(false);
   const [billing, setBilling] = useState<Billing>("year");
+  const [upgradePlan, setUpgradePlan] = useState<"personal" | "business">("personal");
   useEffect(() => {
     const about = () => { if (window.location.hash === "#about") setDialog("help"); };
     about(); window.addEventListener("hashchange", about);
@@ -88,7 +89,7 @@ export function HomeWorkspace() {
       {(over || phase) && <div role="status" className="pointer-events-none absolute inset-0 z-[70] flex items-center justify-center bg-background/90"><p className="display-title text-3xl">{phase ? `${phase}…` : "Drop your PDF here"}</p></div>}
       {error && <p role="alert" className="absolute left-1/2 top-20 z-[80] w-[min(90vw,32rem)] -translate-x-1/2 rounded-xl border border-destructive/20 bg-background p-3 text-sm text-destructive shadow-soft">{error}</p>}
     </main></HomeScrollContext.Provider>
-    <HomeMarketing onUpgrade={b => { setBilling(b); setUpgrade(true); }} onAccepted={accepted} limitMb={uploadLimitMb(doc)} />
+    <HomeMarketing onUpgrade={(b, plan = "personal") => { setBilling(b); setUpgradePlan(plan); setUpgrade(true); }} onAccepted={accepted} limitMb={uploadLimitMb(doc)} />
     <Modal open={dialog === "upload"} onClose={closeUpload} title="Start a new portfolio">
       {canCreate() ? <><p className="mb-4 text-sm text-muted-foreground">Upload a PDF to open its own editor. Your existing portfolios stay separate.</p><DropZone small allowPreview limitMb={uploadLimitMb(doc)} onAccepted={accepted} /><p className="mt-3 text-xs text-muted-foreground">No sign-up to preview. Sign in to save and publish.</p></> : <><p className="text-sm">Your plan’s portfolio limit has been reached. Open a portfolio from My portfolios to replace its PDF, or choose Personal for more portfolios.</p><Button className="mt-5" onClick={() => { setDialog(null); setUpgrade(true); }}>View Personal</Button></>}
     </Modal>
@@ -99,6 +100,6 @@ export function HomeWorkspace() {
     <Modal open={dialog === "help"} onClose={() => setDialog(null)} title="About Portfolia">
       <div id="about" className="space-y-4 text-sm"><p>Upload a PDF to open its editor, customise its presentation and share one link. Visit My portfolios to return to an existing portfolio.</p><p>Contact <a href="mailto:hello@portfolia.site" className="underline">hello@portfolia.site</a> for help.</p><div className="flex flex-wrap gap-4"><Link to="/terms">Terms</Link><Link to="/privacy">Privacy</Link><Link to="/refund">Refund policy</Link><Link to="/marketing-portfolio">Marketing portfolios</Link><Link to="/flipbook-alternatives">Portfolio guides</Link></div></div>
     </Modal>
-    <UpgradeModal open={upgrade} initialBilling={billing} onClose={() => setUpgrade(false)} />
+    <UpgradeModal open={upgrade} initialBilling={billing} plan={upgradePlan} onClose={() => setUpgrade(false)} />
   </div>;
 }

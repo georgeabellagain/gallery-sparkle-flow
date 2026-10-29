@@ -17,11 +17,17 @@ import { recordAppearance, stepAppearance, withCurrentFiles, type AppearanceSnap
 /** Publishing allowances; the database enforces the same numbers (see supabase/migrations). */
 export const FREE_UPLOAD_LIMIT_MB = 30;
 export const PERSONAL_UPLOAD_LIMIT_MB = 100;
+export const BUSINESS_UPLOAD_LIMIT_MB = 250;
 /** New uploads can be previewed in the browser up to this size; the plan allowance applies when publishing. */
 export const PREVIEW_LIMIT_MB = 150;
 export const GRACE_DAYS = 30;
 export const PRICE = { month: "£3", year: "£25" };
 export const MAX_PORTFOLIOS = 10;
+/** Business: everything in Personal, for teams and brands publishing more. */
+export const BUSINESS_PRICE = { month: "£12", year: "£99" };
+export const MAX_BUSINESS_PORTFOLIOS = 50;
+/** Lead alerts can go to this many team addresses as well as the account's (Business). */
+export const MAX_LEAD_RECIPIENTS = 5;
 export const CV_LIMIT_MB = 10;
 
 export interface CvFile {
@@ -230,7 +236,15 @@ export interface Portfolio {
   /** A lead capture form shown at a chosen page (Personal). */
   leadForm?: import("./lead-form").LeadForm;
   plan: "free" | "personal";
+  /** "business" on a paid account with the Business plan (everything in Personal, plus Business extras). */
+  tier?: "business";
   billing?: "month" | "year";
+  /** Business: the owner's own Google Analytics 4 measurement ID (G-XXXXXXX), used only after readers agree. */
+  ga4Id?: string;
+  /** Set by the server on a published portfolio: the owner has Business (never trusted from the browser's copy). */
+  ownerBusiness?: boolean;
+  /** Business: team addresses that get lead alerts as well as the account's. Never sent to readers. */
+  leadRecipients?: string[];
   username?: string;
   cancelledAt?: number;
   createdAt: number;
@@ -556,9 +570,15 @@ export function allPortfolios(d: Doc): Portfolio[] {
 export function isPaid(d: Doc): boolean {
   return allPortfolios(d).some((p) => p.plan === "personal");
 }
+/** Business includes everything in Personal (plan "personal") and adds its own extras (tier "business"). */
+export function isBusiness(d: Doc): boolean {
+  return allPortfolios(d).some((p) => p.plan === "personal" && p.tier === "business");
+}
+/** How many portfolios the account's plan allows. */
+export const maxPortfolios = (d: Doc) => (isBusiness(d) ? MAX_BUSINESS_PORTFOLIOS : isPaid(d) ? MAX_PORTFOLIOS : 1);
 
 export function uploadLimitMb(d: Doc): number {
-  return isPaid(d) ? PERSONAL_UPLOAD_LIMIT_MB : FREE_UPLOAD_LIMIT_MB;
+  return isBusiness(d) ? BUSINESS_UPLOAD_LIMIT_MB : isPaid(d) ? PERSONAL_UPLOAD_LIMIT_MB : FREE_UPLOAD_LIMIT_MB;
 }
 
 /** A previewed PDF above the plan allowance stays in this browser and cannot be published until it fits. */
@@ -567,7 +587,7 @@ export function pdfOverLimit(d: Doc, pdf: PdfFile | null | undefined = d.portfol
 }
 
 export function canAddPortfolio(d: Doc): boolean {
-  return isPaid(d) && allPortfolios(d).length < MAX_PORTFOLIOS;
+  return isPaid(d) && allPortfolios(d).length < maxPortfolios(d);
 }
 
 /** Parks the active portfolio so a new upload starts a fresh one. */

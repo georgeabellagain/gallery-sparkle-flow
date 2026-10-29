@@ -1,3 +1,4 @@
+import { priceValue } from "@/lib/portfolia/plan-prices";
 import { reportConversion, SIGNUP_SEND_TO, SUBSCRIPTION_SEND_TO } from "./ads-consent";
 
 /**
@@ -26,7 +27,7 @@ export function reportSignup(userId: string) {
 }
 
 /** The Personal price in pounds for a stored price id. */
-export const subscriptionValue = (priceId: string) => (priceId === "personal_yearly" ? 25 : 3);
+export const subscriptionValue = (priceId: string) => priceValue(priceId) || 3;
 
 /** A Personal subscription confirmed by the payment webhook, reported once with its Paddle id. */
 export function reportSubscription(sub: { paddle_subscription_id?: string | null; price_id: string; status: string }) {

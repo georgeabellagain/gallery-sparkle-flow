@@ -4,9 +4,9 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowRight, Check, Minus } from "lucide-react";
 import { SiteHeader, SiteFooter } from "@/components/pf/Chrome";
-import { UpgradeModal } from "@/components/pf/UpgradeModal";
+import { UpgradeModal, type PlanChoice } from "@/components/pf/UpgradeModal";
 import { Button } from "@/components/ui/button";
-import { PRICE } from "@/lib/portfolia/store";
+import { BUSINESS_PRICE, PRICE } from "@/lib/portfolia/store";
 import { PLAN_COMPARISON, PLAN_FAQ, type ComparisonValue } from "@/lib/portfolia/plans";
 
 export const Route = createFileRoute("/pricing")({
@@ -17,13 +17,13 @@ export const Route = createFileRoute("/pricing")({
       {
         name: "description",
         content:
-          `Free PDF portfolio hosting with a 3D flipbook, QR code and website embedding. Personal is ${PRICE.month}/month or ${PRICE.year}/year for your own address, password protection, no branding and more portfolios.`,
+          `Free PDF portfolio hosting with a 3D flipbook, QR code and website embedding. Personal is ${PRICE.month}/month or ${PRICE.year}/year for your own address, password protection and no branding. Business is ${BUSINESS_PRICE.month}/month for teams.`,
       },
       { property: "og:title", content: "Pricing — Portfolia PDF Portfolio Hosting" },
       {
         property: "og:description",
         content:
-          "Compare the Free and Personal plans for hosting and sharing your PDF portfolio.",
+          "Compare the Free, Personal and Business plans for hosting and sharing your PDF portfolio.",
       },
       { property: "og:url", content: "https://portfolia.site/pricing" },
       { property: "og:type", content: "website" },
@@ -54,6 +54,7 @@ function Cell({ value }: { value: ComparisonValue }) {
 function PricingPage() {
   const [upgrade, setUpgrade] = useState(false);
   const [billing, setBilling] = useState<Billing>("year");
+  const [plan, setPlan] = useState<PlanChoice>("personal");
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -68,12 +69,13 @@ function PricingPage() {
         <section className="shell py-14 text-center sm:py-20">
           <h1 className="display-title text-4xl sm:text-6xl">Simple pricing. Free to start.</h1>
           <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Put one portfolio online free, forever. Upgrade to Personal when you want your own address,
-            password protection and no Portfolia branding.
+            Put one portfolio online free, forever. Upgrade to Personal for your own address, privacy and no Portfolia
+            branding, or to Business when your team publishes more.
           </p>
           <PricingPlans
             className="mt-10 text-left"
-            onChoosePersonal={(b) => { setBilling(b); setUpgrade(true); }}
+            onChoosePersonal={(b) => { setBilling(b); setPlan("personal"); setUpgrade(true); }}
+            onChooseBusiness={(b) => { setBilling(b); setPlan("business"); setUpgrade(true); }}
             freeAction={
               <Button asChild variant="line" size="lg" className="w-full">
                 <Link to="/" hash="upload">Start for free <ArrowRight className="size-4" aria-hidden /></Link>
@@ -86,26 +88,28 @@ function PricingPage() {
         </section>
 
         <section aria-labelledby="compare-title" className="rule-t bg-canvas">
-          <div className="shell max-w-4xl py-14">
+          <div className="shell max-w-5xl py-14">
             <h2 id="compare-title" className="display-title text-3xl">Compare plans</h2>
             <div className="mt-6 overflow-x-auto border border-border bg-background" tabIndex={0} aria-label="Plan comparison table; scroll horizontally on small screens">
-              <table className="w-full min-w-[520px] text-sm">
-                <caption className="sr-only">Free and Personal plan features</caption>
+              <table className="w-full min-w-[640px] text-sm">
+                <caption className="sr-only">Free, Personal and Business plan features</caption>
                 <thead>
                   <tr className="border-b border-border">
                     <th scope="col" className="p-4 text-left font-medium">Feature</th>
                     <th scope="col" className="w-32 p-4 text-center font-medium">Free</th>
                     <th scope="col" className="w-32 bg-leaf-soft/60 p-4 text-center font-medium text-leaf">Personal</th>
+                    <th scope="col" className="w-32 p-4 text-center font-medium">Business</th>
                   </tr>
                 </thead>
                 {PLAN_COMPARISON.map((group) => (
                   <tbody key={group.group}>
-                    <tr><th scope="rowgroup" colSpan={3} className="bg-muted px-4 py-2 text-left text-xxs font-semibold uppercase tracking-wide text-muted-foreground">{group.group}</th></tr>
+                    <tr><th scope="rowgroup" colSpan={4} className="bg-muted px-4 py-2 text-left text-xxs font-semibold uppercase tracking-wide text-muted-foreground">{group.group}</th></tr>
                     {group.rows.map((row) => (
                       <tr key={row.label} className="border-t border-border">
                         <th scope="row" className="p-4 text-left font-normal">{row.label}</th>
                         <td className="p-4 text-center text-muted-foreground"><Cell value={row.free} /></td>
                         <td className="bg-leaf-soft/30 p-4 text-center"><Cell value={row.personal} /></td>
+                        <td className="p-4 text-center"><Cell value={row.business ?? row.personal} /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -138,7 +142,7 @@ function PricingPage() {
         </section>
       </main>
       <SiteFooter />
-      <UpgradeModal open={upgrade} initialBilling={billing} onClose={() => setUpgrade(false)} />
+      <UpgradeModal open={upgrade} initialBilling={billing} plan={plan} onClose={() => setUpgrade(false)} />
     </div>
   );
 }

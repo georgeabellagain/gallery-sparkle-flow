@@ -3,6 +3,7 @@ import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { getPaddleEnvironment } from "@/lib/paddle";
 import { getDoc, setPlanAll, update } from "@/lib/portfolia/store";
+import { isBusinessPrice, isYearlyPrice } from "@/lib/portfolia/plan-prices";
 import { isNewAccount, reportSignup, reportSubscription } from "@/lib/conversions";
 
 export type Sub = {
@@ -86,12 +87,13 @@ export function subActive(sub: Sub | null): boolean {
 function syncPlan(sub: Sub | null) {
   const d = getDoc();
   if (!d.portfolio) return;
-  const billing = sub?.price_id === "personal_yearly" ? "year" : "month";
+  const billing = isYearlyPrice(sub?.price_id) ? "year" : "month";
   if (subActive(sub)) {
-    setPlanAll({ plan: "personal", billing, cancelledAt: undefined });
+    // Business includes everything in Personal, so both are "personal"; Business adds its own tier.
+    setPlanAll({ plan: "personal", tier: isBusinessPrice(sub?.price_id) ? "business" : undefined, billing, cancelledAt: undefined });
   } else if (d.portfolio.plan === "personal") {
     // Plan ended (or none on this account): 30-day address grace from the end of the paid period.
     const end = sub?.current_period_end ? Date.parse(sub.current_period_end) : Date.now();
-    setPlanAll({ plan: "free", cancelledAt: sub ? Math.min(end, Date.now()) : Date.now() });
+    setPlanAll({ plan: "free", tier: undefined, cancelledAt: sub ? Math.min(end, Date.now()) : Date.now() });
   }
 }

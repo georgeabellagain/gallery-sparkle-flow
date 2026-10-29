@@ -10,7 +10,7 @@ type LooseQuery = PromiseLike<{ data: unknown; error: unknown }> & {
   order(column: string, options: { ascending: boolean }): LooseQuery; limit(n: number): LooseQuery;
 };
 const loose = (client: unknown) => client as { rpc(fn: string, args: Record<string, unknown>): PromiseLike<{ data: unknown; error: unknown }>; from(table: string): LooseQuery };
-type StoredPortfolio = { leadForm?: unknown; pdf?: { pages?: number }; name?: string; profile?: { name?: string } } | undefined;
+type StoredPortfolio = { leadForm?: unknown; leadRecipients?: unknown; pdf?: { pages?: number }; name?: string; profile?: { name?: string } } | undefined;
 const answers = z.object({
   email: z.string().max(254),
   name: z.string().max(120).optional(),
@@ -48,8 +48,9 @@ export const submitLead = createServerFn({ method: "POST" })
     if (!row || !form?.enabled) return { ok: false, message: "This form isn't taking replies just now." };
     const problem = leadProblem(form, data.answers);
     if (problem) return { ok: false, message: problem };
-    const { ownerHasPersonal } = await import("./entitlements.server");
-    if (!(await ownerHasPersonal(row.owner_id, supabaseAdmin))) return { ok: false, message: "This form isn't taking replies just now." };
+    const { ownerPlan } = await import("./entitlements.server");
+    const plan = await ownerPlan(row.owner_id, supabaseAdmin);
+    if (plan === "free") return { ok: false, message: "This form isn't taking replies just now." };
     // Only the fields the form shows are kept.
     const pick = (k: "name" | "phone" | "company" | "message") => (form.fields[k] ? data.answers[k]?.trim() || null : null);
     const country = request.headers.get("cf-ipcountry")?.slice(0, 2) || null;
@@ -57,7 +58,10 @@ export const submitLead = createServerFn({ method: "POST" })
     const { error } = await loose(supabaseAdmin).from("portfolio_leads").insert(lead);
     if (error) return { ok: false, message: "Your details couldn't be sent. Please try again." };
     try {
-      await emailOwner(row.owner_id, portfolio?.name?.trim() || portfolio?.profile?.name?.trim() || "Your portfolio", lead);
+      // Business: the team addresses set on the portfolio get the alert too.
+      const { readableLeadRecipients } = await import("./business");
+      const team = plan === "business" ? readableLeadRecipients(portfolio?.leadRecipients) : [];
+      await emailOwner(row.owner_id, portfolio?.name?.trim() || portfolio?.profile?.name?.trim() || "Your portfolio", lead, team);
     } catch (e) {
       // A failed email never troubles the reader; the lead is saved.
       console.error("[lead-email]", e instanceof Error ? e.message : e);
@@ -65,15 +69,15 @@ export const submitLead = createServerFn({ method: "POST" })
     return { ok: true, message: "" };
   });
 
-async function emailOwner(ownerId: string, portfolioName: string, lead: { email: string; name: string | null; phone: string | null; company: string | null; message: string | null }) {
+async function emailOwner(ownerId: string, portfolioName: string, lead: { email: string; name: string | null; phone: string | null; company: string | null; message: string | null }, team: string[] = []) {
   const React = await import("react");
   const { sendLovableEmail } = await import("@lovable.dev/email-js");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { NewLeadEmail } = await import("@/lib/email-templates/new-lead");
   const { render } = await import("@react-email/render");
   const { data: owner } = await supabaseAdmin.auth.admin.getUserById(ownerId);
-  const to = owner.user?.email;
-  if (!to) return;
+  const recipients = [...new Set([owner.user?.email?.toLowerCase(), ...team].filter((e): e is string => Boolean(e)))];
+  if (!recipients.length) return;
   const lines = [
     lead.name && `Name: ${lead.name}`,
     `Email: ${lead.email}`,
@@ -82,16 +86,17 @@ async function emailOwner(ownerId: string, portfolioName: string, lead: { email:
     lead.message && `Message: ${lead.message}`,
   ].filter((l): l is string => Boolean(l));
   const element = React.createElement(NewLeadEmail, { siteName: "Portfolia", portfolioName, leadsUrl: "https://portfolia.site/dashboard", lines });
-  await sendLovableEmail({
+  const html = await render(element), text = await render(element, { plainText: true });
+  for (const to of recipients) await sendLovableEmail({
     to,
     from: { name: "Portfolia", address: "noreply@portfolia.site" },
     sender_domain: "notify.portfolia.site",
     subject: `New lead from ${portfolioName}`,
-    html: await render(element),
-    text: await render(element, { plainText: true }),
+    html,
+    text,
     purpose: "transactional",
     label: "portfolio-lead",
-    idempotency_key: `lead:${ownerId}:${lead.email}:${new Date().toISOString().slice(0, 16)}`,
+    idempotency_key: `lead:${ownerId}:${to}:${lead.email}:${new Date().toISOString().slice(0, 16)}`,
   }, { apiKey: process.env["LOVABLE_API_KEY"]!, sendUrl: process.env["LOVABLE_SEND_URL"] });
 }
 

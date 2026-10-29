@@ -1,4 +1,5 @@
 import { publicAssetKeys, publicPortfolioPlan } from "./public-assets";
+import { readableGa4Id } from "./business";
 import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -36,9 +37,13 @@ export const getPublicPortfolio = createServerFn({ method: "GET" })
     if (!row) return null;
     const access = await requestAccess(row.code);
     if (access.state !== "open") return null;
-    const { ownerHasPersonal } = await import("./entitlements.server");
-    const personal = await ownerHasPersonal(row.owner_id);
-    const p = publicPortfolioPlan(row.data as unknown as Portfolio, personal);
+    const { ownerPlan } = await import("./entitlements.server");
+    const plan = await ownerPlan(row.owner_id);
+    const personal = plan !== "free", business = plan === "business";
+    // Business extras are only ever sent for a Business owner, whatever the stored copy says.
+    const base = publicPortfolioPlan(row.data as unknown as Portfolio, personal);
+    // Team email addresses for lead alerts stay private to the owner.
+    const p = { ...base, ownerBusiness: business, ga4Id: business ? readableGa4Id(base.ga4Id) : undefined, tier: undefined, leadRecipients: undefined };
     const keys = publicAssetKeys(row.data as unknown as Portfolio, personal);
     const urls: Record<string, string> = {};
     const cvKey = personal ? p.profile?.cv?.blobKey : undefined;
