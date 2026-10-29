@@ -1,5 +1,10 @@
 # Roadmap
 
+## Owner-requested homepage demo readiness
+- [ ] Keep Simple stable and usable while Studio finishes its real rendering warm-up; reveal comparison once, without restarting scenes.
+- [ ] Replace inline page-turn guidance with fullscreen and comparison guidance; check desktop/mobile, reduced motion and slow/failed Studio.
+- [ ] Run available checks and report synced changes without deploying.
+
 ## Shared page extras
 - [ ] Show shared website link icons in Scroll, Page-by-page and Flipbook.
 - [ ] Let creators position page tabs along the book edge.
