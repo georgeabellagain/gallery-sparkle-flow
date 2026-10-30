@@ -162,7 +162,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
           : <>Go full screen to view the full flipbook.</>}
       </p>}
       {(!displayed || state === "error") && <div role="status" className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-background px-6 text-center text-sm text-foreground">
-        {state !== "error" && <BookLoader tone="dark" label="" />}
+        {state !== "error" && <BookLoader tone="light" label="" />}
         {(state === "error" || slow) && <p>{state === "error" ? "The example is temporarily unavailable." : "This is taking longer than usual. You can wait or try again."}</p>}
         {(state === "error" || slow) && <Button variant="ghost" onClick={() => setAttempt((n) => n + 1)}>Try again</Button>}
       </div>}

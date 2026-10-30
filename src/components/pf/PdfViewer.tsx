@@ -1082,9 +1082,11 @@ export function PdfViewer({
       )}
 
       {credit && (
-        <p className={cn("pointer-events-none absolute inset-x-0 bottom-1.5 z-10 text-center text-xxs", tone === "dark" ? "text-white/45" : "text-black/40")}>
-          Hosted on <span className={cn("display-title text-xs", tone === "dark" ? "text-white/75" : "text-black/65")}>Portfolia</span>
-        </p>
+        <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-wrap items-center justify-center gap-x-2 px-3 text-xxs", tone === "dark" ? "text-white/60" : "text-black/55")}>
+          <span>Hosted on <span className={cn("display-title text-xs", tone === "dark" ? "text-white/80" : "text-black/75")}>Portfolia</span></span>
+          <span aria-hidden>·</span>
+          <a href="https://portfolia.site/#upload" target="_blank" rel="noopener noreferrer" className="pointer-events-auto inline-flex min-h-9 items-center px-1 underline underline-offset-2 hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" aria-label="Make your own portfolio with Portfolia">Make your own</a>
+        </div>
       )}
 
       {loadingIndicator && SHOW_LOADER && !error && (

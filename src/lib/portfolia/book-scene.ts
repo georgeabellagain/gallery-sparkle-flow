@@ -23,7 +23,7 @@ import { studioSettingsChange } from "./studio-settings-change";
 import { createResourceCache } from "./resource-cache";
 import { createEnvironmentDiffuser } from "./environment-diffusion";
 import { dappleTexture } from "./dapple-light";
-import { bookSurfaceRatio, bookMotionBudget } from "./render-budget";
+import { bookSurfaceRatio, bookMotionBudget, studioMotionBudget } from "./render-budget";
 import { createBookNotes } from "./book-notes";
 import { pageRelief } from "./page-relief";
 import { createBookTabs } from "./book-tabs";
@@ -92,6 +92,8 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   let appliedRatio = pixelRatio;
   const readingRatio = pixelRatio;
   let turning = false;
+  let cameraMoving = false;
+  let motionTimer: ReturnType<typeof setTimeout> | undefined;
   let captureClock: (()=>Promise<void>) | undefined;
   let frameSink: ((canvas: HTMLCanvasElement) => void) | undefined;
   const renderer = new THREE.WebGLRenderer({
@@ -632,8 +634,11 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // A big window gets a slightly lower pixel density rather than a surface too large for the graphics card.
     // CSS pixels are not a minimum: a 4K fullscreen canvas must still obey
     // the GPU budget. Preserve HD page textures independently of this surface.
-    const budget = fixedQuality ? 8_294_400 : bookMotionBudget(compact ? MAX_SURFACE_PIXELS_SMALL : MAX_SURFACE_PIXELS, turning, pixelRatio / readingRatio);
-    const next = bookSurfaceRatio(w, h, turning ? pixelRatio : readingRatio, budget);
+    const moving = turning || cameraMoving;
+    const restBudget = compact ? MAX_SURFACE_PIXELS_SMALL : MAX_SURFACE_PIXELS;
+    const motionBudget = studioMotionBudget(restBudget, moving, settings.studio, fixedQuality || Boolean(captureClock || frameSink));
+    const budget = fixedQuality ? 8_294_400 : bookMotionBudget(motionBudget, moving, pixelRatio / readingRatio);
+    const next = bookSurfaceRatio(w, h, moving ? pixelRatio : readingRatio, budget);
     if (Math.abs(next - appliedRatio) > 1e-6) {
       appliedRatio = next;
       renderer.setPixelRatio(next);
@@ -642,6 +647,15 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     if (currentSize.x !== w || currentSize.y !== h) renderer.setSize(w, h, false);
     frameCamera();
     paint();
+  };
+  // A short quiet period avoids reallocating buffers between adjacent pointer/tour frames.
+  const markCameraMotion = () => {
+    if (!settings.studio || fixedQuality || captureClock || frameSink) return false;
+    const started = !cameraMoving;
+    cameraMoving = true;
+    clearTimeout(motionTimer);
+    motionTimer = setTimeout(() => { cameraMoving = false; if (!disposed) resize(); }, 220);
+    return started;
   };
   const observer = new ResizeObserver(resize);
   observer.observe(host);
@@ -1270,21 +1284,21 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       panY += (0.5 - y) * delta;
       zoom = THREE.MathUtils.clamp(scale, .45, 3);
       frameCamera();
-      requestPaint(false);
+      if (markCameraMotion()) resize(); else requestPaint(false);
     },
     dragPan(dx: number, dy: number) {
       const height = cameraHeight(zoom);
       panX -= (dx / Math.max(1, host.clientHeight)) * height;
       panY += (dy / Math.max(1, host.clientHeight)) * height;
       frameCamera();
-      requestPaint(false);
+      if (markCameraMotion()) resize(); else requestPaint(false);
     },
     /** Moves the 3D view (held to the dome above the book); returns the angle actually used. */
     orbit(next: Orbit) {
       orbit = clampOrbit(next);
       if (isOrbiting(orbit)) { panX = 0; panY = 0; }
       frameCamera();
-      requestPaint(false);
+      if (markCameraMotion()) resize(); else requestPaint(false);
       return orbit;
     },
     async resetZoom() {
@@ -1499,6 +1513,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       cancelAnimationFrame(paintQueued);
       finishAnimation?.();
       observer.disconnect();
+      clearTimeout(motionTimer);
       renderer.domElement.removeEventListener("webglcontextlost", lost);
       renderer.domElement.removeEventListener("webglcontextrestored", restored);
       texCache.forEach((t) => t.dispose());
