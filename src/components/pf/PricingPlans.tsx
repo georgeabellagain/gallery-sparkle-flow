@@ -19,7 +19,7 @@ export function PricingPlans({ freeAction, onChoosePersonal, onChooseBusiness, c
   return (
     <div className={className}>
       <BillingToggle value={billing} onChange={setBilling} className="mx-auto" />
-      <div className="mx-auto mt-8 grid max-w-6xl gap-5 md:grid-cols-3">
+      <div className="mt-8 grid w-full gap-5 md:grid-cols-3">
         <PlanCard
           name="Free"
           price="£0"
