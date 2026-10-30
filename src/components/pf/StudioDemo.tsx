@@ -101,6 +101,8 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
   const showCompare = comparing && rendered && simpleReady && !studioFailed && state === "ready";
   const simpleActive = workspace && (comparing || readerLook === "simple");
   const displayed = workspace ? simpleReady : rendered;
+  // Start both cameras together after Studio warms up, keeping the comparison aligned.
+  const tourActive = workspace && showCompare && visible && motionAllowed && !interacted;
   const insideSlider = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest("[data-compare-slider]"));
   const stop = (e: { target: EventTarget | null }) => {
     // Dragging the line is comparing; anything else with the book means the reader is reading.
@@ -122,6 +124,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
         backgroundUrl={p.viewer?.backgroundKey ? data?.urls[p.viewer.backgroundKey] : undefined}
         controls
         homepageExample={workspace}
+        loadingIndicator={false}
         allowDownload={p.allowDownload}
         projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} videos={p.pdf.videos} spotlights={p.pdf.spotlights} jumps={p.pdf.jumps} stickers={p.pdf.stickers} hotspots={p.pdf.hotspots} slideshows={p.pdf.slideshows} projectCode={p.code}
         lightweight={!workspace}
@@ -129,6 +132,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
         fullSpread
         autoTurnDelay={1600}
         autoTurn={rendered && visible && motionAllowed && !interacted && !comparing}
+        showcaseOrbit={tourActive}
         onBookReadyChange={workspace ? undefined : readyChanged}
         onDemoReady={workspace ? studioRendered : undefined}
         onLoadError={workspace ? studioError : loadError}
@@ -143,9 +147,11 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
           controls={!showCompare}
           pageNumber={false}
           homepageExample
+          loadingIndicator={false}
           projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} spotlights={p.pdf.spotlights} jumps={p.pdf.jumps} stickers={p.pdf.stickers} hotspots={p.pdf.hotspots} slideshows={p.pdf.slideshows}
           initialLook="clean"
           fullSpread
+          showcaseOrbit={tourActive}
           onBookReadyChange={simpleChanged}
           onLoadError={loadError}
         />
@@ -155,7 +161,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
           ? <>Drag the line to compare. Go full screen to view the full flipbook.</>
           : <>Go full screen to view the full flipbook.</>}
       </p>}
-      {(!displayed || state === "error") && <div role="status" className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-background/95 px-6 text-center text-sm text-foreground">
+      {(!displayed || state === "error") && <div role="status" className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-background px-6 text-center text-sm text-foreground">
         {state !== "error" && <BookLoader tone="dark" label="" />}
         {(state === "error" || slow) && <p>{state === "error" ? "The example is temporarily unavailable." : "This is taking longer than usual. You can wait or try again."}</p>}
         {(state === "error" || slow) && <Button variant="ghost" onClick={() => setAttempt((n) => n + 1)}>Try again</Button>}
