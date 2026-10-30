@@ -402,6 +402,8 @@ export function BookView({
   showPageNumber = true,
   showNavigation = true,
   showcaseOrbit = false,
+  showcaseOrbitStart,
+  presentationActive = true,
   loadingIndicator = true,
 }: {
   doc: PDFDocumentProxy;
@@ -414,6 +416,8 @@ export function BookView({
   showNavigation?: boolean;
   /** Homepage only: drift slowly round the book in 3D until the reader takes over. */
   showcaseOrbit?: boolean;
+  showcaseOrbitStart?: number;
+  presentationActive?: boolean;
   /** A parent reader/demo may own the single loading indicator. */
   loadingIndicator?: boolean;
   viewer: ViewerSettings;
@@ -492,14 +496,14 @@ export function BookView({
     if (!viewport) return;
     let visible = false;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setAutomaticMotion(visible && !document.hidden && !reduced.matches);
+    const update = () => setAutomaticMotion(presentationActive && visible && !document.hidden && !reduced.matches);
     const observer = new IntersectionObserver(([entry]) => { visible = Boolean(entry?.isIntersecting); update(); });
     observer.observe(viewport);
     document.addEventListener("visibilitychange", update);
     reduced.addEventListener("change", update);
     update();
     return () => { observer.disconnect(); document.removeEventListener("visibilitychange", update); reduced.removeEventListener("change", update); };
-  }, []);
+  }, [presentationActive]);
   const wheelZoom = useRef(zoom);
   const zoomFrame = useRef(0);
   const scene = useRef<BookScene | null>(null);
@@ -658,7 +662,7 @@ export function BookView({
   useEffect(() => {
     if (!showcaseOrbit || !ready || !automaticMotion) return;
     let frame = 0, last = 0;
-    const started = performance.now();
+    const started = showcaseOrbitStart ?? performance.now();
     const drift = (now: number) => {
       if (tilted.current) return;
       // The drift is slow, so 30 frames a second look the same and cost half: two whole books redraw for it.
@@ -679,7 +683,7 @@ export function BookView({
       glideOrbit({ yaw: 0, pitch: 0 }, 900);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showcaseOrbit, ready, automaticMotion]);
+  }, [showcaseOrbit, showcaseOrbitStart, ready, automaticMotion]);
   const prefetchToken = useRef(0);
   const index = spreadIndex(layout.spreads, leaf);
   const spread = layout.spreads[index]!;
@@ -714,11 +718,11 @@ export function BookView({
   // Only the videos on the pages in view play (at most two); the rest pause, and all pause in a hidden tab.
   const videosInView = useMemo(() => spread.filter((n): n is number => n !== null).flatMap((n) => videosForLeaf(pageVideos, layout.leaves[n]!).map((v) => v.id)), [spread, pageVideos, layout]);
   useEffect(() => {
-    const apply = () => videoPlayer.current?.setInView(videosInView);
+    const apply = () => videoPlayer.current?.setInView(presentationActive ? videosInView : []);
     apply();
     document.addEventListener("visibilitychange", apply);
     return () => document.removeEventListener("visibilitychange", apply);
-  }, [videosInView, ready]);
+  }, [videosInView, ready, presentationActive]);
   const focus = bookFocus(spread, leaf, narrow);
   const atStart = narrow ? leaf === 0 : index === 0;
   const atEnd = narrow ? leaf === layout.leaves.length - 1 : index === layout.spreads.length - 1;
@@ -1654,7 +1658,7 @@ export function BookView({
           if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.3) void move(dx < 0 ? 1 : -1);
         }}
       >
-        <BackdropLayer colour={colour} imageUrl={backgroundUrl} fit={viewer.backgroundFit as Partial<BackgroundFit> | undefined} scene={backdropScene ?? undefined} />
+        <BackdropLayer animate={presentationActive} colour={colour} imageUrl={backgroundUrl} fit={viewer.backgroundFit as Partial<BackgroundFit> | undefined} scene={backdropScene ?? undefined} />
         <div ref={host} className={cn("pf-book-canvas", (fallback || !bookReady) && "invisible")} />
         {fallback && (
           <div className={cn("pf-book-fallback", !bookReady && "invisible")}>
@@ -1783,8 +1787,8 @@ export function BookView({
           const bounds = pageBounds[peek.side === 1 ? 1 : 0];
           if (!bounds) return null;
           const right = peek.side === 1, bottom = peek.corner === "bottom";
-          // A small square, about a twelfth of the page's width on screen.
-          const size = Math.round(Math.max(14, Math.min(44, (bounds.width / 100) * (viewportRef.current?.clientWidth ?? 800) * 0.085)));
+          // A small, page-toned lift, about a twentieth of the page width.
+          const size = Math.round(Math.max(8, Math.min(24, (bounds.width / 100) * (viewportRef.current?.clientWidth ?? 800) * 0.05)));
           return (
             <span aria-hidden className={cn("pf-corner-fold", right ? "pf-fold-right" : "pf-fold-left", bottom ? "pf-fold-bottom" : "pf-fold-top")}
               style={{

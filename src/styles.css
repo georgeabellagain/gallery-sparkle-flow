@@ -213,13 +213,14 @@
   z-index: 11;
   display: block;
   pointer-events: none;
-  filter: drop-shadow(0 0 3px rgb(0 0 0 / 0.28));
+  mix-blend-mode: soft-light;
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.16));
   animation: pf-fold-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
-.pf-fold-right.pf-fold-bottom { background: linear-gradient(to top left, rgb(0 0 0 / 0.12), rgb(0 0 0 / 0) 46%, #e6e1d7 50%, #fbfaf7 100%); transform-origin: 100% 100%; }
-.pf-fold-left.pf-fold-bottom { background: linear-gradient(to top right, rgb(0 0 0 / 0.12), rgb(0 0 0 / 0) 46%, #e6e1d7 50%, #fbfaf7 100%); transform-origin: 0 100%; }
-.pf-fold-right.pf-fold-top { background: linear-gradient(to bottom left, rgb(0 0 0 / 0.12), rgb(0 0 0 / 0) 46%, #e6e1d7 50%, #fbfaf7 100%); transform-origin: 100% 0; }
-.pf-fold-left.pf-fold-top { background: linear-gradient(to bottom right, rgb(0 0 0 / 0.12), rgb(0 0 0 / 0) 46%, #e6e1d7 50%, #fbfaf7 100%); transform-origin: 0 0; }
+.pf-fold-right.pf-fold-bottom { background: linear-gradient(to top left, rgb(0 0 0 / 0.28), rgb(0 0 0 / 0) 46%, rgb(0 0 0 / 0.36) 50%, rgb(255 255 255 / 0.34) 100%); transform-origin: 100% 100%; }
+.pf-fold-left.pf-fold-bottom { background: linear-gradient(to top right, rgb(0 0 0 / 0.28), rgb(0 0 0 / 0) 46%, rgb(0 0 0 / 0.36) 50%, rgb(255 255 255 / 0.34) 100%); transform-origin: 0 100%; }
+.pf-fold-right.pf-fold-top { background: linear-gradient(to bottom left, rgb(0 0 0 / 0.28), rgb(0 0 0 / 0) 46%, rgb(0 0 0 / 0.36) 50%, rgb(255 255 255 / 0.34) 100%); transform-origin: 100% 0; }
+.pf-fold-left.pf-fold-top { background: linear-gradient(to bottom right, rgb(0 0 0 / 0.28), rgb(0 0 0 / 0) 46%, rgb(0 0 0 / 0.36) 50%, rgb(255 255 255 / 0.34) 100%); transform-origin: 0 0; }
 @keyframes pf-fold-in {
   from { transform: scale(0); }
 }
@@ -847,3 +848,8 @@ dialog.pf-sheet[open] {
   .pf-link-file { opacity: .45; }
   .pf-mail-attach, .pf-mail-warn { opacity: 0; }
 }
+
+/* Keep the outgoing reader visible through its fade; inactive readers retain their layout for warm-up. */
+.pf-demo-look { transition: opacity .5s ease, visibility 0s .5s; }
+.pf-demo-look[data-active="true"] { transition: opacity .5s ease, visibility 0s; }
+@media (prefers-reduced-motion: reduce) { .pf-demo-look { transition: none; } }
