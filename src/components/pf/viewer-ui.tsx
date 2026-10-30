@@ -164,9 +164,9 @@ export function Segmented<T extends string>({
 }
 
 /** The colour (or picture, or colour-and-motion scene) behind the PDF. A picture always covers the area. */
-export function BackdropLayer({ colour, imageUrl, fit, className, scene }: { colour: string; imageUrl?: string; fit?: Partial<BackgroundFit>; className?: string; scene?: string }) {
+export function BackdropLayer({ colour, imageUrl, fit, className, scene, animate = true }: { colour: string; imageUrl?: string; fit?: Partial<BackgroundFit>; className?: string; scene?: string; animate?: boolean }) {
   const sceneSpec = backgroundScene(scene);
-  if (sceneSpec) return <BackgroundSceneLayer scene={sceneSpec} className={className} />;
+  if (sceneSpec) return <BackgroundSceneLayer animate={animate} scene={sceneSpec} className={className} />;
   return <PictureBackdrop colour={colour} imageUrl={imageUrl} fit={fit} className={className} />;
 }
 function PictureBackdrop({ colour, imageUrl, fit, className }: { colour: string; imageUrl?: string; fit?: Partial<BackgroundFit>; className?: string }) {

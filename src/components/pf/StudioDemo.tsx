@@ -3,7 +3,7 @@ import { FIELD_NOTES_PUBLISHED_CODE, HOME_EXAMPLE_START_PAGE, LOOKBOOK_CODE, cho
 import { FIELD_NOTES_CODE, fieldNotesExample } from "@/lib/portfolia/field-notes-example";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PdfViewer } from "./PdfViewer";
-import { LookCompare } from "./LookCompare";
+import { createHomeLookCycle, type HomeDemoLook } from "@/lib/portfolia/home-look-cycle";
 import { BookLoader } from "./book-loader";
 import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
 import type { PublicPortfolio } from "@/lib/portfolia/public.functions";
@@ -44,9 +44,11 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
   const [slow, setSlow] = useState(false);
   const [rendered, setRendered] = useState(false);
   const [interacted, setInteracted] = useState(false);
-  const [readerLook, setReaderLook] = useState<"simple" | "studio" | null>(null);
+  const [shownLook, setShownLook] = useState<HomeDemoLook>("simple");
+  const [warmStudio, setWarmStudio] = useState(false);
+  const [pageActive, setPageActive] = useState(true);
+  const tourStarted = useRef<number | undefined>(undefined);
   const [studioFailed, setStudioFailed] = useState(false);
-  const [comparing, setComparing] = useState(workspace);
   const [simpleReady, setSimpleReady] = useState(false);
   const [visible, setVisible] = useState(false);
   const [motionAllowed, setMotionAllowed] = useState(false);
@@ -57,7 +59,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
   const loadError = useCallback(() => setState("error"), []);
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setMotionAllowed(!preference.matches && !document.hidden);
+    const update = () => { setPageActive(!document.hidden); setMotionAllowed(!preference.matches && !document.hidden); };
     update();
     preference.addEventListener("change", update);
     document.addEventListener("visibilitychange", update);
@@ -73,8 +75,9 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
     setRendered(false);
     setSimpleReady(false);
     setStudioFailed(false);
-    setReaderLook(null);
-    setComparing(workspace);
+    setShownLook("simple");
+    setWarmStudio(false);
+    tourStarted.current = undefined;
     setInteracted(false);
     setSlow(false);
     setData(null);
@@ -96,34 +99,43 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
   const p = data?.portfolio;
   const url = p?.pdf && data?.urls[p.pdf.blobKey];
   const source = useMemo(() => url ? { url } : null, [url]);
-  // Homepage only: Simple covers Studio until its final frame is ready, then the divider enters once.
-  const simpleChanged = useCallback((ready: boolean) => { if (ready) setSimpleReady(true); }, []);
-  const showCompare = comparing && rendered && simpleReady && !studioFailed && state === "ready";
-  const simpleActive = workspace && (comparing || readerLook === "simple");
+  // Simple starts its own tour immediately; Studio warms independently behind it.
+  const simpleChanged = useCallback((ready: boolean) => { if (ready) { tourStarted.current ??= performance.now(); setSimpleReady(true); } }, []);
+  const cycle = useMemo(() => createHomeLookCycle(setShownLook), [attempt, exampleCode]);
+  useEffect(() => { cycle.setActive(workspace && state === "ready" && visible && pageActive && !interacted); return () => cycle.pause(); }, [cycle, workspace, state, visible, pageActive, interacted]);
+  useEffect(() => { cycle.setReady(rendered && !studioFailed); }, [cycle, rendered, studioFailed]);
+  useEffect(() => {
+    if (!workspace || !simpleReady || warmStudio) return;
+    let frame = 0, idle: number | undefined, fallback: ReturnType<typeof setTimeout> | undefined;
+    // Yield two browser frames so Simple and its moving backdrop are already presented.
+    frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => {
+      if (window.requestIdleCallback) idle = window.requestIdleCallback(() => setWarmStudio(true), { timeout: 1500 });
+      else fallback = setTimeout(() => setWarmStudio(true), 0);
+    }); });
+    return () => { cancelAnimationFrame(frame); if (idle !== undefined) window.cancelIdleCallback(idle); clearTimeout(fallback); };
+  }, [workspace, simpleReady, warmStudio]);
+  const studioActive = !workspace || (shownLook === "studio" && rendered && !studioFailed);
+  const simpleActive = workspace && !studioActive;
   const displayed = workspace ? simpleReady : rendered;
-  // Start both cameras together after Studio warms up, keeping the comparison aligned.
-  const tourActive = workspace && showCompare && visible && motionAllowed && !interacted;
-  const insideSlider = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest("[data-compare-slider]"));
+  const tourActive = workspace && simpleReady && visible && motionAllowed && !interacted;
   const stop = (e: { target: EventTarget | null }) => {
-    // Dragging the line is comparing; anything else with the book means the reader is reading.
-    if (insideSlider(e.target)) return;
-    // Scrolling the homepage does not end the comparison or change the visible look.
+    // Scrolling the homepage does not stop the showcase.
     if (e.target instanceof Element && e.target.closest("[data-demo-guidance]")) return;
     setInteracted(true);
-    if (readerLook === null) setReaderLook(showCompare || !workspace ? "studio" : "simple");
-    setComparing(false);
+    cycle.pause();
   };
-  return <figure ref={figure} onPointerDownCapture={stop} onKeyDownCapture={e => { if (e.key !== "Tab") stop(e); }} className={className ?? "mx-auto w-full max-w-5xl"}>
+  return <figure ref={figure} onFocusCapture={stop} onPointerDownCapture={stop} onKeyDownCapture={e => { if (e.key !== "Tab") stop(e); }} className={className ?? "mx-auto w-full max-w-5xl"}>
     <div className={workspace ? "pf-workspace-demo relative h-full overflow-hidden [&:has([data-fullscreen=true])_[data-demo-guidance]]:hidden" : "pf-home-demo relative overflow-hidden rounded-3xl border border-border shadow-lift [&_.pf-book-viewport]:h-[28rem] sm:[&_.pf-book-viewport]:h-[36rem] lg:[&_.pf-book-viewport]:h-[40rem]"}>
-      {state === "ready" && p?.pdf && source && (!workspace || simpleReady) && <div data-demo-studio style={{ opacity: rendered ? 1 : 0, pointerEvents: rendered && (!simpleActive || showCompare) ? "auto" : "none" }} aria-hidden={!rendered || (simpleActive && !showCompare)} inert={!rendered || (simpleActive && !showCompare)}>
+      {state === "ready" && p?.pdf && source && (!workspace || warmStudio) && <div data-demo-studio data-active={studioActive} className={workspace ? "pf-demo-look absolute inset-0" : undefined} style={{ opacity: rendered && studioActive ? 1 : 0, visibility: rendered && studioActive ? "visible" : "hidden", pointerEvents: studioActive ? "auto" : "none" }} aria-hidden={!studioActive} inert={!studioActive}>
       <PdfViewer
         source={source}
         fileName={p.pdf.name}
-        viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "studio", studioBrightness: Math.min(1, (p.viewer?.studioBrightness ?? 0.5) + 0.14), modes: workspace ? ["book", "scroll", "paged"] : ["book"], looks: comparing ? ["studio"] : ["clean", "studio"] }}
+        viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "studio", studioBrightness: Math.min(1, (p.viewer?.studioBrightness ?? 0.5) + 0.14), modes: workspace ? ["book", "scroll", "paged"] : ["book"], looks: ["clean", "studio"] }}
         startPage={workspace ? HOME_EXAMPLE_START_PAGE : undefined}
         backgroundUrl={p.viewer?.backgroundKey ? data?.urls[p.viewer.backgroundKey] : undefined}
         controls
         homepageExample={workspace}
+        presentationActive={studioActive}
         loadingIndicator={false}
         allowDownload={p.allowDownload}
         projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} videos={p.pdf.videos} spotlights={p.pdf.spotlights} jumps={p.pdf.jumps} stickers={p.pdf.stickers} hotspots={p.pdf.hotspots} slideshows={p.pdf.slideshows} projectCode={p.code}
@@ -131,35 +143,40 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
         initialLook="studio"
         fullSpread
         autoTurnDelay={1600}
-        autoTurn={rendered && visible && motionAllowed && !interacted && !comparing}
-        showcaseOrbit={tourActive}
+        autoTurn={!workspace && rendered && visible && motionAllowed && !interacted}
+        showcaseOrbit={tourActive && studioActive}
+        showcaseOrbitStart={tourStarted.current}
         onBookReadyChange={workspace ? undefined : readyChanged}
         onDemoReady={workspace ? studioRendered : undefined}
         onLoadError={workspace ? studioError : loadError}
       /></div>}
-      {workspace && state === "ready" && p?.pdf && source && <LookCompare show={showCompare} active={simpleActive} motion={motionAllowed}>
-        {/* The same book in the Simple look, framed identically and showing the same spread; it only ever shows, never takes input. */}
+      {workspace && state === "ready" && p?.pdf && source && <div data-demo-simple data-active={simpleActive} className="pf-demo-look absolute inset-0" style={{ opacity: simpleActive ? 1 : 0, visibility: simpleActive ? "visible" : "hidden", pointerEvents: simpleActive ? "auto" : "none" }} aria-hidden={!simpleActive} inert={!simpleActive}>
+        {/* Simple is a fully working reader while Studio prepares independently. */}
         <PdfViewer
           source={source}
           fileName={p.pdf.name}
           viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "clean", modes: ["book"], looks: ["clean"] }}
           startPage={HOME_EXAMPLE_START_PAGE}
-          controls={!showCompare}
+          controls
+          allowDownload={p.allowDownload}
+          backgroundUrl={p.viewer?.backgroundKey ? data?.urls[p.viewer.backgroundKey] : undefined}
+          presentationActive={simpleActive}
           pageNumber={false}
           homepageExample
           loadingIndicator={false}
           projects={p.pdf.projects} foldouts={p.pdf.foldouts} tags={p.pdf.tags} links={p.pdf.links} spotlights={p.pdf.spotlights} jumps={p.pdf.jumps} stickers={p.pdf.stickers} hotspots={p.pdf.hotspots} slideshows={p.pdf.slideshows}
+          videos={p.pdf.videos}
+          projectCode={p.code}
           initialLook="clean"
           fullSpread
-          showcaseOrbit={tourActive}
+          showcaseOrbit={tourActive && simpleActive}
+          showcaseOrbitStart={tourStarted.current}
           onBookReadyChange={simpleChanged}
           onLoadError={loadError}
         />
-      </LookCompare>}
+      </div>}
       {workspace && displayed && state === "ready" && <p id="demo-guide" data-demo-guidance className="pointer-events-none absolute inset-x-3 bottom-16 z-30 mx-auto w-fit max-w-[calc(100%-1.5rem)] rounded-2xl bg-background/90 px-3 py-1.5 text-center text-[11px] leading-snug text-foreground shadow-soft sm:bottom-20">
-        {showCompare
-          ? <>Drag the line to compare. Go full screen to view the full flipbook.</>
-          : <>Go full screen to view the full flipbook.</>}
+        Go full screen to view the full flipbook.
       </p>}
       {(!displayed || state === "error") && <div role="status" className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-background px-6 text-center text-sm text-foreground">
         {state !== "error" && <BookLoader tone="light" label="" />}
