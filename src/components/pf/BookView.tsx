@@ -375,6 +375,7 @@ export function BookView({
   awake = true,
   onReadyChange,
   onDemoReady,
+  onPreviewReady,
   onRenderError,
   autoTurn = false,
   autoTurnDelay = 3200,
@@ -401,6 +402,7 @@ export function BookView({
   visiblePages,
   showPageNumber = true,
   showNavigation = true,
+  showAppearance = true,
   showcaseOrbit = false,
   showcaseOrbitStart,
   presentationActive = true,
@@ -414,6 +416,7 @@ export function BookView({
   onPage: (page: number) => void;
   showPageNumber?: boolean;
   showNavigation?: boolean;
+  showAppearance?: boolean;
   /** Homepage only: drift slowly round the book in 3D until the reader takes over. */
   showcaseOrbit?: boolean;
   showcaseOrbitStart?: number;
@@ -437,6 +440,8 @@ export function BookView({
   onReadyChange?: (ready: boolean) => void;
   /** Homepage only: final lighting, backdrop, shaders and a painted frame. */
   onDemoReady?: () => void;
+  /** The initial 3D introduction has settled and its frame has been painted. */
+  onPreviewReady?: () => void;
   onRenderError?: (message: string) => void;
   /** Featured demo only; uses the normal animated turn path. */
   autoTurn?: boolean;
@@ -651,6 +656,8 @@ export function BookView({
   };
   useEffect(() => () => cancelAnimationFrame(orbitFrame.current), []);
   const tilted = useRef(false);
+  const previewAnnounced = useRef(false);
+  useEffect(() => { previewAnnounced.current = false; }, [doc]);
   /** Back to the straight-down view (a no-op when already there). */
   const levelView = () => {
     if (!tilted.current) return;
@@ -661,7 +668,7 @@ export function BookView({
   // The homepage shows the 3D view off with a slow drift round the book until the reader takes over.
   useEffect(() => {
     if (!showcaseOrbit || !ready || !automaticMotion) return;
-    let frame = 0, last = 0;
+    let frame = 0, last = 0, announcing = false, cancelled = false;
     const started = showcaseOrbitStart ?? performance.now();
     const drift = (now: number) => {
       if (tilted.current) return;
@@ -672,18 +679,31 @@ export function BookView({
       // pages wait meanwhile (as in any tilted view), so nothing needs measuring or re-rendering while it drifts.
       const s = now / 1000, ease = Math.min(1, (now - started) / 2500);
       orbitAt.current = scene.current?.orbit({ yaw: ease * 0.32 * Math.sin((s * 2 * Math.PI) / 16), pitch: ease * (0.24 + 0.1 * Math.sin((s * 2 * Math.PI) / 23)) }) ?? orbitAt.current;
+      if (onPreviewReady && !previewAnnounced.current && !announcing && ease >= 1) {
+        const renderer = scene.current;
+        if (renderer) {
+          announcing = true;
+          void import("@/lib/portfolia/demo-readiness").then(({ prepareVisiblePreview }) => prepareVisiblePreview(
+            () => renderer.shadersReady(),
+            () => new Promise<void>(resolve => requestAnimationFrame(() => resolve())),
+          )).then(() => {
+            if (!cancelled && scene.current === renderer) { previewAnnounced.current = true; onPreviewReady(); }
+          }).catch(() => { announcing = false; });
+        }
+      }
       frame = requestAnimationFrame(drift);
     };
     setView3d(true);
     frame = requestAnimationFrame(drift);
     return () => {
+      cancelled = true;
       cancelAnimationFrame(frame);
       if (tilted.current) return;
       setView3d(false);
       glideOrbit({ yaw: 0, pitch: 0 }, 900);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showcaseOrbit, showcaseOrbitStart, ready, automaticMotion]);
+  }, [showcaseOrbit, showcaseOrbitStart, ready, automaticMotion, onPreviewReady]);
   const prefetchToken = useRef(0);
   const index = spreadIndex(layout.spreads, leaf);
   const spread = layout.spreads[index]!;
@@ -1434,6 +1454,16 @@ export function BookView({
   }, [bookReady, onReadyChange]);
 
   useEffect(() => {
+    if (!onPreviewReady || !bookReady || previewAnnounced.current || (!fallback && !window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+    let cancelled = false;
+    void import("@/lib/portfolia/demo-readiness").then(({ prepareVisiblePreview }) => prepareVisiblePreview(
+      () => scene.current?.shadersReady() ?? Promise.resolve(),
+      () => new Promise<void>(resolve => requestAnimationFrame(() => resolve())),
+    )).then(() => { if (!cancelled) { previewAnnounced.current = true; onPreviewReady(); } });
+    return () => { cancelled = true; };
+  }, [onPreviewReady, bookReady, fallback, automaticMotion]);
+
+  useEffect(() => {
     const renderer = scene.current;
     if (!onDemoReady || !bookReady || fallback || !renderer) return;
     let cancelled = false;
@@ -1824,7 +1854,7 @@ export function BookView({
           <span className={cn("inline-flex rounded-full px-3 py-2 ring-1 backdrop-blur-sm", tone === "dark" ? "bg-slate-950/75 text-white ring-white/20" : "bg-white/90 text-slate-700 ring-black/15")}>{label}</span>
         </p>}
         {/* Simple / Studio: only offered when the creator has enabled both. Everything else is set in the editor. */}
-        {enabledLooks.length > 1 && !frameAspect && (
+        {enabledLooks.length > 1 && !frameAspect && showAppearance && (
           <div className={cn("absolute bottom-1.5 left-1.5 z-20 flex w-fit transition-opacity duration-300", awake ? "opacity-100" : "pointer-events-none opacity-0")}>
             <Segmented className="bg-white text-black [&_[role=radio]]:text-black [&_[role=radio][aria-checked=true]]:bg-slate-900 [&_[role=radio][aria-checked=true]]:text-white" label="Book appearance" value={settings.studio ? "studio" : "clean"} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={updateLook} />
           </div>

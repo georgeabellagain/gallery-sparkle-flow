@@ -133,6 +133,7 @@ export function useDismiss(ref: RefObject<HTMLElement | null>, active: boolean, 
 
 /** One choice from a few, as a row of buttons rather than a drop-down. */
 export function Segmented<T extends string>({
+  disabledValues,
   label,
   value,
   options,
@@ -142,6 +143,7 @@ export function Segmented<T extends string>({
   label: string;
   value: T;
   options: readonly (readonly [T, string])[];
+  disabledValues?: readonly T[];
   onChange: (value: T) => void;
   className?: string;
 }) {
@@ -153,8 +155,9 @@ export function Segmented<T extends string>({
           type="button"
           role="radio"
           aria-checked={value === v}
+          disabled={disabledValues?.includes(v)}
           onClick={() => onChange(v)}
-          className={cn("rounded-full px-3 py-1 transition-colors", value === v ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
+          className={cn("rounded-full px-3 py-1 transition-colors disabled:opacity-40 disabled:cursor-wait", value === v ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
         >
           {text}
         </button>

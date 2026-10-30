@@ -50,6 +50,10 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
   const tourStarted = useRef<number | undefined>(undefined);
   const [studioFailed, setStudioFailed] = useState(false);
   const [simpleReady, setSimpleReady] = useState(false);
+  const [simplePresented, setSimplePresented] = useState(false);
+  const [switchingPaused, setSwitchingPaused] = useState(false);
+  const restoreTabFocus = useRef(false);
+  const simplePreviewReady = useCallback(() => setSimplePresented(true), []);
   const [visible, setVisible] = useState(false);
   const [motionAllowed, setMotionAllowed] = useState(false);
   const figure = useRef<HTMLElement>(null);
@@ -74,6 +78,8 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
     setState("loading");
     setRendered(false);
     setSimpleReady(false);
+    setSimplePresented(false);
+    setSwitchingPaused(false);
     setStudioFailed(false);
     setShownLook("simple");
     setWarmStudio(false);
@@ -92,20 +98,21 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
     return () => { cancelled = true; clearTimeout(timeout); };
   }, [attempt, exampleCode, workspace]);
   useEffect(() => {
-    if (state !== "ready" || (workspace ? simpleReady : rendered)) { setSlow(false); return; }
+    if (state !== "ready" || (workspace ? simplePresented : rendered)) { setSlow(false); return; }
     const timeout = setTimeout(() => setSlow(true), 60000);
     return () => clearTimeout(timeout);
-  }, [state, rendered, simpleReady, workspace, attempt]);
+  }, [state, rendered, simplePresented, workspace, attempt]);
   const p = data?.portfolio;
   const url = p?.pdf && data?.urls[p.pdf.blobKey];
   const source = useMemo(() => url ? { url } : null, [url]);
   // Simple starts its own tour immediately; Studio warms independently behind it.
   const simpleChanged = useCallback((ready: boolean) => { if (ready) { tourStarted.current ??= performance.now(); setSimpleReady(true); } }, []);
   const cycle = useMemo(() => createHomeLookCycle(setShownLook), [attempt, exampleCode]);
-  useEffect(() => { cycle.setActive(workspace && state === "ready" && visible && pageActive && !interacted); return () => cycle.pause(); }, [cycle, workspace, state, visible, pageActive, interacted]);
+  useEffect(() => { cycle.setActive(workspace && state === "ready" && visible && pageActive && !interacted && !switchingPaused); return () => cycle.pause(); }, [cycle, workspace, state, visible, pageActive, interacted, switchingPaused]);
+  useEffect(() => { cycle.setPresented(simplePresented); }, [cycle, simplePresented]);
   useEffect(() => { cycle.setReady(rendered && !studioFailed); }, [cycle, rendered, studioFailed]);
   useEffect(() => {
-    if (!workspace || !simpleReady || warmStudio) return;
+    if (!workspace || !simplePresented || warmStudio) return;
     let frame = 0, idle: number | undefined, fallback: ReturnType<typeof setTimeout> | undefined;
     // Yield two browser frames so Simple and its moving backdrop are already presented.
     frame = requestAnimationFrame(() => { frame = requestAnimationFrame(() => {
@@ -113,12 +120,25 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
       else fallback = setTimeout(() => setWarmStudio(true), 0);
     }); });
     return () => { cancelAnimationFrame(frame); if (idle !== undefined) window.cancelIdleCallback(idle); clearTimeout(fallback); };
-  }, [workspace, simpleReady, warmStudio]);
+  }, [workspace, simplePresented, warmStudio]);
   const studioActive = !workspace || (shownLook === "studio" && rendered && !studioFailed);
   const simpleActive = workspace && !studioActive;
-  const displayed = workspace ? simpleReady : rendered;
+  const displayed = workspace ? simplePresented : rendered;
   const tourActive = workspace && simpleReady && visible && motionAllowed && !interacted;
+  const selectLook = (look: "clean" | "studio") => {
+    if (look === "studio" && (!rendered || studioFailed)) return;
+    restoreTabFocus.current = true;
+    cycle.pause(); setSwitchingPaused(true); setShownLook(look === "clean" ? "simple" : "studio");
+  };
+  const lookControl = workspace && simplePresented ? { value: (shownLook === "simple" ? "clean" : "studio") as "clean" | "studio", studioReady: rendered && !studioFailed, onChange: selectLook } : undefined;
+  useEffect(() => {
+    if (!restoreTabFocus.current) return;
+    restoreTabFocus.current = false;
+    figure.current?.querySelector<HTMLElement>('[data-active="true"] [data-demo-tabs] [aria-checked="true"]')?.focus({ preventScroll: true });
+  }, [shownLook]);
   const stop = (e: { target: EventTarget | null }) => {
+    if (workspace && !simplePresented) return;
+    if (e.target instanceof Element && e.target.closest("[data-demo-tabs]")) { cycle.pause(); setSwitchingPaused(true); return; }
     // Scrolling the homepage does not stop the showcase.
     if (e.target instanceof Element && e.target.closest("[data-demo-guidance]")) return;
     setInteracted(true);
@@ -135,6 +155,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
         backgroundUrl={p.viewer?.backgroundKey ? data?.urls[p.viewer.backgroundKey] : undefined}
         controls
         homepageExample={workspace}
+        showcaseLookControl={lookControl}
         presentationActive={studioActive}
         loadingIndicator={false}
         allowDownload={p.allowDownload}
@@ -150,7 +171,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
         onDemoReady={workspace ? studioRendered : undefined}
         onLoadError={workspace ? studioError : loadError}
       /></div>}
-      {workspace && state === "ready" && p?.pdf && source && <div data-demo-simple data-active={simpleActive} className="pf-demo-look absolute inset-0" style={{ opacity: simpleActive ? 1 : 0, visibility: simpleActive ? "visible" : "hidden", pointerEvents: simpleActive ? "auto" : "none" }} aria-hidden={!simpleActive} inert={!simpleActive}>
+      {workspace && state === "ready" && p?.pdf && source && <div data-demo-simple data-active={simpleActive} className="pf-demo-look absolute inset-0" style={{ opacity: simpleActive ? 1 : 0, visibility: simpleActive ? "visible" : "hidden", pointerEvents: simpleActive && simplePresented ? "auto" : "none" }} aria-hidden={!simpleActive || !simplePresented} inert={!simpleActive || !simplePresented}>
         {/* Simple is a fully working reader while Studio prepares independently. */}
         <PdfViewer
           source={source}
@@ -158,6 +179,8 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
           viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "clean", modes: ["book"], looks: ["clean"] }}
           startPage={HOME_EXAMPLE_START_PAGE}
           controls
+          showcaseLookControl={lookControl}
+          onPreviewReady={simplePreviewReady}
           allowDownload={p.allowDownload}
           backgroundUrl={p.viewer?.backgroundKey ? data?.urls[p.viewer.backgroundKey] : undefined}
           presentationActive={simpleActive}
