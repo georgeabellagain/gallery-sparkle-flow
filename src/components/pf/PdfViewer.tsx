@@ -107,6 +107,7 @@ export function PdfViewer({
   backgroundUrl: uploadedBackgroundUrl,
   controls,
   homepageExample = false,
+  loadingIndicator = true,
   autoTurn = false,
   demoNotes = false,
   onContentReadyChange,
@@ -174,6 +175,8 @@ export function PdfViewer({
   /** Whether to show the icons. Defaults to on, except for small thumbnails. */
   controls?: boolean;
   homepageExample?: boolean;
+  /** False when a parent demo owns the loading indicator for multiple readers. */
+  loadingIndicator?: boolean;
   autoTurn?: boolean;
   /** Only enabled by the homepage showcase; uses the actual flap animation. */
   demoNotes?: boolean;
@@ -1031,7 +1034,7 @@ export function PdfViewer({
       {mode === "book" && activeLook === "studio" && renderedStudio && !renderFailed && !compact ? (
         <RenderedBook fill={full || immersive} pack={renderedStudio} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} onReady={bookReadyChanged} onFallback={() => setRenderFailed(true)} />
       ) : mode === "book" ? (
-        <Suspense fallback={null}><BookView onDemoReady={onDemoReady} showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={shownTags} visiblePages={hiddenPages.size ? visible : undefined} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} hotspots={hotspots} slideshows={slideshows} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn || readerAutoFlip} autoTurnDelay={autoTurn ? autoTurnDelay : readerAutoFlip ? autoFlip * 1000 : autoTurnDelay} showcaseOrbit={showcaseOrbit || (idleDrift && mode === "book" && shown)} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
+        <Suspense fallback={null}><BookView loadingIndicator={loadingIndicator && !SHOW_LOADER} onDemoReady={onDemoReady} showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={shownTags} visiblePages={hiddenPages.size ? visible : undefined} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} hotspots={hotspots} slideshows={slideshows} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn || readerAutoFlip} autoTurnDelay={autoTurn ? autoTurnDelay : readerAutoFlip ? autoFlip * 1000 : autoTurnDelay} showcaseOrbit={showcaseOrbit || (idleDrift && mode === "book" && shown)} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>
@@ -1084,7 +1087,7 @@ export function PdfViewer({
         </p>
       )}
 
-      {SHOW_LOADER && !error && (
+      {loadingIndicator && SHOW_LOADER && !error && (
         <div
           aria-hidden={contentReady}
           className={cn("absolute inset-0 z-40 transition-opacity duration-300", contentReady ? "pointer-events-none opacity-0" : "opacity-100")}

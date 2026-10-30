@@ -402,6 +402,7 @@ export function BookView({
   showPageNumber = true,
   showNavigation = true,
   showcaseOrbit = false,
+  loadingIndicator = true,
 }: {
   doc: PDFDocumentProxy;
   sizes: { w: number; h: number }[];
@@ -413,6 +414,8 @@ export function BookView({
   showNavigation?: boolean;
   /** Homepage only: drift slowly round the book in 3D until the reader takes over. */
   showcaseOrbit?: boolean;
+  /** A parent reader/demo may own the single loading indicator. */
+  loadingIndicator?: boolean;
   viewer: ViewerSettings;
   /** The colour behind the book. */
   colour: string;
@@ -1791,7 +1794,7 @@ export function BookView({
               }} />
           );
         })()}
-        {wait && !error && (
+        {loadingIndicator && wait && !error && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <BookLoader tone={tone} label="" />
           </div>
