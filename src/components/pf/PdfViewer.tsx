@@ -118,6 +118,8 @@ export function PdfViewer({
   fullSpread = false,
   onBookReadyChange,
   onDemoReady,
+  onPreviewReady,
+  showcaseLookControl,
   onLoadError,
   lightweight = false,
   pageNumber,
@@ -196,6 +198,8 @@ export function PdfViewer({
   pageNumber?: boolean;
   onBookReadyChange?: (ready: boolean) => void;
   onDemoReady?: () => void;
+  onPreviewReady?: () => void;
+  showcaseLookControl?: { value: "clean" | "studio"; studioReady: boolean; onChange: (look: "clean" | "studio") => void };
   onLoadError?: (message: string) => void;
 }) {
   const renderedStudio = STUDIO_RENDERING_ENABLED ? savedRenderedStudio : undefined;
@@ -529,9 +533,10 @@ export function PdfViewer({
   };
 
   useEffect(() => setMode(startMode), [startMode]);
-  const enabledLooks = renderedStudio && mode === "book" && !compact ? ["clean", "studio"] as const : looksForMode(view, mode);
+  const enabledLooks = (full && showcaseLookControl) || (renderedStudio && mode === "book" && !compact) ? ["clean", "studio"] as const : looksForMode(view, mode);
   const studioAvailable = enabledLooks.includes("studio");
   const [selectedLook, setSelectedLook] = useState(() => initialLook ?? (compact && autoTurn ? view.look : openingLook(view, startMode)));
+  useEffect(() => { if (showcaseLookControl && !full && presentationActive) setSelectedLook(showcaseLookControl.value); }, [showcaseLookControl?.value, full, presentationActive]);
   const [previewLook, setPreviewLook] = useState(() => compact ? getPreviewLook() : null);
   useEffect(() => { setSelectedLook(initialLook ?? (compact && autoTurn ? view.look : openingLook(view, mode))); }, [view.look, JSON.stringify(view.looks), JSON.stringify(view.studioModes), source, initialLook]);
   useEffect(() => {
@@ -1039,7 +1044,7 @@ export function PdfViewer({
       {mode === "book" && activeLook === "studio" && renderedStudio && !renderFailed && !compact ? (
         <RenderedBook fill={full || immersive} pack={renderedStudio} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} onReady={bookReadyChanged} onFallback={() => setRenderFailed(true)} />
       ) : mode === "book" ? (
-        <Suspense fallback={null}><BookView presentationActive={presentationActive} showcaseOrbitStart={showcaseOrbitStart} loadingIndicator={loadingIndicator && !SHOW_LOADER} onDemoReady={onDemoReady} showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={shownTags} visiblePages={hiddenPages.size ? visible : undefined} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} hotspots={hotspots} slideshows={slideshows} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn || readerAutoFlip} autoTurnDelay={autoTurn ? autoTurnDelay : readerAutoFlip ? autoFlip * 1000 : autoTurnDelay} showcaseOrbit={showcaseOrbit || (idleDrift && mode === "book" && shown)} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
+        <Suspense fallback={null}><BookView onPreviewReady={onPreviewReady} showAppearance={!showcaseLookControl} presentationActive={presentationActive} showcaseOrbitStart={showcaseOrbitStart} loadingIndicator={loadingIndicator && !SHOW_LOADER} onDemoReady={onDemoReady} showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={shownTags} visiblePages={hiddenPages.size ? visible : undefined} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} hotspots={hotspots} slideshows={slideshows} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, ...(full && showcaseLookControl ? { looks: ["clean", "studio"] } : {}), look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn || readerAutoFlip} autoTurnDelay={autoTurn ? autoTurnDelay : readerAutoFlip ? autoFlip * 1000 : autoTurnDelay} showcaseOrbit={showcaseOrbit || (idleDrift && mode === "book" && shown)} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>
@@ -1080,9 +1085,9 @@ export function PdfViewer({
         </div>
       )}
 
-      {(mode !== "book" || (renderedStudio && !compact)) && enabledLooks.length > 1 && showControls && (
-        <div className="absolute bottom-1.5 left-1.5 z-30 flex w-fit">
-          <Segmented className="bg-white text-black [&_[role=radio]]:text-black [&_[role=radio][aria-checked=true]]:bg-slate-900 [&_[role=radio][aria-checked=true]]:text-white" label="Page appearance" value={activeLook} options={[["clean", "Simple"], ["studio", "Studio"]] as const} onChange={changeLook} />
+      {((showcaseLookControl && !full) || ((mode !== "book" || (renderedStudio && !compact) || (full && showcaseLookControl)) && enabledLooks.length > 1)) && showControls && (
+        <div data-demo-tabs={showcaseLookControl ? "true" : undefined} className="absolute bottom-1.5 left-1.5 z-30 flex w-fit">
+          <Segmented className="bg-white text-black [&_[role=radio]]:text-black [&_[role=radio][aria-checked=true]]:bg-slate-900 [&_[role=radio][aria-checked=true]]:text-white" label="Page appearance" value={showcaseLookControl && !full ? showcaseLookControl.value : activeLook} options={[["clean", "Simple"], ["studio", "Studio"]] as const} disabledValues={showcaseLookControl && !showcaseLookControl.studioReady ? ["studio"] : undefined} onChange={showcaseLookControl && !full ? showcaseLookControl.onChange : changeLook} />
         </div>
       )}
 
