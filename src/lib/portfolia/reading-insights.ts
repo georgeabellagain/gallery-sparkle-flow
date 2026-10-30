@@ -70,7 +70,12 @@ export function summariseReading(rows: ReadingRow[], totalPages: number): Readin
 
 /** Every event as a spreadsheet (CSV), for reports in any tool. */
 export function readingCsv(rows: ReadingRow[]): string {
-  const cell = (v: unknown) => { const s = v === null || v === undefined ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const cell = (v: unknown) => {
+    let s = v === null || v === undefined ? "" : String(v);
+    // Neutralise spreadsheet formulas (CSV injection) in text values.
+    if (typeof v === "string" && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
   const head = ["time", "event", "page", "target", "seconds", "device", "country", "source", "reader"];
   return [head.join(","), ...rows.map((r) => [r.created_at, r.kind, r.page, r.target, r.seconds, r.device, r.country, r.source, r.visitor].map(cell).join(","))].join("\n");
 }
