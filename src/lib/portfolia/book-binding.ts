@@ -238,14 +238,16 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
     for(const {board,top} of sides){board.geometry=next;top.geometry=next;}
     turningBoard.geometry=next;old.dispose();
   };
+  let syncStamp = "";
   return {
     setCoverColour(value:string,board:"front"|"back"="front"){if(board==="back")backColour=value;else coverColour=value;colour();},
     /** Leaf count of the open document, for block thickness. */
-    setLeaves(count:number){leaves=Math.max(0,count|0);},
+    setLeaves(count:number){syncStamp="";leaves=Math.max(0,count|0);},
     /** Ribbon bookmark (hardback and soft cover) and the colour shared by ribbon and headbands. */
     /** `headbands: false` leaves them off (the photo shoot shows none). */
-    setDetails(details:{ribbon?:boolean;ribbonColour?:string;ribbonGutter?:number;headbands?:boolean}){ribbonOn=details.ribbon===true;bandsOn=details.headbands!==false;ribbonColour=readableRibbonColour(details.ribbonColour);ribbonGutter=details.ribbonGutter;colour();},
+    setDetails(details:{ribbon?:boolean;ribbonColour?:string;ribbonGutter?:number;headbands?:boolean}){syncStamp="";ribbonOn=details.ribbon===true;bandsOn=details.headbands!==false;ribbonColour=readableRibbonColour(details.ribbonColour);ribbonGutter=details.ribbonGutter;colour();},
     set(value:unknown,lit:boolean,showLayers=false){
+      syncStamp="";
       studio=lit;layered=showLayers;
       const profile=bookStyleProfile(value),changed=profile.id!==style;style=profile.id;
       group.visible=style!=="flipbook"||layered;
@@ -271,6 +273,13 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
      * at the same depth, so a cover leaving or landing never makes the rest of the book jump.
      */
     sync(visible:readonly [boolean,boolean],layout:readonly [BindingSide,BindingSide]=[PAGE_SIDE,PAGE_SIDE]){
+      // Camera movement cannot change book geometry. Avoid rebuilding/uploading every
+      // instanced page layer (and allocating vectors/matrices) for an unchanged spread.
+      const layoutStamp = [visible[0], visible[1], turning.visible, Boolean(ribbonTurn),
+        layout[0].kind, layout[0].share, layout[0].leaf,
+        layout[1].kind, layout[1].share, layout[1].leaf].join("|");
+      if (layoutStamp === syncStamp) return;
+      syncStamp = layoutStamp;
       const profile=bookStyleProfile(style),hard=style==="hardback",depth=stackDepth(layered&&style==="flipbook"?"softcover":style,leaves),B=profile.board;
       let deepest=0;
       const infoOf=(index:number)=>hard?layout[index]!:{...layout[index]!,kind:"page" as const};
@@ -357,7 +366,7 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
      * right-hand page, sinking under the sheet that covers it or rising as the sheet lifts away (`revealing`).
      */
     setRibbonTurn(turn:RibbonTurn|null){
-      ribbonTurn=turn;ribbonStamp="";turnShapes=null;
+      syncStamp="";ribbonTurn=turn;ribbonStamp="";turnShapes=null;
       if(!turn||!ribbon.visible)return;
       // Where the hanging end starts and finishes: lying open on the marked spread, or as a tail from the block that
       // holds it afterwards (the left one when the marked page turns away, the right one when a page covers it).
