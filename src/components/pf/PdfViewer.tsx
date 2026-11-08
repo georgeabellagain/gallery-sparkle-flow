@@ -588,9 +588,12 @@ export function PdfViewer({
     if (!studioLighting) return;
     void import("@/lib/portfolia/prepared-environment").then((m) => {
       void m.loadPreparedEnvironment(studioLighting, "preview").catch(() => {});
-      void m.loadPreparedEnvironment(studioLighting, "full").catch(() => {});
+      // Flipbook's diffuse approximation only needs the small lighting map.
+      // Full-quality captures request their own full environment in book-scene.
+      if (mode !== "book" || new URLSearchParams(window.location.search).get("studioLighting") === "full")
+        void m.loadPreparedEnvironment(studioLighting, "full").catch(() => {});
     });
-  }, [studioLighting]);
+  }, [studioLighting, mode]);
   // Each look (in Flipbook) and reading style can carry its own background.
   const backgroundContext = mode === "book" ? (studio ? "studio" : "clean") : mode;
   const bgOverride = view.backgrounds?.[backgroundContext];

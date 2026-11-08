@@ -22,6 +22,7 @@ export function createBookNotes(
   materials: THREE.MeshStandardMaterial[],
   template: () => THREE.MeshStandardMaterial,
   repaint: () => void,
+  decorateMaterial?: (material: THREE.MeshStandardMaterial) => void,
 ) {
   let generation = 0;
   const entries = new Map<
@@ -126,6 +127,7 @@ export function createBookNotes(
           texture.anisotropy = 4;
           resources.push(texture);
           const mat = template().clone();
+          decorateMaterial?.(mat);
           setNaturalImperfections(mat,template().userData["naturalEnabled"] as number | boolean | undefined);
           if (f.style === "sticky") {
             const grain = new Uint8Array(64 * 64 * 4);
