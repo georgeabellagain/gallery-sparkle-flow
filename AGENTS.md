@@ -73,3 +73,5 @@
 - Studio motion uses a bounded drawing surface during turns, orbit, pan and wheel zoom, restoring reading detail after the camera settles; capture stays full quality. Book-binding layout caches unchanged spreads so camera frames do not rebuild/upload page-layer matrices. Free shared readers show a subtle Make your own link beside the Portfolia credit; Personal and unbranded embeds do not.
 
 - Corner turn cues are 8–24 px and soft-light blended into the underlying page so they inherit its artwork and lighting rather than showing a cream flap.
+
+- Interactive Flipbook Studio uses fast-studio.ts: cached diffuse HDRI illumination, a small analytic satin highlight, projected light cookies, and simulated contact/turn shadows; no shadow-map passes or glossy environment/BRDF lookup. Paper normals, stock, videos and cloned notes/tabs keep their material hooks. Only preview HDRIs load (full-file fallback if preview fails). Photoshoot and captureQuality/fixedQuality book renderers retain full lighting. `?studioLighting=full` restores the original viewer renderer for comparison. Do not re-enable full HDRI prefetch for ordinary book readers in PdfViewer.

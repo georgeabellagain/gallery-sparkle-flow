@@ -1,3 +1,4 @@
+import { applyFastStudio } from "./fast-studio";
 import { rigidCoverWriter, COVER_OVERHANG, coverArtZ, type CoverRest } from "./rigid-cover";
 import { sampleCoverColour } from "./cover-colour";
 import { studioShadowSize, studioShadowRadius } from "./shadow-quality";
@@ -104,7 +105,10 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   renderer.setPixelRatio(pixelRatio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NoToneMapping;
-  renderer.shadowMap.enabled = true;
+  // Full lighting remains available for comparison/troubleshooting; photoshoot
+  // has its own renderer and is unaffected by this viewer-only approximation.
+  const fastStudio = !fixedQuality && (typeof window === "undefined" || new URLSearchParams(window.location.search).get("studioLighting") !== "full");
+  renderer.shadowMap.enabled = !fastStudio;
   renderer.shadowMap.autoUpdate = false;
   let shadowsDirty = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -188,6 +192,16 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     if (!promise) {
       // The small preview (about 130 KB) lights the paper first; the full photograph follows. Whichever is
       // ready first is used, so a full file prepared earlier is never replaced by its preview.
+      // Diffuse lighting has no sharp reflections to recover from the full HDRI.
+      // The preview contains its colour/direction at far lower download cost.
+      if (fastStudio) {
+        promise = loadPreparedEnvironment(id, "preview")
+          .catch(() => loadPreparedEnvironment(id, "full"))
+          .then(prepared => disposed ? null : install(id, prepared))
+          .catch(() => null).finally(() => loading.delete(id));
+        loading.set(id, promise);
+        return promise;
+      }
       const full = loadPreparedEnvironment(id, "full");
       promise = Promise.any([
         full.then((prepared) => ({ prepared, final: true })),
@@ -243,7 +257,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   sunPatch.shadow.bias = -.0001;
   sunPatch.shadow.camera.near = .1;
   sunPatch.shadow.camera.far = 12;
-  const cachedLightMask = createCachedLightMask();
+  const cachedLightMask = createCachedLightMask(fastStudio ? false : undefined);
   const dapples = new Map<string, THREE.CanvasTexture>();
   lightRig.add(sunPatch, sunPatch.target);
 
@@ -342,6 +356,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // one-sided sheet that faces the light casts none, so the real shadow would come and go.
     mat.shadowSide = THREE.DoubleSide;
     cachedLightMask.apply(mat);
+    if (fastStudio) applyFastStudio(mat);
     gutter.apply(mat);
     pageVideo.apply(mat);
     pageMaterials.push(mat);
@@ -535,7 +550,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     // Keep shadow edges detailed even when adaptive animation quality lowers
     // the main canvas resolution. Reallocate only when the output tier changes.
     const shadowSize=studioShadowSize(w,h,window.devicePixelRatio,renderer.capabilities.maxTextureSize,fixedQuality);
-    for(const source of [light,sunPatch])if(source.shadow.mapSize.x!==shadowSize){
+    for(const source of fastStudio ? [] : [light,sunPatch])if(source.shadow.mapSize.x!==shadowSize){
       const radius=source.shadow.radius*512/source.shadow.mapSize.x;
       source.shadow.map?.dispose();source.shadow.map=null;
       source.shadow.mapSize.set(shadowSize,shadowSize);
@@ -909,19 +924,23 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     ambient.intensity = next.studio ? mix.ambient : Math.PI;
     ambient.color.set(0xffffff);
     ambient.groundColor.set(next.studio ? 0xb7bdca : 0xffffff);
-    // Studio shows only the real shadow cast by the light and the paper; the soft shadow is the Simple look's.
-    contactOn = !next.studio && next.simpleShadow;
+    // Fast Studio reuses soft decals, aligned with the selected lighting direction.
+    contactOn = next.studio ? fastStudio && backdropShadow : next.simpleShadow;
+    for (const [mesh, centre] of [[contact.left, -.5], [contact.spread, 0], [contact.right, .5]] as const) {
+      mesh.position.x = centre + (next.studio && fastStudio ? -shadow.position[0] / Math.max(1, shadow.position[2]) * BOOK_LIFT : CONTACT_X);
+      mesh.position.y = next.studio && fastStudio ? -shadow.position[1] / Math.max(1, shadow.position[2]) * BOOK_LIFT : CONTACT_Y;
+    }
     contactOpacity = next.studio ? .2 : THREE.MathUtils.clamp(next.simpleShadowOpacity, 0, 1);
     applyContact();
     shadowCatcher.material.opacity = .3;
-    shadowCatcher.visible = next.studio && backdropShadow;
+    shadowCatcher.visible = next.studio && !fastStudio && backdropShadow;
     light.castShadow = next.studio && (!pattern || mix.hdri === 0);
     if (variantChanged) variant = nextVariant;
     airDust.setIntensity(next.studio ? next.imperfections ?? 0 : 0);
     // Bound pages darken softly into the spine. Simple gets only a slim, light seam so artwork stays true.
     if (next.studio) gutter.set(next.bookStyle !== "flipbook" ? .32 : .18);
     else gutter.set(.14, .07);
-    turnShade.enable(next.studio);
+    turnShade.enable(next.studio && !fastStudio);
     // Hand-drawn shading belongs to the flat, illustrated Simple look; Studio's light stays smooth.
     shadeStyleUniform.value = next.studio ? 0 : shadeStyleIndex(readableShadeStyle(next.shadeStyle));
     tabs.setStyle(next.tabStyle);
@@ -939,6 +958,13 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       m.color.set(next.studio ? 0xffffff : 0x000000);
       if (variantChanged) m.needsUpdate = true;
     }
+    // Binding, page layers and the backdrop share the same approximation. This
+    // traversal happens on settings changes, never once per animation frame.
+    if (fastStudio) scene.traverse(object => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) if (material instanceof THREE.MeshStandardMaterial) applyFastStudio(material);
+    });
     if (!warmedLooks.has(next.studio)) {
       warmedLooks.add(next.studio);
       warm();
@@ -1156,8 +1182,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     driveContact(progress);
     turnShade.drive(progress, dir);
   };
-  const notes = createBookNotes(book, ratio, pageMaterials, () => right.material as THREE.MeshStandardMaterial, requestPaint);
-  const tabs = createBookTabs(book, ratio, pageMaterials, () => right.material as THREE.MeshStandardMaterial, requestPaint, (x,y)=>pageRelief(Math.abs(x),y/ratio+.5,(x<0?left:right).userData["seed"] as number));
+  const decorateExtra = fastStudio ? applyFastStudio : undefined;
+  const notes = createBookNotes(book, ratio, pageMaterials, () => right.material as THREE.MeshStandardMaterial, requestPaint, decorateExtra);
+  const tabs = createBookTabs(book, ratio, pageMaterials, () => right.material as THREE.MeshStandardMaterial, requestPaint, (x,y)=>pageRelief(Math.abs(x),y/ratio+.5,(x<0?left:right).userData["seed"] as number), decorateExtra);
   /** How the tabs move during the turn in progress (set when a turn is prepared). */
   let tabPlan: TabPlan[] | null = null;
   configure(settings);
@@ -1181,9 +1208,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     async demoReady() {
       await Promise.all([paperTextures.ready(), backdrop.ready(), loadEnvironment(settings.hdri)]);
       const id = settings.hdri;
-      const prepared = await loadPreparedEnvironment(id, "full");
+      const prepared = fastStudio ? null : await loadPreparedEnvironment(id, "full");
       if (disposed) throw new Error("The renderer closed.");
-      if (!finalEnvironments.has(id)) upgradeEnvironment(id, prepared);
+      if (prepared && !finalEnvironments.has(id)) upgradeEnvironment(id, prepared);
       warm();
     },
     setFrameSink(sink?: (canvas: HTMLCanvasElement) => void) { frameSink = sink; paint(); },
@@ -1193,7 +1220,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       backdrop.set(url, fit, shown, colour, lit, surface);
       // Over a colour-and-motion scene, the book's shadow falls on it only while the scene is lit by the Studio light.
       backdropShadow = shown || lit;
-      shadowCatcher.visible = settings.studio && backdropShadow;
+      shadowCatcher.visible = settings.studio && !fastStudio && backdropShadow;
+      contactOn = settings.studio ? fastStudio && backdropShadow : settings.simpleShadow;
+      applyContact();
       requestPaint();
     },
     setNotes: notes.set,

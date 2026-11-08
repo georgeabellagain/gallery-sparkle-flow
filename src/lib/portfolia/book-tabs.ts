@@ -29,6 +29,7 @@ export function createBookTabs(
   template: () => THREE.MeshStandardMaterial,
   repaint: () => void,
   relief?: (x: number, y: number) => number,
+  decorateMaterial?: (material: THREE.MeshStandardMaterial) => void,
 ) {
   type Entry = { spec: TabSpec; y: number; height: number; v: number; front: THREE.BufferGeometry; back: THREE.BufferGeometry; group: THREE.Group };
   let entries: Entry[] = [];
@@ -125,6 +126,7 @@ export function createBookTabs(
       const meshFor = (g: THREE.BufferGeometry, side: THREE.Side) => {
         const texture = picture(side === THREE.BackSide);
         const mat = template().clone();
+          decorateMaterial?.(mat);
           setNaturalImperfections(mat,template().userData["naturalEnabled"] as number | boolean | undefined);
         mat.map = texture;
         // Matte card like a sticky note (the scene keeps these matte whatever the paper finish).
