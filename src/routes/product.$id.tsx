@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { SiteHeader, SiteFooter } from "@/components/pf/Chrome";
 import { Button } from "@/components/ui/button";
 import { PdfViewer } from "@/components/pf/PdfViewer";
+import { PreviewChrome } from "@/components/products/PreviewChrome";
 import { DEFAULT_VIEWER } from "@/lib/portfolia/store";
 import { getProduct, redeemProduct, closeProductEdition } from "@/lib/products/functions";
 export const Route = createFileRoute("/product/$id")({
@@ -22,7 +23,8 @@ function ProductPage() {
     [error, setError] = useState(""),
     [code, setCode] = useState(""),
     [busy, setBusy] = useState(false),
-    [retry, setRetry] = useState(0);
+    [retry, setRetry] = useState(0),
+    [page, setPage] = useState(1);
   const refresh = () => getProduct({ data: { id } }).then(setP);
   useEffect(() => {
     let active = true;
@@ -88,7 +90,7 @@ function ProductPage() {
               {!p.customer && p.buyUrl && (
                 <Button asChild>
                   <a href={p.buyUrl} target="_blank" rel="noopener noreferrer">
-                    Buy the full edition ↗
+                    Buy the full product ↗
                   </a>
                 </Button>
               )}
@@ -122,22 +124,15 @@ function ProductPage() {
             </div>
             {source ? (
               <div className="relative rounded-2xl border overflow-hidden">
-                {!p.customer && (
-                  <span className="pointer-events-none absolute right-4 top-4 z-30 rounded-full bg-background/90 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] shadow-soft">Preview</span>
-                )}
-                {!p.customer && p.buyUrl && (
-                  <div className="absolute inset-x-0 bottom-16 z-30 flex justify-center px-4">
-                    <Button asChild className="shadow-lift">
-                      <a href={p.buyUrl} target="_blank" rel="noopener noreferrer">Purchase to see the full version ↗</a>
-                    </Button>
-                  </div>
-                )}
+                {!p.customer && <PreviewChrome buyUrl={p.buyUrl} pages={p.pages} page={page} />}
                 <PdfViewer
                   key={p.customer ? "customer" : "preview"}
                   source={source}
                   fileName={p.title}
                   viewer={{ ...DEFAULT_VIEWER, ...p.appearance, showHeader: false }}
                   allowDownload={false}
+                  pageArrows
+                  onReaderPage={setPage}
                 />
               </div>
             ) : (
