@@ -14,8 +14,7 @@ export function PreviewChrome({
   page: number;
   className?: string;
 }) {
-  // Flipbook spreads after the cover are 2-3, 4-5, ...; the last spread holds the final page.
-  const atEnd = pages > 1 && page >= pages - (pages % 2 ? 1 : 0);
+  void page;
   return (
     <>
       <span className="pointer-events-none absolute right-4 top-16 z-30 inline-flex items-center gap-2 rounded-full bg-background/90 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] shadow-soft backdrop-blur-sm">
@@ -24,25 +23,10 @@ export function PreviewChrome({
       </span>
       {buyUrl && (
         <div className={cn("pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center px-4", className)}>
-          <div
-            data-preview-buy
-            className={cn(
-              "pointer-events-auto flex flex-col items-center text-center transition-all duration-500",
-              atEnd && "rounded-[1.75rem] bg-background/95 px-6 py-5 shadow-lift backdrop-blur-md",
-            )}
-          >
-            {atEnd && (
-              <div className="mb-3">
-                <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">End of the preview</p>
-                <p className="display-title mt-1.5 text-2xl">
-                  See <em>every</em> page
-                </p>
-              </div>
-            )}
-            <Button asChild className={"shadow-lift"}>
-              <a href={buyUrl} target="_blank" rel="noopener noreferrer">
-                Buy the full product ↗
-              </a>
+          <div data-preview-buy className="pointer-events-auto flex items-center gap-3 rounded-full bg-background/90 py-1.5 pl-4 pr-1.5 shadow-soft backdrop-blur-sm">
+            <p className="display-title text-base">See <em>every</em> page</p>
+            <Button asChild size="sm">
+              <a href={buyUrl} target="_blank" rel="noopener noreferrer">Buy the full product ↗</a>
             </Button>
           </div>
         </div>
