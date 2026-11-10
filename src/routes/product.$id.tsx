@@ -121,7 +121,17 @@ function ProductPage() {
               )}
             </div>
             {source ? (
-              <div className="rounded-2xl border overflow-hidden">
+              <div className="relative rounded-2xl border overflow-hidden">
+                {!p.customer && (
+                  <span className="pointer-events-none absolute right-4 top-4 z-30 rounded-full bg-background/90 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] shadow-soft">Preview</span>
+                )}
+                {!p.customer && p.buyUrl && (
+                  <div className="absolute inset-x-0 bottom-16 z-30 flex justify-center px-4">
+                    <Button asChild className="shadow-lift">
+                      <a href={p.buyUrl} target="_blank" rel="noopener noreferrer">Purchase to see the full version ↗</a>
+                    </Button>
+                  </div>
+                )}
                 <PdfViewer
                   key={p.customer ? "customer" : "preview"}
                   source={source}
