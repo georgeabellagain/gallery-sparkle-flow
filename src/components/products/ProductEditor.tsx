@@ -1,5 +1,3 @@
-import { BACKGROUND_PRESETS } from "@/lib/portfolia/background-presets";
-import { personalBackground } from "@/lib/portfolia/premium-appearance";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useBlocker } from "@tanstack/react-router";
 import { ArrowLeft, Book as BookIcon, Camera, ChevronRight, ChevronsLeft, ChevronsRight, Eye, FileText, Image as ImageIcon, Megaphone, ScanEye, Share2, Sun, Upload, X } from "lucide-react";
