@@ -91,5 +91,5 @@
 - [x] Flipbook: remove drag-to-turn delay; preload all pages behind a loading animation
 
 ## Product editor and homepage spacing (Nov 2026)
-- [ ] Make the product editor look and work like the portfolio editor (top bar, full book stage, bottom tools, side panel).
-- [ ] Remove empty space below the homepage flipbook preview at every screen size.
+- [x] Make the product editor look and work like the portfolio editor (top bar, full book stage, bottom tools, side panel).
+- [x] Remove empty space below the homepage flipbook preview at every screen size.
