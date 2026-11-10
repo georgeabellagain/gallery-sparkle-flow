@@ -234,3 +234,7 @@ test("revoked grants block subsequent file ranges", async () => {
   );
   assert.equal(db.signed.length, 0);
 });
+
+test("cover is always included alongside chosen preview spreads", () => {
+  assert.deepEqual(previewPages("4-5, 10-11, 20-21", 24), [1, 4, 5, 10, 11, 20, 21]);
+});
