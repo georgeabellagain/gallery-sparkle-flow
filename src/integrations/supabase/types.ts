@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      digital_products: {
+        Row: {
+          allow_download: boolean
+          appearance: Json
+          buy_url: string
+          created_at: string
+          description: string
+          full_file: Json | null
+          id: string
+          owner_id: string
+          preview_file: Json | null
+          preview_pages: Json
+          revision: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          allow_download?: boolean
+          appearance?: Json
+          buy_url?: string
+          created_at?: string
+          description?: string
+          full_file?: Json | null
+          id?: string
+          owner_id: string
+          preview_file?: Json | null
+          preview_pages?: Json
+          revision?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          allow_download?: boolean
+          appearance?: Json
+          buy_url?: string
+          created_at?: string
+          description?: string
+          full_file?: Json | null
+          id?: string
+          owner_id?: string
+          preview_file?: Json | null
+          preview_pages?: Json
+          revision?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       feedback: {
         Row: {
           created_at: string
@@ -208,6 +259,47 @@ export type Database = {
         }
         Relationships: []
       }
+      product_access_links: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          label: string
+          product_id: string
+          revoked: boolean
+          secret: string
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          label: string
+          product_id: string
+          revoked?: boolean
+          secret: string
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          label?: string
+          product_id?: string
+          revoked?: boolean
+          secret?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_access_links_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "digital_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           cancel_at_period_end: boolean | null
@@ -284,6 +376,12 @@ export type Database = {
         Returns: boolean
       }
       portfolio_upload_allowed: {
+        Args: { object_metadata: Json; object_name: string }
+        Returns: boolean
+      }
+      product_mfa_satisfied: { Args: never; Returns: boolean }
+      product_owner_paid: { Args: { owner_uuid: string }; Returns: boolean }
+      product_upload_allowed: {
         Args: { object_metadata: Json; object_name: string }
         Returns: boolean
       }
