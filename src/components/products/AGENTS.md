@@ -1,1 +1,2 @@
 - The product editor (ProductEditor.tsx) mirrors the portfolio editor's layout (top bar, full-height pf-editor-stage book, bottom Upload/Customise/Photo shoot/Share bar, pf-panel side card with a Customise menu) but keeps its own state and save flow. Why: creators should move between portfolios and products without relearning the editor.
+- Homepage 'For digital products' tab shows live pink28 in Studio only (ProductDemo.tsx); product preview always includes page 1 and is picked by spreads. Why: owner's request for a consistent shop preview.
