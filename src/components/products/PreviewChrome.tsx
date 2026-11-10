@@ -27,7 +27,7 @@ export function PreviewChrome({
           <div
             data-preview-buy
             className={cn(
-              "pointer-events-auto flex flex-col-reverse items-center text-center transition-all duration-500",
+              "pointer-events-auto flex flex-col items-center text-center transition-all duration-500",
               atEnd && "rounded-[1.75rem] bg-background/95 px-6 py-5 shadow-lift backdrop-blur-md",
             )}
           >
@@ -39,7 +39,7 @@ export function PreviewChrome({
                 </p>
               </div>
             )}
-            <Button asChild className={cn("shadow-lift", false)}>
+            <Button asChild className={"shadow-lift"}>
               <a href={buyUrl} target="_blank" rel="noopener noreferrer">
                 Buy the full product ↗
               </a>
