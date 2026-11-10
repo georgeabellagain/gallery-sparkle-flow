@@ -4,7 +4,7 @@ import { PdfViewer } from "@/components/pf/PdfViewer";
 import { PreviewChrome } from "@/components/products/PreviewChrome";
 import { DEFAULT_VIEWER } from "@/lib/portfolia/store";
 // TEMPORARY verification route; delete after checking.
-export const Route = createFileRoute("/zz-preview-check")({ component: Check });
+export const Route = createFileRoute("/zz-preview-check")({ staticData: { sitemap: false }, component: Check });
 const source = { url: "/__pink_preview.pdf" };
 function Check() {
   const [page, setPage] = useState(1);
