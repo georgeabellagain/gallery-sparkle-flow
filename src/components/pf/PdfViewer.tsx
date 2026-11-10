@@ -122,6 +122,7 @@ export function PdfViewer({
   showcaseLookControl,
   onLoadError,
   lightweight = false,
+  pageArrows,
   pageNumber,
   initialLook,
 }: {
@@ -196,6 +197,8 @@ export function PdfViewer({
   lightweight?: boolean;
   /** Whether the flipbook shows its page-number pill; by default only when the icons are hidden. */
   pageNumber?: boolean;
+  /** Show previous/next page arrows even in the minimal homepage reader. */
+  pageArrows?: boolean;
   onBookReadyChange?: (ready: boolean) => void;
   onDemoReady?: () => void;
   onPreviewReady?: () => void;
@@ -1047,7 +1050,7 @@ export function PdfViewer({
       {mode === "book" && activeLook === "studio" && renderedStudio && !renderFailed && !compact ? (
         <RenderedBook fill={full || immersive} pack={renderedStudio} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} onReady={bookReadyChanged} onFallback={() => setRenderFailed(true)} />
       ) : mode === "book" ? (
-        <Suspense fallback={null}><BookView onPreviewReady={onPreviewReady} showAppearance={!showcaseLookControl} presentationActive={presentationActive} showcaseOrbitStart={showcaseOrbitStart} loadingIndicator={loadingIndicator && !SHOW_LOADER} onDemoReady={onDemoReady} showNavigation={!minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={shownTags} visiblePages={hiddenPages.size ? visible : undefined} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} hotspots={hotspots} slideshows={slideshows} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, ...(full && showcaseLookControl ? { looks: ["clean", "studio"] } : {}), look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn || readerAutoFlip} autoTurnDelay={autoTurn ? autoTurnDelay : readerAutoFlip ? autoFlip * 1000 : autoTurnDelay} showcaseOrbit={showcaseOrbit || (idleDrift && mode === "book" && shown)} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
+        <Suspense fallback={null}><BookView onPreviewReady={onPreviewReady} showAppearance={!showcaseLookControl} presentationActive={presentationActive} showcaseOrbitStart={showcaseOrbitStart} loadingIndicator={loadingIndicator && !SHOW_LOADER} onDemoReady={onDemoReady} showNavigation={pageArrows ?? !minimalControls} showPageNumber={pageNumber ?? !showControls} frameAspect={renderedStudio && !compact ? renderedStudio.width/renderedStudio.height : undefined} onExporter={onExporter} captureQuality={renderCapture} demoNotes={demoNotes} foldouts={foldouts} tags={shownTags} visiblePages={hiddenPages.size ? visible : undefined} links={links} videos={videos} spotlights={spotlights} jumps={jumps} stickers={stickers} hotspots={hotspots} slideshows={slideshows} doc={doc} sizes={sizes} zoom={zoom} onZoomChange={setZoom} jump={jump} onPage={setCurrent} viewer={{ ...bgView, ...(full && showcaseLookControl ? { looks: ["clean", "studio"] } : {}), look: activeLook }} onLookChange={changeLook} colour={colour} backgroundUrl={backgroundUrl} tone={tone} immersive={immersive} fullscreen={full} awake={shown} onReadyChange={bookReadyChanged} onRenderError={bookRenderError} autoTurn={autoTurn || readerAutoFlip} autoTurnDelay={autoTurn ? autoTurnDelay : readerAutoFlip ? autoFlip * 1000 : autoTurnDelay} showcaseOrbit={showcaseOrbit || (idleDrift && mode === "book" && shown)} fullSpread={renderCapture || fullSpread} lightweight={lightweight} previewable={compact} /></Suspense>
       ) : mode === "paged" ? (
         <div ref={pagedRef} className="relative" style={{ height: pagedHeight, touchAction: zoom > 1 ? "pan-x pan-y" : "pan-y" }}>
           <div ref={panRef} className="h-full overflow-auto" style={{ overflowX: zoom > 1 ? "auto" : "hidden", cursor: zoom > 1 ? "grab" : undefined }}>
