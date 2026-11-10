@@ -19,6 +19,7 @@ export function ProductDemo({ className }: { className?: string }) {
     let off = false;
     getPublicPortfolio({ data: { by: "code", value: PRODUCT_DEMO_CODE } }).then((r) => {
       if (off) return;
+      console.log("pdemo", JSON.stringify({ has: !!r, pdf: r?.portfolio.pdf?.blobKey, url: r && r.portfolio.pdf ? !!r.urls[r.portfolio.pdf.blobKey] : null }));
       if (r) registerPublicUrls(r.urls);
       setData(r);
       setState(r?.portfolio.pdf && r.urls[r.portfolio.pdf.blobKey] ? "ready" : "error");
@@ -48,7 +49,7 @@ export function ProductDemo({ className }: { className?: string }) {
               showcaseOrbitStart={started.current}
               onDemoReady={() => { started.current ??= performance.now(); setShown(true); }}
               onBookReadyChange={(r: boolean) => { if (r) { started.current ??= performance.now(); setShown(true); } }}
-              onLoadError={() => setState("error")}
+              onLoadError={(e?: unknown) => { console.log("pdemo-err", String(e)); setState("error"); }}
             />
           </div>
         )}
