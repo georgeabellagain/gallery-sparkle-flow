@@ -22,7 +22,7 @@ export function PreviewChrome({
         Preview{pages > 0 && <span className="font-normal normal-case tracking-normal text-muted-foreground">· {pages} pages</span>}
       </span>
       {buyUrl && (
-        <div className={cn("pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center px-4", className)}>
+        <div data-preview-chrome className={cn("pointer-events-none absolute inset-x-0 bottom-4 z-30 flex items-end justify-center px-4", className)}>
           <div data-preview-buy className="pointer-events-auto flex items-center gap-3 rounded-full bg-background/90 py-1.5 pl-4 pr-1.5 shadow-soft backdrop-blur-sm">
             <p className="display-title text-base">See <em>every</em> page</p>
             <Button asChild size="sm">
