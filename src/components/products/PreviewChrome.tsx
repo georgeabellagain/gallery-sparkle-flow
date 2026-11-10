@@ -34,7 +34,7 @@ export function PreviewChrome({
               <>
                 <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">End of the preview</p>
                 <p className="display-title mt-1.5 text-2xl">
-                  Read the <em>whole</em> book
+                  See <em>every</em> page
                 </p>
               </>
             )}
