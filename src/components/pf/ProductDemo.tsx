@@ -23,7 +23,7 @@ export function ProductDemo({ className }: { className?: string }) {
       if (r) registerPublicUrls(r.urls);
       setData(r);
       setState(r?.portfolio.pdf && r.urls[r.portfolio.pdf.blobKey] ? "ready" : "error");
-    }, () => !off && setState("error"));
+    }, (e) => { console.log("pdemo-rej", String(e)); if (!off) setState("error"); });
     return () => { off = true; };
   }, []);
   const p = data?.portfolio, url = p?.pdf && data?.urls[p.pdf.blobKey];
