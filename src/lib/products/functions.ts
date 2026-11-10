@@ -9,7 +9,12 @@ import {
   saveProductSchema,
   type Product,
 } from "./model";
+import { PUBLISH_NEEDS_PLAN, productAllowance, type ProductPlan } from "./plan";
 const idInput = z.object({ id: productId });
+async function planOf(db: any, uid: string): Promise<ProductPlan> {
+  const { ownerPlan } = await import("../portfolia/entitlements.server");
+  return ownerPlan(uid, db);
+}
 async function admin() {
   return (await import("@/integrations/supabase/client.server")).supabaseAdmin as any;
 }
@@ -40,26 +45,50 @@ export const listProducts = createServerFn({ method: "GET" })
     const db = await admin();
     const { data, error } = await db
       .from("digital_products")
-      .select("id,title,status,updated_at")
+      .select("id,title,status,updated_at,full_file,preview_file")
       .eq("owner_id", context.userId)
       .order("updated_at", { ascending: false });
     if (error) throw new Error("Products are unavailable. Please try again shortly.");
-    return data as { id: string; title: string; status: string; updated_at: string }[];
+    const plan = await planOf(db, context.userId);
+    return {
+      plan,
+      allowance: productAllowance(plan),
+      // A summary only: no storage keys or file names leave the server here.
+      items: (data as any[]).map((row) => ({
+        id: row.id as string,
+        title: row.title as string,
+        status: row.status as "draft" | "published",
+        updated_at: row.updated_at as string,
+        pages: (row.full_file?.pages as number | undefined) ?? 0,
+        hasFile: Boolean(row.full_file),
+        hasPreview: Boolean(row.preview_file),
+      })),
+    };
   });
 export const createProduct = createServerFn({ method: "POST" })
   .middleware([requireAccount])
   .handler(async ({ context }) => {
     await privateResponse(true);
     const db = await admin();
+    const plan = await planOf(db, context.userId), cap = productAllowance(plan).products;
+    const { count } = await db
+      .from("digital_products")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", context.userId);
+    if ((count ?? 0) >= cap)
+      throw new Error(
+        plan === "free"
+          ? "Free includes one product to try. Upgrade to Personal for up to 10."
+          : plan === "personal"
+            ? "Personal includes 10 products. Business includes 50."
+            : "Business includes 50 products. Delete one to add another.",
+      );
     const { data, error } = await db
       .from("digital_products")
       .insert({ owner_id: context.userId })
       .select("id")
       .single();
-    if (error)
-      throw new Error(
-        "Could not create a product. Free includes 1 product; paid plans include 10. Please check your plan or try again.",
-      );
+    if (error) throw new Error("Could not create a product. Please try again.");
     return data.id as string;
   });
 export const ownerProduct = createServerFn({ method: "GET" })
@@ -69,20 +98,29 @@ export const ownerProduct = createServerFn({ method: "GET" })
     await privateResponse();
     const db = await admin(),
       row = await owned(db, data.id, context.userId);
-    const { ownerPlan } = await import("../portfolia/entitlements.server");
-    const plan = await ownerPlan(context.userId, db);
+    const plan = await planOf(db, context.userId), allowance = productAllowance(plan);
     const { data: links, error } = await db
       .from("product_access_links")
-      .select("id,label,revoked,expires_at,created_at")
+      .select("*")
       .eq("product_id", data.id)
       .order("created_at", { ascending: false })
       .limit(1000);
     if (error) throw new Error("Could not load customer access links.");
     return {
       product: row,
-      links: links as { id: string; label: string; revoked: boolean; expires_at: string | null }[],
+      // Chosen fields only: the token hash and signing secret never leave the server.
+      links: (links as any[]).map((l) => ({
+        id: l.id as string,
+        label: l.label as string,
+        revoked: Boolean(l.revoked),
+        expires_at: (l.expires_at as string | null) ?? null,
+        opens: Number(l.opens ?? 0),
+        last_opened_at: (l.last_opened_at as string | null) ?? null,
+      })),
+      plan,
       personal: plan !== "free",
-      limitMb: plan === "free" ? 30 : 100,
+      canPublish: allowance.publish,
+      limitMb: allowance.mb,
     };
   });
 export const saveProduct = createServerFn({ method: "POST" })
@@ -92,8 +130,14 @@ export const saveProduct = createServerFn({ method: "POST" })
     await privateResponse(true);
     const db = await admin(),
       current = await owned(db, data.id, context.userId);
-    const { ownerPlan } = await import("../portfolia/entitlements.server");
-    const plan = await ownerPlan(context.userId, db);
+    const plan = await planOf(db, context.userId), allowance = productAllowance(plan);
+    // Publishing is paid. A product already online stays online if the plan ends, but is not changed on Free.
+    if (data.status === "published" && !allowance.publish)
+      throw new Error(
+        current.status === "published"
+          ? "Your plan has ended. This product stays online, but changing it needs Personal or Business."
+          : PUBLISH_NEEDS_PLAN,
+      );
     const { personalHdri, personalBackground } = await import("../portfolia/premium-appearance");
     if (plan === "free" && personalHdri(data.appearance.studioLighting ?? "4"))
       throw new Error("Choose a Free HDRI or upgrade before saving.");
@@ -118,7 +162,7 @@ export const saveProduct = createServerFn({ method: "POST" })
         error ||
         !found ||
         Number(found.metadata?.size) !== file.bytes ||
-        file.bytes > (plan === "free" ? 30 : 100) * 1048576 ||
+        file.bytes > allowance.mb * 1048576 ||
         found.metadata?.mimetype !== "application/pdf"
       )
         throw new Error("The PDF upload is missing or exceeds your plan allowance.");
@@ -176,6 +220,8 @@ export const createProductLink = createServerFn({ method: "POST" })
     await privateResponse(true);
     const db = await admin(),
       row = await owned(db, data.id, context.userId);
+    if (!productAllowance(await planOf(db, context.userId)).publish)
+      throw new Error("Customer links are part of Personal and Business.");
     if (row.status !== "published")
       throw new Error("Publish this product before creating customer access.");
     if (data.expiresAt && Date.parse(data.expiresAt) <= Date.now())
@@ -299,6 +345,12 @@ export const redeemProduct = createServerFn({ method: "POST" })
       throw new Error(
         "This customer link is invalid, expired or revoked. Contact the seller for help.",
       );
+    // Counted for the seller; a failed count never blocks a customer.
+    try {
+      await db.rpc("product_link_opened", { link_uuid: link.id });
+    } catch {
+      /* not counted */
+    }
     setCookie(productCookie(data.id), customerSession(link), {
       httpOnly: true,
       secure: true,

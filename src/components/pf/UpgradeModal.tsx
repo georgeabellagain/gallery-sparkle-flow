@@ -20,8 +20,9 @@ export type PlanChoice = "personal" | "business";
 /**
  * Secure checkout for Personal or Business. `reason` names the feature that prompted the upgrade, when there is one.
  * Someone already on Personal moves up to Business on their existing subscription (charged for the time left).
+ * `products` is passed from Digital Product Studio, where the plan comes from the server and no portfolio is needed.
  */
-export function UpgradeModal({ open, onClose, initialBilling = "year", reason, plan: initialPlan = "personal" }: { open: boolean; onClose: () => void; initialBilling?: Billing; reason?: string; plan?: PlanChoice }) {
+export function UpgradeModal({ open, onClose, initialBilling = "year", reason, plan: initialPlan = "personal", products }: { open: boolean; onClose: () => void; initialBilling?: Billing; reason?: string; plan?: PlanChoice; products?: { plan: "free" | "personal" | "business"; returnTo: string } }) {
   const doc = getDoc();
   const p = doc.portfolio;
   const [billing, setBilling] = useState<Billing>(initialBilling);
@@ -32,7 +33,7 @@ export function UpgradeModal({ open, onClose, initialBilling = "year", reason, p
   useEffect(() => { if (open) { setBilling(initialBilling); setPlan(initialPlan); setErr(null); setDone(false); } }, [open, initialBilling, initialPlan]);
 
   const [busy, setBusy] = useState(false);
-  const onPersonal = isPaid(doc), onBusiness = isBusiness(doc);
+  const onPersonal = products ? products.plan !== "free" : isPaid(doc), onBusiness = products ? products.plan === "business" : isBusiness(doc);
   // Already has everything this choice offers.
   const covered = plan === "business" ? onBusiness : onPersonal;
   // On Personal and choosing Business: an upgrade of the existing subscription, not a second one.
@@ -60,7 +61,7 @@ export function UpgradeModal({ open, onClose, initialBilling = "year", reason, p
         priceId: priceFor(plan, billing),
         email: data.user.email,
         userId: data.user.id,
-        successUrl: `${window.location.origin}/dashboard?checkout=success`,
+        successUrl: `${window.location.origin}${products ? products.returnTo : "/dashboard"}?checkout=success`,
       });
       onClose();
     } catch (e) {
@@ -76,7 +77,7 @@ export function UpgradeModal({ open, onClose, initialBilling = "year", reason, p
     <Modal open={open} onClose={onClose} title={title}
       description={covered ? "Your plan is active. Thank you for supporting Portfolia." : done ? "Done. Business switches on here within a minute." : business ? "Everything in Personal, for studios, brands and teams publishing more." : "Your own address, privacy controls and no Portfolia branding. Unlocks as soon as payment is confirmed."}>
       {reason && !covered && <p className="mb-3 rounded-xl bg-leaf-soft px-3 py-2 text-xs text-leaf">{reason} is part of {name}.</p>}
-      {!p ? (
+      {!p && !products ? (
         <div>
           <p>Upload your first PDF, then upgrade whenever you’re ready. Everything you set up carries over.</p>
           <Button asChild className="mt-4"><Link to="/" hash="upload" onClick={onClose}>Upload your PDF</Link></Button>
@@ -113,7 +114,8 @@ export function UpgradeModal({ open, onClose, initialBilling = "year", reason, p
           </ul>
           <ul className="mt-4 space-y-1.5 text-xs text-muted-foreground">
             {moveUp ? <li>Your Personal subscription becomes Business straight away; you pay only the difference for the time left.</li>
-              : <li>Your free link /p/{p.code} keeps working, so links you’ve already shared stay useful.</li>}
+              : products ? <li>Your products, previews and settings carry over as they are.</li>
+              : p && <li>Your free link /p/{p.code} keeps working, so links you’ve already shared stay useful.</li>}
             <li>Cancel anytime: access continues to the end of your paid period and nothing is deleted.</li>
           </ul>
           {err && <p role="alert" className="mt-3 text-sm text-destructive">{err}</p>}

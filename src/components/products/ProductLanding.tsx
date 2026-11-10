@@ -92,8 +92,8 @@ export function ProductLanding({ page }: { page: ProductPageKey }) {
       <SiteHeader
         right={
           <>
-            <a href="/">Portfolios</a>
-            <a href="/products">My products</a>
+            <a href="/pricing" className="hidden underline-offset-4 hover:underline sm:inline">Pricing</a>
+            <a href="/products" className="underline-offset-4 hover:underline">My products</a>
           </>
         }
       />
@@ -111,7 +111,7 @@ export function ProductLanding({ page }: { page: ProductPageKey }) {
               <a href="/products">Open Digital Product Studio</a>
             </Button>
             <p className="text-xs text-muted-foreground mt-3">
-              Start with 1 product free · no shop connection required
+              Try it free · publish with Personal · no shop connection required
             </p>
           </div>
           <div className="rounded-[2rem] bg-[#ece9df] p-7 sm:p-10 border">
@@ -199,6 +199,10 @@ export function ProductLanding({ page }: { page: ProductPageKey }) {
             [
               "What happens when I revoke a shop link?",
               "Everyone who received that link loses future access. Update the delivery PDF in your shop and arrange replacement access for existing customers. Use separate links if you need to revoke individual orders.",
+            ],
+            [
+              "Is it free?",
+              "You can build one product and see exactly how its preview will look on the Free plan. Publishing it, the public preview link and private customer links are part of Personal and Business, alongside everything those plans add for portfolios.",
             ],
             [
               "Can I still make a portfolio?",

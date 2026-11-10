@@ -1,3 +1,4 @@
+import { PRODUCT_ALLOWANCE } from "../products/plan";
 import { BUSINESS_PRICE, BUSINESS_UPLOAD_LIMIT_MB, FREE_UPLOAD_LIMIT_MB, MAX_BUSINESS_PORTFOLIOS, MAX_LEAD_RECIPIENTS, MAX_PORTFOLIOS, PERSONAL_UPLOAD_LIMIT_MB, PRICE } from "./store";
 
 /**
@@ -25,7 +26,6 @@ export const BUSINESS_MONTHLY_BILLING = `${BUSINESS_PRICE.month}/month, billed m
 export const BUSINESS_YEARLY_BILLING = `${BUSINESS_PRICE.year} billed yearly (${BUSINESS_YEARLY_PER_MONTH}/month equivalent)`;
 
 export const FREE_FEATURES = [
-  "One digital product with selected-page preview and customer access links",
   `One portfolio, PDFs up to ${FREE_UPLOAD_LIMIT_MB} MB`,
   "3D Studio flipbook, Scroll and Page-by-page readers",
   "Permanent link, QR code and website embed",
@@ -34,11 +34,11 @@ export const FREE_FEATURES = [
   "Search, thumbnails and links to any page",
   "Replace your PDF without breaking the link",
   "Visit and download statistics",
+  "Try Digital Product Studio: build one product and see its preview",
 ];
 
 /** Ordered by what people pay for first: identity, control, polish, then room. */
 export const PERSONAL_FEATURES = [
-  "Up to 10 digital products, PDFs up to 100 MB, with marketing exports",
   "Your own address: portfolia.site/yourname",
   "Password protection and link expiry",
   "No Portfolia credit, and your own logo in the viewer",
@@ -49,6 +49,7 @@ export const PERSONAL_FEATURES = [
   "Downloadable CV and custom profile styling",
   "Export your flipbook as a 1080p HD video",
   "Photo shoot: studio-quality book photos and flat lays",
+  `Digital Product Studio: publish up to ${PRODUCT_ALLOWANCE.personal.products} products with shop previews, private customer links and listing videos`,
 ];
 
 /** What Business adds to Personal, each item enforced in code (plan-prices.ts, entitlements.server.ts, the business plan migration). */
@@ -57,6 +58,7 @@ export const BUSINESS_FEATURES = [
   "Your own Google Analytics 4 on every portfolio, with reader consent",
   `Lead alerts to up to ${MAX_LEAD_RECIPIENTS} team email addresses`,
   "Your logo as the browser tab icon on your portfolios",
+  `Up to ${PRODUCT_ALLOWANCE.business.products} digital products, PDFs up to ${PRODUCT_ALLOWANCE.business.mb} MB`,
   "Priority email support",
 ];
 
@@ -108,6 +110,18 @@ export const PLAN_COMPARISON: { group: string; rows: { label: string; free: Comp
     ],
   },
   {
+    group: "Digital Product Studio",
+    rows: [
+      { label: "Build a product and see its preview", free: "1 product", personal: true },
+      { label: "Published products", free: false, personal: String(PRODUCT_ALLOWANCE.personal.products), business: String(PRODUCT_ALLOWANCE.business.products) },
+      { label: "Product PDF size", free: `${PRODUCT_ALLOWANCE.free.mb} MB`, personal: `${PRODUCT_ALLOWANCE.personal.mb} MB`, business: `${PRODUCT_ALLOWANCE.business.mb} MB` },
+      { label: "Public preview link with a Buy button", free: false, personal: true },
+      { label: "Private customer links with expiry and switch-off", free: false, personal: true },
+      { label: "Delivery PDF for Etsy and other shops", free: false, personal: true },
+      { label: "Listing videos and product photos", free: "Preview", personal: "HD downloads" },
+    ],
+  },
+  {
     group: "Support",
     rows: [
       { label: "Help guides and email support", free: true, personal: true },
@@ -122,6 +136,7 @@ export const PLAN_FAQ = [
   { q: "Can I change plan later?", a: "Yes. Move between monthly and yearly billing, between Personal and Business, or back to Free, at any time from your dashboard. Changes are charged or credited for the time left." },
   { q: "Who is Business for?", a: `Studios, brands and teams publishing more: up to ${MAX_BUSINESS_PORTFOLIOS} portfolios, larger PDFs, your own Google Analytics, lead alerts for your team and priority support. It includes everything in Personal.` },
   { q: "What happens if I cancel Personal?", a: "Access continues to the end of the paid period. Your portfolios keep their permanent /p/ links and nothing is deleted." },
+  { q: "Is Digital Product Studio included?", a: `Yes, in Personal and Business. On Free you can build one product and see exactly how its preview will look; publishing it, the preview link and private customer links need Personal (up to ${PRODUCT_ALLOWANCE.personal.products} products) or Business (up to ${PRODUCT_ALLOWANCE.business.products}). If a plan ends, products already online stay available to your customers.` },
   { q: "Will links I have already shared keep working if I upgrade?", a: "Yes. Your permanent /p/ link never changes. Your personalised address is added alongside it." },
   { q: "How do people find my portfolio?", a: "Share your link or QR code, embed it on your own site, or opt in to search engine indexing for each portfolio." },
 ];

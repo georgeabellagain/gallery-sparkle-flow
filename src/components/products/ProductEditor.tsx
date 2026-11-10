@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useBlocker } from "@tanstack/react-router";
-import { ArrowLeft, Book as BookIcon, Camera, ChevronRight, ChevronsLeft, ChevronsRight, Eye, FileText, Image as ImageIcon, Megaphone, ScanEye, Share2, Sun, Upload, X } from "lucide-react";
+import { ArrowLeft, Book as BookIcon, Camera, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Eye, FileText, Image as ImageIcon, KeyRound, Megaphone, ScanEye, Share2, Sun, Upload, X } from "lucide-react";
 import { Modal, Wordmark } from "@/components/pf/Chrome";
+import { UpgradeModal } from "@/components/pf/UpgradeModal";
+import { defaultPreviewPages, nextProductStep, type ProductPlan } from "@/lib/products/plan";
 import { Segmented } from "@/components/pf/viewer-ui";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/portfolia/assets";
@@ -41,7 +43,7 @@ const TOOLS: Array<[Panel, string, typeof Sun]> = [
   ["details", "Product details", FileText],
   ["pages", "Public preview", ScanEye],
   ["marketing", "Listing video & images", Megaphone],
-  ["share", "Share", Share2],
+  ["share", "Links", Share2],
   ["publish", "File & publishing", Upload],
 ];
 const GROUPS: Array<[string, Panel[]]> = [
@@ -57,14 +59,28 @@ const HINTS: Partial<Record<Panel, string>> = {
   details: "The description and where shoppers buy it.",
   pages: "The free pages shoppers can see.",
   marketing: "Made from the public preview only.",
-  share: "The public preview link and customer access links.",
+  share: "One link for shoppers, one for customers.",
   publish: "The customer PDF, downloads, publishing and deleting.",
 };
 const PANEL_WIDE_KEY = "pf-panel-wide";
+/** Page numbers as short text: [1, 2, 3, 6] becomes "1-3, 6". */
+function pageRanges(list: number[]) {
+  const parts: string[] = [];
+  for (let i = 0; i < list.length; i++) {
+    let j = i;
+    while (j + 1 < list.length && list[j + 1] === list[j]! + 1) j++;
+    parts.push(i === j ? `${list[i]}` : `${list[i]}-${list[j]}`);
+    i = j;
+  }
+  return parts.join(", ");
+}
 export function ProductEditor({ id }: { id: string }) {
   const [p, setP] = useState<Product | null>(null),
     [baseline, setBaseline] = useState(""),
     [personal, setPersonal] = useState(false),
+    [plan, setPlan] = useState<ProductPlan>("free"),
+    [canPublish, setCanPublish] = useState(false),
+    [upgrade, setUpgrade] = useState<null | string>(null),
     [limit, setLimit] = useState(30),
     [full, setFull] = useState<Blob | null>(null),
     [preview, setPreview] = useState<Blob | null>(null);
@@ -86,7 +102,7 @@ export function ProductEditor({ id }: { id: string }) {
     [error, setError] = useState(""),
     [edition, setEdition] = useState<"full" | "preview">("full");
   const [links, setLinks] = useState<Awaited<ReturnType<typeof ownerProduct>>["links"]>([]),
-    [label, setLabel] = useState("Shop customers"),
+    [label, setLabel] = useState(""),
     [expiry, setExpiry] = useState(""),
     [newLink, setNewLink] = useState(""),
     [marketing, setMarketing] = useState<{ kind: "video" | "photo"; portfolio: Portfolio } | null>(
@@ -110,6 +126,8 @@ export function ProductEditor({ id }: { id: string }) {
     setP(data.product);
     setBaseline(JSON.stringify(data.product));
     setPersonal(data.personal);
+    setPlan(data.plan);
+    setCanPublish(data.canPublish);
     setLimit(data.limitMb);
     setLinks(data.links);
     setPages(data.product.preview_pages.join(", ") || "1");
@@ -159,13 +177,13 @@ export function ProductEditor({ id }: { id: string }) {
     const blob = edition === "full" ? full : preview;
     return blob ? { blob } : null;
   }, [full, preview, edition]);
-  const save = async (status = p?.status) => {
-    if (!p) return;
+  const save = async (status = p?.status, product = p) => {
+    if (!product) return;
     const result = await saveProduct({
-      data: { ...p, status: status ?? "draft", appearance: p.appearance as any },
+      data: { ...product, status: status ?? "draft", appearance: product.appearance as any },
       headers: await productAuth(),
     });
-    const saved = { ...p, status: status ?? "draft", revision: result.revision };
+    const saved = { ...product, status: status ?? "draft", revision: result.revision };
     setP(saved);
     setBaseline(JSON.stringify(saved));
     setMessage(
@@ -174,8 +192,48 @@ export function ProductEditor({ id }: { id: string }) {
         : "Draft saved.",
     );
   };
+  const previewUrl = `https://portfolia.site/product/${id}`;
+  const copy = async (text: string, done: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setMessage(done);
+    } catch {
+      setError("Couldn’t copy. Select the link and copy it yourself.");
+    }
+  };
+  /** Put the product online, or say what it still needs. Publishing is part of the paid plans. */
+  const publish = () => {
+    if (!p) return;
+    if (!p.full_file || !p.preview_file) {
+      setPanel(p.full_file ? "pages" : "publish");
+      setError(p.full_file ? "Choose the public preview pages before publishing." : "Upload your customer PDF before publishing.");
+      return;
+    }
+    if (!canPublish) return setUpgrade("Publishing products");
+    void run("Publishing", async () => {
+      await save("published");
+      setPanel("share");
+      setMessage("Published. Your links are ready.");
+    });
+  };
+  const createLink = () =>
+    void run("Creating customer link", async () => {
+      const expiresAt = expiry ? new Date(expiry).toISOString() : null,
+        name = label.trim() || "Shop customers";
+      const result = await createProductLink({ data: { id, label: name, expiresAt }, headers: await productAuth() });
+      setNewLink(result.url);
+      setLinks((items) => [{ id: result.id, label: name, revoked: false, expires_at: expiresAt, opens: 0, last_opened_at: null }, ...items]);
+      setLabel("");
+      setExpiry("");
+      try {
+        await navigator.clipboard.writeText(result.url);
+        setMessage("Customer link created and copied.");
+      } catch {
+        setMessage("Customer link created. Copy it from the panel.");
+      }
+    });
   const exportMarketing = async (kind: "video" | "photo") => {
-    if (kind === "video" && !personal) throw new Error("HD listing videos require Personal or Business. Upgrade from Plans and pricing.");
+    if (kind === "video" && !personal) return setUpgrade("HD listing videos");
     if (!p || !preview || !p.preview_file)
       throw new Error("Generate the public preview first. Marketing exports use only those pages.");
     const key = `product-preview-${id}-${crypto.randomUUID()}`;
@@ -215,31 +273,56 @@ export function ProductEditor({ id }: { id: string }) {
         await doc.destroy();
       }
       const saved = await uploadProductPdf(id, f, f.name, n);
-      setFull(f);
-      setPreview(null);
-      setEdition("full");
-      patch({
+      const wasLive = p.status === "published";
+      let next: Product = {
+        ...p,
         title: p.title === "Untitled product" ? f.name.replace(/\.pdf$/i, "").slice(0, 120) : p.title,
         full_file: saved,
         preview_file: null,
         preview_pages: [],
         status: "draft",
-      });
-      setMessage("PDF uploaded. Choose the public preview pages and save before publishing.");
+      };
+      setFull(f);
+      setPreview(null);
+      setEdition("full");
+      setP(next);
+      // A first preview (the cover and first spread) is made straight away, so the product is ready to publish.
+      let made = false;
+      try {
+        const first = await makePreview(f, defaultPreviewPages(n));
+        next = { ...next, ...first.values };
+        setP(next);
+        made = true;
+      } catch {
+        /* the seller chooses pages by hand instead */
+      }
+      // A draft is kept as it goes; a product that was online waits for Save, so nothing changes for shoppers by surprise.
+      if (!wasLive) await save("draft", next);
+      setPanel("pages");
+      setMessage(
+        made
+          ? `PDF uploaded and a first preview made (pages ${pageRanges(next.preview_pages)}). Change the pages here, or publish.`
+          : "PDF uploaded. Choose the public preview pages before publishing.",
+      );
     });
+  /** Builds the separate preview file from chosen pages and stores it. */
+  const makePreview = async (blob: Blob, selected: number[]) => {
+    const out = await buildProductPreview(blob, selected, (n) =>
+      setBusy(`Making preview ${Math.round(n * 100)}%`),
+    viewer.previewWatermark ?? false);
+    if (out.size > limit * 1048576) throw new Error("Preview is too large. Select fewer pages.");
+    const file = await uploadProductPdf(id, out, "preview.pdf", selected.length);
+    setPreview(out);
+    setPages(pageRanges(selected));
+    return { values: { preview_file: file, preview_pages: selected } };
+  };
   const generatePreview = () =>
-    void run("Generating preview", async () => {
+    void run("Making preview", async () => {
       if (!p || !full || !p.full_file) return;
-      const selected = previewPages(pages, p.full_file.pages);
-      const blob = await buildProductPreview(full, selected, (n) =>
-        setBusy(`Generating preview ${Math.round(n * 100)}%`),
-      viewer.previewWatermark ?? false);
-      if (blob.size > limit * 1048576) throw new Error("Preview is too large. Select fewer pages.");
-      const file = await uploadProductPdf(id, blob, "preview.pdf", selected.length);
-      setPreview(blob);
-      patch({ preview_file: file, preview_pages: selected });
+      const made = await makePreview(full, previewPages(pages, p.full_file.pages));
+      patch(made.values);
       setEdition("preview");
-      setMessage("Preview generated. Check it in the book, then save.");
+      setMessage("Preview updated. Check it in the book, then save.");
     });
   const status = busy
     ? `${busy}…`
@@ -253,6 +336,7 @@ export function ProductEditor({ id }: { id: string }) {
   const shownLook: PreviewLook = look ?? viewer.look ?? "clean";
   const title = panel === "customise" ? "Customise" : TOOLS.find(([key]) => key === panel)?.[1];
   const publishReady = Boolean(p?.preview_file && p.full_file);
+  const step = nextProductStep({ status: p?.status ?? "draft", hasFile: Boolean(p?.full_file), hasPreview: Boolean(p?.preview_file) });
   return (
     <div className="flex min-h-screen flex-col">
       <header className="relative z-20 flex h-14 shrink-0 items-center gap-1.5 border-b border-border bg-background px-2 sm:gap-3 sm:px-5">
@@ -280,6 +364,11 @@ export function ProductEditor({ id }: { id: string }) {
             </div>
           )}
         </div>
+        {p && plan === "free" && (
+          <button type="button" onClick={() => setUpgrade("Publishing products")} className="hidden shrink-0 rounded-full bg-leaf-soft px-3 py-1.5 text-xs font-medium text-leaf hover:opacity-80 md:block">
+            Free try-out · Upgrade to publish
+          </button>
+        )}
         {dirty && (
           <Button size="sm" variant="quiet" className="hidden shrink-0 sm:inline-flex" disabled={!!busy} onClick={() => setDialog("discard")}>
             Discard
@@ -305,15 +394,8 @@ export function ProductEditor({ id }: { id: string }) {
             size="sm"
             className="shrink-0"
             disabled={!!busy || !p}
-            title={publishReady ? undefined : "Upload the customer PDF and generate a public preview first"}
-            onClick={() => {
-              if (!publishReady) {
-                setPanel(p?.full_file ? "pages" : "publish");
-                setError(p?.full_file ? "Generate the public preview before publishing." : "Upload your customer PDF before publishing.");
-                return;
-              }
-              void run("Publishing", () => save("published"));
-            }}
+            title={publishReady ? (canPublish ? undefined : "Publishing is part of Personal and Business") : "Upload the customer PDF and choose preview pages first"}
+            onClick={publish}
           >
             Publish
           </Button>
@@ -372,9 +454,24 @@ export function ProductEditor({ id }: { id: string }) {
           )}
           {p && (
             <nav aria-label="Product workspace tools" className="pf-home-toolbar absolute bottom-7 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-border bg-background/95 p-2 shadow-lift backdrop-blur">
-              <Button size="sm" disabled={!!busy} onClick={() => fileRef.current?.click()}>
-                <Upload className="size-4" /> <span>Upload PDF</span>
-              </Button>
+              {/* The one thing this product needs next is always the main button. */}
+              {step === "upload" ? (
+                <Button size="sm" disabled={!!busy} onClick={() => fileRef.current?.click()}>
+                  <Upload className="size-4" /> <span>Upload PDF</span>
+                </Button>
+              ) : step === "preview" ? (
+                <Button size="sm" disabled={!!busy} onClick={() => setPanel("pages")}>
+                  <ScanEye className="size-4" /> <span>Choose preview pages</span>
+                </Button>
+              ) : step === "publish" ? (
+                <Button size="sm" disabled={!!busy} onClick={publish}>
+                  <Upload className="size-4" /> <span>Publish</span>
+                </Button>
+              ) : (
+                <Button size="sm" aria-pressed={panel === "share"} onClick={() => setPanel((c) => (c === "share" ? null : "share"))}>
+                  <Share2 className="size-4" /> <span>Get links</span>
+                </Button>
+              )}
               <Button size="sm" variant="quiet" aria-pressed={panel === "customise"} onClick={() => setPanel((c) => (c === "customise" ? null : "customise"))}>
                 <Sun className="size-4" />
                 <span>Customise</span>
@@ -383,10 +480,12 @@ export function ProductEditor({ id }: { id: string }) {
                 <Camera className="size-4" />
                 <span>Photo shoot</span>
               </Button>
-              <Button size="sm" variant="quiet" aria-pressed={panel === "share"} onClick={() => setPanel((c) => (c === "share" ? null : "share"))}>
-                <Share2 className="size-4" />
-                <span>Share</span>
-              </Button>
+              {step !== "share" && (
+                <Button size="sm" variant="quiet" aria-pressed={panel === "share"} onClick={() => setPanel((c) => (c === "share" ? null : "share"))}>
+                  <Share2 className="size-4" />
+                  <span>Links</span>
+                </Button>
+              )}
             </nav>
           )}
           {p && panel && (
@@ -462,7 +561,7 @@ export function ProductEditor({ id }: { id: string }) {
                 {panel === "pages" && (
                   <>
                     <p className="text-muted-foreground">
-                      Select specific pages in reading order. The public preview is a separate, flattened PDF: unselected pages and embedded files are excluded.
+                      Pick the pages shoppers can see for free. The preview is a separate file made only from these pages, so the rest of your PDF never leaves your private edition.
                     </p>
                     {p.full_file && (() => {
                       const total = p.full_file.pages;
@@ -503,9 +602,9 @@ export function ProductEditor({ id }: { id: string }) {
                       <span>Watermark the preview<span className="block text-xs text-muted-foreground">A faint “Preview” mark across every page.</span></span>
                       <input type="checkbox" checked={viewer.previewWatermark ?? false} onChange={(e) => setViewer({ previewWatermark: e.target.checked })} />
                     </label>
-                    <Button className="w-full" disabled={!full} onClick={generatePreview}>Generate preview</Button>
+                    <Button className="w-full" disabled={!full} onClick={generatePreview}>{p.preview_file ? "Update preview" : "Make preview"}</Button>
                     <p className="text-xs text-muted-foreground">
-                      Current preview: {p.preview_pages.join(", ") || "not generated"}. The cover is always included. Up to 40 pages. Regenerate after changing the selection.
+                      Shoppers currently see: {p.preview_pages.length ? `pages ${pageRanges(p.preview_pages)}` : "nothing yet"}. The cover is always included. Up to 40 pages. Update the preview after changing the selection.
                     </p>
                   </>
                 )}
@@ -567,93 +666,113 @@ export function ProductEditor({ id }: { id: string }) {
                       Create product images
                     </Button>
                     <p className="text-xs text-muted-foreground">
-                      HD video and image downloads require Personal or Business. Check your marketplace's current video requirements before uploading.
+                      {personal ? "Check your marketplace's current video requirements before uploading." : "On Free you can set up and preview these. HD video and image downloads are part of Personal and Business."}
                     </p>
                   </>
                 )}
                 {panel === "share" && (
                   <>
-                    <div className="space-y-2">
-                      <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Public preview</h3>
-                      {p.status === "published" ? (
-                        <>
-                          <input aria-label="Public preview link" readOnly value={`https://portfolia.site/product/${id}`} className={field} />
+                    {p.status !== "published" ? (
+                      <div className="rounded-2xl border border-border p-4">
+                        <p className="text-sm font-medium">Your two links appear here once the product is online</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {canPublish
+                            ? publishReady
+                              ? "Publish to get a preview link for your listing and a private link for customers."
+                              : "Upload your PDF and choose the preview pages, then publish."
+                            : "On Free you can build the product and see how it looks. Publishing and links are part of Personal and Business."}
+                        </p>
+                        <Button size="sm" className="mt-3" onClick={publish}>{canPublish ? "Publish" : "See plans"}</Button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-2.5 rounded-2xl border border-border p-4">
+                          <div className="flex items-center gap-2">
+                            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted"><Eye className="size-3.5" aria-hidden /></span>
+                            <div className="min-w-0">
+                              <h3 className="text-sm font-medium">Preview link</h3>
+                              <p className="text-xs text-muted-foreground">For your listing and socials. Shows only the preview pages.</p>
+                            </div>
+                          </div>
+                          <input aria-label="Public preview link" readOnly value={previewUrl} onFocus={(e) => e.currentTarget.select()} className={field} />
                           <div className="flex flex-wrap gap-2">
-                            <Button size="sm" onClick={() => void run("Copying preview link", async () => { await navigator.clipboard.writeText(`https://portfolia.site/product/${id}`); setMessage("Public preview link copied."); })}>Copy link</Button>
+                            <Button size="sm" onClick={() => void copy(previewUrl, "Preview link copied.")}><Copy /> Copy link</Button>
                             <Button asChild size="sm" variant="line"><a href={`/product/${id}`} target="_blank" rel="noopener noreferrer">Open</a></Button>
                           </div>
-                        </>
-                      ) : (
-                        <p className="text-xs text-muted-foreground">Publish the product to get a public preview link for your listing.</p>
-                      )}
-                    </div>
-                    <div className="space-y-4 border-t border-border pt-4">
-                      <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Customer access</h3>
-                      <p className="text-xs text-muted-foreground">
-                        Create a shared link for your shop, or a separate labelled link for an individual order. Anyone with a link can use it. Links are not automatic proof of purchase.
-                      </p>
-                      <label className="block text-sm">
-                        Link label
-                        <input className={field} maxLength={100} value={label} onChange={(e) => setLabel(e.target.value)} />
-                      </label>
-                      <label className="block text-sm">
-                        Optional expiry
-                        <input type="datetime-local" className={field} value={expiry} onChange={(e) => setExpiry(e.target.value)} />
-                      </label>
-                      <Button
-                        className="w-full"
-                        disabled={p.status !== "published" || dirty}
-                        onClick={() =>
-                          void run("Creating access", async () => {
-                            const result = await createProductLink({
-                              data: { id, label, expiresAt: expiry ? new Date(expiry).toISOString() : null },
-                              headers: await productAuth(),
-                            });
-                            setNewLink(result.url);
-                            setLinks([{ id: result.id, label, revoked: false, expires_at: expiry ? new Date(expiry).toISOString() : null }, ...links]);
-                          })
-                        }
-                      >
-                        Create customer link
-                      </Button>
-                      {(p.status !== "published" || dirty) && <p className="text-xs text-muted-foreground">Save and publish before creating access links.</p>}
-                      {newLink && (
+                        </div>
                         <div className="space-y-3 rounded-2xl border border-border p-4">
-                          <p className="text-sm font-medium">Save this link now</p>
-                          <p className="text-xs text-muted-foreground">For security, it will not be shown again. It is included in the delivery PDF.</p>
-                          <input aria-label="New customer link" readOnly value={newLink} className={field} />
-                          <div className="flex flex-wrap gap-2">
-                            <Button size="sm" variant="line" onClick={() => void run("Copying", async () => { await navigator.clipboard.writeText(newLink); setMessage("Customer link copied."); })}>Copy link</Button>
-                            <Button size="sm" onClick={() => void run("Creating delivery PDF", async () => downloadBlob(await deliverySheet(p.title, newLink), "customer-access.pdf"))}>Download delivery PDF</Button>
-                          </div>
-                        </div>
-                      )}
-                      <ol className="list-decimal space-y-2 pl-4 text-xs text-muted-foreground">
-                        <li>Download the delivery PDF and attach it to your shop's digital listing.</li>
-                        <li>Explain that the purchase includes a browser-based edition and whether a PDF download is offered.</li>
-                        <li>Place the public preview link in your listing where supported. Never place the customer link publicly.</li>
-                      </ol>
-                      <p className="text-xs text-muted-foreground">
-                        Etsy integration uses its digital file delivery. No Etsy connection, order verification or buyer emails are accessed. Revoking a shared shop link affects every customer who received it; update the delivery PDF and help existing buyers.
-                      </p>
-                      {links.length > 0 && (
-                        <div className="overflow-hidden rounded-2xl border border-border/80">
-                          {links.map((link) => (
-                            <div key={link.id} className="flex items-start justify-between gap-3 border-t border-border/70 px-3 py-2.5 first:border-t-0">
-                              <div className="min-w-0">
-                                <p className="text-sm">{link.label}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {link.revoked ? "Revoked" : link.expires_at ? `Expires ${new Date(link.expires_at).toLocaleString()}` : "No expiry"}
-                                </p>
-                              </div>
-                              {!link.revoked && (
-                                <Button size="xs" variant="quiet" onClick={() => setRevoking(link)}>Revoke</Button>
-                              )}
+                          <div className="flex items-center gap-2">
+                            <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-muted"><KeyRound className="size-3.5" aria-hidden /></span>
+                            <div className="min-w-0">
+                              <h3 className="text-sm font-medium">Customer link</h3>
+                              <p className="text-xs text-muted-foreground">For buyers only. Opens the complete edition. Never post it publicly.</p>
                             </div>
-                          ))}
+                          </div>
+                          {newLink ? (
+                            <div className="space-y-2.5 rounded-xl bg-leaf-soft/60 p-3">
+                              <p className="text-xs font-medium text-leaf">Keep this link now — for security it is shown only once.</p>
+                              <input aria-label="New customer link" readOnly value={newLink} onFocus={(e) => e.currentTarget.select()} className={field} />
+                              <div className="flex flex-wrap gap-2">
+                                <Button size="sm" onClick={() => void copy(newLink, "Customer link copied.")}><Copy /> Copy link</Button>
+                                <Button size="sm" variant="line" onClick={() => void run("Creating delivery PDF", async () => downloadBlob(await deliverySheet(p.title, newLink), "customer-access.pdf"))}>Download delivery PDF</Button>
+                              </div>
+                              <p className="text-xs text-muted-foreground">The delivery PDF is a one-page file with an “Open your edition” button. Attach it to your shop’s digital listing.</p>
+                            </div>
+                          ) : (
+                            <Button className="w-full" disabled={dirty} onClick={createLink}><KeyRound /> Create customer link</Button>
+                          )}
+                          {dirty && !newLink && <p className="text-xs text-muted-foreground">Save your changes first.</p>}
+                          <details className="text-xs">
+                            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">{newLink ? "Create another link" : "Name it or set an expiry"}</summary>
+                            <div className="mt-3 space-y-3">
+                              <label className="block">
+                                Name (only you see this)
+                                <input className={field} maxLength={100} placeholder="Shop customers" value={label} onChange={(e) => setLabel(e.target.value)} />
+                              </label>
+                              <label className="block">
+                                Stops working on (optional)
+                                <input type="datetime-local" className={field} value={expiry} onChange={(e) => setExpiry(e.target.value)} />
+                              </label>
+                              {newLink && <Button size="sm" variant="line" disabled={dirty} onClick={createLink}>Create link</Button>}
+                              <p className="text-muted-foreground">One shared link suits a shop listing. For individual orders, make a link per buyer so you can switch one off without affecting the rest.</p>
+                            </div>
+                          </details>
                         </div>
-                      )}
-                    </div>
+                        {links.length > 0 && (
+                          <div className="space-y-1.5">
+                            <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Customer links you’ve made</h3>
+                            <div className="overflow-hidden rounded-2xl border border-border/80">
+                              {links.map((link) => (
+                                <div key={link.id} className="flex items-start justify-between gap-3 border-t border-border/70 px-3 py-2.5 first:border-t-0">
+                                  <div className="min-w-0">
+                                    <p className={cn("truncate text-sm", link.revoked && "text-muted-foreground line-through")}>{link.label}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {link.revoked ? "Switched off" : link.expires_at ? (Date.parse(link.expires_at) < Date.now() ? "Expired" : `Until ${new Date(link.expires_at).toLocaleDateString()}`) : "No expiry"}
+                                      {" · "}
+                                      {link.opens ? `Opened ${link.opens} time${link.opens === 1 ? "" : "s"}` : "Not opened yet"}
+                                    </p>
+                                  </div>
+                                  {!link.revoked && (
+                                    <Button size="xs" variant="quiet" onClick={() => setRevoking(link)}>Switch off</Button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <details className="rounded-2xl border border-border p-4 text-xs">
+                          <summary className="cursor-pointer text-sm font-medium">How to deliver through Etsy or another shop</summary>
+                          <ol className="mt-3 list-decimal space-y-2 pl-4 text-muted-foreground">
+                            <li>Put the preview link in your listing where links are allowed.</li>
+                            <li>Create a customer link and download its delivery PDF.</li>
+                            <li>Attach the delivery PDF as the listing’s digital file. Your shop sends it after each purchase.</li>
+                          </ol>
+                          <p className="mt-3 text-muted-foreground">
+                            Anyone holding a customer link can open the edition, so it is access control rather than proof of purchase. No shop account is connected and no buyer details are read. Switching a shared link off affects everyone who has it.
+                          </p>
+                        </details>
+                      </>
+                    )}
                   </>
                 )}
                 {panel === "publish" && (
@@ -668,7 +787,7 @@ export function ProductEditor({ id }: { id: string }) {
                         {p.status === "published" ? (
                           <Button size="sm" variant="line" onClick={() => setDialog("unpublish")}>Unpublish</Button>
                         ) : (
-                          <Button size="sm" disabled={!publishReady} onClick={() => void run("Publishing", () => save("published"))}>Publish</Button>
+                          <Button size="sm" onClick={publish}>Publish</Button>
                         )}
                         <Button size="sm" variant="quiet" onClick={() => setDialog("delete")}>Delete</Button>
                       </div>
@@ -761,6 +880,7 @@ export function ProductEditor({ id }: { id: string }) {
           </Button>
         </div>
       </Modal>
+      <UpgradeModal open={upgrade !== null} reason={upgrade ?? undefined} products={{ plan, returnTo: `/product-studio/${id}` }} onClose={() => setUpgrade(null)} />
       {marketing && (
         <Suspense fallback={<p role="status">Preparing marketing tools…</p>}>
           {marketing.kind === "video" ? (
