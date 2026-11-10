@@ -11,12 +11,13 @@ import { getPreviewLook, pinPreviewLook, subscribePreviewLook, type PreviewLook 
 import { Button } from "@/components/ui/button";
 import { PdfViewer } from "@/components/pf/PdfViewer";
 import { PageTurnSettings } from "@/components/pf/PageTurnSettings";
+import { BackgroundSettings } from "@/components/pf/BackgroundSettings";
 import { PaperSettings, StudioLightingSettings } from "@/components/pf/StudioAppearanceSettings";
 import { DEFAULT_VIEWER, type Portfolio, type ViewerSettings } from "@/lib/portfolia/store";
 import { putLocalBlob } from "@/lib/portfolia/assets";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
 import { productAuth, readProductPdf, uploadProductPdf } from "@/lib/products/client";
-import { previewPages, type Product } from "@/lib/products/model";
+import { previewPages, previewSpreads, type Product } from "@/lib/products/model";
 import { buildProductPreview, deliverySheet, downloadBlob } from "@/lib/products/preview";
 import {
   ownerProduct,
@@ -234,7 +235,7 @@ export function ProductEditor({ id }: { id: string }) {
       const selected = previewPages(pages, p.full_file.pages);
       const blob = await buildProductPreview(full, selected, (n) =>
         setBusy(`Generating preview ${Math.round(n * 100)}%`),
-      );
+      viewer.previewWatermark ?? false);
       if (blob.size > limit * 1048576) throw new Error("Preview is too large. Select fewer pages.");
       const file = await uploadProductPdf(id, blob, "preview.pdf", selected.length);
       setPreview(blob);
@@ -465,13 +466,48 @@ export function ProductEditor({ id }: { id: string }) {
                     <p className="text-muted-foreground">
                       Select specific pages in reading order. The public preview is a separate, flattened PDF: unselected pages and embedded files are excluded.
                     </p>
+                    {p.full_file && (() => {
+                      const total = p.full_file.pages;
+                      let chosen: number[] = [1];
+                      try { chosen = previewPages(pages, total); } catch {}
+                      const has = (a: number, b: number) => chosen.includes(a) && chosen.includes(b);
+                      const toggle = (a: number, b: number) => {
+                        const set = new Set(chosen);
+                        if (has(a, b)) { set.delete(a); set.delete(b); } else { set.add(a); set.add(b); }
+                        set.add(1);
+                        const list = [...set].sort((x, y) => x - y), parts: string[] = [];
+                        for (let i = 0; i < list.length; i++) {
+                          let j = i; while (j + 1 < list.length && list[j + 1] === list[j]! + 1) j++;
+                          parts.push(i === j ? `${list[i]}` : `${list[i]}-${list[j]}`); i = j;
+                        }
+                        setPages(parts.join(", "));
+                      };
+                      return (
+                        <div>
+                          <p className="mb-2 text-xs text-muted-foreground">Spreads shown to shoppers</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            <span className="rounded-full border border-foreground bg-foreground px-3 py-1 text-xs text-background">Cover · always</span>
+                            {previewSpreads(total).map(([a, b]) => (
+                              <button key={a} type="button" aria-pressed={has(a, b)} onClick={() => toggle(a, b)}
+                                className={cn("rounded-full border px-3 py-1 text-xs", has(a, b) ? "border-foreground bg-foreground text-background" : "border-border hover:border-foreground")}>
+                                {a === b ? a : `${a}–${b}`}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
                     <label className="block text-sm">
-                      Page numbers or ranges
-                      <input className={field} placeholder="1, 3-5, 9" value={pages} onChange={(e) => setPages(e.target.value)} />
+                      Or type pages and spreads
+                      <input className={field} placeholder="2-3, 6-7" value={pages} onChange={(e) => setPages(e.target.value)} />
+                    </label>
+                    <label className="flex items-center justify-between gap-3 text-sm">
+                      <span>Watermark the preview<span className="block text-xs text-muted-foreground">A faint “Preview” mark across every page.</span></span>
+                      <input type="checkbox" checked={viewer.previewWatermark ?? false} onChange={(e) => setViewer({ previewWatermark: e.target.checked })} />
                     </label>
                     <Button className="w-full" disabled={!full} onClick={generatePreview}>Generate preview</Button>
                     <p className="text-xs text-muted-foreground">
-                      Current preview: {p.preview_pages.join(", ") || "not generated"}. Up to 40 pages. Regenerate after changing the selection.
+                      Current preview: {p.preview_pages.join(", ") || "not generated"}. The cover is always included. Up to 40 pages. Regenerate after changing the selection.
                     </p>
                   </>
                 )}
@@ -519,25 +555,7 @@ export function ProductEditor({ id }: { id: string }) {
                   </>
                 )}
                 {panel === "background" && (
-                  <>
-                    <label className="flex items-center justify-between text-sm">
-                      Background colour
-                      <input type="color" value={viewer.backgroundColor ?? "#e9e5dc"} onChange={(e) => setViewer({ backgroundColor: e.target.value })} />
-                    </label>
-                    <label className="block text-sm">
-                      Background texture
-                      <select className={field} value={viewer.backgroundPreset ?? ""} onChange={(e) => setViewer({ backgroundPreset: e.target.value || undefined })}>
-                        <option value="">Solid colour</option>
-                        {[false, true].map((paid) => (
-                          <optgroup key={String(paid)} label={paid ? "Personal" : "Free"}>
-                            {BACKGROUND_PRESETS.filter((b) => personalBackground(b.id) === paid).map((b) => (
-                              <option key={b.id} value={b.id}>{b.label}</option>
-                            ))}
-                          </optgroup>
-                        ))}
-                      </select>
-                    </label>
-                  </>
+                  <BackgroundSettings viewer={viewer} defaultColour="#e9e5dc" setViewer={(v) => { const { backgroundKey: _k, ...rest } = v as Partial<ViewerSettings> & { backgroundKey?: string }; setViewer(rest); return true; }} />
                 )}
                 {panel === "marketing" && (
                   <>

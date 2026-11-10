@@ -14,6 +14,7 @@ export const productFile = z.object({
 });
 export type ProductFile = z.infer<typeof productFile>;
 const hex = z.string().regex(/^#[a-fA-F0-9]{6}$/);
+const fit = z.object({ scale: z.number().min(0.05).max(10), x: z.number().min(-5).max(5), y: z.number().min(-5).max(5), tile: z.boolean().optional() });
 // Deliberate allowlist: no hidden pages, asset keys, tracking, scripts or external
 // media in the public product reader. Preview and customer files stay separate.
 export const productAppearance = z.object({
@@ -43,6 +44,22 @@ export const productAppearance = z.object({
   spreads: z.enum(["single", "ready"]).optional(),
   simpleShadow: z.boolean().optional(),
   simpleShadowOpacity: z.number().min(0).max(1).optional(),
+  // Same choices as the portfolio editor (no uploaded picture keys).
+  backgroundFit: fit.optional(),
+  backgrounds: z
+    .record(
+      z.enum(["studio", "clean", "scroll", "paged"]),
+      z.object({ backgroundColor: hex.optional(), backgroundPreset: z.string().max(60).optional(), backgroundFit: fit.optional() }),
+    )
+    .optional(),
+  idleOrbit: z.enum(["start", "always", "off"]).optional(),
+  paper: z.string().max(30).optional(),
+  light: z.string().max(30).optional(),
+  thickness: z.string().max(30).optional(),
+  simpleShading: z.string().max(30).optional(),
+  ribbon: z.boolean().optional(),
+  ribbonColour: hex.optional(),
+  previewWatermark: z.boolean().optional(),
 });
 export function shopUrl(value: string) {
   if (!value.trim()) return "";
@@ -59,7 +76,7 @@ export function shopUrl(value: string) {
 }
 export function previewPages(value: string, total: number): number[] {
   const result = new Set<number>();
-  if (!value.trim()) return [];
+  if (!value.trim()) return total >= 1 ? [1] : [];
   for (const bit of value.split(",")) {
     const match = bit.trim().match(/^(\d+)(?:\s*-\s*(\d+))?$/);
     if (!match) throw new Error("Use page numbers or ranges, for example 1, 3–5 (with a hyphen).");
@@ -69,6 +86,8 @@ export function previewPages(value: string, total: number): number[] {
       throw new Error(`Choose pages between 1 and ${total}, up to 40 preview pages.`);
     for (let n = first; n <= last; n++) result.add(n);
   }
+  // The cover always opens the preview.
+  if (total >= 1) result.add(1);
   if (result.size > 40) throw new Error("Choose at most 40 preview pages.");
   return [...result].sort((a, b) => a - b);
 }
@@ -111,4 +130,11 @@ export function publicProduct(row: Product, customer: boolean) {
       ? `/api/public/product-file/${row.id}?edition=${customer ? "customer" : "preview"}&v=${row.revision}`
       : null,
   };
+}
+
+/** Reading spreads after the cover: pages 2-3, 4-5, ... (the last may be a single page). */
+export function previewSpreads(total: number): [number, number][] {
+  const out: [number, number][] = [];
+  for (let n = 2; n <= total; n += 2) out.push([n, Math.min(n + 1, total)]);
+  return out;
 }

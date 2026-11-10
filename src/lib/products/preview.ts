@@ -5,6 +5,7 @@ export async function buildProductPreview(
   file: Blob,
   pages: number[],
   progress: (n: number) => void = () => {},
+  watermark = false,
 ) {
   if (!pages.length || pages.length > 40) throw new Error("Choose 1–40 preview pages.");
   const pdfjs = await loadPdfjs();
@@ -14,7 +15,9 @@ export async function buildProductPreview(
     if (pages.some((p) => !Number.isInteger(p) || p < 1 || p > original.numPages))
       throw new Error("Invalid preview page.");
     const { PDFDocument } = await import("pdf-lib");
+    const { StandardFonts, rgb, degrees } = await import("pdf-lib");
     const output = await PDFDocument.create();
+    const mark = watermark ? await output.embedFont(StandardFonts.HelveticaBold) : null;
     for (let i = 0; i < pages.length; i++) {
       const page = await original.getPage(pages[i]!);
       const size = page.getViewport({ scale: 1 });
@@ -34,6 +37,17 @@ export async function buildProductPreview(
       const image = await output.embedJpg(await blob.arrayBuffer());
       const target = output.addPage([size.width, size.height]);
       target.drawImage(image, { x: 0, y: 0, width: size.width, height: size.height });
+      if (mark) {
+        // Subtle diagonal mark repeated across the page, baked into the preview file.
+        const fs = Math.max(14, Math.min(size.width, size.height) / 14);
+        const step = fs * 6;
+        for (let y = -size.height; y < size.height * 2; y += step * 0.6)
+          for (let x = -size.width; x < size.width * 2; x += step)
+            target.drawText("PREVIEW", { x, y, size: fs, font: mark, color: rgb(1, 1, 1), opacity: 0.16, rotate: degrees(30) });
+        for (let y = -size.height + step * 0.3; y < size.height * 2; y += step * 0.6)
+          for (let x = -size.width + step / 2; x < size.width * 2; x += step)
+            target.drawText("PREVIEW", { x, y, size: fs, font: mark, color: rgb(0, 0, 0), opacity: 0.06, rotate: degrees(30) });
+      }
       canvas.width = canvas.height = 1;
       page.cleanup();
       progress((i + 1) / pages.length);
