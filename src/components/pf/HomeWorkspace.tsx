@@ -21,6 +21,18 @@ export function HomeWorkspace() {
   const doc = useDoc(), p = doc.portfolio, navigate = useNavigate();
   const input = useRef<HTMLInputElement>(null);
   const busy = useRef(false);
+  // The book matches its column's real height: on short desktop windows the text beside it is taller than the
+  // window, and a window-sized book left an empty band underneath.
+  const stage = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = stage.current;
+    if (!el) return;
+    const apply = () => el.style.setProperty("--pf-home-stage-h", `${Math.round(el.getBoundingClientRect().height)}px`);
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<string | null>(null);
@@ -82,7 +94,7 @@ export function HomeWorkspace() {
             {["No sign-up to preview", "Free forever for one portfolio", "Looks great on phones"].map(t => <li key={t} className="flex items-center gap-1.5"><Check className="size-3.5 text-leaf" aria-hidden />{t}</li>)}
           </ul>
         </div>
-        <div className="relative min-w-0 h-[70svh] min-h-[30rem] lg:h-[calc(100dvh-3.5rem)] lg:min-h-0">
+        <div ref={stage} className="pf-home-stage relative min-w-0 h-[70svh] min-h-[30rem] lg:h-auto lg:min-h-[calc(100dvh-3.5rem)]">
         <div className="absolute inset-0"><Suspense fallback={<div className="flex h-full items-center justify-center"><BookLoader tone="light" label="" /></div>}><StudioDemo workspace className="relative h-full w-full" /></Suspense></div>
         <span className="pointer-events-none absolute left-4 top-5 z-20 rounded-full bg-background/90 px-3 py-1.5 text-[11px] shadow-soft">Live example</span>
 
