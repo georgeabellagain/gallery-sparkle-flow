@@ -18,7 +18,7 @@ export function PreviewChrome({
   const atEnd = pages > 1 && page >= pages - (pages % 2 ? 1 : 0);
   return (
     <>
-      <span className="pointer-events-none absolute right-4 top-4 z-30 inline-flex items-center gap-2 rounded-full bg-background/90 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] shadow-soft backdrop-blur-sm">
+      <span className="pointer-events-none absolute right-4 top-16 z-30 inline-flex items-center gap-2 rounded-full bg-background/90 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] shadow-soft backdrop-blur-sm">
         <span aria-hidden className="size-1.5 rounded-full bg-primary" />
         Preview{pages > 0 && <span className="font-normal normal-case tracking-normal text-muted-foreground">· {pages} pages</span>}
       </span>
