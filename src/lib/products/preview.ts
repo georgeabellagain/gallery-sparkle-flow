@@ -38,15 +38,20 @@ export async function buildProductPreview(
       const target = output.addPage([size.width, size.height]);
       target.drawImage(image, { x: 0, y: 0, width: size.width, height: size.height });
       if (mark) {
-        // Subtle diagonal mark repeated across the page, baked into the preview file.
-        const fs = Math.max(14, Math.min(size.width, size.height) / 14);
-        const step = fs * 6;
-        for (let y = -size.height; y < size.height * 2; y += step * 0.6)
-          for (let x = -size.width; x < size.width * 2; x += step)
-            target.drawText("PREVIEW", { x, y, size: fs, font: mark, color: rgb(1, 1, 1), opacity: 0.16, rotate: degrees(30) });
-        for (let y = -size.height + step * 0.3; y < size.height * 2; y += step * 0.6)
-          for (let x = -size.width + step / 2; x < size.width * 2; x += step)
-            target.drawText("PREVIEW", { x, y, size: fs, font: mark, color: rgb(0, 0, 0), opacity: 0.06, rotate: degrees(30) });
+        // Subtle, widely spaced diagonal mark baked into the preview file: a soft light
+        // letterform with a faint shadow, so it reads on light and dark artwork alike.
+        const fs = Math.max(12, Math.min(size.width, size.height) / 18);
+        const word = "PREVIEW", tw = mark.widthOfTextAtSize(word, fs);
+        const a = Math.PI / 6, ux = Math.cos(a), uy = Math.sin(a), vx = -uy, vy = ux;
+        const du = tw * 2.4, dv = fs * 7, reach = size.width + size.height;
+        for (let j = -Math.ceil(reach / dv); j <= Math.ceil(reach / dv); j++)
+          for (let i = -Math.ceil(reach / du); i <= Math.ceil(reach / du); i++) {
+            const u = i * du + (j % 2 ? du / 2 : 0), v = j * dv;
+            const x = size.width / 2 + u * ux + v * vx - (tw / 2) * ux, y = size.height / 2 + u * uy + v * vy - (tw / 2) * uy;
+            if (x < -tw || x > size.width + tw || y < -tw || y > size.height + tw) continue;
+            target.drawText(word, { x: x + fs * 0.04, y: y - fs * 0.04, size: fs, font: mark, color: rgb(0, 0, 0), opacity: 0.045, rotate: degrees(30) });
+            target.drawText(word, { x, y, size: fs, font: mark, color: rgb(1, 1, 1), opacity: 0.2, rotate: degrees(30) });
+          }
       }
       canvas.width = canvas.height = 1;
       page.cleanup();
