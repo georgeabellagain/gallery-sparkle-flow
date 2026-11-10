@@ -419,7 +419,7 @@ export function ProductEditor({ id }: { id: string }) {
                   </button>
                 </div>
               </div>
-              <fieldset disabled={!!busy} className="space-y-5 text-sm disabled:opacity-70">
+              <fieldset disabled={!!busy} className="min-w-0 space-y-5 text-sm disabled:opacity-70">
                 {panel === "customise" && (
                   <>
                     <label className="block text-xs">
