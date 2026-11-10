@@ -801,9 +801,11 @@ dialog.pf-sheet[open] {
 .pf-editor-stage .pf-book-page-number, .pf-workspace-demo .pf-book-page-number, .pf-home-demo .pf-book-page-number { top: .75rem; bottom: auto; opacity: 1; }
 
 /* The homepage example fills its whole column. On short desktop screens the text column is taller than the
-   window, so the book follows the column's real height (container units) instead of the window's, leaving no gap. */
-.pf-home-split .pf-home-stage { container-type: size; --pf-paged-height: 100cqh; }
-.pf-home-split .pf-workspace-demo .pf-book-viewport { height: 100cqh; min-height: 0; }
+   window, so the book follows the column's measured height (--pf-home-stage-h, set by HomeWorkspace) instead of the window's, leaving no gap. */
+.pf-home-split .pf-workspace-demo .pf-book-viewport { height: var(--pf-home-stage-h, max(30rem, 70svh)); min-height: 0; }
+@media (min-width: 1024px) {
+  .pf-home-split .pf-workspace-demo .pf-book-viewport { height: var(--pf-home-stage-h, calc(100dvh - 3.5rem)); }
+}
 
 /* Task landing page artwork: short loops that end on the finished state; reduced motion shows that state still. */
 .pf-link-art { position: relative; width: 82%; height: 70%; }
