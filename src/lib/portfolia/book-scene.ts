@@ -1,3 +1,4 @@
+import { createTurnSelfShade } from "./turn-self-shade";
 import { applyFastStudio } from "./fast-studio";
 import { rigidCoverWriter, COVER_OVERHANG, coverArtZ, type CoverRest } from "./rigid-cover";
 import { sampleCoverColour } from "./cover-colour";
@@ -450,6 +451,9 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
   updatePaperTangents(reverseGeometry, true);
   const frontMat = material();
   const backMat = material(THREE.BackSide);
+  const selfShade = createTurnSelfShade();
+  selfShade.apply(frontMat);
+  selfShade.apply(backMat);
   const front = new THREE.Mesh(geometry, frontMat);
   const back = new THREE.Mesh(reverseGeometry, backMat);
   front.castShadow = true;
@@ -1181,6 +1185,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
     });
     driveContact(progress);
     turnShade.drive(progress, dir);
+    selfShade.drive(progress);
   };
   const decorateExtra = fastStudio ? applyFastStudio : undefined;
   const notes = createBookNotes(book, ratio, pageMaterials, () => right.material as THREE.MeshStandardMaterial, requestPaint, decorateExtra);
@@ -1505,6 +1510,7 @@ export function createBookScene(host: HTMLElement, ratio: number, onLost: () => 
       notes.endTurn(complete);
       contactTurn = null;
       turnShade.clear();
+      selfShade.clear();
       if (tabPlan) {
         tabs.setRest(Object.fromEntries(tabPlan.map((p) => [p.id, complete ? p.to : p.from])));
         tabPlan = null;

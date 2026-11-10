@@ -1480,7 +1480,7 @@ export function BookView({
   useEffect(() => {
     const renderer = scene.current;
     if (!onExporter || !bookReady || fallback || !renderer || !settings.studio) { onExporter?.(null); return; }
-    const render = async (signature: string, save: (blob: Blob) => Promise<string>, progress: (value: string, fraction?: number) => void, signal: AbortSignal, video?: (blob: Blob) => void): Promise<import("@/lib/portfolia/rendered-studio").RenderedStudio> => {
+    const render = async (signature: string, save: (blob: Blob) => Promise<string>, progress: (value: string, fraction?: number) => void, signal: AbortSignal, video?: (blob: Blob) => void, listing = false): Promise<import("@/lib/portfolia/rendered-studio").RenderedStudio> => {
       if (lock.current) throw new Error("The book is still moving. Please try again.");
       lock.current = true;
       const output = document.createElement("canvas"); output.width=Math.round(viewportRef.current!.clientWidth*2); output.height=Math.round(viewportRef.current!.clientHeight*2);
@@ -1521,12 +1521,16 @@ export function BookView({
         renderer.setFrameSink(draw);
         renderer.setInset(0);
         if (video) {
+          // Listing clips use at most three preview spreads and six seconds of
+          // total holds, leaving room for complete turns within marketplace limits.
+          const videoSpreads = listing ? Math.min(3, layout.spreads.length) : layout.spreads.length;
+          const holdMs = listing ? 6000 / Math.max(1, videoSpreads) : 1600;
           // One continuous timeline: retain the cover and each spread long enough to read.
           const hold = async () => {
-            if (stepFrame) await captureFrames(1600, () => { signal.throwIfAborted(); renderer.renderFrame(); }, stepFrame);
+            if (stepFrame) await captureFrames(holdMs, () => { signal.throwIfAborted(); renderer.renderFrame(); }, stepFrame);
             else {
               const start = performance.now();
-              while (performance.now() - start < 1600) {
+              while (performance.now() - start < holdMs) {
                 signal.throwIfAborted(); renderer.renderFrame();
                 await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
               }
@@ -1535,9 +1539,9 @@ export function BookView({
           let from = await show(0);
           const blob = await record(async () => {
             await hold();
-            for (let i = 1; i < layout.spreads.length; i++) {
+            for (let i = 1; i < videoSpreads; i++) {
               signal.throwIfAborted();
-              progress(`Exporting spread ${i + 1} of ${layout.spreads.length}`, i / layout.spreads.length);
+              progress(`Exporting spread ${i + 1} of ${videoSpreads}`, i / videoSpreads);
               const next = layout.spreads[i]!, to = await faces(next);
               await renderer.prepareNotes(specs(i - 1), specs(i));
               await renderer.turn(from, to, 1, bookFocus(next, next.find(n => n !== null)!, false), 1, tabPlanFor(layout.spreads[i - 1]!, next, 1));
@@ -1580,9 +1584,9 @@ export function BookView({
         return {version:1,signature,createdAt:Date.now(),width:output.width,height:output.height,states,bytes};
       } finally { renderer.setCaptureClock(); renderer.setFrameSink(); renderer.setVideoStill(typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches); lock.current=false; if(alive.current) { await renderer.setNotes(currentNoteSpecs); renderer.show(await faces(spread)); renderer.viewport(narrow,zoom,bookFocus(spread,leafRef.current,narrow)); } }
     };
-    onExporter({ render, video: async (progress, signal) => {
+    onExporter({ render, video: async (progress, signal, listing = false) => {
       let result: Blob | undefined;
-      await render("", async () => "", progress, signal, blob => { result = blob; });
+      await render("", async () => "", progress, signal, blob => { result = blob; }, listing);
       if (!result) throw new Error("The video could not be created.");
       return result;
     }});

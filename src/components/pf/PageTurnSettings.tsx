@@ -18,14 +18,14 @@ const TAB_PREVIEW: Record<TabStyle, CSSProperties> = {
   ribbon: { clipPath: "polygon(0 0, 100% 0, 76% 50%, 100% 100%, 0 100%)" },
 };
 
-export function PageTurnSettings({viewer,setViewer,pages=0}:{viewer:ViewerSettings;setViewer:(patch:Partial<ViewerSettings>)=>boolean;pages?:number}) {
+export function PageTurnSettings({viewer,setViewer,pages=0,showTabs=true,showTest=true}:{viewer:ViewerSettings;setViewer:(patch:Partial<ViewerSettings>)=>boolean;pages?:number;showTabs?:boolean;showTest?:boolean}) {
   useEffect(()=>()=>{ setPreviewMode(null); cancelPreviewTurn(); },[]);
   const style=readableTurnStyle(viewer.turnStyle), speed=readableTurnSpeed(viewer.turnSpeed), book=readableBookStyle(viewer.bookStyle), tabStyle=readableTabStyle(viewer.tabStyle);
   // Every change here shows the flipbook in the preview.
   const change=(patch:Partial<ViewerSettings>)=>{setPreviewMode("book");setViewer(patch);};
   return <div>
-    <button type="button" className="mb-4 w-full rounded-xl border border-border px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-40" disabled={pages - readableHiddenPages(viewer.hiddenPages, pages).length < 2} onClick={requestPreviewTurn}>Test page turn</button>
-    <p className="mb-4 text-xs text-muted-foreground">Try the current motion in the preview. Your opening page stays unchanged.</p>
+    {showTest && <><button type="button" className="mb-4 w-full rounded-xl border border-border px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-40" disabled={pages - readableHiddenPages(viewer.hiddenPages, pages).length < 2} onClick={requestPreviewTurn}>Test page turn</button>
+    <p className="mb-4 text-xs text-muted-foreground">Try the current motion in the preview. Your opening page stays unchanged.</p></>}
     <PanelSection title="Book type" hint={BOOK_STYLES.find(option=>option.id===book)!.description}>
       <div className="grid grid-cols-3 gap-2" role="group" aria-label="Book style">
         {BOOK_STYLES.map(option=><button key={option.id} type="button" aria-pressed={book===option.id} className={optionClass} onClick={()=>change({bookStyle:option.id})}>{option.label}</button>)}
@@ -35,7 +35,7 @@ export function PageTurnSettings({viewer,setViewer,pages=0}:{viewer:ViewerSettin
       <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={viewer.pageStack === true} onChange={e => change({pageStack:e.target.checked})} />Show layered pages</label>
       <p className="mt-2 text-xs text-muted-foreground">Shows paper edges, without loading every hidden PDF page.</p>
     </PanelSection>
-    <PanelSection title="Page tabs" hint={`${TAB_STYLES.find(option=>option.id===tabStyle)!.description} Add tabs in Scrapbook.`}>
+    {showTabs && <PanelSection title="Page tabs" hint={`${TAB_STYLES.find(option=>option.id===tabStyle)!.description} Add tabs in Scrapbook.`}>
       <div className="grid grid-cols-5 gap-1.5" role="radiogroup" aria-label="Page tab style">
         {TAB_STYLES.map(option=><button key={option.id} type="button" role="radio" aria-checked={tabStyle===option.id} title={option.description} onClick={()=>change({tabStyle:option.id})}
           className="flex flex-col items-center gap-1.5 rounded-xl border border-border p-1.5 text-[10px] transition-colors hover:bg-muted/60 aria-checked:border-foreground aria-checked:bg-muted">
@@ -47,7 +47,7 @@ export function PageTurnSettings({viewer,setViewer,pages=0}:{viewer:ViewerSettin
           <span className="leading-none">{option.label}</span>
         </button>)}
       </div>
-    </PanelSection>
+    </PanelSection>}
     <PanelSection title="Page curve" hint={TURN_CURVES.find(option=>option.id===readableTurnCurve(viewer.turnCurve))!.description}>
       <div className="grid grid-cols-2 gap-2" role="group" aria-label="Page-curve shape">
         {TURN_CURVES.map(option=><button key={option.id} type="button" aria-pressed={readableTurnCurve(viewer.turnCurve)===option.id} className={optionClass} onClick={()=>change({turnCurve:option.id})}>{option.label}</button>)}

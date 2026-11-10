@@ -1,3 +1,4 @@
+import { photoSurfaceScale } from "@/lib/portfolia/photo-surface-scale";
 import { coverLeaf } from "@/lib/portfolia/rigid-cover";
 import { photoLighting, photoSpreadPages } from "@/lib/portfolia/photo-settings";
 import { StudioLightingSettings, PaperSettings } from "./StudioAppearanceSettings";
@@ -22,7 +23,7 @@ import { createPhotoShoot, SHOOT_ELEVATION, SHOOT_PRESETS, type ShootOptions } f
 import { DEFAULT_VIEWER, type ViewerSettings, type Portfolio } from "@/lib/portfolia/store";
 
 /** What a photo shoot keeps between visits, per portfolio and on this device: the camera, book, light and paper. */
-const REMEMBERED = ["style", "layout", "yaw", "elevation", "zoom", "hdri", "finish", "brightness", "strength", "topLight"] as const;
+const REMEMBERED = ["style", "layout", "yaw", "elevation", "zoom", "hdri", "finish", "brightness", "strength", "topLight", "wallScale", "floorScale"] as const;
 const shootKey = (code: string) => `pf-shoot:${code}`;
 function rememberedShoot(code: string): Partial<ShootOptions> {
   try {
@@ -559,6 +560,12 @@ export function PhotoShoot({ p, onClose }: { p: Portfolio; onClose: () => void }
                         onChange={setSurface}
                       />
                     )}
+                    <label className="block space-y-2 text-xs">
+                      <span>Background scale · {Math.round(photoSurfaceScale(options[editing[0] === "wall" ? "wallScale" : "floorScale"]) * 100)}%</span>
+                      <input type="range" aria-label="Photo background scale" min="10" max="200" step="5"
+                        value={Math.round(photoSurfaceScale(options[editing[0] === "wall" ? "wallScale" : "floorScale"]) * 100)}
+                        className="w-full" onChange={e => change(Object.fromEntries(editing.map(side => [side === "wall" ? "wallScale" : "floorScale", Number(e.target.value)/100])))} />
+                    </label>
                     <label className="flex items-center justify-between gap-3">
                       Plain colour
                       <input

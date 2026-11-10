@@ -45,6 +45,9 @@ function PrivacyPage() {
         If we learn that an account belongs to a child under 13, we will delete it.
       </p>
 
+      <h2>Digital product editions</h2>
+      <p>Product creators can store a complete PDF, a separate public preview and labelled customer access links. We store a one-way hash of each access link, its label, expiry and revocation status. Avoid including customer email addresses or other unnecessary personal information in link labels. Customer editions use an essential, secure access cookie lasting up to 12 hours. We check access again for each file request. Product reader and editor pages do not initiate Google Ads tracking.</p>
+      <p>The delivery-PDF workflow does not connect to your shop account, import orders or collect buyer payment details. Customer links can be forwarded. Deleting a product removes its editions and access links from Portfolia; it cannot remove downloaded copies or delivery PDFs already held by customers.</p>
       <h2>What we collect</h2>
       <ul>
         <li>

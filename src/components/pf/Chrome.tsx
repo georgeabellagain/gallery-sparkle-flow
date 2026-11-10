@@ -36,6 +36,9 @@ export function SiteFooter({ className }: { className?: string }) {
           <div className="grid gap-2.5">
             <Link to="/pricing" className="hover:underline">Plans and pricing</Link>
             <Link to="/free-pdf-flipbook" className="hover:underline">PDF flipbooks</Link>
+            <a href="/digital-product-studio" className="hover:underline">Digital Product Studio</a>
+            <a href="/etsy-digital-product-preview" className="hover:underline">For Etsy sellers</a>
+            <a href="/digital-zine-publishing" className="hover:underline">Digital zine publishing</a>
             <Link to="/book-marketing" className="hover:underline">Book marketing</Link>
             <a href="/portfolio-checker" className="hover:underline">PDF checker</a>
             <a href="/embed-flipbook-in-squarespace" className="hover:underline">Embedding guides</a>

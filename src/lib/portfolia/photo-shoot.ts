@@ -1,3 +1,4 @@
+import { photoSurfaceScale } from "./photo-surface-scale";
 import { photoSizeError, type PhotoSize } from "./photo-export";
 import { pageBlockGeometry, coverBoardGeometry, caseSpineGeometry, visibleBookBounds } from "./book-model";
 import { COVER_HEIGHT, COVER_OVERHANG, PAGE_TOP } from "./rigid-cover";
@@ -20,7 +21,7 @@ import { ribbonPath, RIBBON_PAGE, stackDepth } from "./book-binding";
 import type { SurfaceKind } from "./surface";
 /** `lean` stands the book against the wall; `flat` lays it on the floor for a top-down flat lay. */
 export type ShootLayout="lean"|"flat";
-export type ShootOptions={style:BookStyle;colour:string;wall?:string;floorColour:string;floor?:string;yaw:number;elevation:number;zoom:number;hdri:HdriId;finish:SurfaceKind;brightness:number;strength:number;topLight:number;layout?:ShootLayout;ribbon?:boolean;ribbonColour?:string;/** The open spread is the one the ribbon marks, so it lies across the pages. */ribbonMarked?:boolean};
+export type ShootOptions={style:BookStyle;colour:string;wall?:string;wallScale?:number;floorScale?:number;floorColour:string;floor?:string;yaw:number;elevation:number;zoom:number;hdri:HdriId;finish:SurfaceKind;brightness:number;strength:number;topLight:number;layout?:ShootLayout;ribbon?:boolean;ribbonColour?:string;/** The open spread is the one the ribbon marks, so it lies across the pages. */ribbonMarked?:boolean};
 /** Camera heights each layout allows, in degrees. */
 export const SHOOT_ELEVATION={lean:[2,25],flat:[2,25]} as const;
 /** Ready-made camera set-ups. */
@@ -87,9 +88,16 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
  renderer.domElement.addEventListener("webglcontextlost",lost);
  const observer=new ResizeObserver(request);observer.observe(host);
  const surfaces=[{url:undefined as string|undefined,revision:0,maps:[] as THREE.Texture[],pending:Promise.resolve()}, {url:undefined as string|undefined,revision:0,maps:[] as THREE.Texture[],pending:Promise.resolve()}];
+ const scaleSurface=(index:number)=>{
+   const state=surfaces[index]!, scale=photoSurfaceScale(index===0?options.wallScale:options.floorScale);
+   const image=state.maps[0]?.image as HTMLImageElement|undefined;if(!image)return;
+   const span=(state.url?.endsWith(SCENE_IMAGE_MARK)?9:4)*scale;
+   const rx=30/span,ry=30/(span*(image.naturalHeight/image.naturalWidth||1));
+   state.maps.forEach(t=>{t.repeat.set(rx,ry);t.offset.set(.5-.5*rx,index===0?.5-((ratio*.52-5)/30+.5)*ry:.5-.5*ry);});
+ };
  const setSurface=(index:number,url:string|undefined,colour:string)=>{
    const state=surfaces[index]!,m=index===0?wallMaterial:floorMaterial;
-   m.color.set(url?"#ffffff":colour);if(url===state.url)return;
+   m.color.set(url?"#ffffff":colour);if(url===state.url){scaleSurface(index);return;}
    state.url=url;const token=++state.revision;
    const clear=()=>{state.maps.forEach(t=>{t.dispose();textures.delete(t);});state.maps=[];m.map=m.normalMap=m.roughnessMap=null;};
    if(!url){clear();m.roughness=.94;m.needsUpdate=true;state.pending=Promise.resolve();return;}
@@ -101,7 +109,7 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
      const scene=url.endsWith(SCENE_IMAGE_MARK),span=scene?9:4;
      clear();loaded.forEach((t,i)=>{if(!t)return;t.colorSpace=i===0?THREE.SRGBColorSpace:THREE.NoColorSpace;t.wrapS=t.wrapT=scene?THREE.ClampToEdgeWrapping:THREE.RepeatWrapping;t.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
        const image=loaded[0]!.image as HTMLImageElement,rx=30/span,ry=30/(span*(image.naturalHeight/image.naturalWidth||1));t.repeat.set(rx,ry);t.offset.set(.5-.5*rx,index===0?.5-((ratio*.52-5)/30+.5)*ry:.5-.5*ry);textures.add(t);state.maps.push(t);});
-     acquired.clear();[m.map,m.normalMap,m.roughnessMap]=loaded;m.normalScale.set(1,1);m.roughness=maps?1:.94;m.needsUpdate=true;request();
+     scaleSurface(index);acquired.clear();[m.map,m.normalMap,m.roughnessMap]=loaded;m.normalScale.set(1,1);m.roughness=maps?1:.94;m.needsUpdate=true;request();
    }).catch(()=>{failed=true;acquired.forEach(t=>t.dispose());acquired.clear();if(!disposed&&token===state.revision)onError(`The ${index===0?"wall":"floor"} surface could not load.`);throw new Error("A photo surface could not load. Choose another preset.");});void state.pending.catch(()=>{});
  };
  let pendingEnvironment:Promise<void>=Promise.resolve();

@@ -20,7 +20,7 @@ export type RenderedStudio = {
   bytes: number;
 };
 export type StudioExporter = {
-  video(progress: (value: string, fraction?: number) => void, signal: AbortSignal): Promise<Blob>;
+  video(progress: (value: string, fraction?: number) => void, signal: AbortSignal, listing?: boolean): Promise<Blob>;
   render(
     signature: string,
     save: (blob: Blob) => Promise<string>,

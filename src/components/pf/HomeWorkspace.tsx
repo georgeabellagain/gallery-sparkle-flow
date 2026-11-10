@@ -57,6 +57,7 @@ export function HomeWorkspace() {
       <Wordmark className="shrink-0" />
       {/* On phones: only what a visitor needs first; the rest is in the footer. Every label stays on one line. */}
       <nav aria-label="Main" className="flex min-w-0 items-center gap-3 whitespace-nowrap text-xs sm:gap-5 sm:text-sm">
+        <a href="/digital-product-studio" className="underline-offset-4 hover:underline">Products</a>
         <Link to="/book-marketing" className="hidden underline-offset-4 hover:underline sm:inline">For authors</Link>
         <Link to="/pricing" className="underline-offset-4 hover:underline">Pricing</Link>
         {(doc.account.signedIn || allPortfolios(doc).length > 0) && <Link to="/dashboard" className="underline-offset-4 hover:underline"><span className="sm:hidden">Portfolios</span><span className="hidden sm:inline">My portfolios</span></Link>}
@@ -69,6 +70,7 @@ export function HomeWorkspace() {
       <div className="pf-home-example pf-home-split relative grid lg:grid-cols-[minmax(24rem,2fr)_3fr]">
         <div className="flex flex-col justify-center gap-6 bg-background px-6 py-10 sm:px-10 lg:min-h-[calc(100dvh-3.5rem)] lg:border-r lg:border-border lg:px-12 xl:px-16">
           <p className="label-xs text-leaf">Free PDF portfolio hosting</p>
+          <nav aria-label="Choose your workspace" className="flex gap-2 mb-5 text-xs"><a href="/" aria-current="page" className="rounded-full bg-foreground text-background px-4 py-2">For portfolios</a><a href="/digital-product-studio" className="rounded-full border border-border px-4 py-2 hover:bg-muted">For digital products →</a></nav>
           <h1 className="display-title max-w-lg text-4xl leading-[1.05] sm:text-5xl xl:text-6xl">Turn your PDF into a portfolio people remember.</h1>
           <p className="max-w-md text-base leading-relaxed text-muted-foreground">Upload the portfolio you already have and share it as a beautifully lit 3D flipbook, with one link, a QR code or an embed on your own site.</p>
           <button type="button" onClick={() => input.current?.click()} disabled={Boolean(phase)} className="group flex w-full max-w-md items-center gap-4 rounded-2xl border border-dashed border-border-strong bg-canvas p-4 text-left transition-colors hover:border-foreground hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Drop a PDF here or choose a PDF to upload">

@@ -13,7 +13,7 @@ import { canShareVideo, SOCIAL_NETWORKS, videoComposer, type SocialNetwork } fro
  * goes to the device's share sheet (with the caption and link) or, where browsers cannot share files, downloads
  * while the caption is copied and the chosen network's composer opens.
  */
-export function VideoExportPanel({ p, onClose, share }: { p: Portfolio; onClose: () => void; share?: { url: string; caption: string } }) {
+export function VideoExportPanel({ p, onClose, share, listing = false }: { p: Portfolio; onClose: () => void; listing?: boolean; share?: { url: string; caption: string } }) {
   const personal = useDoc().account.signedIn && p.plan === "personal";
   const pdf = useBlob(p.pdf?.blobKey), background = useBlob(p.viewer?.backgroundKey);
   const source = useRef<{ blob: Blob } | null>(null);
@@ -45,8 +45,10 @@ export function VideoExportPanel({ p, onClose, share }: { p: Portfolio; onClose:
     const abort = new AbortController(); controller.current = abort;
     setBusy(true); setError(""); setResult(undefined); setFraction(0);
     try {
-      const blob = await exporter.video((text, value) => { setStatus(text); if (value !== undefined) setFraction(value); }, abort.signal);
+      const blob = await exporter.video((text, value) => { setStatus(text); if (value !== undefined) setFraction(value); }, abort.signal, listing);
       abort.signal.throwIfAborted();
+      if (listing && (!blob.type.includes("mp4") || blob.size > 100 * 1024 * 1024))
+        throw new Error("This browser could not create a listing-ready MP4 under 100 MB. Try Chrome or Edge with MP4 encoding support.");
       setResult({ url: URL.createObjectURL(blob), extension: blob.type.includes("mp4") ? "mp4" : "webm", blob });
       setFraction(1); setStatus("Your HD video is ready.");
     } catch (e) {
@@ -74,8 +76,9 @@ export function VideoExportPanel({ p, onClose, share }: { p: Portfolio; onClose:
   };
   if (typeof document === "undefined" || !personal) return null;
   return createPortal(<dialog open aria-modal="true" aria-label="Export HD flipbook video" className="pf-sheet fixed inset-0 z-[110] m-auto max-h-[92dvh] w-[min(95vw,36rem)] overflow-auto rounded-3xl border border-border bg-background p-6 text-foreground">
-    <h2 className="text-lg font-medium">{share ? "Share with a flip-through video" : "Export HD video"}</h2>
+    <h2 className="text-lg font-medium">{listing ? "Export listing video" : share ? "Share with a flip-through video" : "Export HD video"}</h2>
     <p className="mt-2 text-sm text-muted-foreground">Download a 1920 × 1080 video that flips through your portfolio in Studio, with your lighting, paper and background. 60 FPS MP4 where supported; other browsers may export WebM. Keep this tab visible until finished.</p>
+    {listing && <p className="mt-3 text-sm">Listing clip: the first three preview spreads, with a short pause on each. MP4 only, up to 100 MB. Check the finished clip before adding it to your listing.</p>}
     <p role="status" className="mt-4 text-sm">{!busy && !result && exporter ? "Ready to export." : status}</p>
     <progress aria-label="Video export progress" max={1} value={fraction} className="mt-3 w-full accent-foreground" />
     <p className="text-xs tabular-nums">{Math.round(fraction * 100)}%</p>
@@ -96,7 +99,7 @@ export function VideoExportPanel({ p, onClose, share }: { p: Portfolio; onClose:
       {shareNote && <p role="status" className="mt-2 text-xs">{shareNote}</p>}
     </section>}
     <div className="pf-render-capture pointer-events-none fixed left-[-10000px] top-0" style={{ width: 960, height: 540, "--pf-render-height": "540px" } as React.CSSProperties} aria-hidden="true" inert>
-      {pdf && <PdfViewer key={generation} source={source.current} fileName={p.pdf?.name ?? "portfolio.pdf"} viewer={{ ...DEFAULT_VIEWER, ...p.viewer, mode: "book", look: "studio", looks: ["studio"], modes: ["book"] }} backgroundUrl={backgroundUrl} backdrop={p.style?.backdrop} foldouts={p.pdf?.foldouts} tags={p.pdf?.tags} links={p.pdf?.links} videos={p.pdf?.videos} controls={false} onExporter={receive} renderCapture onLoadError={setError} />}
+      {pdf && <PdfViewer key={generation} source={source.current} fileName={p.pdf?.name ?? "portfolio.pdf"} viewer={{ ...DEFAULT_VIEWER, ...p.viewer, ...(listing ? {turnSpeed:1,turnStyle:"classic" as const} : {}), mode: "book", look: "studio", looks: ["studio"], modes: ["book"] }} backgroundUrl={backgroundUrl} backdrop={p.style?.backdrop} foldouts={p.pdf?.foldouts} tags={p.pdf?.tags} links={p.pdf?.links} videos={p.pdf?.videos} controls={false} onExporter={receive} renderCapture onLoadError={setError} />}
     </div>
   </dialog>, document.body);
 }
