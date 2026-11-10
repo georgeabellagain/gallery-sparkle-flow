@@ -1,0 +1,1 @@
+- The homepage example sizes its book from the column's measured height (--pf-home-stage-h set in HomeWorkspace), not the window. Why: on short desktop windows the text column is taller than the window and a window-sized book left an empty band below it.
