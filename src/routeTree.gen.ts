@@ -71,7 +71,6 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as UcasPortfolioRouteImport } from './routes/ucas-portfolio'
 import { Route as UxDesignPortfolioRouteImport } from './routes/ux-design-portfolio'
 import { Route as ZineFlipbookRouteImport } from './routes/zine-flipbook'
-import { Route as ZzPreviewCheckRouteImport } from './routes/zz-preview-check'
 import { Route as EmbedCodeRouteImport } from './routes/embed.$code'
 import { Route as PSlugRouteImport } from './routes/p.$slug'
 import { Route as ProductStudioIdRouteImport } from './routes/product-studio.$id'
@@ -398,11 +397,6 @@ const ZineFlipbookRoute = ZineFlipbookRouteImport.update({
   path: '/zine-flipbook',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ZzPreviewCheckRoute = ZzPreviewCheckRouteImport.update({
-  id: '/zz-preview-check',
-  path: '/zz-preview-check',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const EmbedCodeRoute = EmbedCodeRouteImport.update({
   id: '/embed/$code',
   path: '/embed/$code',
@@ -530,7 +524,6 @@ export interface FileRoutesByFullPath {
   '/ucas-portfolio': typeof UcasPortfolioRoute
   '/ux-design-portfolio': typeof UxDesignPortfolioRoute
   '/zine-flipbook': typeof ZineFlipbookRoute
-  '/zz-preview-check': typeof ZzPreviewCheckRoute
   '/embed/$code': typeof EmbedCodeRoute
   '/p/$slug': typeof PSlugRoute
   '/product-studio/$id': typeof ProductStudioIdRoute
@@ -607,7 +600,6 @@ export interface FileRoutesByTo {
   '/ucas-portfolio': typeof UcasPortfolioRoute
   '/ux-design-portfolio': typeof UxDesignPortfolioRoute
   '/zine-flipbook': typeof ZineFlipbookRoute
-  '/zz-preview-check': typeof ZzPreviewCheckRoute
   '/embed/$code': typeof EmbedCodeRoute
   '/p/$slug': typeof PSlugRoute
   '/product-studio/$id': typeof ProductStudioIdRoute
@@ -685,7 +677,6 @@ export interface FileRoutesById {
   '/ucas-portfolio': typeof UcasPortfolioRoute
   '/ux-design-portfolio': typeof UxDesignPortfolioRoute
   '/zine-flipbook': typeof ZineFlipbookRoute
-  '/zz-preview-check': typeof ZzPreviewCheckRoute
   '/embed/$code': typeof EmbedCodeRoute
   '/p/$slug': typeof PSlugRoute
   '/product-studio/$id': typeof ProductStudioIdRoute
@@ -764,7 +755,6 @@ export interface FileRouteTypes {
     | '/ucas-portfolio'
     | '/ux-design-portfolio'
     | '/zine-flipbook'
-    | '/zz-preview-check'
     | '/embed/$code'
     | '/p/$slug'
     | '/product-studio/$id'
@@ -841,7 +831,6 @@ export interface FileRouteTypes {
     | '/ucas-portfolio'
     | '/ux-design-portfolio'
     | '/zine-flipbook'
-    | '/zz-preview-check'
     | '/embed/$code'
     | '/p/$slug'
     | '/product-studio/$id'
@@ -918,7 +907,6 @@ export interface FileRouteTypes {
     | '/ucas-portfolio'
     | '/ux-design-portfolio'
     | '/zine-flipbook'
-    | '/zz-preview-check'
     | '/embed/$code'
     | '/p/$slug'
     | '/product-studio/$id'
@@ -996,7 +984,6 @@ export interface RootRouteChildren {
   UcasPortfolioRoute: typeof UcasPortfolioRoute
   UxDesignPortfolioRoute: typeof UxDesignPortfolioRoute
   ZineFlipbookRoute: typeof ZineFlipbookRoute
-  ZzPreviewCheckRoute: typeof ZzPreviewCheckRoute
   EmbedCodeRoute: typeof EmbedCodeRoute
   PSlugRoute: typeof PSlugRoute
   ProductStudioIdRoute: typeof ProductStudioIdRoute
@@ -1447,13 +1434,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ZineFlipbookRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/zz-preview-check': {
-      id: '/zz-preview-check'
-      path: '/zz-preview-check'
-      fullPath: '/zz-preview-check'
-      preLoaderRoute: typeof ZzPreviewCheckRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/embed/$code': {
       id: '/embed/$code'
       path: '/embed/$code'
@@ -1604,7 +1584,6 @@ const rootRouteChildren: RootRouteChildren = {
   UcasPortfolioRoute: UcasPortfolioRoute,
   UxDesignPortfolioRoute: UxDesignPortfolioRoute,
   ZineFlipbookRoute: ZineFlipbookRoute,
-  ZzPreviewCheckRoute: ZzPreviewCheckRoute,
   EmbedCodeRoute: EmbedCodeRoute,
   PSlugRoute: PSlugRoute,
   ProductStudioIdRoute: ProductStudioIdRoute,
