@@ -81,7 +81,7 @@ export function ProductEditor({ id }: { id: string }) {
     }),
     [look, setLook] = useState<PreviewLook | null>(getPreviewLook());
   const fileRef = useRef<HTMLInputElement>(null), leaveRef = useRef(false);
-  const [tab, setTab] = useState("Details"),
+  const [
     [pages, setPages] = useState("1"),
     [busy, setBusy] = useState(""),
     [message, setMessage] = useState(""),
