@@ -781,7 +781,7 @@ dialog.pf-sheet[open] {
 
 /* Product-first homepage: the book is the canvas, tools open in place. */
 .pf-workspace-demo .pf-book-viewport { height: calc(100dvh - 3.5rem); min-height: 34rem; }
-.pf-workspace-demo > div:not([role="status"]) { height: 100%; }
+.pf-workspace-demo > div:not([role="status"]):not([data-preview-chrome]) { height: 100%; }
 .pf-workspace-demo .pf-book-viewport .pf-book-canvas { inset: 0; }
 .pf-home-workspace .pf-editor-stage { min-height: 34rem; }
 @media (max-width: 639px) {
