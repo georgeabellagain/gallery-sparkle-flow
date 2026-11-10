@@ -23,22 +23,23 @@ export function PreviewChrome({
         Preview{pages > 0 && <span className="font-normal normal-case tracking-normal text-muted-foreground">· {pages} pages</span>}
       </span>
       {buyUrl && (
-        <div className={cn("pointer-events-none absolute inset-x-0 bottom-16 z-30 flex justify-center px-4", className)}>
+        <div className={cn("pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center px-4", className)}>
           <div
+            data-preview-buy
             className={cn(
               "pointer-events-auto flex flex-col items-center text-center transition-all duration-500",
               atEnd && "rounded-[1.75rem] bg-background/95 px-6 py-5 shadow-lift backdrop-blur-md",
             )}
           >
             {atEnd && (
-              <>
+              <div className="mb-3">
                 <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">End of the preview</p>
                 <p className="display-title mt-1.5 text-2xl">
                   See <em>every</em> page
                 </p>
-              </>
+              </div>
             )}
-            <Button asChild className={cn("shadow-lift", atEnd && "mt-3")}>
+            <Button asChild className={"shadow-lift"}>
               <a href={buyUrl} target="_blank" rel="noopener noreferrer">
                 Buy the full product ↗
               </a>

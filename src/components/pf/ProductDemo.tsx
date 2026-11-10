@@ -31,6 +31,8 @@ export function ProductDemo({ className }: { className?: string }) {
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [shown, setShown] = useState(false);
   const [page, setPage] = useState(1);
+  const [interacted, setInteracted] = useState(false);
+  const stop = (e: { target: EventTarget | null }) => { if (e.target instanceof Element && e.target.closest("[data-preview-buy]")) return; setInteracted(true); };
   const [pages, setPages] = useState(0);
   const started = useRef<number | undefined>(undefined);
   useEffect(() => {
@@ -46,14 +48,14 @@ export function ProductDemo({ className }: { className?: string }) {
   const source = useMemo(() => (demo ? { url: demo.url } : null), [demo?.url]);
   const reveal = useCallback(() => { started.current ??= performance.now(); setShown(true); }, []);
   return (
-    <figure className={className}>
+    <figure className={className} onPointerDownCapture={stop} onWheelCapture={stop} onKeyDownCapture={e => { if (e.key !== "Tab") stop(e); }}>
       <div className="pf-workspace-demo relative h-full overflow-hidden">
         {state === "ready" && demo && source && (
           <div className="absolute inset-0" style={{ opacity: shown ? 1 : 0 }}>
             <PdfViewer
               source={source}
               fileName={demo.name}
-              viewer={{ ...DEFAULT_VIEWER, ...demo.viewer, mode: "book", look: "studio", modes: ["book"], looks: ["studio"], idleOrbit: "start" }}
+              viewer={{ ...DEFAULT_VIEWER, ...demo.viewer, mode: "book", look: "studio", modes: ["book"], looks: ["studio"], idleOrbit: interacted ? "off" : "start" }}
               backgroundUrl={demo.backgroundUrl}
               controls
               homepageExample
@@ -63,7 +65,7 @@ export function ProductDemo({ className }: { className?: string }) {
               initialLook="studio"
               fullSpread
               presentationActive
-              showcaseOrbit={shown}
+              showcaseOrbit={shown && !interacted}
               showcaseOrbitStart={started.current}
               onReaderPage={setPage}
               onDemoReady={reveal}
@@ -72,7 +74,7 @@ export function ProductDemo({ className }: { className?: string }) {
             />
           </div>
         )}
-        {shown && demo && <PreviewChrome buyUrl={demo.buyUrl} pages={pages} page={page} className="bottom-20" />}
+        {shown && demo && <PreviewChrome buyUrl={demo.buyUrl} pages={pages} page={page} />}
         {(!shown || state === "error") && (
           <div role="status" className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-background text-sm">
             {state === "error" ? <p>The example is temporarily unavailable.</p> : <BookLoader tone="light" label="" />}
