@@ -13,6 +13,13 @@ import { deleteBlob } from "@/lib/portfolia/assets";
 import { acceptPdf } from "@/lib/portfolia/pdf";
 import { allPortfolios, canAddPortfolio, getDoc, startPortfolio, switchPortfolio, uploadLimitMb, useDoc, type PdfFile } from "@/lib/portfolia/store";
 
+const ProductDemo = lazy(() => import("./ProductDemo").then(m => ({ default: m.ProductDemo })));
+const PRODUCT_FEATURES = [
+  ["Curated preview", "Shoppers see your cover plus the spreads you choose, with an optional subtle watermark."],
+  ["Private customer edition", "Buyers open the full book through a private link you can revoke at any time."],
+  ["Works with your shop", "Link Etsy, Gumroad or Shopify. Checkout stays where it is."],
+  ["Listing visuals", "Make flip-through videos and book photos from the preview pages only."],
+] as const;
 const StudioDemo = lazy(() => import("./StudioDemo").then(m => ({ default: m.StudioDemo })));
 type Dialog = "upload" | "portfolios" | "help" | null;
 
@@ -34,6 +41,7 @@ export function HomeWorkspace() {
     return () => observer.disconnect();
   }, []);
   const [dialog, setDialog] = useState<Dialog>(null);
+  const [workspaceTab, setWorkspaceTab] = useState<"portfolios" | "products">("portfolios");
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<string | null>(null);
   const [over, setOver] = useState(false);
@@ -82,7 +90,9 @@ export function HomeWorkspace() {
       <div className="pf-home-example pf-home-split relative grid lg:grid-cols-[minmax(24rem,2fr)_3fr]">
         <div className="flex flex-col justify-center gap-6 bg-background px-6 py-10 sm:px-10 lg:min-h-[calc(100dvh-3.5rem)] lg:border-r lg:border-border lg:px-12 xl:px-16">
           <p className="label-xs text-leaf">Free PDF portfolio hosting</p>
-          <nav aria-label="Choose your workspace" className="flex gap-2 mb-5 text-xs"><a href="/" aria-current="page" className="rounded-full bg-foreground text-background px-4 py-2">For portfolios</a><a href="/digital-product-studio" className="rounded-full border border-border px-4 py-2 hover:bg-muted">For digital products →</a></nav>
+          <div role="tablist" aria-label="Choose your workspace" className="flex gap-2 mb-5 text-xs">{(["portfolios", "products"] as const).map(t => <button key={t} role="tab" aria-selected={workspaceTab === t} onClick={() => setWorkspaceTab(t)} className={workspaceTab === t ? "rounded-full bg-foreground text-background px-4 py-2" : "rounded-full border border-border px-4 py-2 hover:bg-muted"}>{t === "portfolios" ? "For portfolios" : "For digital products"}</button>)}</div>
+          {workspaceTab === "portfolios" ? <>
+
           <h1 className="display-title max-w-lg text-4xl leading-[1.05] sm:text-5xl xl:text-6xl">Turn your PDF into a portfolio people remember.</h1>
           <p className="max-w-md text-base leading-relaxed text-muted-foreground">Upload the portfolio you already have and share it as a beautifully lit 3D flipbook, with one link, a QR code or an embed on your own site.</p>
           <button type="button" onClick={() => input.current?.click()} disabled={Boolean(phase)} className="group flex w-full max-w-md items-center gap-4 rounded-2xl border border-dashed border-border-strong bg-canvas p-4 text-left transition-colors hover:border-foreground hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Drop a PDF here or choose a PDF to upload">
@@ -93,10 +103,17 @@ export function HomeWorkspace() {
           <ul className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
             {["No sign-up to preview", "Free forever for one portfolio", "Looks great on phones"].map(t => <li key={t} className="flex items-center gap-1.5"><Check className="size-3.5 text-leaf" aria-hidden />{t}</li>)}
           </ul>
+        
+          </> : <>
+          <h1 className="display-title max-w-lg text-4xl leading-[1.05] sm:text-5xl xl:text-6xl">Let shoppers look inside <em>before they buy.</em></h1>
+          <p className="max-w-md text-base leading-relaxed text-muted-foreground">Turn your digital book or zine into a lit 3D preview, then deliver the full edition to customers through a private link.</p>
+          <ul className="grid max-w-md gap-3">{PRODUCT_FEATURES.map(([t, d]) => <li key={t} className="flex gap-3 text-sm"><Check className="mt-0.5 size-4 shrink-0 text-leaf" aria-hidden /><span><span className="font-medium">{t}</span><span className="block text-muted-foreground">{d}</span></span></li>)}</ul>
+          <div><Button asChild><a href="/products">Create a digital product</a></Button> <a href="/digital-product-studio" className="ml-3 text-sm underline underline-offset-4">How it works</a></div>
+        </>}
         </div>
         <div ref={stage} className="pf-home-stage relative min-w-0 h-[70svh] min-h-[30rem] lg:h-auto lg:min-h-[calc(100dvh-3.5rem)]">
-        <div className="absolute inset-0"><Suspense fallback={<div className="flex h-full items-center justify-center"><BookLoader tone="light" label="" /></div>}><StudioDemo workspace className="relative h-full w-full" /></Suspense></div>
-        <span className="pointer-events-none absolute left-4 top-5 z-20 rounded-full bg-background/90 px-3 py-1.5 text-[11px] shadow-soft">Live example</span>
+        <div className="absolute inset-0"><Suspense fallback={<div className="flex h-full items-center justify-center"><BookLoader tone="light" label="" /></div>}>{workspaceTab === "portfolios" ? <StudioDemo workspace className="relative h-full w-full" /> : <ProductDemo className="relative h-full w-full" />}</Suspense></div>
+        <span className="pointer-events-none absolute left-4 top-5 z-20 rounded-full bg-background/90 px-3 py-1.5 text-[11px] shadow-soft">{workspaceTab === "portfolios" ? "Live example" : "Live product preview"}</span>
 
         </div>
       </div>
