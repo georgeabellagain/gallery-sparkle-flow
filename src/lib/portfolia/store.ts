@@ -47,6 +47,8 @@ export interface PageStyle {
 }
 
 export interface ViewerSettings {
+  /** Digital products only: bake a faint "Preview" mark into the public preview. */
+  previewWatermark?: boolean;
   mode: "scroll" | "paged" | "book";
   /** Creator-selected flipbook motion; omitted retains Classic at normal speed. */
   turnStyle?: import("./turn-motion").TurnStyle;
