@@ -25,6 +25,7 @@ export const BUSINESS_MONTHLY_BILLING = `${BUSINESS_PRICE.month}/month, billed m
 export const BUSINESS_YEARLY_BILLING = `${BUSINESS_PRICE.year} billed yearly (${BUSINESS_YEARLY_PER_MONTH}/month equivalent)`;
 
 export const FREE_FEATURES = [
+  "One digital product with selected-page preview and customer access links",
   `One portfolio, PDFs up to ${FREE_UPLOAD_LIMIT_MB} MB`,
   "3D Studio flipbook, Scroll and Page-by-page readers",
   "Permanent link, QR code and website embed",
@@ -37,6 +38,7 @@ export const FREE_FEATURES = [
 
 /** Ordered by what people pay for first: identity, control, polish, then room. */
 export const PERSONAL_FEATURES = [
+  "Up to 10 digital products, PDFs up to 100 MB, with marketing exports",
   "Your own address: portfolia.site/yourname",
   "Password protection and link expiry",
   "No Portfolia credit, and your own logo in the viewer",

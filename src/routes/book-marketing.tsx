@@ -19,7 +19,7 @@ const content: SeoContent = {
     { title: "Free to share; Personal for promotional video", body: "Free includes one PDF up to 30 MB, a purchase link, QR code and embedding. Personal includes up to ten portfolios with PDFs up to 100 MB each, the full lighting/background collection and HD video download. Your draft changes stay private until you save." },
   ],
   faqs: [
-    { q: "Can I sell books through Portfolia?", a: "You can link readers to an external shop or Amazon listing. Portfolia does not take customer orders, process book purchases or deliver purchased ebooks." },
+    { q: "Can I sell books through Portfolia?", a: "You can link readers to an external shop or Amazon listing. Portfolia does not process purchases. The separate Digital Product Studio lets you create selected-page previews and deliver complete customer editions through access links, with optional PDF downloads." },
     { q: "Does it work before my book is printed?", a: "Yes. You only need a PDF. Use a sample if you do not want your full book publicly available." },
     { q: "Can I create a book marketing video?", a: "Personal lets you download a 1080p Studio flip-through video. MP4 at 60 FPS is available in supported browsers, with a WebM fallback." },
     { q: "Can I make book mockup photos?", a: "Yes. The Photo shoot in the editor is a 3D book mockup generator: stage your book as a hardback, soft cover or flipbook, leaning, on its spine or as a flat lay, closed or open at any spread. Preview is free; downloading the PNG is part of Personal. See the book mockup generator page." },

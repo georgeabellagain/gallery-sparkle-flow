@@ -19,10 +19,13 @@ import { Route as BookMockupGeneratorRouteImport } from './routes/book-mockup-ge
 import { Route as CanvaFlipbookRouteImport } from './routes/canva-flipbook'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as DigitalProductStudioRouteImport } from './routes/digital-product-studio'
+import { Route as DigitalZinePublishingRouteImport } from './routes/digital-zine-publishing'
 import { Route as EditRouteImport } from './routes/edit'
 import { Route as EmbedFlipbookInNotionRouteImport } from './routes/embed-flipbook-in-notion'
 import { Route as EmbedFlipbookInSquarespaceRouteImport } from './routes/embed-flipbook-in-squarespace'
 import { Route as EmbedFlipbookInWixRouteImport } from './routes/embed-flipbook-in-wix'
+import { Route as EtsyDigitalProductPreviewRouteImport } from './routes/etsy-digital-product-preview'
 import { Route as FashionPortfolioRouteImport } from './routes/fashion-portfolio'
 import { Route as FlipbookAlternativesRouteImport } from './routes/flipbook-alternatives'
 import { Route as FlipbookletsAlternativeRouteImport } from './routes/flipbooklets-alternative'
@@ -53,6 +56,7 @@ import { Route as PortfolioCheckerRouteImport } from './routes/portfolio-checker
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ProductDesignPortfolioRouteImport } from './routes/product-design-portfolio'
+import { Route as ProductsRouteImport } from './routes/products'
 import { Route as ProfessionalPortfolioRouteImport } from './routes/professional-portfolio'
 import { Route as PubluuAlternativeRouteImport } from './routes/publuu-alternative'
 import { Route as RefundRouteImport } from './routes/refund'
@@ -69,11 +73,14 @@ import { Route as UxDesignPortfolioRouteImport } from './routes/ux-design-portfo
 import { Route as ZineFlipbookRouteImport } from './routes/zine-flipbook'
 import { Route as EmbedCodeRouteImport } from './routes/embed.$code'
 import { Route as PSlugRouteImport } from './routes/p.$slug'
+import { Route as ProductStudioIdRouteImport } from './routes/product-studio.$id'
+import { Route as ProductIdRouteImport } from './routes/product.$id'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
 import { Route as ApiPublicFaviconRouteImport } from './routes/api/public/favicon'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicPortfolioCoverCodeRouteImport } from './routes/api/public/portfolio-cover/$code'
 import { Route as ApiPublicPortfolioFileCodeRouteImport } from './routes/api/public/portfolio-file/$code'
+import { Route as ApiPublicProductFileIdRouteImport } from './routes/api/public/product-file/$id'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 
@@ -127,6 +134,16 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DigitalProductStudioRoute = DigitalProductStudioRouteImport.update({
+  id: '/digital-product-studio',
+  path: '/digital-product-studio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DigitalZinePublishingRoute = DigitalZinePublishingRouteImport.update({
+  id: '/digital-zine-publishing',
+  path: '/digital-zine-publishing',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EditRoute = EditRouteImport.update({
   id: '/edit',
   path: '/edit',
@@ -148,6 +165,12 @@ const EmbedFlipbookInWixRoute = EmbedFlipbookInWixRouteImport.update({
   path: '/embed-flipbook-in-wix',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EtsyDigitalProductPreviewRoute =
+  EtsyDigitalProductPreviewRouteImport.update({
+    id: '/etsy-digital-product-preview',
+    path: '/etsy-digital-product-preview',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const FashionPortfolioRoute = FashionPortfolioRouteImport.update({
   id: '/fashion-portfolio',
   path: '/fashion-portfolio',
@@ -299,6 +322,11 @@ const ProductDesignPortfolioRoute = ProductDesignPortfolioRouteImport.update({
   path: '/product-design-portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProductsRoute = ProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfessionalPortfolioRoute = ProfessionalPortfolioRouteImport.update({
   id: '/professional-portfolio',
   path: '/professional-portfolio',
@@ -379,6 +407,16 @@ const PSlugRoute = PSlugRouteImport.update({
   path: '/p/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProductStudioIdRoute = ProductStudioIdRouteImport.update({
+  id: '/product-studio/$id',
+  path: '/product-studio/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProductIdRoute = ProductIdRouteImport.update({
+  id: '/product/$id',
+  path: '/product/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UUsernameRoute = UUsernameRouteImport.update({
   id: '/u/$username',
   path: '/u/$username',
@@ -407,6 +445,11 @@ const ApiPublicPortfolioFileCodeRoute =
     path: '/api/public/portfolio-file/$code',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicProductFileIdRoute = ApiPublicProductFileIdRouteImport.update({
+  id: '/api/public/product-file/$id',
+  path: '/api/public/product-file/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
   id: '/lovable/email/auth/preview',
   path: '/lovable/email/auth/preview',
@@ -429,10 +472,13 @@ export interface FileRoutesByFullPath {
   '/canva-flipbook': typeof CanvaFlipbookRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/digital-product-studio': typeof DigitalProductStudioRoute
+  '/digital-zine-publishing': typeof DigitalZinePublishingRoute
   '/edit': typeof EditRoute
   '/embed-flipbook-in-notion': typeof EmbedFlipbookInNotionRoute
   '/embed-flipbook-in-squarespace': typeof EmbedFlipbookInSquarespaceRoute
   '/embed-flipbook-in-wix': typeof EmbedFlipbookInWixRoute
+  '/etsy-digital-product-preview': typeof EtsyDigitalProductPreviewRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
   '/flipbook-alternatives': typeof FlipbookAlternativesRoute
   '/flipbooklets-alternative': typeof FlipbookletsAlternativeRoute
@@ -463,6 +509,7 @@ export interface FileRoutesByFullPath {
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/product-design-portfolio': typeof ProductDesignPortfolioRoute
+  '/products': typeof ProductsRoute
   '/professional-portfolio': typeof ProfessionalPortfolioRoute
   '/publuu-alternative': typeof PubluuAlternativeRoute
   '/refund': typeof RefundRoute
@@ -479,11 +526,14 @@ export interface FileRoutesByFullPath {
   '/zine-flipbook': typeof ZineFlipbookRoute
   '/embed/$code': typeof EmbedCodeRoute
   '/p/$slug': typeof PSlugRoute
+  '/product-studio/$id': typeof ProductStudioIdRoute
+  '/product/$id': typeof ProductIdRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/favicon': typeof ApiPublicFaviconRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
   '/api/public/portfolio-file/$code': typeof ApiPublicPortfolioFileCodeRoute
+  '/api/public/product-file/$id': typeof ApiPublicProductFileIdRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
 }
@@ -498,10 +548,13 @@ export interface FileRoutesByTo {
   '/canva-flipbook': typeof CanvaFlipbookRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/digital-product-studio': typeof DigitalProductStudioRoute
+  '/digital-zine-publishing': typeof DigitalZinePublishingRoute
   '/edit': typeof EditRoute
   '/embed-flipbook-in-notion': typeof EmbedFlipbookInNotionRoute
   '/embed-flipbook-in-squarespace': typeof EmbedFlipbookInSquarespaceRoute
   '/embed-flipbook-in-wix': typeof EmbedFlipbookInWixRoute
+  '/etsy-digital-product-preview': typeof EtsyDigitalProductPreviewRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
   '/flipbook-alternatives': typeof FlipbookAlternativesRoute
   '/flipbooklets-alternative': typeof FlipbookletsAlternativeRoute
@@ -532,6 +585,7 @@ export interface FileRoutesByTo {
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/product-design-portfolio': typeof ProductDesignPortfolioRoute
+  '/products': typeof ProductsRoute
   '/professional-portfolio': typeof ProfessionalPortfolioRoute
   '/publuu-alternative': typeof PubluuAlternativeRoute
   '/refund': typeof RefundRoute
@@ -548,11 +602,14 @@ export interface FileRoutesByTo {
   '/zine-flipbook': typeof ZineFlipbookRoute
   '/embed/$code': typeof EmbedCodeRoute
   '/p/$slug': typeof PSlugRoute
+  '/product-studio/$id': typeof ProductStudioIdRoute
+  '/product/$id': typeof ProductIdRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/favicon': typeof ApiPublicFaviconRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
   '/api/public/portfolio-file/$code': typeof ApiPublicPortfolioFileCodeRoute
+  '/api/public/product-file/$id': typeof ApiPublicProductFileIdRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
 }
@@ -568,10 +625,13 @@ export interface FileRoutesById {
   '/canva-flipbook': typeof CanvaFlipbookRoute
   '/create': typeof CreateRoute
   '/dashboard': typeof DashboardRoute
+  '/digital-product-studio': typeof DigitalProductStudioRoute
+  '/digital-zine-publishing': typeof DigitalZinePublishingRoute
   '/edit': typeof EditRoute
   '/embed-flipbook-in-notion': typeof EmbedFlipbookInNotionRoute
   '/embed-flipbook-in-squarespace': typeof EmbedFlipbookInSquarespaceRoute
   '/embed-flipbook-in-wix': typeof EmbedFlipbookInWixRoute
+  '/etsy-digital-product-preview': typeof EtsyDigitalProductPreviewRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
   '/flipbook-alternatives': typeof FlipbookAlternativesRoute
   '/flipbooklets-alternative': typeof FlipbookletsAlternativeRoute
@@ -602,6 +662,7 @@ export interface FileRoutesById {
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/product-design-portfolio': typeof ProductDesignPortfolioRoute
+  '/products': typeof ProductsRoute
   '/professional-portfolio': typeof ProfessionalPortfolioRoute
   '/publuu-alternative': typeof PubluuAlternativeRoute
   '/refund': typeof RefundRoute
@@ -618,11 +679,14 @@ export interface FileRoutesById {
   '/zine-flipbook': typeof ZineFlipbookRoute
   '/embed/$code': typeof EmbedCodeRoute
   '/p/$slug': typeof PSlugRoute
+  '/product-studio/$id': typeof ProductStudioIdRoute
+  '/product/$id': typeof ProductIdRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/favicon': typeof ApiPublicFaviconRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
   '/api/public/portfolio-file/$code': typeof ApiPublicPortfolioFileCodeRoute
+  '/api/public/product-file/$id': typeof ApiPublicProductFileIdRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
 }
@@ -639,10 +703,13 @@ export interface FileRouteTypes {
     | '/canva-flipbook'
     | '/create'
     | '/dashboard'
+    | '/digital-product-studio'
+    | '/digital-zine-publishing'
     | '/edit'
     | '/embed-flipbook-in-notion'
     | '/embed-flipbook-in-squarespace'
     | '/embed-flipbook-in-wix'
+    | '/etsy-digital-product-preview'
     | '/fashion-portfolio'
     | '/flipbook-alternatives'
     | '/flipbooklets-alternative'
@@ -673,6 +740,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/privacy'
     | '/product-design-portfolio'
+    | '/products'
     | '/professional-portfolio'
     | '/publuu-alternative'
     | '/refund'
@@ -689,11 +757,14 @@ export interface FileRouteTypes {
     | '/zine-flipbook'
     | '/embed/$code'
     | '/p/$slug'
+    | '/product-studio/$id'
+    | '/product/$id'
     | '/u/$username'
     | '/api/public/favicon'
     | '/api/public/payments/webhook'
     | '/api/public/portfolio-cover/$code'
     | '/api/public/portfolio-file/$code'
+    | '/api/public/product-file/$id'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -708,10 +779,13 @@ export interface FileRouteTypes {
     | '/canva-flipbook'
     | '/create'
     | '/dashboard'
+    | '/digital-product-studio'
+    | '/digital-zine-publishing'
     | '/edit'
     | '/embed-flipbook-in-notion'
     | '/embed-flipbook-in-squarespace'
     | '/embed-flipbook-in-wix'
+    | '/etsy-digital-product-preview'
     | '/fashion-portfolio'
     | '/flipbook-alternatives'
     | '/flipbooklets-alternative'
@@ -742,6 +816,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/privacy'
     | '/product-design-portfolio'
+    | '/products'
     | '/professional-portfolio'
     | '/publuu-alternative'
     | '/refund'
@@ -758,11 +833,14 @@ export interface FileRouteTypes {
     | '/zine-flipbook'
     | '/embed/$code'
     | '/p/$slug'
+    | '/product-studio/$id'
+    | '/product/$id'
     | '/u/$username'
     | '/api/public/favicon'
     | '/api/public/payments/webhook'
     | '/api/public/portfolio-cover/$code'
     | '/api/public/portfolio-file/$code'
+    | '/api/public/product-file/$id'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
   id:
@@ -777,10 +855,13 @@ export interface FileRouteTypes {
     | '/canva-flipbook'
     | '/create'
     | '/dashboard'
+    | '/digital-product-studio'
+    | '/digital-zine-publishing'
     | '/edit'
     | '/embed-flipbook-in-notion'
     | '/embed-flipbook-in-squarespace'
     | '/embed-flipbook-in-wix'
+    | '/etsy-digital-product-preview'
     | '/fashion-portfolio'
     | '/flipbook-alternatives'
     | '/flipbooklets-alternative'
@@ -811,6 +892,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/privacy'
     | '/product-design-portfolio'
+    | '/products'
     | '/professional-portfolio'
     | '/publuu-alternative'
     | '/refund'
@@ -827,11 +909,14 @@ export interface FileRouteTypes {
     | '/zine-flipbook'
     | '/embed/$code'
     | '/p/$slug'
+    | '/product-studio/$id'
+    | '/product/$id'
     | '/u/$username'
     | '/api/public/favicon'
     | '/api/public/payments/webhook'
     | '/api/public/portfolio-cover/$code'
     | '/api/public/portfolio-file/$code'
+    | '/api/public/product-file/$id'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
   fileRoutesById: FileRoutesById
@@ -847,10 +932,13 @@ export interface RootRouteChildren {
   CanvaFlipbookRoute: typeof CanvaFlipbookRoute
   CreateRoute: typeof CreateRoute
   DashboardRoute: typeof DashboardRoute
+  DigitalProductStudioRoute: typeof DigitalProductStudioRoute
+  DigitalZinePublishingRoute: typeof DigitalZinePublishingRoute
   EditRoute: typeof EditRoute
   EmbedFlipbookInNotionRoute: typeof EmbedFlipbookInNotionRoute
   EmbedFlipbookInSquarespaceRoute: typeof EmbedFlipbookInSquarespaceRoute
   EmbedFlipbookInWixRoute: typeof EmbedFlipbookInWixRoute
+  EtsyDigitalProductPreviewRoute: typeof EtsyDigitalProductPreviewRoute
   FashionPortfolioRoute: typeof FashionPortfolioRoute
   FlipbookAlternativesRoute: typeof FlipbookAlternativesRoute
   FlipbookletsAlternativeRoute: typeof FlipbookletsAlternativeRoute
@@ -881,6 +969,7 @@ export interface RootRouteChildren {
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   ProductDesignPortfolioRoute: typeof ProductDesignPortfolioRoute
+  ProductsRoute: typeof ProductsRoute
   ProfessionalPortfolioRoute: typeof ProfessionalPortfolioRoute
   PubluuAlternativeRoute: typeof PubluuAlternativeRoute
   RefundRoute: typeof RefundRoute
@@ -897,11 +986,14 @@ export interface RootRouteChildren {
   ZineFlipbookRoute: typeof ZineFlipbookRoute
   EmbedCodeRoute: typeof EmbedCodeRoute
   PSlugRoute: typeof PSlugRoute
+  ProductStudioIdRoute: typeof ProductStudioIdRoute
+  ProductIdRoute: typeof ProductIdRoute
   UUsernameRoute: typeof UUsernameRoute
   ApiPublicFaviconRoute: typeof ApiPublicFaviconRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicPortfolioCoverCodeRoute: typeof ApiPublicPortfolioCoverCodeRoute
   ApiPublicPortfolioFileCodeRoute: typeof ApiPublicPortfolioFileCodeRoute
+  ApiPublicProductFileIdRoute: typeof ApiPublicProductFileIdRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
 }
@@ -978,6 +1070,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/digital-product-studio': {
+      id: '/digital-product-studio'
+      path: '/digital-product-studio'
+      fullPath: '/digital-product-studio'
+      preLoaderRoute: typeof DigitalProductStudioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/digital-zine-publishing': {
+      id: '/digital-zine-publishing'
+      path: '/digital-zine-publishing'
+      fullPath: '/digital-zine-publishing'
+      preLoaderRoute: typeof DigitalZinePublishingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/edit': {
       id: '/edit'
       path: '/edit'
@@ -1004,6 +1110,13 @@ declare module '@tanstack/react-router' {
       path: '/embed-flipbook-in-wix'
       fullPath: '/embed-flipbook-in-wix'
       preLoaderRoute: typeof EmbedFlipbookInWixRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/etsy-digital-product-preview': {
+      id: '/etsy-digital-product-preview'
+      path: '/etsy-digital-product-preview'
+      fullPath: '/etsy-digital-product-preview'
+      preLoaderRoute: typeof EtsyDigitalProductPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/fashion-portfolio': {
@@ -1216,6 +1329,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductDesignPortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/products': {
+      id: '/products'
+      path: '/products'
+      fullPath: '/products'
+      preLoaderRoute: typeof ProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/professional-portfolio': {
       id: '/professional-portfolio'
       path: '/professional-portfolio'
@@ -1328,6 +1448,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/product-studio/$id': {
+      id: '/product-studio/$id'
+      path: '/product-studio/$id'
+      fullPath: '/product-studio/$id'
+      preLoaderRoute: typeof ProductStudioIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/product/$id': {
+      id: '/product/$id'
+      path: '/product/$id'
+      fullPath: '/product/$id'
+      preLoaderRoute: typeof ProductIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/u/$username': {
       id: '/u/$username'
       path: '/u/$username'
@@ -1363,6 +1497,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPortfolioFileCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/product-file/$id': {
+      id: '/api/public/product-file/$id'
+      path: '/api/public/product-file/$id'
+      fullPath: '/api/public/product-file/$id'
+      preLoaderRoute: typeof ApiPublicProductFileIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lovable/email/auth/preview': {
       id: '/lovable/email/auth/preview'
       path: '/lovable/email/auth/preview'
@@ -1391,10 +1532,13 @@ const rootRouteChildren: RootRouteChildren = {
   CanvaFlipbookRoute: CanvaFlipbookRoute,
   CreateRoute: CreateRoute,
   DashboardRoute: DashboardRoute,
+  DigitalProductStudioRoute: DigitalProductStudioRoute,
+  DigitalZinePublishingRoute: DigitalZinePublishingRoute,
   EditRoute: EditRoute,
   EmbedFlipbookInNotionRoute: EmbedFlipbookInNotionRoute,
   EmbedFlipbookInSquarespaceRoute: EmbedFlipbookInSquarespaceRoute,
   EmbedFlipbookInWixRoute: EmbedFlipbookInWixRoute,
+  EtsyDigitalProductPreviewRoute: EtsyDigitalProductPreviewRoute,
   FashionPortfolioRoute: FashionPortfolioRoute,
   FlipbookAlternativesRoute: FlipbookAlternativesRoute,
   FlipbookletsAlternativeRoute: FlipbookletsAlternativeRoute,
@@ -1425,6 +1569,7 @@ const rootRouteChildren: RootRouteChildren = {
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   ProductDesignPortfolioRoute: ProductDesignPortfolioRoute,
+  ProductsRoute: ProductsRoute,
   ProfessionalPortfolioRoute: ProfessionalPortfolioRoute,
   PubluuAlternativeRoute: PubluuAlternativeRoute,
   RefundRoute: RefundRoute,
@@ -1441,11 +1586,14 @@ const rootRouteChildren: RootRouteChildren = {
   ZineFlipbookRoute: ZineFlipbookRoute,
   EmbedCodeRoute: EmbedCodeRoute,
   PSlugRoute: PSlugRoute,
+  ProductStudioIdRoute: ProductStudioIdRoute,
+  ProductIdRoute: ProductIdRoute,
   UUsernameRoute: UUsernameRoute,
   ApiPublicFaviconRoute: ApiPublicFaviconRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicPortfolioCoverCodeRoute: ApiPublicPortfolioCoverCodeRoute,
   ApiPublicPortfolioFileCodeRoute: ApiPublicPortfolioFileCodeRoute,
+  ApiPublicProductFileIdRoute: ApiPublicProductFileIdRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
 }

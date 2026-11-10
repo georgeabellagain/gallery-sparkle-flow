@@ -28,7 +28,8 @@ export const deleteAccount = createServerFn({ method: "POST" })
       if (error) throw new Error("Couldn’t check your plan. Nothing was deleted.");
       if (deletionBlocked(sub)) throw new Error("Cancel Personal in Manage billing first. Nothing was deleted.");
     }
-    const bucket = supabaseAdmin.storage.from("portfolio-files");
+    for (const bucketName of ["portfolio-files", "product-files"]) {
+    const bucket = supabaseAdmin.storage.from(bucketName);
     // Page pictures sit in a folder per PDF (<pdf>_pages/), which storage lists as a folder entry without an id.
     const empty = async (folder: string) => {
       for (let guard = 0; guard < 100; guard++) {
@@ -42,6 +43,7 @@ export const deleteAccount = createServerFn({ method: "POST" })
       }
     };
     await empty(uid);
+    }
     const { error: portfolioError } = await supabaseAdmin.from("portfolios").delete().eq("owner_id", uid);
     if (portfolioError) throw new Error("Your files were deleted but your portfolios could not be. Please try again.");
     await (supabaseAdmin as any).from("feedback").delete().eq("user_id", uid);

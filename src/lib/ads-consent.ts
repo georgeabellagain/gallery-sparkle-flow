@@ -42,6 +42,9 @@ export async function hasAdConsent(): Promise<boolean> {
 }
 
 export async function canTrackAds(): Promise<boolean> {
+  // Customer links carry private capability tokens in the fragment. Never send
+  // product reader/editor page locations to advertising services.
+  if (typeof window !== "undefined" && /^\/(product|product-studio)\//.test(window.location.pathname)) return false;
   const choice = storedChoice();
   if (choice !== null) return choice === "granted";
   const required = await isConsentRequiredRegion();

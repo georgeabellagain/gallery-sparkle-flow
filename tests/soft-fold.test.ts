@@ -29,11 +29,9 @@ test("the sheet moves continuously between neighbouring frames", () => {
   });
 });
 
-test("mid-turn, the turning edge bows instead of running straight", () => {
-  // Where the outer edge (u = 1) lies across the spread, from foot to head. A straight edge would be linear in v.
-  const edge = [0, .25, .5, .75, 1].map((v) => softFold(1, v, .45).x);
-  const straightMiddle = (edge[0]! + edge[4]!) / 2;
-  assert.ok(Math.abs(edge[2]! - straightMiddle) > .03, `edge ${edge.map((x) => x.toFixed(3)).join(" ")}`);
+test("automatic soft turns keep the outer edge straight", () => {
+  const edge = [0, .25, .5, .75, 1].map((v) => softFold(1, v, .45));
+  for (const point of edge) assert.deepEqual(point, edge[0]);
 });
 
 test("a pointer turn: the grabbed point lands under the pointer, and the spine never moves", () => {

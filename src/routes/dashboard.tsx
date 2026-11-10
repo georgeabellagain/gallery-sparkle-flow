@@ -1,3 +1,4 @@
+import { WorkspaceTabs } from "@/components/products/WorkspaceTabs";
 import { AnalyticsPanel } from "@/components/pf/AnalyticsPanel";
 import { totalAnalytics } from "@/lib/portfolia/analytics";
 import { createFileRoute, Link, useHydrated, useNavigate } from "@tanstack/react-router";
@@ -88,7 +89,7 @@ function Dashboard() {
   if (!p) {
     return (
       <div className="min-h-screen">{header}
-        <main className="shell py-14">
+        <main className="shell py-14"><WorkspaceTabs active="portfolios"/>
           <h1 className="display-title text-3xl">{all.length ? "Upload your next portfolio" : "No portfolio yet"}</h1>
           {all.length > 0 && <Button size="sm" variant="quiet" className="mt-3" onClick={() => switchPortfolio(all[0]?.code ?? "")}>Cancel</Button>}
           <div className="mt-6 max-w-2xl"><DropZone allowPreview limitMb={pdfLimitMb} onAccepted={(pdf) => { if (startPortfolio(pdf)) void navigate({ to: getDoc().portfolio?.profile.name.trim() ? "/edit" : "/create" }); }} /></div>
@@ -114,7 +115,7 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen"><PaymentTestModeBanner />{header}
-      <main className="shell py-8 sm:py-10">
+      <main className="shell py-8 sm:py-10"><WorkspaceTabs active="portfolios"/>
         {msg && <p role="alert" className="mb-5 rounded-xl bg-destructive/10 p-3 text-sm text-destructive">{msg}</p>}
         <section className="flex flex-col gap-5 border-b border-border pb-10 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-4">
