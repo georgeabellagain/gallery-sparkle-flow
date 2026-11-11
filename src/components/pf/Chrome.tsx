@@ -1,7 +1,10 @@
 import { openCookieSettings } from "@/lib/ads-consent";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { X } from "lucide-react";
+import { Menu, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { allPortfolios, update, useDoc } from "@/lib/portfolia/store";
 import { getBlob } from "@/lib/portfolia/assets";
 import { cn } from "@/lib/utils";
 import { TASK_PAGES } from "@/lib/portfolia/task-pages";
@@ -26,40 +29,109 @@ export function SiteHeader({ right }: { right?: ReactNode }) {
   );
 }
 
+/** The one public-page menu (design standard): where a visitor from search can go next, and one primary action. */
+export const MARKETING_LINKS = [
+  { href: "/examples", label: "Examples" },
+  { href: "/digital-product-studio", label: "Products" },
+  { href: "/book-marketing", label: "For authors" },
+  { href: "/pricing", label: "Pricing" },
+] as const;
+
+export function MarketingHeader({ uploadHere = false, onHelp }: { uploadHere?: boolean; onHelp?: () => void }) {
+  const doc = useDoc();
+  const [menu, setMenu] = useState(false);
+  const signedIn = doc.account.signedIn || allPortfolios(doc).length > 0;
+  const uploadHref = uploadHere ? "#upload" : "/#upload";
+  const account = signedIn
+    ? <Link to="/dashboard" className="underline-offset-4 hover:underline">My portfolios</Link>
+    : <Link to="/signin" className="underline-offset-4 hover:underline">Sign in</Link>;
+  return (
+    <header className="rule-b">
+      <div className="shell flex h-14 items-center justify-between gap-3 lg:h-16 2xl:h-20">
+        <Wordmark className="shrink-0" />
+        <nav aria-label="Main" className="hidden items-center gap-6 text-sm sm:flex">
+          {MARKETING_LINKS.map(l => <a key={l.href} href={l.href} className="underline-offset-4 hover:underline">{l.label}</a>)}
+          {onHelp && <button type="button" onClick={onHelp} className="text-muted-foreground hover:text-foreground">Help</button>}
+        </nav>
+        <div className="flex items-center gap-3 whitespace-nowrap text-sm">
+          <span className="hidden sm:inline">{account}</span>
+          <a href="/pricing" className="underline-offset-4 hover:underline sm:hidden">Pricing</a>
+          <Button asChild size="sm"><a href={uploadHref}>Upload a PDF</a></Button>
+          <button type="button" aria-label="Open the menu" aria-haspopup="dialog" onClick={() => setMenu(true)} className="flex size-9 items-center justify-center rounded-full hover:bg-muted sm:hidden"><Menu className="size-5" aria-hidden /></button>
+        </div>
+      </div>
+      <Modal open={menu} onClose={() => setMenu(false)} title="Menu">
+        <nav aria-label="Menu" className="grid gap-1 text-base">
+          {MARKETING_LINKS.filter(l => l.href !== "/pricing").map(l => <a key={l.href} href={l.href} className="rounded-xl px-3 py-2.5 hover:bg-muted">{l.label}</a>)}
+          <span className="rounded-xl px-3 py-2.5 hover:bg-muted" onClick={() => setMenu(false)}>{account}</span>
+          {onHelp && <button type="button" onClick={() => { setMenu(false); onHelp(); }} className="rounded-xl px-3 py-2.5 text-left hover:bg-muted">Help</button>}
+        </nav>
+      </Modal>
+    </header>
+  );
+}
+
+/** Signed-in pages (dashboard, products): email, Account and Sign out, the same on both. */
+export function AppHeader({ email, signedIn = true }: { email?: string | null; signedIn?: boolean }) {
+  return (
+    <SiteHeader
+      right={
+        <>
+          <span className="hidden text-xs text-muted-foreground sm:inline">{email}</span>
+          {signedIn && <Link to="/account" className="text-sm underline-offset-4 hover:underline">Account</Link>}
+          {signedIn && (
+            <button
+              type="button"
+              className="text-sm underline-offset-4 hover:underline"
+              onClick={() => { void supabase.auth.signOut(); update((d) => ({ ...d, account: { signedIn: false } })); window.location.assign("/"); }}
+            >Sign out</button>
+          )}
+        </>
+      }
+    />
+  );
+}
+/** Six task pages people search for most; every other guide is on /guides, two clicks from anywhere. */
+const FOOTER_GUIDES = ["pdf-to-link", "share-pdf-online", "host-pdf", "pdf-qr-code", "how-to-send-a-portfolio", "send-large-pdf"] as const;
+
 export function SiteFooter({ className }: { className?: string }) {
+  const column = "text-xs text-muted-foreground";
   return (
     <footer className={cn("rule-t mt-auto", className)}>
-      <div className="shell grid gap-8 py-8 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_1fr]">
+      <div className="shell grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_1fr_1fr]">
         <div><Wordmark /><p className="mt-3 max-w-xs text-sm text-muted-foreground">Your PDF. One simple link.</p><p className="mt-4 text-xs text-muted-foreground">© {new Date().getFullYear()} George Bell</p></div>
-        <nav aria-label="Product resources" className="text-xs text-muted-foreground">
-          <p className="mb-3 font-medium text-foreground">Explore</p>
+        <nav aria-label="Product" className={column}>
+          <p className="mb-3 font-medium text-foreground">Product</p>
           <div className="grid gap-2.5">
-            <Link to="/pricing" className="hover:underline">Plans and pricing</Link>
-            <Link to="/free-pdf-flipbook" className="hover:underline">PDF flipbooks</Link>
+            <Link to="/pricing" className="hover:underline">Pricing</Link>
+            <a href="/examples" className="hover:underline">Examples</a>
             <a href="/digital-product-studio" className="hover:underline">Digital Product Studio</a>
-            <a href="/etsy-digital-product-preview" className="hover:underline">For Etsy sellers</a>
-            <a href="/digital-zine-publishing" className="hover:underline">Digital zine publishing</a>
             <Link to="/book-marketing" className="hover:underline">Book marketing</Link>
             <a href="/portfolio-checker" className="hover:underline">PDF checker</a>
-            <a href="/embed-flipbook-in-squarespace" className="hover:underline">Embedding guides</a>
-            <Link to="/flipbook-alternatives" className="hover:underline">Compare flipbook tools</Link>
           </div>
         </nav>
-        {/* Every task page is linked from every footer so search engines find them from any crawled page. */}
-        <nav aria-label="Guides" className="text-xs text-muted-foreground">
+        <nav aria-label="Guides" className={column}>
           <p className="mb-3 font-medium text-foreground">Guides</p>
           <div className="grid gap-2.5">
-            {Object.entries(TASK_PAGES).map(([slug, p]) => <a key={slug} href={`/${slug}`} className="hover:underline">{p.label}</a>)}
+            {FOOTER_GUIDES.map((slug) => <a key={slug} href={`/${slug}`} className="hover:underline">{TASK_PAGES[slug]?.label ?? slug}</a>)}
+            <a href="/guides" className="font-medium text-foreground hover:underline">All guides</a>
           </div>
         </nav>
-        <nav aria-label="Help and legal" className="text-xs text-muted-foreground">
+        <nav aria-label="Compare" className={column}>
+          <p className="mb-3 font-medium text-foreground">Compare</p>
+          <div className="grid gap-2.5">
+            <Link to="/flipbook-alternatives" className="hover:underline">Flipbook alternatives</Link>
+            <a href="/issuu-alternative" className="hover:underline">Issuu alternative</a>
+          </div>
+        </nav>
+        <nav aria-label="Help and legal" className={column}>
           <p className="mb-3 font-medium text-foreground">Help</p>
           <div className="grid gap-2.5">
             <Link to="/" hash="about" className="hover:underline">About Portfolia</Link>
-            <a href="mailto:hello@portfolia.site" className="hover:underline">Contact support</a>
+            <a href="mailto:hello@portfolia.site" className="hover:underline">Contact</a>
             <Link to="/terms" className="hover:underline">Terms</Link>
             <Link to="/privacy" className="hover:underline">Privacy</Link>
-            <Link to="/refund" className="hover:underline">Refund policy</Link>
+            <Link to="/refund" className="hover:underline">Refunds</Link>
             <button type="button" onClick={openCookieSettings} className="text-left hover:underline">Cookie settings</button>
           </div>
         </nav>
@@ -67,7 +139,6 @@ export function SiteFooter({ className }: { className?: string }) {
     </footer>
   );
 }
-
 export function DemoNote({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <p className={cn("rounded-2xl bg-muted px-4 py-3 text-xs leading-relaxed text-muted-foreground", className)}>
@@ -84,10 +155,10 @@ export const LOCAL_NOTE =
  * A short page (sign in, a message, a single form): the content in a card centred in the space between the header
  * and a footer that stays at the bottom of the screen.
  */
-export function CenteredPage({ title, intro, children, right, wide = false }: { title?: ReactNode; intro?: ReactNode; children?: ReactNode; right?: ReactNode; wide?: boolean }) {
+export function CenteredPage({ title, intro, children, right, wide = false, header }: { title?: ReactNode; intro?: ReactNode; children?: ReactNode; right?: ReactNode; wide?: boolean; /** Public pages (sign in) pass MarketingHeader. */ header?: ReactNode }) {
   return (
     <div className="flex min-h-[100dvh] flex-col">
-      <SiteHeader right={right} />
+      {header ?? <SiteHeader right={right} />}
       <main className="flex flex-1 items-center justify-center bg-muted/40 px-4 py-12 sm:py-16">
         <div className={cn("w-full rounded-3xl border border-border bg-card p-7 shadow-soft sm:p-9", wide ? "max-w-lg" : "max-w-sm")}>
           {title && <h1 className="display-title text-center text-3xl">{title}</h1>}

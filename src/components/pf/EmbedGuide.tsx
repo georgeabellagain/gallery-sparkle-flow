@@ -1,4 +1,7 @@
-import { SiteHeader, SiteFooter } from "./Chrome";
+import { MarketingHeader, SiteFooter } from "./Chrome";
+import { LandingHero } from "./LandingHero";
+import { LandingUploadBar } from "./LandingUploadBar";
+import { landingCopy } from "@/lib/portfolia/landing-demo";
 const GUIDES = {
   squarespace: { name: "Squarespace", source: "https://support.squarespace.com/hc/en-us/articles/206543167-Code-blocks", steps: ["Publish your portfolio in Portfolia. In its sharing controls, choose Embed and copy the complete iframe code.", "Edit the Squarespace page and add a Code block. Set it to HTML, paste the code and turn off Display Source if shown.", "Save and publish the page. Test the published page outside the editor: code previews can behave differently while editing.", "Check the mobile layout and make the block tall enough for the book and controls. Keep the accompanying View portfolio link as an alternative."], note: "Squarespace treats iframe code as a premium feature. Check your current plan before building around it. A normal portfolio link is the fallback if your plan removes iframe code." },
   wix: { name: "Wix", source: "https://support.wix.com/en/article/wix-editor-embedding-a-site-or-a-widget", steps: ["Publish your Portfolia portfolio and open Embed in its sharing controls.", "In Wix Editor, open Add Elements, choose Embed Code, then Embed HTML. Paste the complete iframe code into the code option.", "If you choose Embed a Site instead, use the HTTPS address from the iframe’s src attribute, ending in /embed/your-code, rather than pasting HTML into the address field.", "Resize the Wix embed container as well as the iframe. Check the mobile editor separately, publish, then test the real page."], note: "Wix embeds require HTTPS. Editor labels differ between Wix Editor, Studio and Harmony. Use the equivalent HTML iframe or website embed element, and check the dimensions of its outer container if content is cropped." },
@@ -8,9 +11,13 @@ export type EmbedPlatform = keyof typeof GUIDES;
 export const embedGuideHead = (platform: EmbedPlatform) => ({ meta: [{ title: `Embed a PDF flipbook in ${GUIDES[platform].name} | Portfolia` }, { name: "description", content: `Add your Portfolia PDF portfolio to ${GUIDES[platform].name}, with setup steps, mobile checks and troubleshooting.` }], links: [{ rel: "canonical", href: `https://portfolia.site/embed-flipbook-in-${platform}` }] });
 export function EmbedGuide({ platform }: { platform: EmbedPlatform }) {
   const guide = GUIDES[platform];
-  return <div className="flex min-h-screen flex-col"><SiteHeader right={<a href="/#upload" className="text-sm text-leaf underline">Make a flipbook</a>} /><main className="shell w-full max-w-3xl flex-1 py-14">
-    <p className="label-xs">Embedding guide</p><h1 className="display-title mt-4 text-4xl sm:text-5xl">Your flipbook, in {guide.name}.</h1>
-    <p className="mt-5 text-muted-foreground">Keep your existing website and add the portfolio you already designed. Portfolia embedding is included on Free and Personal; your website provider may apply its own limits.</p>
+  const intro = "Keep your existing website and add the portfolio you already designed. Portfolia embedding is included on Free and Personal; your website provider may apply its own limits.";
+  const copy = landingCopy(`/embed-flipbook-in-${platform}`);
+  return <div className="flex min-h-screen flex-col"><MarketingHeader uploadHere />
+    <LandingHero eyebrow={copy.eyebrow} heading={<>Your flipbook, in {guide.name}.</>} intro={intro} demo="portfolio" upload="portfolio" ticks={copy.ticks} />
+    <LandingUploadBar name={`Embed a PDF flipbook in ${guide.name}`} />
+    <main className="shell w-full max-w-3xl flex-1 py-14">
+    <p className="text-muted-foreground">{intro}</p>
     <h2 className="mt-10 text-xl font-medium">Set it up</h2><ol className="mt-5 list-decimal space-y-4 pl-5 text-sm leading-relaxed">{guide.steps.map(step=><li key={step}>{step}</li>)}</ol>
     <aside className="mt-8 rounded-xl border border-border bg-muted p-5 text-sm leading-relaxed">{guide.note}</aside>
     <h2 className="mt-10 text-xl font-medium">Check before you share</h2><ul className="mt-4 list-disc space-y-3 pl-5 text-sm leading-relaxed"><li>Open the published website while signed out. A draft portfolio is not available to visitors.</li><li>Try a phone and desktop. Confirm the controls fit and the surrounding website can still scroll.</li><li>Turn a page and test your chosen Simple or Studio appearance. The embed follows the portfolio’s saved settings.</li><li>Replacing your PDF updates the same embed address. Unpublishing or link expiry closes access. Password protection also applies inside the embed.</li></ul>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   CONSENT_EVENT, STORAGE_KEY, isConsentRequiredRegion, loadGoogleAds, saveChoice, storedChoice, updateConsent,
@@ -24,11 +24,23 @@ export function CookieBanner() {
     return () => { window.removeEventListener(CONSENT_EVENT, show); window.removeEventListener("storage", onStorage); };
   }, []);
 
+  // The landing pages' upload bar sits above the banner on phones: it reads the banner's height from this variable.
+  const banner = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = banner.current, root = document.documentElement;
+    if (!open || !el) { root.style.removeProperty("--pf-cookie-h"); return; }
+    const set = () => root.style.setProperty("--pf-cookie-h", `${el.offsetHeight + 12}px`);
+    set();
+    const observer = new ResizeObserver(set);
+    observer.observe(el);
+    return () => { observer.disconnect(); root.style.removeProperty("--pf-cookie-h"); };
+  }, [open]);
+
   if (!open) return null;
   const choose = (d: "granted" | "denied") => { saveChoice(d); setOpen(false); };
 
   return (
-    <div role="dialog" aria-labelledby="cookie-title" aria-describedby="cookie-text" className="fixed inset-x-2 bottom-2 z-[100] mx-auto max-w-lg rounded-2xl border border-border bg-card px-3.5 py-3 text-card-foreground shadow-lg sm:inset-x-3 sm:bottom-3 sm:rounded-3xl sm:p-5">
+    <div ref={banner} role="dialog" aria-labelledby="cookie-title" aria-describedby="cookie-text" className="fixed inset-x-2 bottom-2 z-[100] mx-auto max-w-lg rounded-2xl border border-border bg-card px-3.5 py-3 text-card-foreground shadow-lg sm:inset-x-3 sm:bottom-3 sm:rounded-3xl sm:p-5">
       <div className="flex items-start gap-3 sm:block">
         <div className="min-w-0 flex-1">
           <h2 id="cookie-title" className="text-xs font-semibold sm:text-sm">Cookies for measuring ads</h2>

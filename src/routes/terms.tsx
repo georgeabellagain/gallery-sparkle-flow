@@ -76,6 +76,7 @@ function TermsPage() {
 
       <h2>Digital Product Studio</h2>
       <p>Creators can publish selected-page previews and provide customer access to a complete digital edition. Purchases take place through the creator's external shop. The creator is responsible for accurate listings, rights to distribute the files, fulfilment, customer support and refunds through that shop. Portfolia does not verify purchases in the delivery-PDF workflow.</p>
+      <p>If you use automatic delivery or add orders by hand, send delivery emails only to people who bought the product from you, and only share buyers’ details with us that you are allowed to. The name printed on a buyer’s download is a deterrent, not copy protection.</p>
       <p>Anyone holding a customer link may use it until it expires or is revoked. Disabling downloads is not DRM and cannot prevent copying content visible in a browser. Keep customer links out of public listings. Revoking a shared link or unpublishing or deleting a product affects every customer using it; creators should arrange replacement access where appropriate.</p>
       <h2>Content rules</h2>
       <p>Portfolios are public once published, so you must not upload or link to content that:</p>

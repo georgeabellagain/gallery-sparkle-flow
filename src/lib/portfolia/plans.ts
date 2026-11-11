@@ -50,6 +50,7 @@ export const PERSONAL_FEATURES = [
   "Export your flipbook as a 1080p HD video",
   "Photo shoot: studio-quality book photos and flat lays",
   `Digital Product Studio: publish up to ${PRODUCT_ALLOWANCE.personal.products} products with shop previews, private customer links and listing videos`,
+  "Product addresses, statistics, buyer-name stamps and extra files for customers",
 ];
 
 /** What Business adds to Personal, each item enforced in code (plan-prices.ts, entitlements.server.ts, the business plan migration). */
@@ -59,6 +60,7 @@ export const BUSINESS_FEATURES = [
   `Lead alerts to up to ${MAX_LEAD_RECIPIENTS} team email addresses`,
   "Your logo as the browser tab icon on your portfolios",
   `Up to ${PRODUCT_ALLOWANCE.business.products} digital products, PDFs up to ${PRODUCT_ALLOWANCE.business.mb} MB`,
+  "Automatic delivery: each buyer emailed their own private link (Gumroad, Shopify, Zapier)",
   "Priority email support",
 ];
 
@@ -119,6 +121,12 @@ export const PLAN_COMPARISON: { group: string; rows: { label: string; free: Comp
       { label: "Private customer links with expiry and switch-off", free: false, personal: true },
       { label: "Delivery PDF for Etsy and other shops", free: false, personal: true },
       { label: "Listing videos and product photos", free: "Preview", personal: "HD downloads" },
+      { label: "Cover picture on your product list and share card", free: true, personal: true },
+      { label: "Your own product address, QR code and website embed", free: false, personal: true },
+      { label: "Product statistics (views, buy clicks, opens, downloads)", free: false, personal: true },
+      { label: "Buyer name stamped on downloads", free: false, personal: true },
+      { label: "Extra files for customers (ZIP, EPUB, MP3 and more)", free: false, personal: "Up to 5" },
+      { label: "Automatic delivery per order (Gumroad, Shopify, Zapier)", free: false, personal: false, business: "Up to 500 a day" },
     ],
   },
   {

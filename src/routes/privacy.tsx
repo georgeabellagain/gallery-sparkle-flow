@@ -48,6 +48,10 @@ function PrivacyPage() {
       <h2>Digital product editions</h2>
       <p>Product creators can store a complete PDF, a separate public preview and labelled customer access links. We store a one-way hash of each access link, its label, expiry and revocation status. Avoid including customer email addresses or other unnecessary personal information in link labels. Customer editions use an essential, secure access cookie lasting up to 12 hours. We check access again for each file request. Product reader and editor pages do not initiate Google Ads tracking.</p>
       <p>The delivery-PDF workflow does not connect to your shop account, import orders or collect buyer payment details. Customer links can be forwarded. Deleting a product removes its editions and access links from Portfolia; it cannot remove downloaded copies or delivery PDFs already held by customers.</p>
+      <p>Product statistics are daily counts only (preview views, Buy clicks, customer opens and downloads). We do not store the IP address, cookies or any identifier of the shoppers counted.</p>
+
+      <h2>Buyers of digital products</h2>
+      <p>When a seller uses automatic delivery or adds an order by hand, we store the buyer’s email address, the name they gave, the order number and its source (for example Gumroad or Shopify), when their private link was emailed and whether the order was refunded. We use this only to send that buyer their link, to let the seller resend or switch it off, and to print the buyer’s name or email small on the PDF they download, if the seller allows downloads. The seller is responsible for their customers and for having a lawful reason to share these details with us; we process them on the seller’s behalf. The details are deleted when the seller deletes the product or their account, and are included when the seller downloads their data. We do not receive or store payment details.</p>
       <h2>What we collect</h2>
       <ul>
         <li>

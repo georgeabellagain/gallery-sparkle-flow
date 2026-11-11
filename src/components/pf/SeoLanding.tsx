@@ -1,11 +1,15 @@
-import { IndustryUpload } from "./IndustryUpload";
+import { LandingHero, LandingExampleProvider } from "./LandingHero";
+import { LandingUploadBar } from "./LandingUploadBar";
+import { HowItWorks } from "./HomeSections";
+import { PointVisual, ViewerModes } from "./SeoSections";
+import { HERO_INTRO_MAX_CHARS, heroDemoFor, landingCopy, relatedGuides } from "@/lib/portfolia/landing-demo";
 import { PROFESSION_GUIDES, withProfessionContent } from "@/lib/portfolia/profession-guides";
 import { ProfessionExample } from "./ProfessionExample";
 import { Link } from "@tanstack/react-router";
-import { ArrowRight, Check } from "lucide-react";
-import { DISCIPLINE_PAGES, SEO_LINKS } from "@/lib/portfolia/seo-pages";
-import { TASK_PAGES } from "@/lib/portfolia/task-pages";
-import { SiteHeader, SiteFooter } from "@/components/pf/Chrome";
+import { Check } from "lucide-react";
+import { SEO_LINKS } from "@/lib/portfolia/seo-pages";
+import { ogImageUrl } from "@/lib/portfolia/marketing-assets";
+import { MarketingHeader, SiteFooter } from "@/components/pf/Chrome";
 
 export interface SeoContent {
   path: string;
@@ -24,7 +28,7 @@ export interface SeoContent {
 export function seoHead(base: SeoContent) {
   const c = withProfessionContent(base);
   const guide = PROFESSION_GUIDES[c.path];
-  const image = guide && guide.kind !== "fashion" ? `https://portfolia.site/examples/${guide.kind}-social.jpg` : "https://portfolia.site/og-image.jpg";
+  const image = guide && guide.kind !== "fashion" ? `https://portfolia.site/examples/${guide.kind}-social.jpg` : ogImageUrl("og-home", "https://portfolia.site/og-image.jpg");
   const url = `https://portfolia.site${c.path}`;
   return {
     meta: [
@@ -68,80 +72,48 @@ export function seoHead(base: SeoContent) {
 
 const OTHERS = SEO_LINKS;
 
-/** heroArt sits beside the heading on wide screens; after renders just before the questions, for a closing call to action. */
-export function SeoLanding({ c: base, children, hideDefaultExample = false, heroArt, uploadLabel, after }: { c: SeoContent; children?: React.ReactNode; hideDefaultExample?: boolean; heroArt?: React.ReactNode; uploadLabel?: string; after?: React.ReactNode }) {
+/**
+ * Every landing page opens with LandingHero: heading, intro, the upload box and a live example (plan 3).
+ * heroArt is the page's own illustration; it sits beside the full introduction in the first section below the hero.
+ * hideDefaultExample is kept so existing pages still compile; the "see a portfolio" block it once hid is gone.
+ */
+export function SeoLanding({ c: base, children, heroArt, uploadLabel, after }: { c: SeoContent; children?: React.ReactNode; hideDefaultExample?: boolean; heroArt?: React.ReactNode; uploadLabel?: string; after?: React.ReactNode }) {
   const c = withProfessionContent(base);
   const guide = PROFESSION_GUIDES[c.path];
-  // Discipline and task pages put the upload box right under the heading: visitors arrive ready to try their PDF.
-  const industry = ["/architecture-portfolio", "/zine-flipbook", "/magazine-flipbook"].includes(c.path) || Boolean(DISCIPLINE_PAGES[c.path.slice(1)] || TASK_PAGES[c.path.slice(1)]);
+  const demo = heroDemoFor(c.path), copy = landingCopy(c.path);
   return (
+    <LandingExampleProvider>
     <div className="flex min-h-screen flex-col">
-      <SiteHeader
-        right={
-          <Link to="/signin" className="hover:underline underline-offset-4">
-            Sign in
-          </Link>
-        }
-      />
+      <MarketingHeader uploadHere />
       <main className="flex-1">
-        <section className={heroArt ? "shell grid max-w-6xl items-center gap-12 pt-16 pb-14 sm:pt-24 lg:grid-cols-[1.15fr_0.85fr]" : "shell max-w-4xl pt-16 pb-14 sm:pt-24"}>
-          <div>
-          <h1 className="display-title text-4xl leading-[1.08] sm:text-5xl">
-            {c.h1} <em className="italic">{c.h1Accent}</em>
-          </h1>
-          <p className="mt-5 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
-            {c.intro}
-          </p>
-          {industry && <IndustryUpload label={uploadLabel} />}
-          <div className="mt-8 flex flex-wrap items-center gap-4">
-            {industry ? <a href="#upload" className="text-sm font-medium text-leaf underline underline-offset-4">Start with your PDF</a> : <Link
-              to="/"
-              hash="upload"
-              className="group inline-flex items-center gap-3 rounded-full bg-leaf py-3 pl-6 pr-3 text-sm font-medium text-background shadow-lift transition-all hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            >
-              Upload your PDF free
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-background/20">
-                <ArrowRight className="h-4 w-4" aria-hidden />
-              </span>
-            </Link>}
-            {guide ? <a href="#profession-example" className="text-sm underline underline-offset-4">Explore the {guide.kind.replaceAll("-", " ")} example</a> : (
-            <Link
-              to="/p/$slug"
-              params={{ slug: "sample" }}
-              search={{ demo: "book" }}
-              className="text-sm underline underline-offset-4"
-            >
-              Try the PDF flipbook
-            </Link>
-            )}
-          </div>
-          </div>
-          {heroArt}
-        </section>
+        <LandingHero
+          eyebrow={copy.eyebrow}
+          heading={<>{c.h1} <em className="italic">{c.h1Accent}</em></>}
+          intro={c.intro}
+          demo={demo}
+          upload="portfolio"
+          uploadLabel={uploadLabel}
+          ticks={copy.ticks}
+          secondary={guide ? <a href="#profession-example" className="text-sm underline underline-offset-4">Explore the {guide.kind.replaceAll("-", " ")} example</a> : undefined}
+        />
+        <LandingUploadBar name={c.title.split("|")[0]!.trim()} />
 
-        {children}
-        {guide ? <ProfessionExample guide={guide} /> : !hideDefaultExample && <section className="rule-t">
-          <div className="shell grid max-w-4xl items-center gap-6 py-10 sm:grid-cols-2">
-            <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="flex aspect-[4/3] flex-col items-center justify-center gap-4 rounded-2xl border border-border bg-[#02011e] p-8 text-center text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4">
-              <span className="display-title text-3xl">Scarlett Bushell</span>
-              <span className="text-sm">Open the 14-page fashion lookbook →</span>
-              <span className="text-xs text-white/70">Property of Scarlett Bushell 2026</span>
-            </Link>
-            <div>
-              <h2 className="text-lg font-medium">See a portfolio before uploading yours</h2>
-              <p className="mt-3 text-sm text-muted-foreground">Explore Scarlett Bushell’s fashion lookbook in the live viewer. Try the Simple and Studio appearances before sharing your own work.</p>
-              <Link to="/p/$slug" params={{ slug: "sample" }} search={{ demo: "book" }} className="mt-4 inline-block text-sm underline underline-offset-4">Open the example portfolio</Link>
-            </div>
+        {/* The hero keeps the introduction to two lines; the whole of it is printed here, beside the page's artwork. */}
+        {(heroArt || c.intro.length > HERO_INTRO_MAX_CHARS) && <section className="rule-t">
+          <div className={heroArt ? "shell grid max-w-6xl items-center gap-10 py-12 lg:grid-cols-[1.15fr_0.85fr]" : "shell max-w-4xl py-10"}>
+            <p className="max-w-2xl text-[15px] leading-relaxed text-muted-foreground">{c.intro}</p>
+            {heroArt}
           </div>
         </section>}
 
+        {children}
+        {guide && <ProfessionExample guide={guide} />}
+
         <section className="rule-t">
-          <div className="shell grid max-w-5xl gap-5 py-14 sm:grid-cols-3">
+          <div className="shell grid max-w-6xl gap-5 py-16 sm:grid-cols-3 sm:py-24">
             {c.points.map((p) => (
-              <div
-                key={p.title}
-                className="rounded-3xl border border-border bg-card p-6 shadow-soft"
-              >
+              <div key={p.title} className="rounded-2xl border border-border bg-card p-6">
+                <PointVisual title={p.title} body={p.body} cover={guide && guide.kind !== "fashion" ? `/examples/${guide.kind}-cover.webp` : undefined} />
                 <h2 className="text-base font-medium">{p.title}</h2>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.body}</p>
               </div>
@@ -149,98 +121,39 @@ export function SeoLanding({ c: base, children, hideDefaultExample = false, hero
           </div>
         </section>
 
-        {(guide || c.sections?.length) && <section className="rule-t"><div className="shell max-w-4xl space-y-9 py-14">
-          {(guide?.sections ?? c.sections ?? []).map(section => <article key={section.title}><h2 className="display-title text-2xl">{section.title}</h2><p className="mt-3 max-w-3xl text-sm leading-7 text-muted-foreground">{section.body}</p></article>)}
+        {(guide || c.sections?.length) && <section className="rule-t"><div className="shell max-w-4xl space-y-12 py-16 sm:py-24">
+          {(guide?.sections ?? c.sections ?? []).map(section => <article key={section.title}><h2 className="display-title text-3xl sm:text-4xl">{section.title}</h2><p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">{section.body}</p></article>)}
           <div className="rounded-2xl border border-border bg-card p-6"><h2 className="text-base font-medium">Before you share</h2><ul className="mt-4 space-y-3 text-sm">{(guide?.checklist ?? c.checklist ?? []).map(item=><li key={item} className="flex gap-3"><Check aria-hidden className="mt-0.5 size-4 shrink-0 text-leaf"/>{item}</li>)}</ul><p className="mt-5 text-sm"><Link to="/portfolio-checker" className="underline underline-offset-4">Check your PDF locally</Link> before uploading, or explore our <Link to="/embed-flipbook-in-squarespace" className="underline underline-offset-4">website embedding guide</Link>.</p></div>
         </div></section>}
 
-        <section className="rule-t">
-          <div className="shell max-w-4xl py-14">
-            <h2 className="text-lg font-medium">A simple viewer for a professional presentation</h2>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-              Choose scroll, page-by-page or PDF flipbook reading. The flipbook offers a clean
-              Simple view and a 3D Studio view with paper finishes, room lighting and wood
-              backdrops. On phones, the book camera follows the current page.
-            </p>
-            <p className="mt-3 text-sm">
-              Start free with one PDF up to 30 MB.{" "}
-              <a href="/free-pdf-flipbook" className="underline underline-offset-4">
-                Explore the free PDF flipbook
-              </a>{" "}
-              or{" "}
-              <a href="/issuu-alternative" className="underline underline-offset-4">
-                learn about Portfolia as an Issuu alternative
-              </a>
-              .
-            </p>
-          </div>
-        </section>
+        <ViewerModes />
 
-        <section className="rule-t">
-          <div className="shell max-w-4xl py-14">
-            <h2 className="text-sm font-medium">How it works</h2>
-            <ol className="mt-5 space-y-3 text-sm">
-              {c.steps.map((s, i) => (
-                <li key={s} className="flex gap-3">
-                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-leaf-soft text-xs font-medium text-leaf">
-                    {i + 1}
-                  </span>
-                  <span className="pt-0.5">{s}</span>
-                </li>
-              ))}
-            </ol>
-            <ul className="mt-8 space-y-1.5 text-sm">
-              {[
-                "Free plan: one PDF portfolio up to 30 MB",
-                "Permanent sharing link and downloadable QR code",
-                "Profile, email, LinkedIn and contact links",
-                "Basic visit statistics",
-              ].map((i) => (
-                <li key={i} className="flex gap-2">
-                  <Check className="mt-0.5 size-3.5 shrink-0 text-leaf" aria-hidden />
-                  {i}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-4 text-xs text-muted-foreground">
-              Need more? See{" "}
-              <Link to="/pricing" className="underline underline-offset-4">
-                pricing
-              </Link>{" "}
-              for the Personal plan.
-            </p>
-          </div>
-        </section>
+        <HowItWorks steps={c.steps} title="How it works" id="seo-steps" />
 
         {after}
 
         <section className="rule-t">
-          <div className="shell max-w-4xl py-14">
-            <h2 className="text-sm font-medium">Questions</h2>
-            <dl className="mt-5 space-y-5">
+          <div className="shell max-w-4xl py-16 sm:py-24">
+            <h2 className="display-title text-3xl sm:text-4xl">Questions</h2>
+            <dl className="mt-8 space-y-6">
               {c.faqs.map((f) => (
                 <div key={f.q}>
-                  <dt className="text-sm font-medium">{f.q}</dt>
-                  <dd className="mt-1 text-sm leading-relaxed text-muted-foreground">{f.a}</dd>
+                  <dt className="text-base font-medium">{f.q}</dt>
+                  <dd className="mt-1 text-[15px] leading-relaxed text-muted-foreground">{f.a}</dd>
                 </div>
               ))}
             </dl>
-            <nav aria-label="Related guides" className="mt-10 flex flex-wrap gap-2">
-              {OTHERS.filter((o) => o.to !== c.path).map((o) => (
-                <a
-                  key={o.to}
-                  href={o.to}
-                  className="rounded-full border border-border px-4 py-1.5 text-xs hover:bg-accent"
-                >
-                  {o.label}
-                </a>
+            <nav aria-label="Related guides" className="mt-12 flex flex-wrap gap-2">
+              {relatedGuides(c.path, OTHERS).map((o) => (
+                <a key={o.to} href={o.to} className="rounded-full border border-border px-4 py-1.5 text-xs hover:bg-accent">{o.label}</a>
               ))}
+              <a href="/guides" className="rounded-full px-4 py-1.5 text-xs font-medium underline underline-offset-4">All guides</a>
             </nav>
           </div>
         </section>
       </main>
       <SiteFooter />
     </div>
+    </LandingExampleProvider>
   );
 }
-

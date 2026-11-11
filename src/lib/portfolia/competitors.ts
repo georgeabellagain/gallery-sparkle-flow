@@ -134,7 +134,8 @@ export function comparisonContent(c: Competitor): SeoContent {
   return {
     path: `/${c.slug}`, title: `${c.name} Alternative for PDF Portfolios — Comparison | Portfolia`,
     description: `Compare Portfolia with ${c.name} for PDF portfolios: viewing styles, sharing, editing and plan differences. See where each fits before uploading your work.`,
-    h1: `A ${c.name} alternative`, h1Accent: "for your creative portfolio.", intro: c.intro,
+    // "An Issuu alternative": the article follows the first letter (plan 2, S4).
+    h1: `${/^[aeiou]/i.test(c.name) ? "An" : "A"} ${c.name} alternative`, h1Accent: "for your creative portfolio.", intro: c.intro,
     points: [
       { title: "Keep your original layout", body: "Upload the finished PDF you designed. The portfolio editor changes its presentation, with separate settings for each portfolio." },
       { title: "Choose the reading experience", body: "Offer Simple or Studio lighting alongside Flipbook, Scroll or Page by page. Add website icons, scrapbook notes and tabs." },

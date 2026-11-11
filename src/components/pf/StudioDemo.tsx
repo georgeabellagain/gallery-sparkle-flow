@@ -35,7 +35,7 @@ export function loadFeaturedPortfolio(refresh = false) { return loadDemoPortfoli
 
 
 /** Reuse the real reader and saved settings instead of drawing invented sample pages. */
-export function StudioDemo({ className, workspace = false }: { className?: string; workspace?: boolean }) {
+export function StudioDemo({ className, workspace = false, hero = false, onReady, onFail }: { className?: string; workspace?: boolean; hero?: boolean; onReady?: () => void; onFail?: () => void }) {
   const [exampleCode, setExampleCode] = useState<string | null>(workspace ? null : FEATURED_PORTFOLIO_CODE);
   const chosen = useRef<string | null>(null);
   useEffect(() => { if (workspace) { chosen.current ??= chooseHomeExample(); setExampleCode(chosen.current); } else setExampleCode(FEATURED_PORTFOLIO_CODE); }, [workspace]);
@@ -124,6 +124,14 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
   const studioActive = !workspace || (shownLook === "studio" && rendered && !studioFailed);
   const simpleActive = workspace && !studioActive;
   const displayed = workspace ? simplePresented : rendered;
+  // In a landing hero the page shows a still of the book underneath: it learns when the live book is up (or has
+  // failed) instead of this component drawing its own loader or error text over it.
+  const reported = useRef(false);
+  useEffect(() => {
+    if (!hero) return;
+    if (displayed && state === "ready" && !reported.current) { reported.current = true; onReady?.(); }
+    else if (state === "error") onFail?.();
+  }, [hero, displayed, state, onReady, onFail]);
   const tourActive = workspace && simpleReady && visible && motionAllowed && !interacted;
   const selectLook = (look: "clean" | "studio") => {
     if (look === "studio" && (!rendered || studioFailed)) return;
@@ -201,7 +209,7 @@ export function StudioDemo({ className, workspace = false }: { className?: strin
       {workspace && displayed && state === "ready" && <p id="demo-guide" data-demo-guidance className="pointer-events-none absolute inset-x-3 bottom-16 z-30 mx-auto w-fit max-w-[calc(100%-1.5rem)] rounded-2xl bg-background/90 px-3 py-1.5 text-center text-[11px] leading-snug text-foreground shadow-soft sm:bottom-20">
         Go full screen to view the full flipbook.
       </p>}
-      {(!displayed || state === "error") && <div role="status" className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-background px-6 text-center text-sm text-foreground">
+      {!hero && (!displayed || state === "error") && <div role="status" className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-background px-6 text-center text-sm text-foreground">
         {state !== "error" && <BookLoader tone="light" label="" />}
         {(state === "error" || slow) && <p>{state === "error" ? "The example is temporarily unavailable." : "This is taking longer than usual. You can wait or try again."}</p>}
         {(state === "error" || slow) && <Button variant="ghost" onClick={() => setAttempt((n) => n + 1)}>Try again</Button>}

@@ -5,16 +5,19 @@ import { Button } from "@/components/ui/button";
 import { deleteBlob } from "@/lib/portfolia/assets";
 import { getDoc, startPortfolio, uploadLimitMb, useDoc } from "@/lib/portfolia/store";
 
-/** The existing upload flow, available directly from each discipline landing page. */
-export function IndustryUpload({ id = "upload", label = "Preview my PDF" }: { id?: string; label?: string }) {
+/**
+ * The existing upload flow (DropZone, startPortfolio, /create) for every landing page. compact is the one-row box of the
+ * landing hero (the same look as the home page); pageDrop lets a file be dropped anywhere on the page.
+ */
+export function IndustryUpload({ id = "upload", label = "Preview my PDF", compact = false, pageDrop = false }: { id?: string; label?: string; compact?: boolean; pageDrop?: boolean }) {
   const doc = useDoc();
   const navigate = useNavigate();
   const [error, setError] = useState<string>();
-  return <div id={id} className="mt-8 max-w-xl scroll-mt-6">
-    {doc.portfolio?.status === "published" ? <div className="rounded-2xl border border-border bg-card p-6 text-sm">
+  return <div id={id} className={compact ? "w-full max-w-md scroll-mt-6" : "mt-8 max-w-xl scroll-mt-6"}>
+    {doc.portfolio?.status === "published" ? <div className="rounded-2xl border border-border bg-card p-5 text-sm">
       <p>You already have a published portfolio. Manage it or add another from your dashboard.</p>
       <Button asChild className="mt-4"><Link to="/dashboard">Open dashboard</Link></Button>
-    </div> : <DropZone small allowPreview label={label} limitMb={uploadLimitMb(doc)} onAccepted={(pdf) => {
+    </div> : <DropZone small compact={compact} pageDrop={pageDrop} allowPreview label={label} limitMb={uploadLimitMb(doc)} onAccepted={(pdf) => {
       setError(undefined);
       // Account sync may finish while the file is being checked. Never replace a published PDF.
       if (getDoc().portfolio?.status === "published") {
@@ -27,6 +30,6 @@ export function IndustryUpload({ id = "upload", label = "Preview my PDF" }: { id
       void navigate({ to: "/create" });
     }} />}
     {error && <p role="alert" className="mt-3 text-sm text-destructive">{error}</p>}
-    <p className="mt-3 text-xs text-muted-foreground">No sign-up to preview. Sign in to save and publish.</p>
+    {!compact && <p className="mt-3 text-xs text-muted-foreground">No sign-up to preview. Sign in to save and publish.</p>}
   </div>;
 }

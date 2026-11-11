@@ -1,95 +1,44 @@
-import {lazy,Suspense} from "react";
 import {Link} from "@tanstack/react-router";
-import {ArrowRight, BookOpen, Camera, Link2, Lock, RefreshCw, Sparkles, Upload} from "lucide-react";
+import {BookOpen, Lock} from "lucide-react";
 import {PricingPlans, type Billing} from "./PricingPlans";
 import {SiteFooter} from "./Chrome";
 import {Button} from "@/components/ui/button";
-import type {PdfFile} from "@/lib/portfolia/store";
-import {PRICE} from "@/lib/portfolia/store";
 import {PLAN_FAQ} from "@/lib/portfolia/plans";
-import {FactStrip, FeatureGrid, PdfVersusLink, UseCases} from "./HomeHighlights";
-const FeatureShowcase=lazy(()=>import("./FeatureShowcase").then(m=>({default:m.FeatureShowcase})));
+import {FeatureGrid} from "./HomeHighlights";
+import {ExamplesTeaser, FeatureRows, HowItWorks, ProductBand} from "./HomeSections";
+import {CareRow, ProofStrip} from "./ProofStrip";
 
-const REASONS = [
- {icon: Sparkles, title: "It looks like the real thing", text: "A 3D flipbook lit like a studio photograph, with soft shadows and real paper. Your work feels printed, not pasted."},
- {icon: Upload, title: "Try it before you sign up", text: "Drop in your PDF and see it in every reader straight away. No account and no card until you want to publish."},
- {icon: Link2, title: "One link, everywhere", text: "Share a permanent link or a QR code, or embed it on your own website. Embedding is free on every plan."},
- {icon: RefreshCw, title: "Update without re-sending", text: "Replace your PDF whenever your work changes. The link you already sent shows the new version."},
- {icon: Camera, title: "Book photos without a shoot", text: "The Photo shoot is a 3D book visualiser: leaning, spine and flat lay mockups of your own pages, ready to download with Personal."},
-];
-
-const STEPS = [
- ["Drop your PDF", "Use the portfolio you already designed in InDesign, Figma, Canva or anything else."],
- ["Choose how it reads", "Studio flipbook, Simple, Scroll or Page by page. Add website links, page tabs and a backdrop."],
- ["Share one link", "Send it to clients, studios and recruiters, print the QR code, or embed it on your site."],
-] as const;
-
-const SWITCH = [
- {name: "Issuu", slug: "issuu-alternative", text: "Embedding on your own site needs a paid Issuu plan. On Portfolia it’s free."},
- {name: "Flipsnack", slug: "flipsnack-alternative", text: `Flipsnack Lite is listed at $14/month. Portfolia Personal is ${PRICE.month}/month.`},
- {name: "Heyzine", slug: "heyzine-alternative", text: "Heyzine is built for interactive publications. Portfolia is built to present your own creative work beautifully."},
-];
-
-export function HomeMarketing({onUpgrade,onAccepted,limitMb}:{onUpgrade:(billing:Billing,plan?:"personal"|"business")=>void;onAccepted:(pdf:PdfFile)=>void;limitMb:number}) {
+/**
+ * The home page below the hero, in the order of plan 2 (S3): proof, three steps, four feature rows, the other features,
+ * examples, products, plan cards, how we look after your work, questions and the closing call to action.
+ * "Why send a link instead of a PDF?" now lives on /pdf-to-link and the price comparison on the competitor pages
+ * (owner decision 2, default).
+ */
+export function HomeMarketing({onUpgrade}:{onUpgrade:(billing:Billing,plan?:"personal"|"business")=>void}) {
  return <div className="bg-background">
-   <FactStrip />
-   <section aria-labelledby="why-title" className="rule-t">
-    <div className="shell py-14 sm:py-20">
-     <p className="label-xs">Why Portfolia</p>
-     <h2 id="why-title" className="display-title mt-2 max-w-2xl text-3xl sm:text-5xl">Your portfolio deserves better than a PDF attachment.</h2>
-     <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
-      {REASONS.map(({icon: Icon, title, text}) => <div key={title}>
-       <span className="flex size-10 items-center justify-center rounded-xl bg-leaf-soft text-leaf"><Icon className="size-5" aria-hidden /></span>
-       <h3 className="mt-4 text-base font-medium">{title}</h3>
-       <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{text}</p>
-      </div>)}
-     </div>
-     <details className="group mt-10 max-w-3xl border-y border-border py-4">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium [&::-webkit-details-marker]:hidden">How it works: online in about a minute<span aria-hidden className="text-lg leading-none text-muted-foreground transition-transform group-open:rotate-45">+</span></summary>
-      <ol className="mt-4 grid gap-4 sm:grid-cols-3">
-       {STEPS.map(([title, text], i) => <li key={title}><span className="display-title text-2xl text-leaf">{i + 1}</span><h3 className="mt-1 text-sm font-medium">{title}</h3><p className="mt-1 text-sm leading-relaxed text-muted-foreground">{text}</p></li>)}
-      </ol>
-     </details>
-    </div>
-   </section>
+   <ProofStrip />
+   <HowItWorks />
+   <FeatureRows />
+   <FeatureGrid omit={["Hotspots and buttons", "Reader insights", "Share anywhere"]} title="And everything else" />
+   <ExamplesTeaser />
+   <ProductBand />
 
-   <section id="pricing" aria-labelledby="home-pricing-title" className="rule-t bg-canvas pt-12 pb-16 sm:pt-16 sm:pb-24">
+   <section id="pricing" aria-labelledby="home-pricing-title" className="rule-t py-16 sm:py-24">
     <div className="shell">
-     <h2 id="home-pricing-title" className="display-title text-center text-3xl sm:text-5xl">Start free. Make it yours.</h2>
-     <p className="mx-auto mt-3 max-w-xl text-center text-sm text-muted-foreground">Free gets your portfolio online properly. Personal gives it your name, your privacy settings and no Portfolia branding.</p>
+     <h2 id="home-pricing-title" className="display-title text-center text-3xl sm:text-4xl">Start free. Make it yours.</h2>
+     <p className="mx-auto mt-3 max-w-xl text-center text-[15px] text-muted-foreground">Free gets your portfolio online properly. Personal gives it your name, your privacy settings and no Portfolia branding.</p>
      <PricingPlans className="mt-8" onChoosePersonal={(b) => onUpgrade(b, "personal")} onChooseBusiness={(b) => onUpgrade(b, "business")} freeAction={<Button asChild variant="line" size="lg" className="w-full"><a href="#upload">Start for free</a></Button>} />
      <p className="mt-6 text-center text-sm"><Link to="/pricing" className="underline underline-offset-4">Compare every feature</Link></p>
     </div>
    </section>
 
-
-   <PdfVersusLink />
-   <FeatureGrid />
-   <Suspense fallback={<div className="min-h-[32rem]" aria-label="Loading portfolio features" />}><FeatureShowcase onAccepted={onAccepted} limitMb={limitMb} /></Suspense>
-   <UseCases />
-
-   <section aria-labelledby="switch-title" className="rule-t">
-    <div className="shell py-14 sm:py-16">
-     <p className="label-xs">Switching?</p>
-     <h2 id="switch-title" className="display-title mt-2 text-3xl sm:text-4xl">The same features, at a fraction of the price.</h2>
-     <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">Features that usually sit on business plans costing tens of pounds a month. On Free you get hotspots, info icons, YouTube and Vimeo videos on pages, plus visit and download counts. Lead capture forms, detailed reader insights and uploaded videos come with Personal, at {PRICE.month} billed monthly or {PRICE.year} billed yearly.</p>
-     <div className="mt-8 grid gap-4 sm:grid-cols-3">
-      {SWITCH.map(s => <a key={s.slug} href={`/${s.slug}`} className="group flex flex-col border border-border p-5 transition-colors hover:border-border-strong">
-       <span className="text-sm font-medium">Portfolia vs {s.name}</span>
-       <span className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{s.text}</span>
-       <span className="mt-4 inline-flex items-center gap-1 text-xs text-leaf">Compare <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" aria-hidden /></span>
-      </a>)}
-     </div>
-     <p className="mt-5 text-xs text-muted-foreground"><a href="/flipbook-alternatives" className="underline underline-offset-4">See every comparison</a>, with sources.</p>
-    </div>
-   </section>
-
+   <CareRow />
 
    <section aria-labelledby="faq-title" className="rule-t">
-    <div className="shell grid gap-8 py-14 sm:py-16 lg:grid-cols-[1fr_2fr]">
+    <div className="shell grid max-w-6xl gap-8 py-16 sm:py-24 lg:grid-cols-[1fr_2fr]">
      <h2 id="faq-title" className="display-title text-3xl sm:text-4xl">Questions</h2>
      <div className="divide-y divide-border border-y border-border">
-      {PLAN_FAQ.map(f => <details key={f.q} className="group py-4">
+      {PLAN_FAQ.slice(0, 6).map(f => <details key={f.q} className="group py-4">
        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-sm font-medium [&::-webkit-details-marker]:hidden">{f.q}<span aria-hidden className="text-lg leading-none text-muted-foreground transition-transform group-open:rotate-45">+</span></summary>
        <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
       </details>)}
@@ -98,14 +47,14 @@ export function HomeMarketing({onUpgrade,onAccepted,limitMb}:{onUpgrade:(billing
    </section>
 
    <section className="rule-t bg-foreground text-background">
-    <div className="shell flex flex-col items-start gap-6 py-14 sm:flex-row sm:items-center sm:justify-between">
+    <div className="shell flex flex-col items-start gap-6 py-16 sm:flex-row sm:items-center sm:justify-between">
      <div>
       <h2 className="display-title text-3xl sm:text-4xl">Give your work the presentation it deserves.</h2>
       <p className="mt-2 flex items-center gap-2 text-sm text-background/70"><Lock className="size-3.5" aria-hidden /> Free forever for one portfolio. No card needed.</p>
      </div>
      <div className="flex flex-wrap gap-3">
       <Button asChild size="lg" className="bg-background text-foreground hover:bg-background/90"><a href="#upload">Upload your PDF</a></Button>
-      <Button asChild size="lg" variant="ghost" className="text-background hover:bg-background/10 hover:text-background"><a href="/p/adu2v"><BookOpen aria-hidden /> See an example</a></Button>
+      <Button asChild size="lg" variant="ghost" className="text-background hover:bg-background/10 hover:text-background"><a href="/examples"><BookOpen aria-hidden /> See examples</a></Button>
      </div>
     </div>
    </section>

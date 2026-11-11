@@ -8,11 +8,14 @@ export function PreviewChrome({
   pages,
   page,
   className,
+  onBuy,
 }: {
   buyUrl?: string;
   pages: number;
   page: number;
   className?: string;
+  /** Feature C: counts a Buy click (not on the homepage demo). */
+  onBuy?: () => void;
 }) {
   void page;
   return (
@@ -26,7 +29,7 @@ export function PreviewChrome({
           <div data-preview-buy className="pointer-events-auto flex items-center gap-3 rounded-full bg-background/90 py-1.5 pl-4 pr-1.5 shadow-soft backdrop-blur-sm">
             <p className="display-title text-base">See <em>every</em> page</p>
             <Button asChild size="sm">
-              <a href={buyUrl} target="_blank" rel="noopener noreferrer">Buy the full product ↗</a>
+              <a href={buyUrl} target="_blank" rel="noopener noreferrer" onClick={onBuy}>Buy the full product ↗</a>
             </Button>
           </div>
         </div>

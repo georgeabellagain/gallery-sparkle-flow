@@ -2,12 +2,13 @@ import { PricingPlans, type Billing } from "@/components/pf/PricingPlans";
 import { softwareSchema } from "@/lib/portfolia/software-schema";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Check, Minus } from "lucide-react";
-import { SiteHeader, SiteFooter } from "@/components/pf/Chrome";
+import { ArrowRight } from "lucide-react";
+import { MarketingHeader, SiteFooter } from "@/components/pf/Chrome";
 import { UpgradeModal, type PlanChoice } from "@/components/pf/UpgradeModal";
 import { Button } from "@/components/ui/button";
 import { BUSINESS_PRICE, PRICE } from "@/lib/portfolia/store";
-import { PLAN_COMPARISON, PLAN_FAQ, type ComparisonValue } from "@/lib/portfolia/plans";
+import { PLAN_FAQ } from "@/lib/portfolia/plans";
+import { PlanCompare, WhichPlan } from "@/components/pf/PlanCompare";
 
 export const Route = createFileRoute("/pricing")({
   staticData: { sitemap: true },
@@ -45,12 +46,6 @@ export const Route = createFileRoute("/pricing")({
   component: PricingPage,
 });
 
-function Cell({ value }: { value: ComparisonValue }) {
-  if (value === true) return <Check className="mx-auto size-4 text-leaf" aria-label="Included" />;
-  if (value === false) return <Minus className="mx-auto size-4 text-muted-foreground/60" aria-label="Not included" />;
-  return <span>{value}</span>;
-}
-
 function PricingPage() {
   const [upgrade, setUpgrade] = useState(false);
   const [billing, setBilling] = useState<Billing>("year");
@@ -58,16 +53,10 @@ function PricingPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <SiteHeader
-        right={
-          <Button asChild size="sm" className="bg-black text-white hover:bg-black/80">
-            <Link to="/" hash="upload">Create a portfolio</Link>
-          </Button>
-        }
-      />
+      <MarketingHeader />
       <main className="flex-1">
         <section className="shell py-14 text-center sm:py-20">
-          <h1 className="display-title text-4xl sm:text-6xl">Simple pricing. Free to start.</h1>
+          <h1 className="display-title text-4xl sm:text-5xl">Simple pricing. Free to start.</h1>
           <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
             Put one portfolio online free, forever. Upgrade to Personal for your own address, privacy and no Portfolia
             branding, or to Business when your team publishes more.
@@ -87,41 +76,17 @@ function PricingPage() {
           </p>
         </section>
 
-        <section aria-labelledby="compare-title" className="rule-t bg-canvas">
-          <div className="shell max-w-5xl py-14">
-            <h2 id="compare-title" className="display-title text-3xl">Compare plans</h2>
-            <div className="mt-6 overflow-x-auto border border-border bg-background" tabIndex={0} aria-label="Plan comparison table; scroll horizontally on small screens">
-              <table className="w-full min-w-[640px] text-sm">
-                <caption className="sr-only">Free, Personal and Business plan features</caption>
-                <thead>
-                  <tr className="border-b border-border">
-                    <th scope="col" className="p-4 text-left font-medium">Feature</th>
-                    <th scope="col" className="w-32 p-4 text-center font-medium">Free</th>
-                    <th scope="col" className="w-32 bg-leaf-soft/60 p-4 text-center font-medium text-leaf">Personal</th>
-                    <th scope="col" className="w-32 p-4 text-center font-medium">Business</th>
-                  </tr>
-                </thead>
-                {PLAN_COMPARISON.map((group) => (
-                  <tbody key={group.group}>
-                    <tr><th scope="rowgroup" colSpan={4} className="bg-muted px-4 py-2 text-left text-xxs font-semibold uppercase tracking-wide text-muted-foreground">{group.group}</th></tr>
-                    {group.rows.map((row) => (
-                      <tr key={row.label} className="border-t border-border">
-                        <th scope="row" className="p-4 text-left font-normal">{row.label}</th>
-                        <td className="p-4 text-center text-muted-foreground"><Cell value={row.free} /></td>
-                        <td className="bg-leaf-soft/30 p-4 text-center"><Cell value={row.personal} /></td>
-                        <td className="p-4 text-center"><Cell value={row.business ?? row.personal} /></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                ))}
-              </table>
-            </div>
+        <section aria-labelledby="compare-title" className="rule-t bg-muted/30">
+          <div className="shell max-w-5xl py-16 sm:py-24">
+            <h2 className="display-title text-3xl sm:text-4xl">Which plan is for me?</h2>
+            <div className="mt-8"><WhichPlan /></div>
+            <h2 id="compare-title" className="display-title mt-16 text-3xl sm:text-4xl">Compare plans</h2>
+            <PlanCompare />
           </div>
         </section>
-
         <section aria-labelledby="faq-title" className="rule-t">
-          <div className="shell max-w-3xl py-14">
-            <h2 id="faq-title" className="display-title text-3xl">Questions</h2>
+          <div className="shell max-w-4xl py-16 sm:py-24">
+            <h2 id="faq-title" className="display-title text-3xl sm:text-4xl">Questions</h2>
             <div className="mt-6 divide-y divide-border border-y border-border">
               {PLAN_FAQ.map((f) => (
                 <details key={f.q} className="group py-4">

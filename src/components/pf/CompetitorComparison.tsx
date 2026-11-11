@@ -1,5 +1,6 @@
 import { SeoLanding } from "./SeoLanding";
 import { IndustryUpload } from "./IndustryUpload";
+import { SwitchCompare } from "./HomeHighlights";
 import { COMPETITORS, COMPARISON_CHECKED, comparisonContent, type Competitor } from "@/lib/portfolia/competitors";
 
 export function CompetitorComparison({ competitor: c }: { competitor: Competitor }) {
@@ -19,12 +20,13 @@ export function CompetitorComparison({ competitor: c }: { competitor: Competitor
       <h2 className="mt-9 display-title text-2xl">Which fits your next project?</h2>
       <p className="mt-4 max-w-3xl text-sm leading-7 text-muted-foreground">{c.choose}</p>
       <p className="mt-4 text-sm leading-7 text-muted-foreground">Portfolia currently has no public discovery gallery, in-page video/audio player, lead forms, custom domains or team approval workflow. Its visit statistics are basic. A link to your store does not provide an integrated checkout.</p>
-      <div className="mt-8"><IndustryUpload /></div>
+      <div data-landing-closing className="mt-8"><IndustryUpload id="upload-again" compact /></div>
       <aside className="mt-8 rounded-xl bg-muted/50 p-5 text-xs leading-6 text-muted-foreground">
         <p>Independent comparison by Portfolia, not affiliated with {c.name}. Selected capabilities, not an exhaustive audit. Prices are quoted in the provider’s currency and billing cycle; features and checkout totals can change.</p>
         <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1">{c.sources.map(source => <li key={source.url}><a href={source.url} className="underline underline-offset-4">{source.label}</a></li>)}</ul>
       </aside>
       <nav aria-label="Other flipbook comparisons" className="mt-8 flex flex-wrap gap-3 text-xs"><a href="/flipbook-alternatives" className="underline underline-offset-4">All comparisons</a>{COMPETITORS.filter(other => other.slug !== c.slug).map(other => <a key={other.slug} href={`/${other.slug}`} className="underline underline-offset-4">{other.name}</a>)}</nav>
     </div></section>
+    <SwitchCompare current={c.slug} />
   </SeoLanding>;
 }

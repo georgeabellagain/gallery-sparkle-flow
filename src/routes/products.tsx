@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Copy, ExternalLink, Plus } from "lucide-react";
-import { SiteHeader, SiteFooter, CenteredPage } from "@/components/pf/Chrome";
+import { AppHeader, SiteFooter, CenteredPage } from "@/components/pf/Chrome";
 import { UpgradeModal, type PlanChoice } from "@/components/pf/UpgradeModal";
 import { Button } from "@/components/ui/button";
 import { WorkspaceTabs } from "@/components/products/WorkspaceTabs";
@@ -9,6 +9,9 @@ import { useAccount } from "@/hooks/useAccount";
 import { productAuth } from "@/lib/products/client";
 import { listProducts, createProduct } from "@/lib/products/functions";
 import { nextProductStep, type ProductStep } from "@/lib/products/plan";
+import { hasPendingProductPdf } from "@/lib/products/pending";
+import { productShareUrl } from "@/lib/products/model";
+import { productStatsSummary } from "@/lib/products/stats.functions";
 export const Route = createFileRoute("/products")({
   staticData: { sitemap: false },
   head: () => ({
@@ -31,7 +34,20 @@ function Products() {
     [busy, setBusy] = useState(false),
     [retry, setRetry] = useState(0),
     [upgrade, setUpgrade] = useState<null | { plan: PlanChoice; reason?: string }>(null),
-    [copied, setCopied] = useState("");
+    [copied, setCopied] = useState(""),
+    [notice, setNotice] = useState(""),
+    [summary, setSummary] = useState<Record<string, { views: number; buys: number }>>({});
+  // Feature C: 30-day views and buy clicks for every published product, in one call. Quietly empty on failure.
+  useEffect(() => {
+    const ids = (data?.items ?? []).filter((i) => i.status === "published").map((i) => i.id);
+    if (!ids.length) return;
+    let active = true;
+    void productAuth()
+      .then((headers) => productStatsSummary({ data: { ids }, headers }))
+      .then((s) => active && setSummary(s))
+      .catch(() => {});
+    return () => { active = false; };
+  }, [data]);
   const checkoutDone = typeof window !== "undefined" && window.location.search.includes("checkout=success");
   useEffect(() => {
     let active = true;
@@ -54,6 +70,24 @@ function Products() {
     const timer = window.setTimeout(() => setRetry((n) => n + 1), 3000);
     return () => window.clearTimeout(timer);
   }, [checkoutDone, data, retry]);
+  // A PDF dropped on a landing page waits in this browser (see lib/products/pending.ts). Once the list is here, make the
+  // product and let its editor upload the file; when the plan is full, show the upgrade prompt and keep the file.
+  const pendingHandled = useRef(false);
+  useEffect(() => {
+    if (!data || pendingHandled.current || !new URLSearchParams(window.location.search).has("pending")) return;
+    pendingHandled.current = true;
+    if (!hasPendingProductPdf()) { setNotice("The PDF you chose is no longer waiting. Choose it again to start your product."); return; }
+    if (data.items.length >= data.allowance.products) {
+      setUpgrade({ plan: data.plan === "free" ? "personal" : "business", reason: data.plan === "business" ? undefined : "More products" });
+      setNotice("Your PDF is kept on this device for 10 minutes. Upgrade or make room, then drop it on a product page again.");
+      return;
+    }
+    setBusy(true);
+    void productAuth()
+      .then((headers) => createProduct({ headers }))
+      .then((id) => window.location.assign(`/product-studio/${id}?pending=1`))
+      .catch((e) => { setError((e as Error).message); setBusy(false); });
+  }, [data]);
   if (loading) return <CenteredPage title="Your products" intro="Loading your workspace…" />;
   if (!user)
     return (
@@ -84,7 +118,8 @@ function Products() {
   };
   const copy = async (id: string) => {
     try {
-      await navigator.clipboard.writeText(`https://portfolia.site/product/${id}`);
+      const item = data?.items.find((i) => i.id === id);
+      await navigator.clipboard.writeText(productShareUrl({ id, slug: item?.slug }));
       setCopied(id);
       window.setTimeout(() => setCopied((c) => (c === id ? "" : c)), 2000);
     } catch {
@@ -93,14 +128,7 @@ function Products() {
   };
   return (
     <div className="min-h-screen">
-      <SiteHeader
-        right={
-          <>
-            <span className="hidden text-xs text-muted-foreground sm:inline">{user.email}</span>
-            <a href="/account" className="text-sm underline-offset-4 hover:underline">Account</a>
-          </>
-        }
-      />
+      <AppHeader email={user.email} />
       <main className="shell py-8 sm:py-10">
         <WorkspaceTabs active="products" />
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -132,6 +160,7 @@ function Products() {
             <Button size="sm" onClick={() => setUpgrade({ plan: "personal", reason: "Publishing products" })}>See plans</Button>
           </div>
         )}
+        {notice && <p role="status" className="mt-6 rounded-xl bg-muted p-3 text-sm">{notice}</p>}
         {error && (
           <div role="alert" className="mt-6 rounded-xl border border-destructive/20 p-4 text-sm text-destructive">
             {error}{" "}
@@ -156,6 +185,12 @@ function Products() {
               const live = item.status === "published";
               return (
                 <article key={item.id} className="flex flex-col rounded-2xl border border-border p-5 transition-colors hover:border-foreground/30">
+                  {/* Feature A: page 1 of the public preview; the first letter of the title until there is one. */}
+                  <a href={`/product-studio/${item.id}`} tabIndex={-1} aria-hidden className="mb-4 flex aspect-[4/3] items-center justify-center overflow-hidden rounded-xl bg-muted">
+                    {item.coverUrl
+                      ? <img src={item.coverUrl} alt={`Cover of ${item.title}`} loading="lazy" className="h-[85%] w-auto max-w-[85%] object-contain shadow-soft" />
+                      : <span className="display-title text-5xl text-muted-foreground">{item.title.trim().charAt(0).toUpperCase() || "P"}</span>}
+                  </a>
                   <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
                     <span className={live ? "inline-flex items-center gap-1.5 rounded-full bg-leaf-soft px-2.5 py-1 font-medium text-leaf" : "inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1"}>
                       <span aria-hidden className="size-1.5 rounded-full bg-current" />
@@ -167,6 +202,7 @@ function Products() {
                     <h2 className="truncate text-lg font-medium underline-offset-4 hover:underline">{item.title}</h2>
                     <p className="mt-1 text-sm text-muted-foreground">{NEXT[nextProductStep(item)]}</p>
                   </a>
+                  {live && summary[item.id] && <p className="mt-1 text-xs text-muted-foreground">{summary[item.id]!.views} view{summary[item.id]!.views === 1 ? "" : "s"} · {summary[item.id]!.buys} buy click{summary[item.id]!.buys === 1 ? "" : "s"} in 30 days</p>}
                   <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
                     <Button asChild size="sm" variant={live ? "line" : "default"}>
                       <a href={`/product-studio/${item.id}`}>{live ? "Edit" : "Continue"}</a>

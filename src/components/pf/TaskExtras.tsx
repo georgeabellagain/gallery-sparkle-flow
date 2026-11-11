@@ -108,13 +108,13 @@ export function ExampleGallery({ title, intro, first }: { title: string; intro: 
 
 export function ClosingUpload({ title, body, label }: { title: string; body: string; label?: string }) {
   return (
-    <section className="rule-t bg-leaf-soft">
+    <section data-landing-closing className="rule-t bg-leaf-soft">
       <div className="shell grid max-w-5xl items-center gap-8 py-16 sm:grid-cols-[1fr_1.1fr]">
         <div>
           <h2 className="display-title text-3xl">{title}</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{body}</p>
         </div>
-        <IndustryUpload id="upload-again" label={label} />
+        <IndustryUpload id="upload-again" label={label} compact />
       </div>
     </section>
   );

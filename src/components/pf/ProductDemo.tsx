@@ -26,7 +26,8 @@ async function loadDemo(): Promise<Demo | null> {
   return { url, name: p.pdf.name, viewer: p.viewer ?? {}, backgroundUrl: p.viewer?.backgroundKey ? r.urls[p.viewer.backgroundKey] : undefined, pages: 0, buyUrl: PRODUCT_DEMO_BUY_URL };
 }
 
-export function ProductDemo({ className }: { className?: string }) {
+/** hero: a landing page keeps its own still picture underneath, so no loader or error text is drawn here. calm: no idle orbit. */
+export function ProductDemo({ className, hero = false, calm = false, onReady, onFail }: { className?: string; hero?: boolean; calm?: boolean; onReady?: () => void; onFail?: () => void }) {
   const [demo, setDemo] = useState<Demo | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [shown, setShown] = useState(false);
@@ -47,6 +48,11 @@ export function ProductDemo({ className }: { className?: string }) {
   }, []);
   const source = useMemo(() => (demo ? { url: demo.url } : null), [demo?.url]);
   const reveal = useCallback(() => { started.current ??= performance.now(); setShown(true); }, []);
+  useEffect(() => {
+    if (!hero) return;
+    if (shown) onReady?.();
+    else if (state === "error") onFail?.();
+  }, [hero, shown, state, onReady, onFail]);
   return (
     <figure className={className} onPointerDownCapture={stop} onWheelCapture={stop} onKeyDownCapture={e => { if (e.key !== "Tab") stop(e); }}>
       <div className="pf-workspace-demo relative h-full overflow-hidden">
@@ -55,7 +61,7 @@ export function ProductDemo({ className }: { className?: string }) {
             <PdfViewer
               source={source}
               fileName={demo.name}
-              viewer={{ ...DEFAULT_VIEWER, ...demo.viewer, mode: "book", look: "studio", modes: ["book"], looks: ["studio"], idleOrbit: interacted ? "off" : "start" }}
+              viewer={{ ...DEFAULT_VIEWER, ...demo.viewer, mode: "book", look: "studio", modes: ["book"], looks: ["studio"], idleOrbit: interacted || calm ? "off" : "start" }}
               backgroundUrl={demo.backgroundUrl}
               controls
               homepageExample
@@ -65,7 +71,7 @@ export function ProductDemo({ className }: { className?: string }) {
               initialLook="studio"
               fullSpread
               presentationActive
-              showcaseOrbit={shown && !interacted}
+              showcaseOrbit={shown && !interacted && !calm}
               showcaseOrbitStart={started.current}
               onReaderPage={setPage}
               onDemoReady={reveal}
@@ -75,7 +81,7 @@ export function ProductDemo({ className }: { className?: string }) {
           </div>
         )}
         {shown && demo && <PreviewChrome buyUrl={demo.buyUrl} pages={pages} page={page} />}
-        {(!shown || state === "error") && (
+        {!hero && (!shown || state === "error") && (
           <div role="status" className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-background text-sm">
             {state === "error" ? <p>The example is temporarily unavailable.</p> : <BookLoader tone="light" label="" />}
           </div>

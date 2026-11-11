@@ -9,7 +9,8 @@ export function deletionBlocked(sub: { status: string; cancel_at_period_end: boo
 
 /**
  * Deletes the signed-in account: every stored file, every portfolio (with its access settings, domains and visit
- * events, which cascade), feedback, and the sign-in itself. Billing records stay, as the privacy notice says,
+ * events, which cascade), feedback, and the sign-in itself. Digital products go with the sign-in (owner_id cascades),
+ * taking their customer links, statistics and orders, buyer emails included, with them. Billing records stay, as the privacy notice says,
  * because tax law requires them.
  */
 export const deleteAccount = createServerFn({ method: "POST" })

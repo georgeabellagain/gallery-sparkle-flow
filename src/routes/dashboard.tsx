@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { Check, Eye, Pencil, Share2, Upload } from "lucide-react";
 import { PERSONAL_FEATURES, YEARLY_PER_MONTH } from "@/lib/portfolia/plans";
 import { PRICE } from "@/lib/portfolia/store";
-import { CenteredPage, SiteHeader, SiteFooter, Modal, useBlob, useObjectUrl } from "@/components/pf/Chrome";
+import { AppHeader, CenteredPage, SiteFooter, Modal, useBlob, useObjectUrl } from "@/components/pf/Chrome";
 import { DropZone } from "@/components/pf/DropZone";
 import { PdfViewer } from "@/components/pf/PdfViewer";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
@@ -64,20 +64,7 @@ function Dashboard() {
 
   if (!hydrated || loading) return <CenteredPage title="Your portfolios" intro={<span role="status" aria-busy="true">Loading your workspace…</span>} />;
 
-  const header = (
-    <SiteHeader
-      right={
-        <>
-          <span className="hidden text-xs text-muted-foreground sm:inline">{user?.email}</span>
-          {user && <Link to="/account" className="text-sm hover:underline underline-offset-4">Account</Link>}
-          {user && (
-            <button className="text-sm hover:underline underline-offset-4" onClick={() => { void supabase.auth.signOut(); update((d) => ({ ...d, account: { signedIn: false } })); void navigate({ to: "/" }); }}>Sign out</button>
-          )}
-        </>
-      }
-    />
-  );
-
+  const header = <AppHeader email={user?.email} signedIn={Boolean(user)} />;
   if (!user) {
     return (
       <CenteredPage title="Your portfolios" intro="Sign in to see, edit and share your portfolios.">

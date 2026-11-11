@@ -1,5 +1,6 @@
 import { ArrowRight, BarChart3, Check, Info, Lock, MousePointerClick, Palette, QrCode, Search, X, Youtube, Inbox } from "lucide-react";
 import { InfoTip } from "./InfoTip";
+import { PRICE } from "@/lib/portfolia/store";
 
 /** Plain facts about the product under the hero, the way flipbook makers reassure first-time visitors. */
 export function FactStrip() {
@@ -64,14 +65,14 @@ const FEATURES = [
 ] as const;
 
 /** Everything in one place, each with an (i) for the detail, as feature-led flipbook sites present it. */
-export function FeatureGrid() {
+export function FeatureGrid({ omit = [], title = "Everything your PDF can't do on its own." }: { omit?: string[]; title?: string } = {}) {
   return (
     <section aria-labelledby="features-title" className="rule-t">
-      <div className="shell py-14 sm:py-20">
+      <div className="shell max-w-6xl py-16 sm:py-24">
         <p className="label-xs">Features</p>
-        <h2 id="features-title" className="display-title mt-2 max-w-2xl text-3xl sm:text-5xl">Everything your PDF can't do on its own.</h2>
+        <h2 id="features-title" className="display-title mt-2 max-w-2xl text-3xl sm:text-4xl">{title}</h2>
         <ul className="mt-10 grid gap-px overflow-hidden rounded-3xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map(({ icon: Icon, title, text, tip }) => (
+          {FEATURES.filter((f) => !omit.includes(f.title)).map(({ icon: Icon, title, text, tip }) => (
             <li key={title} className="bg-background p-6">
               <span className="flex size-10 items-center justify-center rounded-xl bg-leaf-soft text-leaf"><Icon className="size-5" aria-hidden /></span>
               <h3 className="mt-4 flex items-center gap-1 text-base font-medium">{title}<InfoTip label={`More about ${title}`}>{tip}</InfoTip></h3>
@@ -107,6 +108,33 @@ export function UseCases() {
             </a>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+const SWITCH = [
+  { name: "Issuu", slug: "issuu-alternative", text: "Embedding on your own site needs a paid Issuu plan. On Portfolia it’s free." },
+  { name: "Flipsnack", slug: "flipsnack-alternative", text: `Flipsnack Lite is listed at $14/month. Portfolia Personal is ${PRICE.month}/month.` },
+  { name: "Heyzine", slug: "heyzine-alternative", text: "Heyzine is built for interactive publications. Portfolia is built to present your own creative work beautifully." },
+];
+
+/** The price comparison that used to sit on the home page; it now lives on the competitor pages (plan 2, S3). */
+export function SwitchCompare({ current }: { current?: string }) {
+  return (
+    <section aria-labelledby="switch-title" className="rule-t">
+      <div className="shell max-w-4xl py-16 sm:py-24">
+        <p className="label-xs">Switching?</p>
+        <h2 id="switch-title" className="display-title mt-2 text-3xl sm:text-4xl">The same features, at a fraction of the price.</h2>
+        <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">Features that usually sit on business plans costing tens of pounds a month. On Free you get hotspots, info icons, YouTube and Vimeo videos on pages, plus visit and download counts. Lead capture forms, detailed reader insights and uploaded videos come with Personal, at {PRICE.month} billed monthly or {PRICE.year} billed yearly.</p>
+        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          {SWITCH.filter((s) => s.slug !== current).map((s) => <a key={s.slug} href={`/${s.slug}`} className="group flex flex-col rounded-2xl border border-border bg-card p-6 transition-colors hover:border-border-strong">
+            <span className="text-base font-medium">Portfolia vs {s.name}</span>
+            <span className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">{s.text}</span>
+            <span className="mt-4 inline-flex items-center gap-1 text-xs text-leaf">Compare <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" aria-hidden /></span>
+          </a>)}
+        </div>
+        <p className="mt-5 text-xs text-muted-foreground"><a href="/flipbook-alternatives" className="underline underline-offset-4">See every comparison</a>, with sources.</p>
       </div>
     </section>
   );

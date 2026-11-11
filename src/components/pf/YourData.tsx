@@ -13,8 +13,12 @@ export function YourData({ email, open: startOpen = false }: { email?: string; o
   const remove = useServerFn(deleteAccount);
   const navigate = useNavigate();
   const [open, setOpen] = useState(false), [typed, setTyped] = useState(""), [busy, setBusy] = useState(false), [error, setError] = useState("");
-  const download = () => {
-    const url = URL.createObjectURL(accountExportFile(getDoc(), email)), a = document.createElement("a");
+  const download = async () => {
+    // Products, their links and their orders live on the server; leave them out if they can't be read right now.
+    const products = await import("@/lib/products/export.functions")
+      .then(async ({ exportProductData }) => exportProductData({ headers: await (await import("@/lib/products/client")).productAuth() }))
+      .catch(() => undefined);
+    const url = URL.createObjectURL(accountExportFile(getDoc(), email, new Date(), products)), a = document.createElement("a");
     a.href = url; a.download = `portfolia-data-${new Date().toISOString().slice(0, 10)}.json`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
@@ -31,7 +35,7 @@ export function YourData({ email, open: startOpen = false }: { email?: string; o
   return <details open={startOpen} className={startOpen ? "max-w-2xl rounded-xl border border-border p-4" : "mt-4 max-w-2xl rounded-xl border border-border p-4"}>
     <summary className="cursor-pointer text-sm font-medium">Your data</summary>
     <div className="mt-4 space-y-4 text-sm">
-      <div><Button size="sm" variant="line" onClick={download}>Download my data</Button><p className="mt-1 text-xs text-muted-foreground">A JSON file of your portfolios, settings and visit statistics. Your PDFs and pictures are the files you uploaded.</p></div>
+      <div><Button size="sm" variant="line" onClick={() => void download()}>Download my data</Button><p className="mt-1 text-xs text-muted-foreground">A JSON file of your portfolios, settings and visit statistics. Your PDFs and pictures are the files you uploaded.</p></div>
       <div><Button size="sm" variant="quiet" className="text-destructive" onClick={() => { setOpen(true); setTyped(""); setError(""); }}>Delete my account</Button><p className="mt-1 text-xs text-muted-foreground">Removes every portfolio, file and link for good. Cancel Personal first if it is still renewing.</p></div>
     </div>
     <Modal open={open} onClose={() => !busy && setOpen(false)} title="Delete your account?">

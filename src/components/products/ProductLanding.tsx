@@ -1,5 +1,8 @@
-import { SiteHeader, SiteFooter } from "@/components/pf/Chrome";
-import { Button } from "@/components/ui/button";
+import { MarketingHeader, SiteFooter } from "@/components/pf/Chrome";
+import { LandingHero } from "@/components/pf/LandingHero";
+import { LandingUploadBar } from "@/components/pf/LandingUploadBar";
+import { HERO_INTRO_MAX_CHARS, landingCopy } from "@/lib/portfolia/landing-demo";
+import { ogImageUrl } from "@/lib/portfolia/marketing-assets";
 export const PRODUCT_PAGES = {
   "digital-product-studio": {
     title: "Digital Product Studio: PDF Previews & Customer Editions | Portfolia",
@@ -68,7 +71,7 @@ export function productLandingHead(key: ProductPageKey) {
       { property: "og:description", content: c.description },
       { property: "og:url", content: url },
       { property: "og:type", content: "website" },
-      { property: "og:image", content: "https://portfolia.site/og-image.jpg" },
+      { property: "og:image", content: ogImageUrl("og-products", "https://portfolia.site/og-image.jpg") },
     ],
     links: [{ rel: "canonical", href: url }],
     scripts: [
@@ -89,63 +92,19 @@ export function ProductLanding({ page }: { page: ProductPageKey }) {
   const c = PRODUCT_PAGES[page];
   return (
     <div className="min-h-screen">
-      <SiteHeader
-        right={
-          <>
-            <a href="/pricing" className="hidden underline-offset-4 hover:underline sm:inline">Pricing</a>
-            <a href="/products" className="underline-offset-4 hover:underline">My products</a>
-          </>
-        }
-      />
+      <MarketingHeader uploadHere />
       <main>
-        <section className="shell py-16 sm:py-24 grid lg:grid-cols-[1.2fr_1fr] gap-12 items-center">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-muted-foreground">{c.eyebrow}</p>
-            <h1 className="display-title text-4xl sm:text-6xl leading-tight mt-5">
-              {c.heading}
-              <br />
-              <em>{c.accent}</em>
-            </h1>
-            <p className="text-lg text-muted-foreground leading-relaxed mt-6 max-w-xl">{c.intro}</p>
-            <Button asChild className="mt-8">
-              <a href="/products">Open Digital Product Studio</a>
-            </Button>
-            <p className="text-xs text-muted-foreground mt-3">
-              Try it free · publish with Personal · no shop connection required
-            </p>
-          </div>
-          <div className="rounded-[2rem] bg-[#ece9df] p-7 sm:p-10 border">
-            <div className="bg-background rounded-2xl p-6 shadow-soft border">
-              <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                Public preview
-              </span>
-              <div className="grid grid-cols-2 mt-5 gap-1" aria-hidden>
-                <div className="aspect-[3/4] bg-[#66745e] p-4 flex flex-col justify-between text-white">
-                  <span className="text-xs">VOL. 01</span>
-                  <span className="font-serif text-3xl italic">
-                    Small
-                    <br />
-                    stories.
-                  </span>
-                </div>
-                <div className="aspect-[3/4] bg-[#e0c0a1] p-4 flex items-end">
-                  <span className="text-sm">
-                    A few pages.
-                    <br />A reason to read on.
-                  </span>
-                </div>
-              </div>
-              <div className="mt-5 border-t pt-4 flex justify-between text-xs">
-                <span>Selected pages only</span>
-                <span>View in your browser →</span>
-              </div>
-            </div>
-            <div className="bg-foreground text-background rounded-xl p-5 mt-4 flex justify-between text-sm">
-              <span>Customer edition</span>
-              <span>Read · Download</span>
-            </div>
-          </div>
-        </section>
+        <LandingHero
+          eyebrow={landingCopy(`/${page}`).eyebrow}
+          heading={<>{c.heading}<br /><em>{c.accent}</em></>}
+          intro={c.intro}
+          demo="product"
+          upload="product"
+          ticks={landingCopy(`/${page}`).ticks}
+          secondary={<p className="text-sm"><a href="/products" className="underline underline-offset-4">Open Digital Product Studio</a></p>}
+        />
+        <LandingUploadBar name={c.title.split("|")[0]!.trim()} />
+        {c.intro.length > HERO_INTRO_MAX_CHARS && <section className="rule-t"><div className="shell max-w-4xl py-10"><p className="max-w-2xl text-[15px] leading-relaxed text-muted-foreground">{c.intro}</p></div></section>}
         <section className="border-y bg-muted/30">
           <div className="shell py-12">
             <h2 className="display-title text-3xl">From PDF to product experience.</h2>
@@ -181,6 +140,24 @@ export function ProductLanding({ page }: { page: ProductPageKey }) {
             </div>
           ))}
         </section>
+        {/* Plan 1: what each paid plan adds, matching the comparison in lib/portfolia/plans.ts. */}
+        <section className="shell max-w-4xl pb-16">
+          <h2 className="display-title text-3xl">Also in the studio</h2>
+          <ul className="mt-6 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
+            {[
+              ["Your own address", "portfolia.site/product/your-title, with a QR code and an embed for your website. Personal and Business."],
+              ["Statistics", "Preview views, Buy clicks, customer opens and downloads. Counts only, no tracking of shoppers. Personal and Business."],
+              ["Buyer name on downloads", "A small “Licensed to …” line on every page of a customer’s PDF. A deterrent, not copy protection. Personal and Business."],
+              ["Extra files", "Up to five ZIP, EPUB, PNG, JPG, MP3 or TXT files that only customers can download. Personal and Business."],
+              ["Automatic delivery", "Gumroad, Shopify or Zapier tell Portfolia about each order and the buyer is emailed their own private link. Business."],
+            ].map(([t, b]) => (
+              <li key={t}>
+                <span className="font-medium">{t}</span>
+                <span className="block text-muted-foreground">{b}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
         <section className="shell max-w-3xl pb-16">
           <h2 className="display-title text-3xl mb-6">Before you publish</h2>
           {[
@@ -190,7 +167,7 @@ export function ProductLanding({ page }: { page: ProductPageKey }) {
             ],
             [
               "Is this an automatic Etsy integration?",
-              "No API connection is needed for the delivery-PDF workflow. Etsy delivers the PDF you upload to the listing. Portfolia does not automatically verify purchases or send individual links per Etsy order.",
+              "No. Etsy has no simple way to tell other services about an order, so Etsy sellers use the delivery PDF: Etsy delivers the PDF you upload to the listing, and Portfolia does not verify Etsy purchases. On Business, Gumroad, Shopify and tools such as Zapier can send each buyer their own private link automatically.",
             ],
             [
               "Can buyers keep a copy?",

@@ -64,6 +64,36 @@ export async function buildProductPreview(
     await original.destroy();
   }
 }
+/** Feature A: page 1 of the public preview as a WebP cover (480 px wide, 360 px if that is over 280 KB). */
+export async function renderProductCover(previewBlob: Blob): Promise<{ blob: Blob; width: number; height: number }> {
+  const pdfjs = await loadPdfjs();
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(await previewBlob.arrayBuffer()) }).promise;
+  try {
+    const page = await doc.getPage(1);
+    const size = page.getViewport({ scale: 1 });
+    for (const width of [480, 360]) {
+      const viewport = page.getViewport({ scale: width / size.width });
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(viewport.width);
+      canvas.height = Math.min(1800, Math.round(viewport.height));
+      try {
+        await page.render({ canvasContext: canvas.getContext("2d")!, viewport, background: "white" }).promise;
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.82));
+        // Browsers without WebP encoding hand back PNG: never store that as a cover.
+        if (!blob || blob.type !== "image/webp") throw new Error("This browser cannot make a WebP cover.");
+        if (blob.size <= 280 * 1024 || width === 360) {
+          if (blob.size > 307200) throw new Error("Cover too large.");
+          return { blob, width: canvas.width, height: canvas.height };
+        }
+      } finally {
+        canvas.width = canvas.height = 1;
+      }
+    }
+    throw new Error("Cover too large.");
+  } finally {
+    await doc.destroy();
+  }
+}
 export async function deliverySheet(title: string, url: string) {
   const { PDFDocument, StandardFonts, rgb, PDFName, PDFString } = await import("pdf-lib");
   const pdf = await PDFDocument.create(),

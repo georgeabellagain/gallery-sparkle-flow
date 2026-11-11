@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useBlocker } from "@tanstack/react-router";
-import { ArrowLeft, Book as BookIcon, Camera, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Eye, FileText, Image as ImageIcon, KeyRound, Megaphone, ScanEye, Share2, Sun, Upload, X } from "lucide-react";
+import { ArrowLeft, Book as BookIcon, Camera, ChartNoAxesColumn, ChevronRight, ChevronsLeft, ChevronsRight, Code, Copy, Eye, FileText, Image as ImageIcon, KeyRound, Megaphone, QrCode, ScanEye, Share2, Sun, Upload, X, Zap } from "lucide-react";
 import { Modal, Wordmark } from "@/components/pf/Chrome";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
 import { defaultPreviewPages, nextProductStep, type ProductPlan } from "@/lib/products/plan";
@@ -16,9 +16,14 @@ import { PaperSettings, StudioLightingSettings } from "@/components/pf/StudioApp
 import { DEFAULT_VIEWER, type Portfolio, type ViewerSettings } from "@/lib/portfolia/store";
 import { putLocalBlob } from "@/lib/portfolia/assets";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
-import { productAuth, readProductPdf, uploadProductPdf } from "@/lib/products/client";
-import { previewPages, previewSpreads, type Product } from "@/lib/products/model";
-import { buildProductPreview, deliverySheet, downloadBlob } from "@/lib/products/preview";
+import { productAuth, readProductPdf, removeProductFiles, uploadProductCover, uploadProductPdf } from "@/lib/products/client";
+import { PortfolioQrCode } from "@/components/pf/PortfolioQrCode";
+import { ProductStatsPanel } from "./ProductStatsPanel";
+import { ProductDeliveryPanel } from "./ProductDeliveryPanel";
+import { ProductExtras } from "./ProductExtras";
+import { previewPages, previewSpreads, productShareUrl, productSlug, slugFromTitle, stripControl, type Product } from "@/lib/products/model";
+import { takePendingProductPdf } from "@/lib/products/pending";
+import { buildProductPreview, deliverySheet, downloadBlob, renderProductCover } from "@/lib/products/preview";
 import {
   ownerProduct,
   saveProduct,
@@ -34,7 +39,7 @@ const PhotoShoot = lazy(() =>
 );
 const field =
   "mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/40";
-type Panel = "customise" | "details" | "pages" | "book" | "look" | "background" | "marketing" | "share" | "publish";
+type Panel = "customise" | "details" | "pages" | "book" | "look" | "background" | "marketing" | "share" | "publish" | "stats" | "delivery";
 /** The same panel set-up as the portfolio editor: a Customise menu leading to one card per topic. */
 const TOOLS: Array<[Panel, string, typeof Sun]> = [
   ["book", "Book & turns", BookIcon],
@@ -44,12 +49,14 @@ const TOOLS: Array<[Panel, string, typeof Sun]> = [
   ["pages", "Public preview", ScanEye],
   ["marketing", "Listing video & images", Megaphone],
   ["share", "Links", Share2],
+  ["delivery", "Automatic delivery", Zap],
+  ["stats", "Statistics", ChartNoAxesColumn],
   ["publish", "File & publishing", Upload],
 ];
 const GROUPS: Array<[string, Panel[]]> = [
   ["Design", ["book", "look", "background"]],
-  ["Product", ["details", "pages"]],
-  ["More", ["marketing", "publish"]],
+  ["Product", ["details", "pages", "delivery"]],
+  ["More", ["marketing", "stats", "publish"]],
 ];
 const HINTS: Partial<Record<Panel, string>> = {
   customise: "Choose what to change.",
@@ -60,7 +67,9 @@ const HINTS: Partial<Record<Panel, string>> = {
   pages: "The free pages shoppers can see.",
   marketing: "Made from the public preview only.",
   share: "One link for shoppers, one for customers.",
-  publish: "The customer PDF, downloads, publishing and deleting.",
+  publish: "The customer PDF, extras, downloads, publishing and deleting.",
+  stats: "Views, buy clicks, opens and downloads. Counts only.",
+  delivery: "A private link for each buyer, by email.",
 };
 const PANEL_WIDE_KEY = "pf-panel-wide";
 /** Page numbers as short text: [1, 2, 3, 6] becomes "1-3, 6". */
@@ -105,6 +114,10 @@ export function ProductEditor({ id }: { id: string }) {
     [label, setLabel] = useState(""),
     [expiry, setExpiry] = useState(""),
     [newLink, setNewLink] = useState(""),
+    [stamp, setStamp] = useState(""),
+    [share, setShare] = useState<null | "qr" | "embed">(null),
+    // Which plan-1 columns the database has yet (they arrive with migrations the owner applies by hand).
+    [columns, setColumns] = useState({ cover_file: true, slug: true, extra_files: true }),
     [marketing, setMarketing] = useState<{ kind: "video" | "photo"; portfolio: Portfolio } | null>(
       null,
     );
@@ -130,6 +143,7 @@ export function ProductEditor({ id }: { id: string }) {
     setCanPublish(data.canPublish);
     setLimit(data.limitMb);
     setLinks(data.links);
+    setColumns(data.columns);
     setPages(data.product.preview_pages.join(", ") || "1");
     setFull(data.product.full_file ? await readProductPdf(data.product.full_file) : null);
     setPreview(data.product.preview_file ? await readProductPdf(data.product.preview_file) : null);
@@ -184,15 +198,22 @@ export function ProductEditor({ id }: { id: string }) {
       headers: await productAuth(),
     });
     const saved = { ...product, status: status ?? "draft", revision: result.revision };
+    // Covers and extras the product no longer uses are removed once the save has gone through (best effort).
+    const before = baseline ? (JSON.parse(baseline) as Partial<Product>) : null;
+    const keep = new Set([saved.cover_file?.path, ...(saved.extra_files ?? []).map((x) => x.path)]);
+    void removeProductFiles([before?.cover_file?.path, ...(before?.extra_files ?? []).map((x) => x.path)].filter((path): path is string => Boolean(path) && !keep.has(path)));
     setP(saved);
     setBaseline(JSON.stringify(saved));
+    if (result.unsupported?.length) setColumns((c) => ({ ...c, ...Object.fromEntries(result.unsupported.map((k) => [k, false])) }));
     setMessage(
-      saved.status === "published"
-        ? "Saved. Your published product is up to date."
-        : "Draft saved.",
+      result.unsupported?.length
+        ? "Saved. Your address and extra files are available after the next update."
+        : saved.status === "published"
+          ? "Saved. Your published product is up to date."
+          : "Draft saved.",
     );
   };
-  const previewUrl = `https://portfolia.site/product/${id}`;
+  const previewUrl = productShareUrl({ id, slug: p?.slug });
   const copy = async (text: string, done: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -220,11 +241,13 @@ export function ProductEditor({ id }: { id: string }) {
     void run("Creating customer link", async () => {
       const expiresAt = expiry ? new Date(expiry).toISOString() : null,
         name = label.trim() || "Shop customers";
-      const result = await createProductLink({ data: { id, label: name, expiresAt }, headers: await productAuth() });
+      const buyer = stamp.trim() || null;
+      const result = await createProductLink({ data: { id, label: name, expiresAt, stamp: buyer }, headers: await productAuth() });
       setNewLink(result.url);
-      setLinks((items) => [{ id: result.id, label: name, revoked: false, expires_at: expiresAt, opens: 0, last_opened_at: null }, ...items]);
+      setLinks((items) => [{ id: result.id, label: name, revoked: false, expires_at: expiresAt, opens: 0, last_opened_at: null, stamp: buyer }, ...items]);
       setLabel("");
       setExpiry("");
+      setStamp("");
       try {
         await navigator.clipboard.writeText(result.url);
         setMessage("Customer link created and copied.");
@@ -305,6 +328,20 @@ export function ProductEditor({ id }: { id: string }) {
           : "PDF uploaded. Choose the public preview pages before publishing.",
       );
     });
+  // A PDF dropped on a landing page waits in this browser (lib/products/pending.ts): upload it once the product has
+  // loaded, then drop ?pending=1 from the address so a reload never uploads it twice.
+  const pendingTaken = useRef(false);
+  useEffect(() => {
+    if (!p || busy || pendingTaken.current || !new URLSearchParams(window.location.search).has("pending")) return;
+    pendingTaken.current = true;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("pending");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    void takePendingProductPdf().then((file) => {
+      if (file) uploadFull(file);
+      else setError("The PDF you dropped is no longer waiting. Choose it with Upload PDF.");
+    });
+  }, [p, busy]);
   /** Builds the separate preview file from chosen pages and stores it. */
   const makePreview = async (blob: Blob, selected: number[]) => {
     const out = await buildProductPreview(blob, selected, (n) =>
@@ -314,8 +351,29 @@ export function ProductEditor({ id }: { id: string }) {
     const file = await uploadProductPdf(id, out, "preview.pdf", selected.length);
     setPreview(out);
     setPages(pageRanges(selected));
-    return { values: { preview_file: file, preview_pages: selected } };
+    // Feature A: a cover of public page 1. A cover that fails (old browser, migration not applied) never fails the preview.
+    const cover = await makeCover(out);
+    return { values: { preview_file: file, preview_pages: selected, ...(cover ? { cover_file: cover } : {}) } };
   };
+  const makeCover = async (previewBlob: Blob) => {
+    if (!columns.cover_file) return null;
+    try {
+      return await uploadProductCover(id, await renderProductCover(previewBlob));
+    } catch {
+      return null;
+    }
+  };
+  // Products whose preview was made before covers existed get one quietly, saved only when nothing else is pending.
+  const coverTried = useRef(false);
+  useEffect(() => {
+    if (!p || busy || dirty || coverTried.current || !preview || p.cover_file || !columns.cover_file) return;
+    if (p.status === "published" && !canPublish) return;
+    coverTried.current = true;
+    void makeCover(preview).then((cover) => {
+      if (!cover) return;
+      void save(p.status, { ...p, cover_file: cover }).catch(() => {});
+    });
+  }, [p, busy, dirty, preview, columns.cover_file, canPublish]);
   const generatePreview = () =>
     void run("Making preview", async () => {
       if (!p || !full || !p.full_file) return;
@@ -698,7 +756,27 @@ export function ProductEditor({ id }: { id: string }) {
                           <div className="flex flex-wrap gap-2">
                             <Button size="sm" onClick={() => void copy(previewUrl, "Preview link copied.")}><Copy /> Copy link</Button>
                             <Button asChild size="sm" variant="line"><a href={`/product/${id}`} target="_blank" rel="noopener noreferrer">Open</a></Button>
+                            {/* QR codes and embeds are for the preview only, never for a customer link. */}
+                            <Button size="sm" variant="line" onClick={() => setShare("qr")}><QrCode /> QR code</Button>
+                            <Button size="sm" variant="line" onClick={() => setShare("embed")}><Code /> Embed</Button>
                           </div>
+                          <label className="block pt-1 text-xs">
+                            Your address
+                            <span className="mt-1.5 flex items-center gap-1">
+                              <span className="shrink-0 text-muted-foreground">portfolia.site/product/</span>
+                              <input
+                                className={field + " mt-0"}
+                                maxLength={40}
+                                disabled={!columns.slug}
+                                placeholder={columns.slug ? "my-zine" : "Available after the next update"}
+                                value={p.slug ?? ""}
+                                onChange={(e) => patch({ slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 40) || null })}
+                              />
+                              <Button size="sm" variant="quiet" disabled={!columns.slug} onClick={() => patch({ slug: slugFromTitle(p.title) || null })}>Suggest</Button>
+                            </span>
+                          </label>
+                          {p.slug && !productSlug.safeParse(p.slug).success && <p className="text-xs text-destructive">{productSlug.safeParse(p.slug).error?.issues[0]?.message}</p>}
+                          <p className="text-xs text-muted-foreground">Saves with the Save button. Changing it later breaks the old address; the id link always keeps working.</p>
                         </div>
                         <div className="space-y-3 rounded-2xl border border-border p-4">
                           <div className="flex items-center gap-2">
@@ -733,6 +811,13 @@ export function ProductEditor({ id }: { id: string }) {
                                 Stops working on (optional)
                                 <input type="datetime-local" className={field} value={expiry} onChange={(e) => setExpiry(e.target.value)} />
                               </label>
+                              {p.allow_download && (
+                                <label className="block">
+                                  Buyer name or order number (stamped on their download)
+                                  <input className={field} maxLength={80} value={stamp} onChange={(e) => setStamp(stripControl(e.target.value))} />
+                                  <span className="mt-1 block text-muted-foreground">Printed small at the foot of every page of the PDF they download. A deterrent, not copy protection.</span>
+                                </label>
+                              )}
                               {newLink && <Button size="sm" variant="line" disabled={dirty} onClick={createLink}>Create link</Button>}
                               <p className="text-muted-foreground">One shared link suits a shop listing. For individual orders, make a link per buyer so you can switch one off without affecting the rest.</p>
                             </div>
@@ -751,6 +836,7 @@ export function ProductEditor({ id }: { id: string }) {
                                       {" · "}
                                       {link.opens ? `Opened ${link.opens} time${link.opens === 1 ? "" : "s"}` : "Not opened yet"}
                                     </p>
+                                    {link.stamp && <p className="truncate text-xs text-muted-foreground">Stamped: {link.stamp}</p>}
                                   </div>
                                   {!link.revoked && (
                                     <Button size="xs" variant="quiet" onClick={() => setRevoking(link)}>Switch off</Button>
@@ -760,6 +846,10 @@ export function ProductEditor({ id }: { id: string }) {
                             </div>
                           </div>
                         )}
+                        <button type="button" className="w-full rounded-2xl border border-border p-4 text-left text-xs hover:bg-muted/50" onClick={() => setPanel("delivery")}>
+                          <span className="block text-sm font-medium">Add an order by hand, or deliver automatically</span>
+                          <span className="mt-1 block text-muted-foreground">Email one buyer their own link, or let Gumroad, Shopify or Zapier do it for each order.</span>
+                        </button>
                         <details className="rounded-2xl border border-border p-4 text-xs">
                           <summary className="cursor-pointer text-sm font-medium">How to deliver through Etsy or another shop</summary>
                           <ol className="mt-3 list-decimal space-y-2 pl-4 text-muted-foreground">
@@ -799,7 +889,27 @@ export function ProductEditor({ id }: { id: string }) {
                       </label>
                       <p className="text-xs text-muted-foreground">Turning off the download button is not copy protection. Readers can still capture content they can view.</p>
                     </div>
+                    <ProductExtras
+                      id={id}
+                      extras={p.extra_files ?? []}
+                      onChange={(next) => patch({ extra_files: next })}
+                      paid={canPublish}
+                      available={columns.extra_files}
+                      limitMb={limit}
+                      onUpgrade={() => setUpgrade("Extra files")}
+                      run={(label, fn) => void run(label, fn)}
+                    />
                   </>
+                )}
+                {panel === "stats" && <ProductStatsPanel id={id} />}
+                {panel === "delivery" && (
+                  <ProductDeliveryPanel
+                    id={id}
+                    business={plan === "business"}
+                    published={p.status === "published"}
+                    onUpgrade={() => setUpgrade("Automatic delivery")}
+                    copy={(text, done) => void copy(text, done)}
+                  />
                 )}
               </fieldset>
             </section>
@@ -879,6 +989,19 @@ export function ProductEditor({ id }: { id: string }) {
             Revoke
           </Button>
         </div>
+      </Modal>
+      <PortfolioQrCode open={share === "qr"} onClose={() => setShare(null)} url={previewUrl} name={p?.title ?? "Product"} />
+      <Modal open={share === "embed"} onClose={() => setShare(null)} title="Embed the preview" description="Paste this code into a website that accepts embeds. It shows only the free preview pages, never the customer edition." wide>
+        {(() => {
+          const embedUrl = `https://portfolia.site/embed/product/${p?.slug || id}`;
+          const safe = (p?.title ?? "Product").replace(/[<>"&]/g, "");
+          const code = `<iframe src="${embedUrl}" style="width:100%;aspect-ratio:16/10;border:0" loading="lazy" allow="fullscreen" title="Preview of ${safe}"></iframe>`;
+          return <div className="space-y-3">
+            <textarea readOnly aria-label="Embed code" rows={4} value={code} onFocus={(e) => e.currentTarget.select()} className={field + " font-mono text-xs"} />
+            <Button size="sm" onClick={() => void copy(code, "Embed code copied.")}><Copy /> Copy code</Button>
+            <p className="text-xs text-muted-foreground">Your website provider may restrict embeds by plan. If it does, use the preview link instead.</p>
+          </div>;
+        })()}
       </Modal>
       <UpgradeModal open={upgrade !== null} reason={upgrade ?? undefined} products={{ plan, returnTo: `/product-studio/${id}` }} onClose={() => setUpgrade(null)} />
       {marketing && (

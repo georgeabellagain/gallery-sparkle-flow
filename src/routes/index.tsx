@@ -2,6 +2,7 @@ import { PortfolioLoading } from "@/components/pf/book-loader";
 import { createFileRoute } from "@tanstack/react-router";
 import { lazy, Suspense } from "react";
 import { softwareSchema } from "@/lib/portfolia/software-schema";
+import { ogImageUrl } from "@/lib/portfolia/marketing-assets";
 const HomeWorkspace = lazy(() => import("@/components/pf/HomeWorkspace").then(m => ({ default: m.HomeWorkspace })));
 
 export const Route = createFileRoute("/")({
@@ -9,7 +10,8 @@ export const Route = createFileRoute("/")({
   loader: () => ({ origin: "https://portfolia.site" }),
   head: ({ loaderData }) => {
     const o = loaderData?.origin ?? "";
-    const img = o ? [{ property: "og:image", content: `${o}/og-image.jpg` }, { name: "twitter:image", content: `${o}/og-image.jpg` }] : [];
+    const og = ogImageUrl("og-home", `${o}/og-image.jpg`);
+    const img = o ? [{ property: "og:image", content: og }, { name: "twitter:image", content: og }] : [];
     return {
       meta: [
         { title: "Free PDF Portfolio Hosting & Flipbooks | Portfolia" },

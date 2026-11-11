@@ -12,6 +12,17 @@ export const PRODUCT_ALLOWANCE: Record<ProductPlan, { products: number; mb: numb
 export const productAllowance = (plan: ProductPlan) => PRODUCT_ALLOWANCE[plan] ?? PRODUCT_ALLOWANCE.free;
 export const PUBLISH_NEEDS_PLAN = "Publishing a product is part of Personal and Business. Upgrade to publish and share it.";
 
+/* Plan 1 features. Readable addresses, statistics, buyer stamps and extra files come with publishing (Personal and
+   Business); automatic delivery is Business only (owner decisions, defaults). */
+/** Feature D: the server stamps downloads up to this size; larger files are stamped in the buyer's browser. */
+export const STAMP_SERVER_LIMIT_BYTES = 20 * 1048576;
+/** Feature E: all extra files together may use twice the plan's PDF allowance. */
+export const extrasTotalBytes = (plan: ProductPlan) => productAllowance(plan).mb * 2 * 1048576;
+/** Feature F: automatic delivery per order, and how many emails a product may send a day. */
+export const autoDelivery = (plan: ProductPlan) => plan === "business";
+export const deliveriesPerDay = (plan: ProductPlan) => (plan === "business" ? 500 : 0);
+export const DELIVERIES_PER_MINUTE = 60;
+
 /** The one thing a product needs next, so every screen points at the same step. */
 export type ProductStep = "upload" | "preview" | "publish" | "share";
 export function nextProductStep(p: { status: string; hasFile: boolean; hasPreview: boolean }): ProductStep {

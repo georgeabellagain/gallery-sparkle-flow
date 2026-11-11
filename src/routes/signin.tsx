@@ -1,7 +1,7 @@
 import { reportSignup } from "@/lib/conversions";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { CenteredPage } from "@/components/pf/Chrome";
+import { CenteredPage, MarketingHeader } from "@/components/pf/Chrome";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useEffect } from "react";
 import { getDoc, update } from "@/lib/portfolia/store";
+import { signinDestination } from "@/lib/portfolia/signin-target";
 
 export const Route = createFileRoute("/signin")({
   staticData: { sitemap: false },
@@ -83,7 +84,10 @@ function SignIn() {
 
   const done = () => {
     update((d) => ({ ...d, account: { signedIn: true } }));
-    void navigate({ to: next === "home" ? "/" : next === "account" ? "/account" : next === "create" && getDoc().portfolio?.status === "draft" ? "/create" : "/dashboard" });
+    const destination = signinDestination(next, getDoc().portfolio?.status === "draft");
+    // The product list reads its own query string, so that one leaves through a full page load.
+    if (destination === "/products?pending=1") window.location.assign(destination);
+    else void navigate({ to: destination });
   };
 
   /** Signed in: on to the account, unless two-step sign-in still wants its code. */
@@ -127,7 +131,7 @@ function SignIn() {
 
   if (needsCode) {
     return (
-      <CenteredPage title="Enter your code" intro="Open your authenticator app and enter the six-digit code for Portfolia.">
+      <CenteredPage header={<MarketingHeader />} title="Enter your code" intro="Open your authenticator app and enter the six-digit code for Portfolia.">
         <form onSubmit={(e) => void verify(e)} className="space-y-4">
           <Input aria-label="Six-digit code" inputMode="numeric" autoComplete="one-time-code" autoFocus maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))} className="h-12 rounded-full text-center text-lg tracking-[0.4em]" />
           {err && <p role="alert" className="text-center text-sm text-destructive">{err}</p>}
@@ -140,7 +144,7 @@ function SignIn() {
   }
 
   return (
-    <CenteredPage title={mode === "in" ? "Welcome back" : "Create your account"} intro={mode === "in" ? "Sign in to edit and share your portfolios." : "Free forever for one portfolio. No card needed."}>
+    <CenteredPage header={<MarketingHeader />} title={mode === "in" ? "Welcome back" : "Create your account"} intro={mode === "in" ? "Sign in to edit and share your portfolios." : "Free forever for one portfolio. No card needed."}>
       <div className="space-y-2">
         <Button type="button" variant="line" className="w-full" onClick={() => void oauth("google")}><GoogleMark />Continue with Google</Button>
         <Button type="button" variant="line" className="w-full" onClick={() => void oauth("apple")}><AppleMark />Continue with Apple</Button>

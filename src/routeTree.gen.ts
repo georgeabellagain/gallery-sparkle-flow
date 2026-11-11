@@ -26,6 +26,7 @@ import { Route as EmbedFlipbookInNotionRouteImport } from './routes/embed-flipbo
 import { Route as EmbedFlipbookInSquarespaceRouteImport } from './routes/embed-flipbook-in-squarespace'
 import { Route as EmbedFlipbookInWixRouteImport } from './routes/embed-flipbook-in-wix'
 import { Route as EtsyDigitalProductPreviewRouteImport } from './routes/etsy-digital-product-preview'
+import { Route as ExamplesRouteImport } from './routes/examples'
 import { Route as FashionPortfolioRouteImport } from './routes/fashion-portfolio'
 import { Route as FlipbookAlternativesRouteImport } from './routes/flipbook-alternatives'
 import { Route as FlipbookletsAlternativeRouteImport } from './routes/flipbooklets-alternative'
@@ -35,6 +36,7 @@ import { Route as FreePdfFlipbookRouteImport } from './routes/free-pdf-flipbook'
 import { Route as FreePdfPortfolioRouteImport } from './routes/free-pdf-portfolio'
 import { Route as FreePortfolioWebsiteRouteImport } from './routes/free-portfolio-website'
 import { Route as GraphicDesignPortfolioRouteImport } from './routes/graphic-design-portfolio'
+import { Route as GuidesRouteImport } from './routes/guides'
 import { Route as HdriBookVisualisationRouteImport } from './routes/hdri-book-visualisation'
 import { Route as HeyzineAlternativeRouteImport } from './routes/heyzine-alternative'
 import { Route as HostPdfRouteImport } from './routes/host-pdf'
@@ -77,12 +79,15 @@ import { Route as ProductStudioIdRouteImport } from './routes/product-studio.$id
 import { Route as ProductIdRouteImport } from './routes/product.$id'
 import { Route as UUsernameRouteImport } from './routes/u.$username'
 import { Route as ApiPublicFaviconRouteImport } from './routes/api/public/favicon'
+import { Route as EmbedProductIdRouteImport } from './routes/embed.product.$id'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicPortfolioCoverCodeRouteImport } from './routes/api/public/portfolio-cover/$code'
 import { Route as ApiPublicPortfolioFileCodeRouteImport } from './routes/api/public/portfolio-file/$code'
+import { Route as ApiPublicProductCoverIdRouteImport } from './routes/api/public/product-cover/$id'
 import { Route as ApiPublicProductFileIdRouteImport } from './routes/api/public/product-file/$id'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
+import { Route as ApiPublicProductDeliveryIdSourceRouteImport } from './routes/api/public/product-delivery/$id.$source'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -171,6 +176,11 @@ const EtsyDigitalProductPreviewRoute =
     path: '/etsy-digital-product-preview',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ExamplesRoute = ExamplesRouteImport.update({
+  id: '/examples',
+  path: '/examples',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FashionPortfolioRoute = FashionPortfolioRouteImport.update({
   id: '/fashion-portfolio',
   path: '/fashion-portfolio',
@@ -214,6 +224,11 @@ const FreePortfolioWebsiteRoute = FreePortfolioWebsiteRouteImport.update({
 const GraphicDesignPortfolioRoute = GraphicDesignPortfolioRouteImport.update({
   id: '/graphic-design-portfolio',
   path: '/graphic-design-portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesRoute = GuidesRouteImport.update({
+  id: '/guides',
+  path: '/guides',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HdriBookVisualisationRoute = HdriBookVisualisationRouteImport.update({
@@ -427,6 +442,11 @@ const ApiPublicFaviconRoute = ApiPublicFaviconRouteImport.update({
   path: '/api/public/favicon',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EmbedProductIdRoute = EmbedProductIdRouteImport.update({
+  id: '/embed/product/$id',
+  path: '/embed/product/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
@@ -445,6 +465,11 @@ const ApiPublicPortfolioFileCodeRoute =
     path: '/api/public/portfolio-file/$code',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicProductCoverIdRoute = ApiPublicProductCoverIdRouteImport.update({
+  id: '/api/public/product-cover/$id',
+  path: '/api/public/product-cover/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicProductFileIdRoute = ApiPublicProductFileIdRouteImport.update({
   id: '/api/public/product-file/$id',
   path: '/api/public/product-file/$id',
@@ -460,6 +485,12 @@ const LovableEmailAuthWebhookRoute = LovableEmailAuthWebhookRouteImport.update({
   path: '/lovable/email/auth/webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicProductDeliveryIdSourceRoute =
+  ApiPublicProductDeliveryIdSourceRouteImport.update({
+    id: '/api/public/product-delivery/$id/$source',
+    path: '/api/public/product-delivery/$id/$source',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -479,6 +510,7 @@ export interface FileRoutesByFullPath {
   '/embed-flipbook-in-squarespace': typeof EmbedFlipbookInSquarespaceRoute
   '/embed-flipbook-in-wix': typeof EmbedFlipbookInWixRoute
   '/etsy-digital-product-preview': typeof EtsyDigitalProductPreviewRoute
+  '/examples': typeof ExamplesRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
   '/flipbook-alternatives': typeof FlipbookAlternativesRoute
   '/flipbooklets-alternative': typeof FlipbookletsAlternativeRoute
@@ -488,6 +520,7 @@ export interface FileRoutesByFullPath {
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
   '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
+  '/guides': typeof GuidesRoute
   '/hdri-book-visualisation': typeof HdriBookVisualisationRoute
   '/heyzine-alternative': typeof HeyzineAlternativeRoute
   '/host-pdf': typeof HostPdfRoute
@@ -530,12 +563,15 @@ export interface FileRoutesByFullPath {
   '/product/$id': typeof ProductIdRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/favicon': typeof ApiPublicFaviconRoute
+  '/embed/product/$id': typeof EmbedProductIdRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
   '/api/public/portfolio-file/$code': typeof ApiPublicPortfolioFileCodeRoute
+  '/api/public/product-cover/$id': typeof ApiPublicProductCoverIdRoute
   '/api/public/product-file/$id': typeof ApiPublicProductFileIdRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
+  '/api/public/product-delivery/$id/$source': typeof ApiPublicProductDeliveryIdSourceRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -555,6 +591,7 @@ export interface FileRoutesByTo {
   '/embed-flipbook-in-squarespace': typeof EmbedFlipbookInSquarespaceRoute
   '/embed-flipbook-in-wix': typeof EmbedFlipbookInWixRoute
   '/etsy-digital-product-preview': typeof EtsyDigitalProductPreviewRoute
+  '/examples': typeof ExamplesRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
   '/flipbook-alternatives': typeof FlipbookAlternativesRoute
   '/flipbooklets-alternative': typeof FlipbookletsAlternativeRoute
@@ -564,6 +601,7 @@ export interface FileRoutesByTo {
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
   '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
+  '/guides': typeof GuidesRoute
   '/hdri-book-visualisation': typeof HdriBookVisualisationRoute
   '/heyzine-alternative': typeof HeyzineAlternativeRoute
   '/host-pdf': typeof HostPdfRoute
@@ -606,12 +644,15 @@ export interface FileRoutesByTo {
   '/product/$id': typeof ProductIdRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/favicon': typeof ApiPublicFaviconRoute
+  '/embed/product/$id': typeof EmbedProductIdRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
   '/api/public/portfolio-file/$code': typeof ApiPublicPortfolioFileCodeRoute
+  '/api/public/product-cover/$id': typeof ApiPublicProductCoverIdRoute
   '/api/public/product-file/$id': typeof ApiPublicProductFileIdRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
+  '/api/public/product-delivery/$id/$source': typeof ApiPublicProductDeliveryIdSourceRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -632,6 +673,7 @@ export interface FileRoutesById {
   '/embed-flipbook-in-squarespace': typeof EmbedFlipbookInSquarespaceRoute
   '/embed-flipbook-in-wix': typeof EmbedFlipbookInWixRoute
   '/etsy-digital-product-preview': typeof EtsyDigitalProductPreviewRoute
+  '/examples': typeof ExamplesRoute
   '/fashion-portfolio': typeof FashionPortfolioRoute
   '/flipbook-alternatives': typeof FlipbookAlternativesRoute
   '/flipbooklets-alternative': typeof FlipbookletsAlternativeRoute
@@ -641,6 +683,7 @@ export interface FileRoutesById {
   '/free-pdf-portfolio': typeof FreePdfPortfolioRoute
   '/free-portfolio-website': typeof FreePortfolioWebsiteRoute
   '/graphic-design-portfolio': typeof GraphicDesignPortfolioRoute
+  '/guides': typeof GuidesRoute
   '/hdri-book-visualisation': typeof HdriBookVisualisationRoute
   '/heyzine-alternative': typeof HeyzineAlternativeRoute
   '/host-pdf': typeof HostPdfRoute
@@ -683,12 +726,15 @@ export interface FileRoutesById {
   '/product/$id': typeof ProductIdRoute
   '/u/$username': typeof UUsernameRoute
   '/api/public/favicon': typeof ApiPublicFaviconRoute
+  '/embed/product/$id': typeof EmbedProductIdRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
   '/api/public/portfolio-file/$code': typeof ApiPublicPortfolioFileCodeRoute
+  '/api/public/product-cover/$id': typeof ApiPublicProductCoverIdRoute
   '/api/public/product-file/$id': typeof ApiPublicProductFileIdRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
+  '/api/public/product-delivery/$id/$source': typeof ApiPublicProductDeliveryIdSourceRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -710,6 +756,7 @@ export interface FileRouteTypes {
     | '/embed-flipbook-in-squarespace'
     | '/embed-flipbook-in-wix'
     | '/etsy-digital-product-preview'
+    | '/examples'
     | '/fashion-portfolio'
     | '/flipbook-alternatives'
     | '/flipbooklets-alternative'
@@ -719,6 +766,7 @@ export interface FileRouteTypes {
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
     | '/graphic-design-portfolio'
+    | '/guides'
     | '/hdri-book-visualisation'
     | '/heyzine-alternative'
     | '/host-pdf'
@@ -761,12 +809,15 @@ export interface FileRouteTypes {
     | '/product/$id'
     | '/u/$username'
     | '/api/public/favicon'
+    | '/embed/product/$id'
     | '/api/public/payments/webhook'
     | '/api/public/portfolio-cover/$code'
     | '/api/public/portfolio-file/$code'
+    | '/api/public/product-cover/$id'
     | '/api/public/product-file/$id'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
+    | '/api/public/product-delivery/$id/$source'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -786,6 +837,7 @@ export interface FileRouteTypes {
     | '/embed-flipbook-in-squarespace'
     | '/embed-flipbook-in-wix'
     | '/etsy-digital-product-preview'
+    | '/examples'
     | '/fashion-portfolio'
     | '/flipbook-alternatives'
     | '/flipbooklets-alternative'
@@ -795,6 +847,7 @@ export interface FileRouteTypes {
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
     | '/graphic-design-portfolio'
+    | '/guides'
     | '/hdri-book-visualisation'
     | '/heyzine-alternative'
     | '/host-pdf'
@@ -837,12 +890,15 @@ export interface FileRouteTypes {
     | '/product/$id'
     | '/u/$username'
     | '/api/public/favicon'
+    | '/embed/product/$id'
     | '/api/public/payments/webhook'
     | '/api/public/portfolio-cover/$code'
     | '/api/public/portfolio-file/$code'
+    | '/api/public/product-cover/$id'
     | '/api/public/product-file/$id'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
+    | '/api/public/product-delivery/$id/$source'
   id:
     | '__root__'
     | '/'
@@ -862,6 +918,7 @@ export interface FileRouteTypes {
     | '/embed-flipbook-in-squarespace'
     | '/embed-flipbook-in-wix'
     | '/etsy-digital-product-preview'
+    | '/examples'
     | '/fashion-portfolio'
     | '/flipbook-alternatives'
     | '/flipbooklets-alternative'
@@ -871,6 +928,7 @@ export interface FileRouteTypes {
     | '/free-pdf-portfolio'
     | '/free-portfolio-website'
     | '/graphic-design-portfolio'
+    | '/guides'
     | '/hdri-book-visualisation'
     | '/heyzine-alternative'
     | '/host-pdf'
@@ -913,12 +971,15 @@ export interface FileRouteTypes {
     | '/product/$id'
     | '/u/$username'
     | '/api/public/favicon'
+    | '/embed/product/$id'
     | '/api/public/payments/webhook'
     | '/api/public/portfolio-cover/$code'
     | '/api/public/portfolio-file/$code'
+    | '/api/public/product-cover/$id'
     | '/api/public/product-file/$id'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
+    | '/api/public/product-delivery/$id/$source'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -939,6 +1000,7 @@ export interface RootRouteChildren {
   EmbedFlipbookInSquarespaceRoute: typeof EmbedFlipbookInSquarespaceRoute
   EmbedFlipbookInWixRoute: typeof EmbedFlipbookInWixRoute
   EtsyDigitalProductPreviewRoute: typeof EtsyDigitalProductPreviewRoute
+  ExamplesRoute: typeof ExamplesRoute
   FashionPortfolioRoute: typeof FashionPortfolioRoute
   FlipbookAlternativesRoute: typeof FlipbookAlternativesRoute
   FlipbookletsAlternativeRoute: typeof FlipbookletsAlternativeRoute
@@ -948,6 +1010,7 @@ export interface RootRouteChildren {
   FreePdfPortfolioRoute: typeof FreePdfPortfolioRoute
   FreePortfolioWebsiteRoute: typeof FreePortfolioWebsiteRoute
   GraphicDesignPortfolioRoute: typeof GraphicDesignPortfolioRoute
+  GuidesRoute: typeof GuidesRoute
   HdriBookVisualisationRoute: typeof HdriBookVisualisationRoute
   HeyzineAlternativeRoute: typeof HeyzineAlternativeRoute
   HostPdfRoute: typeof HostPdfRoute
@@ -990,12 +1053,15 @@ export interface RootRouteChildren {
   ProductIdRoute: typeof ProductIdRoute
   UUsernameRoute: typeof UUsernameRoute
   ApiPublicFaviconRoute: typeof ApiPublicFaviconRoute
+  EmbedProductIdRoute: typeof EmbedProductIdRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicPortfolioCoverCodeRoute: typeof ApiPublicPortfolioCoverCodeRoute
   ApiPublicPortfolioFileCodeRoute: typeof ApiPublicPortfolioFileCodeRoute
+  ApiPublicProductCoverIdRoute: typeof ApiPublicProductCoverIdRoute
   ApiPublicProductFileIdRoute: typeof ApiPublicProductFileIdRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
+  ApiPublicProductDeliveryIdSourceRoute: typeof ApiPublicProductDeliveryIdSourceRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1119,6 +1185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EtsyDigitalProductPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/examples': {
+      id: '/examples'
+      path: '/examples'
+      fullPath: '/examples'
+      preLoaderRoute: typeof ExamplesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/fashion-portfolio': {
       id: '/fashion-portfolio'
       path: '/fashion-portfolio'
@@ -1180,6 +1253,13 @@ declare module '@tanstack/react-router' {
       path: '/graphic-design-portfolio'
       fullPath: '/graphic-design-portfolio'
       preLoaderRoute: typeof GraphicDesignPortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides': {
+      id: '/guides'
+      path: '/guides'
+      fullPath: '/guides'
+      preLoaderRoute: typeof GuidesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/hdri-book-visualisation': {
@@ -1476,6 +1556,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicFaviconRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/embed/product/$id': {
+      id: '/embed/product/$id'
+      path: '/embed/product/$id'
+      fullPath: '/embed/product/$id'
+      preLoaderRoute: typeof EmbedProductIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
@@ -1495,6 +1582,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/portfolio-file/$code'
       fullPath: '/api/public/portfolio-file/$code'
       preLoaderRoute: typeof ApiPublicPortfolioFileCodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/product-cover/$id': {
+      id: '/api/public/product-cover/$id'
+      path: '/api/public/product-cover/$id'
+      fullPath: '/api/public/product-cover/$id'
+      preLoaderRoute: typeof ApiPublicProductCoverIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/product-file/$id': {
@@ -1518,6 +1612,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailAuthWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/product-delivery/$id/$source': {
+      id: '/api/public/product-delivery/$id/$source'
+      path: '/api/public/product-delivery/$id/$source'
+      fullPath: '/api/public/product-delivery/$id/$source'
+      preLoaderRoute: typeof ApiPublicProductDeliveryIdSourceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1539,6 +1640,7 @@ const rootRouteChildren: RootRouteChildren = {
   EmbedFlipbookInSquarespaceRoute: EmbedFlipbookInSquarespaceRoute,
   EmbedFlipbookInWixRoute: EmbedFlipbookInWixRoute,
   EtsyDigitalProductPreviewRoute: EtsyDigitalProductPreviewRoute,
+  ExamplesRoute: ExamplesRoute,
   FashionPortfolioRoute: FashionPortfolioRoute,
   FlipbookAlternativesRoute: FlipbookAlternativesRoute,
   FlipbookletsAlternativeRoute: FlipbookletsAlternativeRoute,
@@ -1548,6 +1650,7 @@ const rootRouteChildren: RootRouteChildren = {
   FreePdfPortfolioRoute: FreePdfPortfolioRoute,
   FreePortfolioWebsiteRoute: FreePortfolioWebsiteRoute,
   GraphicDesignPortfolioRoute: GraphicDesignPortfolioRoute,
+  GuidesRoute: GuidesRoute,
   HdriBookVisualisationRoute: HdriBookVisualisationRoute,
   HeyzineAlternativeRoute: HeyzineAlternativeRoute,
   HostPdfRoute: HostPdfRoute,
@@ -1590,12 +1693,15 @@ const rootRouteChildren: RootRouteChildren = {
   ProductIdRoute: ProductIdRoute,
   UUsernameRoute: UUsernameRoute,
   ApiPublicFaviconRoute: ApiPublicFaviconRoute,
+  EmbedProductIdRoute: EmbedProductIdRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicPortfolioCoverCodeRoute: ApiPublicPortfolioCoverCodeRoute,
   ApiPublicPortfolioFileCodeRoute: ApiPublicPortfolioFileCodeRoute,
+  ApiPublicProductCoverIdRoute: ApiPublicProductCoverIdRoute,
   ApiPublicProductFileIdRoute: ApiPublicProductFileIdRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
+  ApiPublicProductDeliveryIdSourceRoute: ApiPublicProductDeliveryIdSourceRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

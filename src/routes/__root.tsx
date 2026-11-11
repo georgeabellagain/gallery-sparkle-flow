@@ -1,4 +1,6 @@
 import { CookieBanner } from "@/components/pf/CookieBanner";
+import { MarketingHeader, SiteFooter } from "@/components/pf/Chrome";
+import { Button } from "@/components/ui/button";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -22,24 +24,22 @@ import { startCloudSync } from "../lib/portfolia/cloud";
 const openedFromResetLink = typeof window !== "undefined" && /(?:^|[#&?])type=recovery(?:&|$)/.test(`${window.location.hash}&${window.location.search}`);
 
 function NotFoundComponent() {
+  // The shared header, a short line and two ways on: home, or straight to the upload box (plan 2, S10).
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <a href="/" className="display-title text-3xl">Portfolia</a>
-        <p className="mt-8 text-xs text-muted-foreground">404</p>
-        <h1 className="display-title mt-3 text-3xl text-foreground">This page isn’t here.</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
-        </p>
-        <div className="mt-6">
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            Go home
-          </Link>
+    <div className="flex min-h-screen flex-col bg-background">
+      <MarketingHeader />
+      <main className="flex flex-1 items-center justify-center px-4 py-16">
+        <div className="max-w-md text-center">
+          <p className="label-xs">404</p>
+          <h1 className="display-title mt-3 text-4xl text-foreground sm:text-5xl">This page isn’t here.</h1>
+          <p className="mt-3 text-[15px] text-muted-foreground">The page you’re looking for doesn’t exist or has been moved.</p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Button asChild><a href="/#upload">Upload a PDF</a></Button>
+            <Button asChild variant="line"><Link to="/">Go home</Link></Button>
+          </div>
         </div>
-      </div>
+      </main>
+      <SiteFooter />
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { allPortfolios, type Doc } from "./store";
  * download separately. Page pictures are copies Portfolia drew from each PDF so it opens quickly; their file
  * names are listed so the export accounts for every stored file.
  */
-export function accountExport(doc: Doc, email?: string, now = new Date()) {
+export function accountExport(doc: Doc, email?: string, now = new Date(), products?: unknown[]) {
   return {
     exportedAt: now.toISOString(),
     account: { email: email ?? null },
@@ -20,8 +20,10 @@ export function accountExport(doc: Doc, email?: string, now = new Date()) {
         ...(pagePictures.length ? { pagePictureFiles: pagePictures } : {}),
       };
     }),
+    // Digital products with their customer links and orders (buyer emails kept for the seller), read from the server.
+    ...(products ? { products } : {}),
   };
 }
-export function accountExportFile(doc: Doc, email?: string, now = new Date()) {
-  return new Blob([JSON.stringify(accountExport(doc, email, now), null, 2)], { type: "application/json" });
+export function accountExportFile(doc: Doc, email?: string, now = new Date(), products?: unknown[]) {
+  return new Blob([JSON.stringify(accountExport(doc, email, now, products), null, 2)], { type: "application/json" });
 }
