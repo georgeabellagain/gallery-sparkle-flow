@@ -1,4 +1,5 @@
 import { BACKGROUND_PRESETS } from "../portfolia/background-presets";
+import { isBackgroundScene } from "../portfolia/background-scenes";
 import { z } from "zod";
 import { readableTurnCurve } from "../portfolia/turn-curve";
 import { readableTurnStyle } from "../portfolia/turn-motion";
@@ -15,6 +16,14 @@ export const productFile = z.object({
 export type ProductFile = z.infer<typeof productFile>;
 const hex = z.string().regex(/^#[a-fA-F0-9]{6}$/);
 const fit = z.object({ scale: z.number().min(0.05).max(10), x: z.number().min(-5).max(5), y: z.number().min(-5).max(5), tile: z.boolean().optional() });
+function listingText(max: number) {
+  return z
+    .string()
+    .max(max)
+    .refine((s) => ![...s].some((c) => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127), "Use plain text.")
+    .transform((s) => s.trim() || undefined)
+    .optional();
+}
 // Deliberate allowlist: no hidden pages, asset keys, tracking, scripts or external
 // media in the public product reader. Preview and customer files stay separate.
 export const productAppearance = z.object({
@@ -39,7 +48,8 @@ export const productAppearance = z.object({
   backgroundColor: hex.optional(),
   backgroundPreset: z
     .string()
-    .refine((v) => BACKGROUND_PRESETS.some((p) => p.id === v), "Choose a listed background")
+    // Photographic surfaces and the built-in animated scenes; both ship with the site.
+    .refine((v) => BACKGROUND_PRESETS.some((p) => p.id === v) || isBackgroundScene(v), "Choose a listed background")
     .optional(),
   spreads: z.enum(["single", "ready"]).optional(),
   simpleShadow: z.boolean().optional(),
@@ -52,7 +62,7 @@ export const productAppearance = z.object({
       z.object({ backgroundColor: hex.optional(), backgroundPreset: z.string().max(60).optional(), backgroundFit: fit.optional() }),
     )
     .optional(),
-  idleOrbit: z.enum(["start", "always", "off"]).optional(),
+  idleOrbit: z.enum(["start", "idle", "always", "off"]).optional(),
   paper: z.string().max(30).optional(),
   light: z.string().max(30).optional(),
   thickness: z.string().max(30).optional(),
@@ -60,7 +70,41 @@ export const productAppearance = z.object({
   ribbon: z.boolean().optional(),
   ribbonColour: hex.optional(),
   previewWatermark: z.boolean().optional(),
+  // How customers may read: the flipbook always, plus Scroll and Page by page when the seller offers them.
+  modes: z
+    .array(z.enum(["scroll", "paged", "book"]))
+    .min(1)
+    .max(3)
+    .refine((m) => m.includes("book"), "The flipbook is always offered.")
+    .optional(),
+  // Turn the pages by themselves until the reader does something; seconds between turns.
+  autoFlip: z.number().min(2).max(30).optional(),
+  // What shoppers are told beside the Buy button. Plain text only; an empty value is not stored.
+  price: listingText(24),
+  buyLabel: listingText(40),
+  seller: listingText(60),
 });
+/** The seller's own words on the public page: a price, the Buy button's wording and who it is by. */
+export type ProductListing = { price?: string; buyLabel?: string; seller?: string };
+export const DEFAULT_BUY_LABEL = "Buy the full product";
+export function productListing(appearance: unknown): ProductListing {
+  const a = (appearance ?? {}) as Record<string, unknown>;
+  const text = (v: unknown, max: number) => (typeof v === "string" && v.trim() ? stripControl(v, " ").trim().slice(0, max) : undefined);
+  return { price: text(a["price"], 24), buyLabel: text(a["buyLabel"], 40), seller: text(a["seller"], 60) };
+}
+/** The Buy button's words: the seller's own or the default, with the price when one is given. */
+export function buyButtonLabel(listing: ProductListing) {
+  return `${listing.buyLabel || DEFAULT_BUY_LABEL}${listing.price ? ` · ${listing.price}` : ""}`;
+}
+/** A shop link typed in the editor: "" when fine or empty, otherwise what is wrong with it. */
+export function shopUrlProblem(value: string) {
+  try {
+    shopUrl(value);
+    return "";
+  } catch {
+    return "Use the full address of your shop or listing, starting with https://";
+  }
+}
 export function shopUrl(value: string) {
   if (!value.trim()) return "";
   const u = new URL(value);
@@ -176,7 +220,7 @@ export function isMissingColumn(error: { code?: string; message?: string } | nul
 /** Columns added by plan 1's migrations: left out of a save when the database does not have them yet. */
 export const OPTIONAL_PRODUCT_COLUMNS = ["cover_file", "slug", "extra_files"] as const;
 export type Product = Omit<z.infer<typeof saveProductSchema>, "appearance"> & {
-  appearance: Partial<ViewerSettings>;
+  appearance: Partial<ViewerSettings> & ProductListing;
   updated_at: string;
 };
 export function productFilePath(owner: string, id: string, path: string) {
@@ -233,6 +277,17 @@ export function publicProduct(row: Product, customer: boolean, link?: { stamp?: 
       ? `/api/public/product-file/${row.id}?edition=${customer ? "customer" : "preview"}&v=${row.revision}`
       : null,
   };
+}
+
+/** A quick preview choice: the cover and a spread from about a quarter, half and three quarters of the way through. */
+export function samplePages(total: number): number[] {
+  const pages = new Set(total >= 1 ? [1] : []);
+  for (const part of [0.25, 0.5, 0.75]) {
+    const left = Math.max(2, Math.round((total * part) / 2) * 2);
+    if (left <= total) pages.add(left);
+    if (left + 1 <= total) pages.add(left + 1);
+  }
+  return [...pages].sort((a, b) => a - b);
 }
 
 /** Reading spreads after the cover: pages 2-3, 4-5, ... (the last may be a single page). */

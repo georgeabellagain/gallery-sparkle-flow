@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useBlocker } from "@tanstack/react-router";
-import { ArrowLeft, Book as BookIcon, Camera, ChartNoAxesColumn, ChevronRight, ChevronsLeft, ChevronsRight, Code, Copy, Eye, FileText, Image as ImageIcon, KeyRound, Megaphone, QrCode, ScanEye, Share2, Sun, Upload, X, Zap } from "lucide-react";
+import { ArrowLeft, Book as BookIcon, Camera, ChartNoAxesColumn, ChevronRight, ChevronsLeft, ChevronsRight, Code, Copy, Eye, FileText, Image as ImageIcon, KeyRound, Megaphone, QrCode, ScanEye, Share2, Sun, Undo2, Upload, X, Zap } from "lucide-react";
+import { STYLE_PRESETS, matchingPreset, presetIsPersonal, presetPatch, presetSwatch } from "@/lib/portfolia/style-presets";
 import { Modal, Wordmark } from "@/components/pf/Chrome";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
 import { defaultPreviewPages, nextProductStep, type ProductPlan } from "@/lib/products/plan";
@@ -21,7 +22,7 @@ import { PortfolioQrCode } from "@/components/pf/PortfolioQrCode";
 import { ProductStatsPanel } from "./ProductStatsPanel";
 import { ProductDeliveryPanel } from "./ProductDeliveryPanel";
 import { ProductExtras } from "./ProductExtras";
-import { previewPages, previewSpreads, productShareUrl, productSlug, slugFromTitle, stripControl, type Product } from "@/lib/products/model";
+import { DEFAULT_BUY_LABEL, buyButtonLabel, previewPages, previewSpreads, productListing, productShareUrl, productSlug, samplePages, shopUrlProblem, slugFromTitle, stripControl, type Product, type ProductListing } from "@/lib/products/model";
 import { takePendingProductPdf } from "@/lib/products/pending";
 import { buildProductPreview, deliverySheet, downloadBlob, renderProductCover } from "@/lib/products/preview";
 import {
@@ -137,6 +138,8 @@ export function ProductEditor({ id }: { id: string }) {
   const load = async () => {
     const data = await ownerProduct({ data: { id }, headers: await productAuth() });
     setP(data.product);
+    history.current = [];
+    setCanUndo(false);
     setBaseline(JSON.stringify(data.product));
     setPersonal(data.personal);
     setPlan(data.plan);
@@ -181,8 +184,64 @@ export function ProductEditor({ id }: { id: string }) {
       }
       return !current;
     });
-  const patch = (values: Partial<Product>) => setP((old) => (old ? { ...old, ...values } : old));
+  // Undo for words and appearance (not files or publishing): a step is kept when typing or dragging pauses.
+  const history = useRef<Array<Pick<Product, "title" | "description" | "buy_url" | "appearance">>>([]),
+    lastStep = useRef(0),
+    current = useRef(p);
+  current.current = p;
+  const [canUndo, setCanUndo] = useState(false);
+  const patch = (values: Partial<Product>) => {
+    const old = current.current;
+    if (old && (["title", "description", "buy_url", "appearance"] as const).some((key) => key in values)) {
+      const now = Date.now();
+      if (now - lastStep.current > 700) {
+        history.current.push({ title: old.title, description: old.description, buy_url: old.buy_url, appearance: old.appearance });
+        if (history.current.length > 40) history.current.shift();
+        setCanUndo(true);
+      }
+      lastStep.current = now;
+    }
+    setP((was) => (was ? { ...was, ...values } : was));
+  };
+  const undo = () => {
+    const step = history.current.pop();
+    if (!step) return;
+    lastStep.current = 0;
+    setP((was) => (was ? { ...was, ...step } : was));
+    setCanUndo(history.current.length > 0);
+    if (step.appearance.look) pinPreviewLook(step.appearance.look);
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== "z") return;
+      // Text boxes keep their own undo.
+      if (e.target instanceof HTMLElement && e.target.closest("input, textarea, select, [contenteditable]")) return;
+      e.preventDefault();
+      undo();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const viewer = { ...DEFAULT_VIEWER, ...p?.appearance, showHeader: false };
+  const setListing = (values: ProductListing) => {
+    if (p) patch({ appearance: { ...p.appearance, ...values } });
+  };
+  const urlProblem = p ? shopUrlProblem(p.buy_url) : "";
+  const offered = viewer.modes?.length ? viewer.modes : (["book", "scroll", "paged"] as const);
+  const chosenPreset = matchingPreset(viewer);
+  // The preview file is made on request, so say when the choices no longer match it.
+  const previewStale = (() => {
+    if (!p?.full_file || !p.preview_file) return false;
+    let chosen: number[];
+    try {
+      chosen = previewPages(pages, p.full_file.pages);
+    } catch {
+      return false;
+    }
+    const saved = baseline ? (JSON.parse(baseline) as Product) : null;
+    const sameFile = saved?.preview_file?.path === p.preview_file.path;
+    return chosen.join() !== p.preview_pages.join() || (sameFile && Boolean(saved?.appearance.previewWatermark) !== Boolean(p.appearance.previewWatermark));
+  })();
   const setViewer = (values: Partial<ViewerSettings>) => {
     patch({ appearance: { ...viewer, ...values } });
     return true;
@@ -427,6 +486,11 @@ export function ProductEditor({ id }: { id: string }) {
             Free try-out · Upgrade to publish
           </button>
         )}
+        {canUndo && (
+          <Button size="sm" variant="quiet" className="hidden shrink-0 sm:inline-flex" disabled={!!busy} onClick={undo} title="Undo (Ctrl+Z)" aria-label="Undo the last change">
+            <Undo2 /> <span className="hidden lg:inline">Undo</span>
+          </Button>
+        )}
         {dirty && (
           <Button size="sm" variant="quiet" className="hidden shrink-0 sm:inline-flex" disabled={!!busy} onClick={() => setDialog("discard")}>
             Discard
@@ -607,13 +671,35 @@ export function ProductEditor({ id }: { id: string }) {
                 {panel === "details" && (
                   <>
                     <label className="block text-sm">
-                      Description
-                      <textarea className={field} rows={5} maxLength={3000} value={p.description} onChange={(e) => patch({ description: e.target.value })} />
+                      <span className="flex items-baseline justify-between gap-2">Description<span className="text-xs text-muted-foreground">{p.description.length}/3000</span></span>
+                      <textarea className={field} rows={5} maxLength={3000} placeholder="What it is, who it’s for and what the buyer gets." value={p.description} onChange={(e) => patch({ description: e.target.value })} />
                     </label>
                     <label className="block text-sm">
-                      Shop or listing URL
-                      <input type="url" placeholder="https://www.etsy.com/listing/…" className={field} value={p.buy_url} onChange={(e) => patch({ buy_url: e.target.value })} />
+                      By (your name or shop)
+                      <input className={field} maxLength={60} placeholder="Shown under the title" value={p.appearance.seller ?? ""} onChange={(e) => setListing({ seller: e.target.value })} />
                     </label>
+                    <div className="space-y-3 border-t border-border pt-4">
+                      <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Buy button</h3>
+                      <label className="block text-sm">
+                        Shop or listing URL
+                        <input type="url" placeholder="https://www.etsy.com/listing/…" className={field} value={p.buy_url} aria-invalid={Boolean(urlProblem)} onChange={(e) => patch({ buy_url: e.target.value })} />
+                      </label>
+                      {urlProblem ? <p role="alert" className="text-xs text-destructive">{urlProblem}</p> : !p.buy_url.trim() && <p className="text-xs text-muted-foreground">Without a link, shoppers see the preview but no Buy button.</p>}
+                      <div className="grid grid-cols-[1fr_7rem] gap-2">
+                        <label className="block text-sm">
+                          Button wording
+                          <input className={field} maxLength={40} placeholder={DEFAULT_BUY_LABEL} value={p.appearance.buyLabel ?? ""} onChange={(e) => setListing({ buyLabel: e.target.value })} />
+                        </label>
+                        <label className="block text-sm">
+                          Price
+                          <input className={field} maxLength={24} placeholder="£6" value={p.appearance.price ?? ""} onChange={(e) => setListing({ price: e.target.value })} />
+                        </label>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Shoppers will see: <span className="rounded-full bg-foreground px-2.5 py-1 text-background">{buyButtonLabel(productListing(p.appearance))} ↗</span>
+                      </p>
+                      <p className="text-xs text-muted-foreground">The price is only a label. Keep it the same as in your shop, where the sale happens.</p>
+                    </div>
                   </>
                 )}
                 {panel === "pages" && (
@@ -652,6 +738,14 @@ export function ProductEditor({ id }: { id: string }) {
                         </div>
                       );
                     })()}
+                    {p.full_file && (
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">Quick picks:</span>
+                        <button type="button" className="underline underline-offset-4" onClick={() => setPages("1")}>Cover only</button>
+                        <button type="button" className="underline underline-offset-4" onClick={() => setPages(pageRanges([1, 2, 3, 4, 5, 6, 7].filter((n) => n <= p.full_file!.pages)))}>First 3 spreads</button>
+                        <button type="button" className="underline underline-offset-4" onClick={() => setPages(pageRanges(samplePages(p.full_file!.pages)))}>A sample from across the book</button>
+                      </div>
+                    )}
                     <label className="block text-sm">
                       Or type pages and spreads
                       <input className={field} placeholder="2-3, 6-7" value={pages} onChange={(e) => setPages(e.target.value)} />
@@ -660,6 +754,7 @@ export function ProductEditor({ id }: { id: string }) {
                       <span>Watermark the preview<span className="block text-xs text-muted-foreground">A faint “Preview” mark across every page.</span></span>
                       <input type="checkbox" checked={viewer.previewWatermark ?? false} onChange={(e) => setViewer({ previewWatermark: e.target.checked })} />
                     </label>
+                    {previewStale && <p role="status" className="rounded-xl bg-leaf-soft px-3 py-2 text-xs text-leaf">Your choices have changed. Update the preview to apply them.</p>}
                     <Button className="w-full" disabled={!full} onClick={generatePreview}>{p.preview_file ? "Update preview" : "Make preview"}</Button>
                     <p className="text-xs text-muted-foreground">
                       Shoppers currently see: {p.preview_pages.length ? `pages ${pageRanges(p.preview_pages)}` : "nothing yet"}. The cover is always included. Up to 40 pages. Update the preview after changing the selection.
@@ -676,10 +771,58 @@ export function ProductEditor({ id }: { id: string }) {
                       </select>
                     </label>
                     <PageTurnSettings showTabs={false} showTest={false} viewer={viewer} setViewer={setViewer} pages={edition === "full" ? p.full_file?.pages : p.preview_file?.pages} />
+                    <div className="space-y-3 border-t border-border pt-4">
+                      <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Reading</h3>
+                      <p className="text-xs text-muted-foreground">Readers always get the flipbook. Long books are easier on a phone with another way to read as well.</p>
+                      {([["scroll", "Scroll", "One long page, top to bottom."], ["paged", "Page by page", "One flat page at a time."]] as const).map(([mode, name, hint]) => (
+                        <label key={mode} className="flex items-center justify-between gap-3 text-sm">
+                          <span>Also offer {name}<span className="block text-xs text-muted-foreground">{hint}</span></span>
+                          <input type="checkbox" checked={offered.includes(mode)} onChange={(e) => setViewer({ modes: (["book", "scroll", "paged"] as const).filter((m) => m === "book" || (m === mode ? e.target.checked : offered.includes(m))) })} />
+                        </label>
+                      ))}
+                      <label className="block text-sm">
+                        Turn pages by themselves
+                        <select className={field} value={viewer.autoFlip ?? 0} onChange={(e) => setViewer({ autoFlip: Number(e.target.value) || undefined })}>
+                          <option value={0}>Off</option>
+                          {[3, 5, 8, 12].map((s) => <option key={s} value={s}>Every {s} seconds</option>)}
+                        </select>
+                      </label>
+                      <p className="text-xs text-muted-foreground">Good for a shop preview or an embed: the book turns until the reader touches it.</p>
+                    </div>
                   </>
                 )}
                 {panel === "look" && (
                   <>
+                    <details className="rounded-2xl border border-border/80 px-3 py-2.5">
+                      <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground hover:text-foreground">
+                        Start from a look{chosenPreset ? <span className="ml-1.5 normal-case tracking-normal text-foreground">· {STYLE_PRESETS.find((s) => s.id === chosenPreset)?.label}</span> : null}
+                      </summary>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        {STYLE_PRESETS.map((preset) => {
+                          const locked = presetIsPersonal(preset) && !personal;
+                          return (
+                            <button key={preset.id} type="button" aria-pressed={chosenPreset === preset.id} title={preset.description}
+                              onClick={() => {
+                                if (locked) return setUpgrade("This look");
+                                // Uploaded pictures are not part of a product's look.
+                                const { backgroundKey: _key, ...values } = presetPatch(preset, viewer) as Partial<ViewerSettings> & { backgroundKey?: string };
+                                setViewer(values);
+                                if (preset.viewer.look) pinPreviewLook(preset.viewer.look);
+                              }}
+                              className="overflow-hidden rounded-xl border border-border/80 text-left transition-shadow hover:shadow-soft aria-pressed:ring-2 aria-pressed:ring-foreground">
+                              <span className="relative block h-10" style={{ background: presetSwatch(preset) }}>
+                                {locked && <span className="absolute right-1 top-1 rounded-full bg-white/85 px-1.5 py-px text-[9px] text-foreground">Personal</span>}
+                              </span>
+                              <span className="block px-2 py-1.5">
+                                <span className="block text-xs font-medium">{preset.label}</span>
+                                <span className="line-clamp-2 block text-[10px] leading-snug text-muted-foreground">{preset.description}</span>
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="mt-2 text-[11px] text-muted-foreground">One press sets the book, paper, light and background. Undo puts your previous look back.</p>
+                    </details>
                     <div>
                       <p className="mb-2 text-xs text-muted-foreground">How the product opens</p>
                       <div className="grid grid-cols-2 gap-2">

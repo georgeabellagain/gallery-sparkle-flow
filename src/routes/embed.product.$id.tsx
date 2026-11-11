@@ -4,6 +4,7 @@ import { PdfViewer } from "@/components/pf/PdfViewer";
 import { PreviewChrome } from "@/components/products/PreviewChrome";
 import { DEFAULT_VIEWER } from "@/lib/portfolia/store";
 import { getProduct } from "@/lib/products/functions";
+import { buyButtonLabel, productListing } from "@/lib/products/model";
 import { productRef, recordOnce, sendProductEvent } from "@/lib/products/events";
 
 /**
@@ -30,7 +31,7 @@ function EmbeddedProduct() {
   if (p === undefined) return <div className="h-dvh bg-[#e9e8df]" aria-busy="true" />;
   if (!p || !source) return <div className="flex h-dvh items-center justify-center bg-[#e9e8df] p-6 text-sm">This preview is not available.</div>;
   return <div className="relative h-dvh overflow-hidden bg-[#e9e8df] [&_.pf-book-viewport]:h-dvh">
-    <PreviewChrome buyUrl={p.buyUrl} pages={p.pages} page={page} onBuy={() => sendProductEvent(p.id, "buy_click")} />
+    <PreviewChrome buyLabel={buyButtonLabel(productListing(p.appearance))} buyUrl={p.buyUrl} pages={p.pages} page={page} onBuy={() => sendProductEvent(p.id, "buy_click")} />
     <PdfViewer source={source} fileName={p.title} viewer={{ ...DEFAULT_VIEWER, ...p.appearance, showHeader: false }} allowDownload={false} pageArrows onReaderPage={setPage} />
   </div>;
 }

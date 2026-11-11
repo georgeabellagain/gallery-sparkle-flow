@@ -9,7 +9,10 @@ export function PreviewChrome({
   page,
   className,
   onBuy,
+  buyLabel = "Buy the full product",
 }: {
+  /** The Buy button's words: the seller's own wording and price when they gave them (buyButtonLabel). */
+  buyLabel?: string;
   buyUrl?: string;
   pages: number;
   page: number;
@@ -27,9 +30,9 @@ export function PreviewChrome({
       {buyUrl && (
         <div data-preview-chrome className={cn("pointer-events-none absolute inset-x-0 bottom-4 z-30 flex items-end justify-center px-4", className)}>
           <div data-preview-buy className="pointer-events-auto flex items-center gap-3 rounded-full bg-background/90 py-1.5 pl-4 pr-1.5 shadow-soft backdrop-blur-sm">
-            <p className="display-title text-base">See <em>every</em> page</p>
+            <p className="display-title hidden text-base min-[420px]:block">See <em>every</em> page</p>
             <Button asChild size="sm">
-              <a href={buyUrl} target="_blank" rel="noopener noreferrer" onClick={onBuy}>Buy the full product ↗</a>
+              <a href={buyUrl} target="_blank" rel="noopener noreferrer" onClick={onBuy}>{buyLabel} ↗</a>
             </Button>
           </div>
         </div>

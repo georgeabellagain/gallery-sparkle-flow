@@ -6,6 +6,7 @@ export function AccessSettings({ code }: { code: string }) {
   const [settings, setSettings] = useState<{ password: boolean; expiresAt: string | null; personal: boolean } | null>(null);
   const [password, setPassword] = useState("");
   const [remove, setRemove] = useState(false);
+  const [shown, setShown] = useState(false);
   const [expiry, setExpiry] = useState("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,9 +31,12 @@ export function AccessSettings({ code }: { code: string }) {
     }}>
       {!settings.personal && <p className="text-xs text-muted-foreground">An active Personal subscription is needed to add protection. Existing protection remains in place after cancellation; you can remove it.</p>}
       <p className="text-xs">Password: {settings.password ? "set" : "not set"}</p>
-      <label className="block text-xs">{settings.password ? "Replace password (leave blank to keep)" : "New password"}<input type="password" autoComplete="new-password" minLength={8} maxLength={256} disabled={!settings.personal || remove} value={password} onChange={e=>setPassword(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm" /></label>
+      <label className="block text-xs">{settings.password ? "Replace password (leave blank to keep)" : "New password"}<input type={shown ? "text" : "password"} autoComplete="new-password" minLength={8} maxLength={256} disabled={!settings.personal || remove} value={password} onChange={e=>setPassword(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm" /></label>
+      {password && <label className="flex gap-2 text-xs"><input type="checkbox" checked={shown} onChange={e=>setShown(e.target.checked)} />Show the password while typing</label>}
+      {password && <p className="text-xs text-muted-foreground">You’ll need to send this password to the people you share the link with. It isn’t shown again after saving.</p>}
       {settings.password && <label className="flex gap-2 text-xs"><input type="checkbox" checked={remove} onChange={e=>setRemove(e.target.checked)} />Remove password</label>}
       <label className="block text-xs">Expiry date and time (your timezone)<input type="datetime-local" disabled={!settings.personal} value={expiry} onChange={e=>setExpiry(e.target.value)} className="mt-1 w-full rounded-lg border border-border bg-background p-2 text-sm" /></label>
+      {settings.personal && <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs"><span className="text-muted-foreground">Set to:</span>{([["1 week", 7], ["1 month", 30], ["3 months", 90]] as const).map(([name, days]) => <button key={days} type="button" className="underline underline-offset-4" onClick={() => { const d = new Date(Date.now() + days * 86400000); setExpiry(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16)); }}>{name}</button>)}</p>}
       {expiry && <button type="button" className="text-xs underline" onClick={()=>setExpiry("")}>Remove expiry</button>}
       <p className="text-xs text-muted-foreground">Expiry stops new access. It cannot erase files a visitor already viewed, downloaded or saved. Protected work has no public cover preview.</p>
       <Button size="sm" type="submit" disabled={busy}>{busy ? "Saving…" : "Save access settings"}</Button>

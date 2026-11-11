@@ -6,7 +6,7 @@ import { PdfViewer } from "@/components/pf/PdfViewer";
 import { PreviewChrome } from "@/components/products/PreviewChrome";
 import { DEFAULT_VIEWER } from "@/lib/portfolia/store";
 import { getProduct, redeemProduct, closeProductEdition } from "@/lib/products/functions";
-import { productId } from "@/lib/products/model";
+import { buyButtonLabel, productId, productListing } from "@/lib/products/model";
 import { STAMP_SERVER_LIMIT_BYTES } from "@/lib/products/plan";
 import { productRef, recordOnce, sendProductEvent } from "@/lib/products/events";
 import { formatBytes } from "@/lib/portfolia/assets";
@@ -90,6 +90,7 @@ function ProductPage() {
       .finally(() => setBusy(false));
   };
   // Buyers are the seller's customers: the page carries the seller's product, not Portfolia's marketing (plan 2, S8).
+  const listing = productListing(p?.appearance), buyLabel = buyButtonLabel(listing);
   return (
     <div className="flex min-h-screen flex-col">
       <header className="rule-b">
@@ -106,6 +107,12 @@ function ProductPage() {
           <h1 className="display-title mt-3 text-4xl sm:text-5xl">
             {p?.title ?? (p === null ? "Product unavailable" : "Digital edition")}
           </h1>
+          {p && (listing.seller || (!p.customer && listing.price)) && (
+            <p className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+              {listing.seller && <span className="text-muted-foreground">by {listing.seller}</span>}
+              {!p.customer && listing.price && <span className="font-medium">{listing.price}</span>}
+            </p>
+          )}
           {p && <p className="mt-4 whitespace-pre-line text-[15px] leading-relaxed text-muted-foreground">{p.description}</p>}
           {p?.customer && (
             <div className="mt-6 space-y-3">
@@ -143,7 +150,7 @@ function ProductPage() {
           {p === null && <p>This product is not available. Contact the seller if you have already purchased it.</p>}
           {p && (source ? (
             <div className="relative overflow-hidden rounded-3xl bg-[#e9e8df] shadow-soft [&_.pf-book-viewport]:h-[min(78svh,52rem)]">
-              {!p.customer && <PreviewChrome buyUrl={p.buyUrl} pages={p.pages} page={page} className="hidden sm:flex" onBuy={() => sendProductEvent(p.id, "buy_click")} />}
+              {!p.customer && <PreviewChrome buyLabel={buyLabel} buyUrl={p.buyUrl} pages={p.pages} page={page} className="hidden sm:flex" onBuy={() => sendProductEvent(p.id, "buy_click")} />}
               <PdfViewer
                 key={p.customer ? "customer" : "preview"}
                 source={source}
@@ -203,7 +210,7 @@ function ProductPage() {
       {p && !p.customer && p.buyUrl && (
         <div className="sticky bottom-0 z-40 border-t border-border bg-background/95 p-3 backdrop-blur sm:hidden">
           <Button asChild className="w-full">
-            <a href={p.buyUrl} target="_blank" rel="noopener noreferrer" onClick={() => sendProductEvent(p.id, "buy_click")}>Buy the full product ↗</a>
+            <a href={p.buyUrl} target="_blank" rel="noopener noreferrer" onClick={() => sendProductEvent(p.id, "buy_click")}>{buyLabel} ↗</a>
           </Button>
         </div>
       )}
