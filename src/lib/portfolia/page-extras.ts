@@ -348,9 +348,9 @@ export const stickerLabel = (s: Pick<PageSticker, "sticker" | "image">) =>
 /** A drawn sticker stays a small mark; an animation can be a character that fills the page's width. */
 export const ANIMATION_SIZE = { max: 1, default: 0.32 };
 export const stickerMaxSize = (s: Pick<PageSticker, "sticker">) => (isAnimation(s) ? ANIMATION_SIZE.max : STICKER_SIZE.max);
-export const MAX_ANIMATIONS = 24;
+export const MAX_ANIMATIONS = 50;
 export const ANIMATION_MAX_MB = 2;
-export const MAX_STICKERS = 40;
+export const MAX_STICKERS = MAX_ANIMATIONS + 16;
 export const STICKER_SIZE = { min: 0.03, max: 0.5, default: 0.12 };
 export const STICKER_COLOURS = ["#e8604c", "#1c1c1c", "#ffffff", "#f2a93b", "#4fa3d1", "#6bbf8a", "#8c79d8", "#e98bb5"];
 export function validatePageSticker(s: PageSticker, pages: number): string | null {
