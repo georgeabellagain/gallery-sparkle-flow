@@ -55,7 +55,7 @@ test("an animation is saved only with a plain record of an allowed picture", () 
   assert.throws(bad({ size: 1.4 }));
   assert.throws(bad({ play: "always" }));
   assert.throws(bad({ name: "a\nb" }));
-  assert.throws(() => productAppearance.parse({ mode: "book", look: "clean", animations: Array.from({ length: 25 }, (_, i) => animation({ id: `anim_${i}` })) }));
+  assert.throws(() => productAppearance.parse({ mode: "book", look: "clean", animations: Array.from({ length: 51 }, (_, i) => animation({ id: `anim_${i}` })) }));
   assert.ok(productAnimationPath(owner, id, `${owner}/${id}/${fileA}.gif`, "gif"));
   for (const path of [`${id}/${id}/${fileA}.gif`, `${owner}/${owner}/${fileA}.gif`, `${owner}/${id}/../x.gif`, `${owner}/${id}/${fileA}.webp`, `${owner}/${id}/${fileA}.gif.html`])
     assert.equal(productAnimationPath(owner, id, path, "gif"), false, path);
