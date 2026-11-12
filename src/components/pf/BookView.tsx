@@ -1407,22 +1407,34 @@ export function BookView({
     let live = true;
     const layers = new Map<number, HTMLCanvasElement | null>();
     pageLayers.current = [];
-    void loadPageLayerPictures(pageStickers, pageSlideshows).then(() => {
-      if (!live) return;
-      s.setStickerLayerLookup((canvas) => {
-        const n = Number(canvas.dataset["seed"]), at = layout.leaves[n];
-        if (!at) return null;
-        if (!layers.has(n)) {
-          const stickers = stickersForLeaf(pageStickers, at), slides = slideshowsForLeaf(pageSlideshows, at);
-          const layer = drawPageLayer(stickers, slides, ratio, undefined, undefined, layerOnly.current);
-          layers.set(n, layer);
-          if (layer && stickers.length) pageLayers.current.push({ canvas: layer, stickers, slides, leaf: n });
+    s.setStickerLayerLookup((canvas) => {
+      const n = Number(canvas.dataset["seed"]), at = layout.leaves[n];
+      if (!at) return null;
+      if (!layers.has(n)) {
+        const stickers = stickersForLeaf(pageStickers, at), slides = slideshowsForLeaf(pageSlideshows, at);
+        const clock = () => matchMedia("(prefers-reduced-motion: reduce)").matches ? undefined : performance.now() / 1000;
+        const layer = drawPageLayer(stickers, slides, ratio, undefined, clock(), layerOnly.current);
+        layers.set(n, layer);
+        if (layer) {
+          if (stickers.length) pageLayers.current.push({ canvas: layer, stickers, slides, leaf: n });
+          // Decode only when this face is used, rather than loading every clip in a long book at startup.
+          void loadPageLayerPictures(stickers, slides).then(() => {
+            if (!live) return;
+            drawPageLayer(stickers, slides, ratio, layer, clock(), layerOnly.current);
+            s.stickerLayerFrame();
+          });
         }
-        return layers.get(n) ?? null;
-      });
+      }
+      return layers.get(n) ?? null;
     });
     return () => { live = false; pageLayers.current = []; s.setStickerLayerLookup(() => null); };
   }, [ready, pageStickers, pageSlideshows, layout, ratio]);
+  useEffect(() => {
+    if (!ready || !pageStickers.some(isAnimation)) return;
+    const nearby = [index, index + 1, index - 1].flatMap(i => layout.spreads[i] ?? []);
+    const pages = new Set(nearby.flatMap(n => n === null ? [] : [layout.leaves[n]?.page]));
+    void loadPageLayerPictures(pageStickers.filter(sticker => isAnimation(sticker) && pages.has(sticker.page)), []);
+  }, [ready, index, layout, pageStickers]);
   const overlayShown = bookReady && !busy && !wait && !fallback && !view3d;
   // Animations are part of the paper all the time, not only in a turn: the page's light, shade and paper finish fall
   // on them exactly as on the print round them, and nothing changes hands when a turn starts or ends. So their

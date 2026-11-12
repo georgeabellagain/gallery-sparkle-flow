@@ -215,7 +215,7 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
     const data = await blob.arrayBuffer();
     const kind = animationKind(new Uint8Array(data, 0, Math.min(16, data.byteLength)));
     const problem = animationFileProblem({ size: blob.size, name }, kind);
-    if (problem || !kind) return report(false, problem ?? "Use an animated GIF, WebP or PNG.");
+    if (problem || !kind) return report(false, problem ?? "Use an animated GIF, WebP or PNG, or an MP4.");
     const key = uid("anim");
     await putBlob(key, new Blob([data], { type: kind }));
     const size = ANIMATION_SIZE.default;

@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { Search, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LIBRARY_CATEGORIES, LIBRARY_CREDIT, LIBRARY_SIZE, libraryEmoji, libraryUrl, searchLibrary, type LibraryAnimation } from "@/lib/portfolia/animation-library";
-import { ANIMATION_MAX_MB, type AnimationPlay, type PageSticker } from "@/lib/portfolia/page-extras";
+import { ANIMATION_MAX_MB, MP4_ANIMATION_MAX_MB, type AnimationPlay, type PageSticker } from "@/lib/portfolia/page-extras";
 import { cn } from "@/lib/utils";
 
 const PAGE = 40;
@@ -69,10 +69,10 @@ export function AnimationPicker({ disabled, busy, onPick, onUpload }: {
           <Button size="xs" variant="line" disabled={disabled} onClick={() => input.current?.click()}><Upload className="size-3.5" />Upload your own</Button>
         </span>
       </div>
-      <input ref={input} type="file" accept="image/gif,image/webp,image/png,image/apng,.gif,.webp,.png,.apng" className="sr-only" tabIndex={-1} aria-hidden
+      <input ref={input} type="file" accept="image/gif,image/webp,image/png,image/apng,video/mp4,.mp4,.gif,.webp,.png,.apng" className="sr-only" tabIndex={-1} aria-hidden
         onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ""; if (file) onUpload(file); }} />
       <p className="text-[11px] leading-snug text-muted-foreground">
-        Your own: an animated GIF, WebP or PNG up to {ANIMATION_MAX_MB} MB. A see-through background sits best on the page. Library: {LIBRARY_CREDIT}.
+        Your own: GIF, WebP or PNG up to {ANIMATION_MAX_MB} MB, or MP4 up to {MP4_ANIMATION_MAX_MB} MB. MP4 clips play without sound and have an opaque background. Library: {LIBRARY_CREDIT}.
       </p>
     </div>
   );

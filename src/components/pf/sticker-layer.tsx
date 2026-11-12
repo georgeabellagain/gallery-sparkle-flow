@@ -71,7 +71,7 @@ async function loadSlide(imageKey: string) {
   });
 }
 
-/** Loads everything the layers need, so drawing them can be done at once when a page asks. */
+/** Loads the assets for a face or a small group of upcoming pages. */
 export function loadPageLayerPictures(stickers: PageSticker[], slideshows: PageSlideshow[]) {
   return Promise.all([
     ...stickers.map((s) => (s.sticker === "animation" ? (s.image ? loadAnimation(s.image.key) : Promise.resolve(null)) : loadSticker(s.sticker, s.colour))),

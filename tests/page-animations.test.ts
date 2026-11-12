@@ -33,6 +33,8 @@ test("frames keep the picture's shape within the size and memory allowed", () =>
 
 test("a file is judged by what it is, not by its name", () => {
   const bytes = (text: string) => Uint8Array.from(text, (c) => c.charCodeAt(0));
+  assert.equal(animationKind(bytes("....ftypisom....")), "video/mp4");
+  assert.equal(animationKind(bytes("....ftypavif....")), null);
   assert.equal(animationKind(bytes("GIF89a......")), "image/gif");
   assert.equal(animationKind(bytes("RIFFxxxxWEBPVP8X")), "image/webp");
   assert.equal(animationKind(Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a])), "image/png");
@@ -40,6 +42,8 @@ test("a file is judged by what it is, not by its name", () => {
   assert.equal(animationKind(bytes("<!doctype html>")), null);
   assert.match(animationFileProblem({ size: 10, name: "x.svg" }, null) ?? "", /GIF, WebP or PNG/);
   assert.match(animationFileProblem({ size: (ANIMATION_MAX_MB + 1) * 1048576, name: "x.gif" }, "image/gif") ?? "", /up to 2 MB/);
+  assert.equal(animationFileProblem({ size: 10 * 1048576, name: "loop.mp4" }, "video/mp4"), null);
+  assert.match(animationFileProblem({ size: 10 * 1048576 + 1, name: "loop.mp4" }, "video/mp4") ?? "", /up to 10 MB/);
   assert.equal(animationFileProblem({ size: 500_000, name: "x.gif" }, "image/gif"), null);
 });
 
