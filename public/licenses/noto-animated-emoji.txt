@@ -1,0 +1,12 @@
+Noto Animated Emoji
+https://googlefonts.github.io/noto-emoji-animation/
+
+The animated emoji offered in Portfolia's animation library, and any of them placed on a
+portfolio or digital product hosted by Portfolia, are artwork by Google from the Noto
+Animated Emoji project.
+
+Licence: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+
+The artwork is used unchanged apart from resizing and, where the owner of a portfolio
+chooses, mirroring left to right.

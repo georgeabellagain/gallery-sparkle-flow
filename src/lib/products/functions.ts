@@ -2,6 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAccount } from "@/lib/require-account";
 import {
+  ANIMATION_FILE_MIME,
+  ANIMATION_MAX_BYTES,
+  productAnimationPath,
   EXTRA_MIME,
   OPTIONAL_PRODUCT_COLUMNS,
   PRODUCT_BUCKET,
@@ -230,6 +233,25 @@ export const saveProduct = createServerFn({ method: "POST" })
         total += x.bytes;
       }
       if (total > extrasTotalBytes(plan)) throw new Error(`Extra files can use up to ${allowance.mb * 2} MB in total on your plan.`);
+    }
+    // Page animations: each picture is the owner's own file for this product, of an allowed type and size. Ones
+    // already saved were checked then; only new ones are looked up in storage.
+    const animations = data.appearance.animations ?? [];
+    if (animations.length) {
+      if (new Set(animations.map((a) => a.id)).size !== animations.length) throw new Error("Each animation can be placed once; duplicate it to use it again.");
+      const checked = new Set(((current.appearance as Product["appearance"] | null)?.animations ?? []).map((a) => `${a.file.path}:${a.file.bytes}:${a.file.kind}`));
+      const looked = new Map<string, boolean>();
+      for (const a of animations) {
+        if (!productAnimationPath(context.userId, data.id, a.file.path, a.file.kind)) throw new Error("Invalid animation file.");
+        if (data.full_file && a.page > data.full_file.pages) throw new Error("An animation is on a page this PDF doesn’t have. Move or remove it.");
+        const key = `${a.file.path}:${a.file.bytes}:${a.file.kind}`;
+        if (checked.has(key)) continue;
+        if (!looked.has(key)) {
+          const found = await storedObject(db, a.file.path);
+          looked.set(key, Boolean(found && found.size === a.file.bytes && found.size <= ANIMATION_MAX_BYTES && ANIMATION_FILE_MIME[a.file.kind].includes(found.mimetype)));
+        }
+        if (!looked.get(key)) throw new Error("An animation’s picture is missing or not the type it says. Remove it and add it again.");
+      }
     }
     if (
       data.preview_file &&

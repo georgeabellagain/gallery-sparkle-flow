@@ -9,7 +9,7 @@ import { getProduct, redeemProduct, closeProductEdition } from "@/lib/products/f
 import { buyButtonLabel, productId, productListing } from "@/lib/products/model";
 import { STAMP_SERVER_LIMIT_BYTES } from "@/lib/products/plan";
 import { productRef, recordOnce, sendProductEvent } from "@/lib/products/events";
-import { formatBytes } from "@/lib/portfolia/assets";
+import { formatBytes, registerPublicUrls } from "@/lib/portfolia/assets";
 export const Route = createFileRoute("/product/$id")({
   staticData: { sitemap: false },
   head: () => ({
@@ -91,6 +91,8 @@ function ProductPage() {
   };
   // Buyers are the seller's customers: the page carries the seller's product, not Portfolia's marketing (plan 2, S8).
   const listing = productListing(p?.appearance), buyLabel = buyButtonLabel(listing);
+  // Page animations fetch their pictures by name: point each name at this product's own file route.
+  if (p?.animations.length) registerPublicUrls(Object.fromEntries(p.animations.flatMap((s) => (s.image ? [[s.image.key, `/api/public/product-animation/${p.id}?file=${s.image.key}`]] : []))));
   return (
     <div className="flex min-h-screen flex-col">
       <header className="rule-b">
@@ -158,6 +160,7 @@ function ProductPage() {
                 viewer={{ ...DEFAULT_VIEWER, ...p.appearance, showHeader: false }}
                 allowDownload={false}
                 pageArrows
+                stickers={p.animations}
                 onReaderPage={setPage}
               />
             </div>

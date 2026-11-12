@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useBlocker } from "@tanstack/react-router";
-import { ArrowLeft, Book as BookIcon, Camera, ChartNoAxesColumn, ChevronRight, ChevronsLeft, ChevronsRight, Code, Copy, Eye, FileText, Image as ImageIcon, KeyRound, Megaphone, QrCode, ScanEye, Share2, Sun, Undo2, Upload, X, Zap } from "lucide-react";
+import { ArrowLeft, Book as BookIcon, Camera, ChartNoAxesColumn, ChevronRight, ChevronsLeft, ChevronsRight, Clapperboard, Code, Copy, Eye, FileText, Image as ImageIcon, KeyRound, Megaphone, QrCode, ScanEye, Share2, Sun, Undo2, Upload, X, Zap } from "lucide-react";
 import { STYLE_PRESETS, matchingPreset, presetIsPersonal, presetPatch, presetSwatch } from "@/lib/portfolia/style-presets";
 import { Modal, Wordmark } from "@/components/pf/Chrome";
 import { UpgradeModal } from "@/components/pf/UpgradeModal";
@@ -15,14 +15,15 @@ import { PageTurnSettings } from "@/components/pf/PageTurnSettings";
 import { BackgroundSettings } from "@/components/pf/BackgroundSettings";
 import { PaperSettings, StudioLightingSettings } from "@/components/pf/StudioAppearanceSettings";
 import { DEFAULT_VIEWER, type Portfolio, type ViewerSettings } from "@/lib/portfolia/store";
-import { putLocalBlob } from "@/lib/portfolia/assets";
+import { getLocalBlob, putLocalBlob } from "@/lib/portfolia/assets";
 import { loadPdfjs } from "@/lib/portfolia/pdf";
-import { productAuth, readProductPdf, removeProductFiles, uploadProductCover, uploadProductPdf } from "@/lib/products/client";
+import { productAuth, readProductFile, readProductPdf, removeProductFiles, uploadProductCover, uploadProductPdf } from "@/lib/products/client";
 import { PortfolioQrCode } from "@/components/pf/PortfolioQrCode";
 import { ProductStatsPanel } from "./ProductStatsPanel";
 import { ProductDeliveryPanel } from "./ProductDeliveryPanel";
 import { ProductExtras } from "./ProductExtras";
-import { DEFAULT_BUY_LABEL, buyButtonLabel, previewPages, previewSpreads, productListing, productShareUrl, productSlug, samplePages, shopUrlProblem, slugFromTitle, stripControl, type Product, type ProductListing } from "@/lib/products/model";
+import { ProductAnimations } from "./ProductAnimations";
+import { DEFAULT_BUY_LABEL, buyButtonLabel, previewPages, previewSpreads, productAnimationKey, productListing, productStickers, productShareUrl, productSlug, samplePages, shopUrlProblem, slugFromTitle, stripControl, type Product, type ProductListing } from "@/lib/products/model";
 import { takePendingProductPdf } from "@/lib/products/pending";
 import { buildProductPreview, deliverySheet, downloadBlob, renderProductCover } from "@/lib/products/preview";
 import {
@@ -40,12 +41,13 @@ const PhotoShoot = lazy(() =>
 );
 const field =
   "mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/40";
-type Panel = "customise" | "details" | "pages" | "book" | "look" | "background" | "marketing" | "share" | "publish" | "stats" | "delivery";
+type Panel = "customise" | "details" | "pages" | "book" | "look" | "background" | "animations" | "marketing" | "share" | "publish" | "stats" | "delivery";
 /** The same panel set-up as the portfolio editor: a Customise menu leading to one card per topic. */
 const TOOLS: Array<[Panel, string, typeof Sun]> = [
   ["book", "Book & turns", BookIcon],
   ["look", "Light & shade", Sun],
   ["background", "Background", ImageIcon],
+  ["animations", "Animations", Clapperboard],
   ["details", "Product details", FileText],
   ["pages", "Public preview", ScanEye],
   ["marketing", "Listing video & images", Megaphone],
@@ -55,7 +57,7 @@ const TOOLS: Array<[Panel, string, typeof Sun]> = [
   ["publish", "File & publishing", Upload],
 ];
 const GROUPS: Array<[string, Panel[]]> = [
-  ["Design", ["book", "look", "background"]],
+  ["Design", ["book", "look", "background", "animations"]],
   ["Product", ["details", "pages", "delivery"]],
   ["More", ["marketing", "stats", "publish"]],
 ];
@@ -64,6 +66,7 @@ const HINTS: Partial<Record<Panel, string>> = {
   book: "Page layout and how the pages turn.",
   look: "Simple and Studio: light, shade and paper.",
   background: "What sits behind the book.",
+  animations: "Moving pictures on your pages.",
   details: "The description and where shoppers buy it.",
   pages: "The free pages shoppers can see.",
   marketing: "Made from the public preview only.",
@@ -104,7 +107,9 @@ export function ProductEditor({ id }: { id: string }) {
         return false;
       }
     }),
-    [look, setLook] = useState<PreviewLook | null>(getPreviewLook());
+    [look, setLook] = useState<PreviewLook | null>(getPreviewLook()),
+    [animationsReady, setAnimationsReady] = useState(false),
+    [readerPage, setReaderPage] = useState(1);
   const fileRef = useRef<HTMLInputElement>(null), leaveRef = useRef(false);
   const [pages, setPages] = useState("1"),
     [busy, setBusy] = useState(""),
@@ -150,6 +155,13 @@ export function ProductEditor({ id }: { id: string }) {
     setPages(data.product.preview_pages.join(", ") || "1");
     setFull(data.product.full_file ? await readProductPdf(data.product.full_file) : null);
     setPreview(data.product.preview_file ? await readProductPdf(data.product.preview_file) : null);
+    // The book reads animation pictures from this browser: fetch any it doesn't hold yet, then show them.
+    setAnimationsReady(false);
+    await Promise.all((data.product.appearance.animations ?? []).map(async (a) => {
+      const key = productAnimationKey(a);
+      if (!(await getLocalBlob(key))) await putLocalBlob(key, await readProductFile(a.file.path));
+    })).catch(() => {});
+    setAnimationsReady(true);
   };
   useEffect(() => {
     void run("Loading product", load);
@@ -226,6 +238,14 @@ export function ProductEditor({ id }: { id: string }) {
   const setListing = (values: ProductListing) => {
     if (p) patch({ appearance: { ...p.appearance, ...values } });
   };
+  // Animations as the edition being looked at shows them: all of them, or those on preview pages, renumbered.
+  const animationList = p?.appearance.animations ?? [];
+  const shownStickers = useMemo(
+    () => (animationsReady && p ? productStickers(animationList, edition === "full" ? { total: p.full_file?.pages ?? 0 } : { preview: p.preview_pages }) : []),
+    [animationsReady, JSON.stringify(animationList), edition, p?.full_file?.pages, p?.preview_pages.join()],
+  );
+  /** The customer-PDF page in view, where a new animation lands. */
+  const pageInView = edition === "full" ? readerPage : (p?.preview_pages[readerPage - 1] ?? 1);
   const urlProblem = p ? shopUrlProblem(p.buy_url) : "";
   const offered = viewer.modes?.length ? viewer.modes : (["book", "scroll", "paged"] as const);
   const chosenPreset = matchingPreset(viewer);
@@ -259,8 +279,11 @@ export function ProductEditor({ id }: { id: string }) {
     const saved = { ...product, status: status ?? "draft", revision: result.revision };
     // Covers and extras the product no longer uses are removed once the save has gone through (best effort).
     const before = baseline ? (JSON.parse(baseline) as Partial<Product>) : null;
-    const keep = new Set([saved.cover_file?.path, ...(saved.extra_files ?? []).map((x) => x.path)]);
-    void removeProductFiles([before?.cover_file?.path, ...(before?.extra_files ?? []).map((x) => x.path)].filter((path): path is string => Boolean(path) && !keep.has(path)));
+    const keep = new Set([saved.cover_file?.path, ...(saved.extra_files ?? []).map((x) => x.path), ...(saved.appearance.animations ?? []).map((a) => a.file.path)]);
+    void removeProductFiles([before?.cover_file?.path, ...(before?.extra_files ?? []).map((x) => x.path), ...(before?.appearance?.animations ?? []).map((a) => a.file.path)].filter((path): path is string => Boolean(path) && !keep.has(path)));
+    // Undo can no longer bring back an animation whose picture has just been removed.
+    history.current = [];
+    setCanUndo(false);
     setP(saved);
     setBaseline(JSON.stringify(saved));
     if (result.unsupported?.length) setColumns((c) => ({ ...c, ...Object.fromEntries(result.unsupported.map((k) => [k, false])) }));
@@ -337,6 +360,7 @@ export function ProductEditor({ id }: { id: string }) {
           bytes: preview.size,
           pages: p.preview_file.pages,
           uploadedAt: Date.now(),
+          stickers: productStickers(p.appearance.animations, { preview: p.preview_pages }),
         },
       },
     });
@@ -539,7 +563,7 @@ export function ProductEditor({ id }: { id: string }) {
         <div className="pf-editor-stage relative h-[calc(100dvh-3.5rem)] overflow-hidden bg-muted/50">
           <div className="absolute inset-0 overflow-auto">
             {source ? (
-              <PdfViewer source={source} fileName={p?.title ?? "product"} viewer={viewer} allowDownload={false} compact />
+              <PdfViewer source={source} fileName={p?.title ?? "product"} viewer={viewer} allowDownload={false} compact stickers={shownStickers} onReaderPage={setReaderPage} />
             ) : (
               <div className="flex h-full items-center justify-center p-6">
                 <div className="max-w-sm rounded-3xl border border-border bg-background p-8 text-center shadow-soft">
@@ -851,6 +875,10 @@ export function ProductEditor({ id }: { id: string }) {
                       <p className="text-xs text-muted-foreground">Choose Studio for photographic lighting and paper.</p>
                     )}
                   </>
+                )}
+                {panel === "animations" && (
+                  <ProductAnimations id={id} animations={animationList} pages={p.full_file?.pages ?? 0} sheets={viewer.spreads === "ready"} page={pageInView}
+                    onChange={(next) => patch({ appearance: { ...p.appearance, animations: next } })} onError={setError} />
                 )}
                 {panel === "background" && (
                   <BackgroundSettings viewer={viewer} defaultColour="#e9e5dc" setViewer={(v) => { const { backgroundKey: _k, ...rest } = v as Partial<ViewerSettings> & { backgroundKey?: string }; setViewer(rest); return true; }} />

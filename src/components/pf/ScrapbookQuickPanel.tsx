@@ -3,16 +3,19 @@ import { ExtraPositionControls } from "./ExtraPositionControls";
 import { LiveScrapbookContext } from "./live-scrapbook-context";
 import type { Extra } from "@/lib/portfolia/scrapbook-transform";
 import { useRef, useState, useContext, type ReactNode } from "react";
-import { Copy, CornerDownRight, ExternalLink, Info, Youtube, Film, GalleryHorizontal, Link2, MousePointerClick, Plus, Search, Shapes, StickyNote, Tag, Trash2 } from "lucide-react";
+import { Clapperboard, Copy, CornerDownRight, ExternalLink, Info, Youtube, Film, GalleryHorizontal, Link2, MousePointerClick, Plus, Search, Shapes, StickyNote, Tag, Trash2 } from "lucide-react";
 import { HotspotFields } from "./HotspotFields";
 import { SlideshowFields } from "./SlideshowFields";
 import { AnimatedSticker } from "./AnimatedSticker";
+import { AnimationOptions, AnimationPicker } from "./AnimationFields";
+import { libraryUrl, type LibraryAnimation } from "@/lib/portfolia/animation-library";
+import { animationFileProblem, animationKind } from "@/lib/portfolia/page-animation";
 import { Button } from "@/components/ui/button";
 import type { ScrapbookPanel } from "./FoldoutSettings";
 import type { ScrapbookSelection } from "./live-scrapbook-context";
 import { deleteBlob, putBlob, uid } from "@/lib/portfolia/assets";
 import { MAX_FOLDOUTS, MAX_NOTE_ROTATION, newFoldout, noteRotation, readableFoldouts, rotateFoldout, type Foldout } from "@/lib/portfolia/foldouts";
-import { MAX_SLIDESHOWS, SLIDESHOW_SIZE, SLIDE_INTERVAL, placeSlideshow, readablePageSlideshows, type PageSlideshow, hotspotStartSize, MAX_HOTSPOTS, placeHotspot, readablePageHotspots, type HotspotStyle, type PageHotspot, MAX_STICKERS, STICKERS, STICKER_COLOURS, STICKER_SIZE, placeSticker, readablePageStickers, stickerInfo, type PageSticker, type StickerId, JUMP_SIZE, LINK_SIZE, MAX_JUMPS, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, SPOTLIGHT_CAPTION_LIMIT, SPOTLIGHT_LIMITS, SPOTLIGHT_SIZE, TAG_COLOURS, VIDEO_MAX_MB, VIDEO_WIDTH, hostOf, normaliseUrl, placeJump, placeVideo, readablePageJumps, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { MAX_SLIDESHOWS, SLIDESHOW_SIZE, SLIDE_INTERVAL, placeSlideshow, readablePageSlideshows, type PageSlideshow, hotspotStartSize, MAX_HOTSPOTS, placeHotspot, readablePageHotspots, type HotspotStyle, type PageHotspot, MAX_STICKERS, STICKERS, STICKER_COLOURS, STICKER_SIZE, ANIMATION_SIZE, MAX_ANIMATIONS, isAnimation, stickerLabel, placeSticker, readablePageStickers, stickerInfo, type PageSticker, type StickerId, JUMP_SIZE, LINK_SIZE, MAX_JUMPS, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, SPOTLIGHT_CAPTION_LIMIT, SPOTLIGHT_LIMITS, SPOTLIGHT_SIZE, TAG_COLOURS, VIDEO_MAX_MB, VIDEO_WIDTH, hostOf, normaliseUrl, placeJump, placeVideo, readablePageJumps, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { readVideo, videoFileProblem, videoMime } from "@/lib/portfolia/page-video-file";
 import { gifFileProblem, gifToVideo, isGif } from "@/lib/portfolia/gif-to-video";
 import { addPortfolioExtra, deleteUnusedPortfolioAsset, isPaid, patchPortfolioExtra, removePortfolioExtra, useDoc, type Portfolio } from "@/lib/portfolia/store";
@@ -171,6 +174,9 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
   const spotlight = selected?.kind === "spotlights" ? spotlights.find((s) => s.id === selected.id) : undefined;
   const video = selected?.kind === "videos" ? pageVideos.find((v) => v.id === selected.id) : undefined;
   const sticker = selected?.kind === "stickers" ? stickers.find((s) => s.id === selected.id) : undefined;
+  // Animations are stickers with a moving picture: stored together, shown as their own feature.
+  const animations = stickers.filter(isAnimation), drawnStickers = stickers.filter((s) => !isAnimation(s));
+  const animation = sticker && isAnimation(sticker) ? sticker : undefined, drawnSticker = sticker && !isAnimation(sticker) ? sticker : undefined;
   const hotspot = selected?.kind === "hotspots" ? hotspots.find((h) => h.id === selected.id) : undefined;
   const slideshow = selected?.kind === "slideshows" ? slideshows.find((s) => s.id === selected.id) : undefined;
   const addSlideshow = () => {
@@ -201,12 +207,46 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
     report(ok, `Use up to ${MAX_STICKERS} stickers.`);
     if (ok) select("stickers", s.id);
   };
+  const [animationPhase, setAnimationPhase] = useState<string | null>(null);
+  /** Saves a moving picture with the portfolio and puts it on the page in view, looping, ready to move and resize. */
+  const addAnimation = async (blob: Blob, name: string, credit?: "noto") => {
+    if (animations.length >= MAX_ANIMATIONS) return report(false, `Use up to ${MAX_ANIMATIONS} animations in a portfolio.`);
+    if (stickers.length >= MAX_STICKERS) return report(false, `Use up to ${MAX_STICKERS} stickers and animations together.`);
+    const data = await blob.arrayBuffer();
+    const kind = animationKind(new Uint8Array(data, 0, Math.min(16, data.byteLength)));
+    const problem = animationFileProblem({ size: blob.size, name }, kind);
+    if (problem || !kind) return report(false, problem ?? "Use an animated GIF, WebP or PNG.");
+    const key = uid("anim");
+    await putBlob(key, new Blob([data], { type: kind }));
+    const size = ANIMATION_SIZE.default;
+    const step = stickers.filter((s) => s.page === page.page).length % 5;
+    const s = placeSticker({ id: uid("sticker"), page: page.page, half, sticker: "animation", colour: STICKER_COLOURS[1]!, x: 0, y: 0, size, image: { key, name: name.slice(0, 80), ...(credit ? { credit } : {}) }, play: "loop" }, 0.5 - size / 2 + (step - 2) * 0.06, 0.3 + (step % 2) * 0.08, size);
+    const ok = addPortfolioExtra(p.code, pdf.blobKey, "stickers", s, MAX_STICKERS);
+    report(ok, "The animation couldn’t be added. Please try again.");
+    if (ok) select("stickers", s.id);
+    else void deleteBlob(key);
+  };
+  const working = async (phase: string, job: () => Promise<void>) => {
+    setAnimationPhase(phase);
+    try { await job(); } catch { report(false, "That animation couldn’t be loaded. Check your connection and try again."); } finally { setAnimationPhase(null); }
+  };
+  const pickAnimation = (entry: LibraryAnimation) => void working(`Adding ${entry.name}…`, async () => {
+    const url = libraryUrl(entry.code);
+    if (!url) throw new Error("unknown");
+    const response = await fetch(url, { referrerPolicy: "no-referrer", credentials: "omit" });
+    if (!response.ok) throw new Error("unavailable");
+    await addAnimation(await response.blob(), entry.name, "noto");
+  });
+  const uploadAnimation = (file: File) => void working("Adding your animation…", () => addAnimation(file, file.name.replace(/\.[a-z0-9]+$/i, "").replace(/[-_]+/g, " ")));
   const patchNote = (next: Foldout) => report(patchPortfolioExtra(p.code, pdf.blobKey, "foldouts", next.id, next), "That change could not be saved. Check the text length.");
   const remove = () => {
     if (!selected) return;
     const removed = selected.kind === "videos" ? pageVideos.find((v) => v.id === selected.id) : undefined;
+    const removedAnimation = selected.kind === "stickers" ? stickers.find((s) => s.id === selected.id)?.image?.key : undefined;
     const ok = removePortfolioExtra(p.code, pdf.blobKey, selected.kind, selected.id);
     report(ok, "The item could not be removed. Please try again.");
+    // An animation's picture goes too, unless a copy of it or the saved version still uses it.
+    if (ok && removedAnimation) void deleteUnusedPortfolioAsset(removedAnimation);
     // A removed video's files are cleared unless the saved version still uses them.
     if (ok && removed) { void deleteUnusedPortfolioAsset(removed.blobKey); void deleteUnusedPortfolioAsset(removed.posterKey); }
     onSelect(null);
@@ -243,6 +283,7 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
     const item = lists[selected.kind]?.find((i) => i.id === selected.id) as (Record<string, unknown> & { id: string }) | undefined;
     const limit = limits[selected.kind];
     if (!item || !limit) return;
+    if (selected.kind === "stickers" && item["sticker"] === "animation" && animations.length >= MAX_ANIMATIONS) return report(false, `Use up to ${MAX_ANIMATIONS} animations in a portfolio.`);
     const copy: Record<string, unknown> = { ...structuredClone(item), id: uid(selected.kind.replace(/s$/, "")) };
     const nudge = (at: unknown, extent: unknown) => typeof at === "number" ? Math.max(0, Math.min(at + 0.04, 1 - (typeof extent === "number" ? extent : 0))) : at;
     copy["x"] = nudge(item["x"], item["width"] ?? item["size"]);
@@ -321,7 +362,15 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
         "slideshow")}
       </FeatureBox>
 
-      <FeatureBox icon={Shapes} title="Animated stickers" count={`${stickers.length} of ${MAX_STICKERS}`} hint="Small moving arrows, circles and marks. Drag one onto a page, or click it to add it to the page in view." active={Boolean(sticker)}>
+      <FeatureBox icon={Clapperboard} title="Animations" count={`${animations.length} of ${MAX_ANIMATIONS}`} hint="Moving pictures that sit on the page with no box round them: a waving character, falling rain, a twinkling star. Pick one to add it to the page in view." active={Boolean(animation)}>
+        <AnimationPicker disabled={Boolean(animationPhase) || animations.length >= MAX_ANIMATIONS} busy={animationPhase} onPick={pickAnimation} onUpload={uploadAnimation} />
+        {chips("stickers", animations.map((s) => ({ id: s.id, page: s.page, label: stickerLabel(s) })))}
+        {animation && editing(
+          <AnimationOptions sticker={animation} save={(next) => report(patchPortfolioExtra(p.code, pdf.blobKey, "stickers", next.id, next), "That change couldn’t be saved.")} />,
+          "animation")}
+      </FeatureBox>
+
+      <FeatureBox icon={Shapes} title="Animated stickers" count={`${drawnStickers.length} of ${MAX_STICKERS - animations.length}`} hint="Small moving arrows, circles and marks. Drag one onto a page, or click it to add it to the page in view." active={Boolean(drawnSticker)}>
         <div className="grid grid-cols-8 gap-1" role="list" aria-label="Stickers">
           {STICKERS.map((s) => (
             <button key={s.id} type="button" role="listitem" draggable title={`${s.label}: drag onto a page, or click to add`} aria-label={`Add ${s.label} sticker`}
@@ -333,14 +382,14 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
             </button>
           ))}
         </div>
-        {chips("stickers", stickers.map((s) => ({ id: s.id, page: s.page, label: stickerInfo(s.sticker)?.label ?? "Sticker" })))}
-        {sticker && editing(<>
+        {chips("stickers", drawnStickers.map((s) => ({ id: s.id, page: s.page, label: stickerInfo(s.sticker)?.label ?? "Sticker" })))}
+        {drawnSticker && ((sticker: PageSticker) => editing(<>
           <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Sticker colour">
             {STICKER_COLOURS.map((colour) => <button key={colour} type="button" role="radio" aria-checked={sticker.colour === colour} aria-label={`Sticker colour ${colour}`} className="size-6 rounded-full border border-black/15 aria-checked:ring-2 aria-checked:ring-foreground aria-checked:ring-offset-1" style={{ background: colour }} onClick={() => report(patchPortfolioExtra(p.code, pdf.blobKey, "stickers", sticker.id, { ...sticker, colour } as PageSticker), "The colour could not be saved.")} />)}
             <input type="color" aria-label="Any sticker colour" className="h-6 w-8 cursor-pointer rounded border border-border" value={sticker.colour} onChange={(e) => report(patchPortfolioExtra(p.code, pdf.blobKey, "stickers", sticker.id, { ...sticker, colour: e.target.value } as PageSticker), "The colour could not be saved.")} />
           </div>
           <p className="text-xs text-muted-foreground">Drag it on the page; pull its corner to resize. It moves on its own in the reader.</p>
-        </>, "sticker")}
+        </>, "sticker"))(drawnSticker)}
       </FeatureBox>
 
       <FeatureBox icon={Tag} title="Page tabs" count={`${tags.length} of ${MAX_TAGS}`} hint="Coloured tabs on the edge of the book. Readers press one to turn straight to its page." active={Boolean(tab)}

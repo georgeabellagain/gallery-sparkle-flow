@@ -5,6 +5,7 @@ import { readableTurnCurve } from "../portfolia/turn-curve";
 import { readableTurnStyle } from "../portfolia/turn-motion";
 import { paperFinish } from "../portfolia/surface";
 import type { ViewerSettings } from "../portfolia/store";
+import { ANIMATION_MAX_MB, ANIMATION_PLAYS, ANIMATION_SIZE, MAX_ANIMATIONS, STICKER_SIZE, validatePageSticker, type PageSticker } from "../portfolia/page-extras";
 export const PRODUCT_BUCKET = "product-files";
 export const productId = z.string().uuid();
 export const productFile = z.object({
@@ -24,6 +25,24 @@ function listingText(max: number) {
     .transform((s) => s.trim() || undefined)
     .optional();
 }
+/** Page animations: moving pictures with a see-through background, kept with the product's other files. */
+export const ANIMATION_FILE_KINDS = ["webp", "gif", "png"] as const;
+export type AnimationFileKind = (typeof ANIMATION_FILE_KINDS)[number];
+export const ANIMATION_FILE_MIME: Record<AnimationFileKind, string[]> = { webp: ["image/webp"], gif: ["image/gif"], png: ["image/png", "image/apng"] };
+export const ANIMATION_MAX_BYTES = ANIMATION_MAX_MB * 1048576;
+const productAnimation = z.object({
+  id: z.string().regex(/^[a-zA-Z0-9_.-]{1,120}$/),
+  page: z.number().int().min(1).max(2000),
+  half: z.enum(["left", "right"]),
+  x: z.number().min(0).max(1),
+  y: z.number().min(0).max(1),
+  size: z.number().min(STICKER_SIZE.min).max(ANIMATION_SIZE.max),
+  play: z.enum(ANIMATION_PLAYS).optional(),
+  flip: z.literal(true).optional(),
+  name: listingText(80),
+  credit: z.literal("noto").optional(),
+  file: z.object({ path: z.string().max(240), bytes: z.number().int().positive().max(ANIMATION_MAX_BYTES), kind: z.enum(ANIMATION_FILE_KINDS) }),
+});
 // Deliberate allowlist: no hidden pages, asset keys, tracking, scripts or external
 // media in the public product reader. Preview and customer files stay separate.
 export const productAppearance = z.object({
@@ -83,7 +102,34 @@ export const productAppearance = z.object({
   price: listingText(24),
   buyLabel: listingText(40),
   seller: listingText(60),
+  // Moving pictures on the pages (page numbers are the customer PDF's). Their files are checked in storage on save.
+  animations: z.array(productAnimation).max(MAX_ANIMATIONS).optional(),
 });
+export type ProductAnimation = z.infer<typeof productAnimation>;
+/** The name an animation's stored picture goes by in the reader: its random file name, without the type. */
+export const productAnimationKey = (a: Pick<ProductAnimation, "file">) => (a.file.path.split("/").pop() ?? "").replace(/\.[a-z]+$/, "");
+export function productAnimationPath(owner: string, id: string, path: string, kind: AnimationFileKind) {
+  return path.startsWith(`${owner}/${id}/`) && new RegExp(`^[a-f0-9-]+/[a-f0-9-]+/[a-f0-9-]{36}\\.${kind}$`).test(path);
+}
+/**
+ * A product's animations as the reader shows them. Customers get every one, on the customer PDF's pages. Shoppers
+ * get only those on pages in the preview, renumbered to the preview file (its pages are the chosen ones, in order).
+ * Storage paths never leave this function.
+ */
+export function productStickers(animations: unknown, pages: { total: number } | { preview: readonly number[] }): PageSticker[] {
+  const list = z.array(productAnimation).max(MAX_ANIMATIONS).safeParse(animations ?? []);
+  if (!list.success) return [];
+  const total = "total" in pages ? pages.total : pages.preview.length;
+  return list.data.flatMap((a): PageSticker[] => {
+    const page = "total" in pages ? a.page : pages.preview.indexOf(a.page) + 1;
+    const sticker: PageSticker = {
+      id: a.id, page, half: a.half, sticker: "animation", colour: "#1c1c1c", x: a.x, y: a.y, size: a.size,
+      image: { key: productAnimationKey(a), ...(a.name ? { name: a.name } : {}), ...(a.credit ? { credit: a.credit } : {}) },
+      ...(a.play ? { play: a.play } : {}), ...(a.flip ? { flip: true as const } : {}),
+    };
+    return page >= 1 && !validatePageSticker(sticker, total) ? [sticker] : [];
+  });
+}
 /** The seller's own words on the public page: a price, the Buy button's wording and who it is by. */
 export type ProductListing = { price?: string; buyLabel?: string; seller?: string };
 export const DEFAULT_BUY_LABEL = "Buy the full product";
@@ -220,7 +266,7 @@ export function isMissingColumn(error: { code?: string; message?: string } | nul
 /** Columns added by plan 1's migrations: left out of a save when the database does not have them yet. */
 export const OPTIONAL_PRODUCT_COLUMNS = ["cover_file", "slug", "extra_files"] as const;
 export type Product = Omit<z.infer<typeof saveProductSchema>, "appearance"> & {
-  appearance: Partial<ViewerSettings> & ProductListing;
+  appearance: Partial<ViewerSettings> & ProductListing & { animations?: ProductAnimation[] };
   updated_at: string;
 };
 export function productFilePath(owner: string, id: string, path: string) {
@@ -266,7 +312,9 @@ export function publicProduct(row: Product, customer: boolean, link?: { stamp?: 
     title: row.title,
     description: row.description,
     buyUrl: row.buy_url,
-    appearance: row.appearance,
+    // The look only: animations go out as placed stickers below, without where their files are stored.
+    appearance: { ...row.appearance, animations: undefined },
+    animations: productStickers(row.appearance?.animations, customer ? { total: row.full_file?.pages ?? 0 } : { preview: row.preview_pages ?? [] }),
     customer,
     allowDownload: customer && row.allow_download,
     pages: (customer ? row.full_file : row.preview_file)?.pages ?? 0,

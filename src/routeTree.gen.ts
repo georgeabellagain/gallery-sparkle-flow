@@ -83,6 +83,7 @@ import { Route as EmbedProductIdRouteImport } from './routes/embed.product.$id'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicPortfolioCoverCodeRouteImport } from './routes/api/public/portfolio-cover/$code'
 import { Route as ApiPublicPortfolioFileCodeRouteImport } from './routes/api/public/portfolio-file/$code'
+import { Route as ApiPublicProductAnimationIdRouteImport } from './routes/api/public/product-animation/$id'
 import { Route as ApiPublicProductCoverIdRouteImport } from './routes/api/public/product-cover/$id'
 import { Route as ApiPublicProductFileIdRouteImport } from './routes/api/public/product-file/$id'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
@@ -465,6 +466,12 @@ const ApiPublicPortfolioFileCodeRoute =
     path: '/api/public/portfolio-file/$code',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicProductAnimationIdRoute =
+  ApiPublicProductAnimationIdRouteImport.update({
+    id: '/api/public/product-animation/$id',
+    path: '/api/public/product-animation/$id',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicProductCoverIdRoute = ApiPublicProductCoverIdRouteImport.update({
   id: '/api/public/product-cover/$id',
   path: '/api/public/product-cover/$id',
@@ -567,6 +574,7 @@ export interface FileRoutesByFullPath {
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
   '/api/public/portfolio-file/$code': typeof ApiPublicPortfolioFileCodeRoute
+  '/api/public/product-animation/$id': typeof ApiPublicProductAnimationIdRoute
   '/api/public/product-cover/$id': typeof ApiPublicProductCoverIdRoute
   '/api/public/product-file/$id': typeof ApiPublicProductFileIdRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -648,6 +656,7 @@ export interface FileRoutesByTo {
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
   '/api/public/portfolio-file/$code': typeof ApiPublicPortfolioFileCodeRoute
+  '/api/public/product-animation/$id': typeof ApiPublicProductAnimationIdRoute
   '/api/public/product-cover/$id': typeof ApiPublicProductCoverIdRoute
   '/api/public/product-file/$id': typeof ApiPublicProductFileIdRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -730,6 +739,7 @@ export interface FileRoutesById {
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/api/public/portfolio-cover/$code': typeof ApiPublicPortfolioCoverCodeRoute
   '/api/public/portfolio-file/$code': typeof ApiPublicPortfolioFileCodeRoute
+  '/api/public/product-animation/$id': typeof ApiPublicProductAnimationIdRoute
   '/api/public/product-cover/$id': typeof ApiPublicProductCoverIdRoute
   '/api/public/product-file/$id': typeof ApiPublicProductFileIdRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
@@ -813,6 +823,7 @@ export interface FileRouteTypes {
     | '/api/public/payments/webhook'
     | '/api/public/portfolio-cover/$code'
     | '/api/public/portfolio-file/$code'
+    | '/api/public/product-animation/$id'
     | '/api/public/product-cover/$id'
     | '/api/public/product-file/$id'
     | '/lovable/email/auth/preview'
@@ -894,6 +905,7 @@ export interface FileRouteTypes {
     | '/api/public/payments/webhook'
     | '/api/public/portfolio-cover/$code'
     | '/api/public/portfolio-file/$code'
+    | '/api/public/product-animation/$id'
     | '/api/public/product-cover/$id'
     | '/api/public/product-file/$id'
     | '/lovable/email/auth/preview'
@@ -975,6 +987,7 @@ export interface FileRouteTypes {
     | '/api/public/payments/webhook'
     | '/api/public/portfolio-cover/$code'
     | '/api/public/portfolio-file/$code'
+    | '/api/public/product-animation/$id'
     | '/api/public/product-cover/$id'
     | '/api/public/product-file/$id'
     | '/lovable/email/auth/preview'
@@ -1057,6 +1070,7 @@ export interface RootRouteChildren {
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   ApiPublicPortfolioCoverCodeRoute: typeof ApiPublicPortfolioCoverCodeRoute
   ApiPublicPortfolioFileCodeRoute: typeof ApiPublicPortfolioFileCodeRoute
+  ApiPublicProductAnimationIdRoute: typeof ApiPublicProductAnimationIdRoute
   ApiPublicProductCoverIdRoute: typeof ApiPublicProductCoverIdRoute
   ApiPublicProductFileIdRoute: typeof ApiPublicProductFileIdRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -1584,6 +1598,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPortfolioFileCodeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/product-animation/$id': {
+      id: '/api/public/product-animation/$id'
+      path: '/api/public/product-animation/$id'
+      fullPath: '/api/public/product-animation/$id'
+      preLoaderRoute: typeof ApiPublicProductAnimationIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/product-cover/$id': {
       id: '/api/public/product-cover/$id'
       path: '/api/public/product-cover/$id'
@@ -1697,6 +1718,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   ApiPublicPortfolioCoverCodeRoute: ApiPublicPortfolioCoverCodeRoute,
   ApiPublicPortfolioFileCodeRoute: ApiPublicPortfolioFileCodeRoute,
+  ApiPublicProductAnimationIdRoute: ApiPublicProductAnimationIdRoute,
   ApiPublicProductCoverIdRoute: ApiPublicProductCoverIdRoute,
   ApiPublicProductFileIdRoute: ApiPublicProductFileIdRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,

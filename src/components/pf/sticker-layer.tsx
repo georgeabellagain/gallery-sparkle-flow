@@ -1,11 +1,24 @@
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { getBlob } from "@/lib/portfolia/assets";
-import { stickerInfo, type PageSlideshow, type PageSticker } from "@/lib/portfolia/page-extras";
+import { stickerInfo, type PageSlideshow, type PageSticker, type StickerId } from "@/lib/portfolia/page-extras";
+import { animationFrameAt, animationFrameNumber, drawAnimationFrame, loadAnimation, readyAnimation } from "@/lib/portfolia/page-animation";
 import { AnimatedSticker } from "./AnimatedSticker";
 
 /** Width of a page's sticker layer; turning pages are seen in motion, so it need not match the print's detail. */
 const LAYER_WIDTH = 800;
+const ANIMATED_LAYER_WIDTH = 1024;
+
+/**
+ * Which frame each animation on a layer shows at `time`: when this hasn't changed, the layer needn't be drawn or
+ * sent to the graphics card again (most animations change 10 to 25 times a second, not 60).
+ */
+export function animationsShowing(stickers: PageSticker[], time: number | undefined): string {
+  return stickers.map((s) => {
+    const animation = s.sticker === "animation" && s.image ? readyAnimation(s.image.key) : null;
+    return animation ? animationFrameNumber(s, animation, time) : -1;
+  }).join(",");
+}
 
 const stickerPictures = new Map<string, HTMLImageElement | null>();
 const slidePictures = new Map<string, ImageBitmap | null>();
@@ -17,7 +30,7 @@ const once = (key: string, load: () => Promise<void>) => {
 };
 
 /** A sticker's still drawing as a picture, made from the same artwork the page shows moving. */
-async function loadSticker(sticker: PageSticker["sticker"], colour: string) {
+async function loadSticker(sticker: StickerId, colour: string) {
   const key = `${sticker}:${colour}`;
   return once(`sticker:${key}`, async () => {
     // Drawn outside React's own work, so the drawing can be read straight away.
@@ -61,7 +74,7 @@ async function loadSlide(imageKey: string) {
 /** Loads everything the layers need, so drawing them can be done at once when a page asks. */
 export function loadPageLayerPictures(stickers: PageSticker[], slideshows: PageSlideshow[]) {
   return Promise.all([
-    ...stickers.map((s) => loadSticker(s.sticker, s.colour)),
+    ...stickers.map((s) => (s.sticker === "animation" ? (s.image ? loadAnimation(s.image.key) : Promise.resolve(null)) : loadSticker(s.sticker, s.colour))),
     ...slideshows.flatMap((s) => (s.images[0] ? [loadSlide(s.images[0])] : [])),
   ]);
 }
@@ -106,15 +119,17 @@ export function stickerPose(motion: string, t: number): Pose {
  * the paper while their live copies (which sit flat over the page) are away, so they turn with the page. Drawn again
  * into the same `canvas` with a `time`, the stickers move as they do on the page.
  */
-export function drawPageLayer(stickers: PageSticker[], slideshows: PageSlideshow[], ratio: number, canvas?: HTMLCanvasElement, time?: number): HTMLCanvasElement | null {
+export function drawPageLayer(stickers: PageSticker[], slideshows: PageSlideshow[], ratio: number, canvas?: HTMLCanvasElement, time?: number, only?: "animations"): HTMLCanvasElement | null {
   if (!stickers.length && !slideshows.length) return null;
   canvas ??= document.createElement("canvas");
-  if (!canvas.width || canvas.width !== LAYER_WIDTH) { canvas.width = LAYER_WIDTH; canvas.height = Math.round(LAYER_WIDTH * ratio); }
+  // Animations stay on the paper while the page is read, so their layer is sharper than one only seen in motion.
+  const width = stickers.some((s) => s.sticker === "animation") ? ANIMATED_LAYER_WIDTH : LAYER_WIDTH;
+  if (!canvas.width || canvas.width !== width) { canvas.width = width; canvas.height = Math.round(width * ratio); }
   const ctx = canvas.getContext("2d")!;
   ctx.imageSmoothingQuality = "high";
   const w = canvas.width, h = canvas.height;
   ctx.clearRect(0, 0, w, h);
-  for (const s of slideshows) {
+  for (const s of only ? [] : slideshows) {
     const x = s.x * w, y = s.y * h, bw = s.width * w, bh = s.height * h;
     const picture = s.images[0] ? slidePictures.get(s.images[0]) : null;
     if (!picture) { ctx.fillStyle = "rgba(0,0,0,0.05)"; ctx.fillRect(x, y, bw, bh); continue; }
@@ -128,6 +143,14 @@ export function drawPageLayer(stickers: PageSticker[], slideshows: PageSlideshow
     ctx.restore();
   }
   for (const s of stickers) {
+    if (s.sticker === "animation") {
+      // The frame its flat copy would be showing now, so a looping animation keeps going as its page turns.
+      const animation = s.image ? readyAnimation(s.image.key) : null;
+      // Where the browser can't read frames, the flat copy shows the file moving instead while the page is still.
+      if (animation && !(only && animation.stillOnly)) drawAnimationFrame(ctx, animationFrameAt(s, animation, time), s.x * w, s.y * h, s.size * w, Boolean(s.flip));
+      continue;
+    }
+    if (only) continue;
     const picture = stickerPictures.get(`${s.sticker}:${s.colour}`);
     if (!picture) continue;
     const size = s.size * w;

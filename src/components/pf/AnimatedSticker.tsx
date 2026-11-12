@@ -1,6 +1,7 @@
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Asterisk, Bell, Check, Circle, CircleDot, Clock, CornerRightDown, Eye, Flame, Gift, Hand, Heart, Mail, MapPin, Megaphone, MessageCircle, MousePointerClick, PartyPopper, Percent, Phone, Plus, ShoppingBag, Sparkles, Star, Tag, ThumbsUp, Zap, type LucideIcon } from "lucide-react";
 import { stickerInfo, type PageSticker, type StickerId } from "@/lib/portfolia/page-extras";
 import { cn } from "@/lib/utils";
+import { PageAnimation } from "./PageAnimation";
 
 /** The Lucide drawing behind each icon sticker (Lucide is ISC licensed: free to use, no attribution needed). */
 const ICONS: Partial<Record<StickerId, LucideIcon>> = {
@@ -84,11 +85,21 @@ export function AnimatedSticker({ sticker, colour, className, still = false }: {
   );
 }
 
-/** A sticker placed on a page (a square, positioned as fractions of the page), above the artwork, ignoring clicks. */
-export function PageStickerMark({ sticker }: { sticker: PageSticker }) {
+/** What a placed sticker shows: its drawn artwork, or its moving picture when it is an animation. */
+export function StickerArt({ sticker, interactive = false, onPaper = false }: { sticker: PageSticker; interactive?: boolean; onPaper?: boolean }) {
+  return sticker.sticker === "animation"
+    ? <PageAnimation sticker={sticker} interactive={interactive} onPaper={onPaper} />
+    : <AnimatedSticker sticker={sticker.sticker} colour={sticker.colour} />;
+}
+
+/**
+ * A sticker placed on a page (a square, positioned as fractions of the page), above the artwork, ignoring clicks;
+ * only an animation set to play when pressed takes them.
+ */
+export function PageStickerMark({ sticker, onPaper = false }: { sticker: PageSticker; /** The 3D book draws animations on the paper itself; this copy then only starts them and takes presses. */ onPaper?: boolean }) {
   return (
     <span className="pointer-events-none absolute" style={{ left: `${sticker.x * 100}%`, top: `${sticker.y * 100}%`, width: `${sticker.size * 100}%`, aspectRatio: "1" }}>
-      <AnimatedSticker sticker={sticker.sticker} colour={sticker.colour} />
+      <StickerArt sticker={sticker} interactive onPaper={onPaper} />
     </span>
   );
 }

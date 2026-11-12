@@ -1,4 +1,4 @@
-import { PRODUCT_BUCKET, isMissingColumn, productCoverPath, productExtraPath, productFilePath, type ProductExtra } from "./model";
+import { ANIMATION_FILE_KINDS, ANIMATION_FILE_MIME, PRODUCT_BUCKET, isMissingColumn, productAnimationKey, productAnimationPath, productCoverPath, productExtraPath, productFilePath, type ProductAnimation, type ProductExtra } from "./model";
 import { customerLink } from "./access.server";
 import { STAMP_SERVER_LIMIT_BYTES } from "./plan";
 import { countProductEvent } from "./stats.server";
@@ -103,6 +103,27 @@ async function proxy(db: any, path: string, request: Request, range: string | nu
     ["Content-Length", "Content-Range"].flatMap((k) => (upstream.headers.has(k) ? [[k, upstream.headers.get(k)!]] : [])),
   );
   return new Response(request.method === "HEAD" ? null : upstream.body, { status: upstream.status, headers: { ...headers, ...pass } });
+}
+
+/**
+ * A page animation's picture for a published product, proxied (no redirect, no storage URL). `file` is the name the
+ * reader knows it by (productAnimationKey); only pictures the product's own saved animations use are ever served.
+ * They are decoration, so shoppers and customers get them alike; drafts get 404.
+ */
+export async function serveProductAnimation(db: any, id: string, file: string | null, fetcher: typeof fetch = fetch): Promise<Response> {
+  const headers = { "Cache-Control": "public, max-age=300", "X-Content-Type-Options": "nosniff", "X-Robots-Tag": "noindex", "Content-Security-Policy": "sandbox" };
+  const fail = (status = 404) => new Response(null, { status, headers: { ...headers, "Cache-Control": "no-store" } });
+  if (!/^[a-f0-9-]{36}$/.test(id) || !file || !/^[a-f0-9-]{36}$/.test(file)) return fail();
+  const { data: row, error } = await db.from("digital_products").select("id,owner_id,status,appearance").eq("id", id).eq("status", "published").maybeSingle();
+  if (error) return fail(503);
+  const list = Array.isArray(row?.appearance?.animations) ? (row.appearance.animations as ProductAnimation[]) : [];
+  const found = list.find((a) => a?.file && productAnimationKey(a) === file);
+  if (!row || !found || !(ANIMATION_FILE_KINDS as readonly string[]).includes(found.file.kind) || !productAnimationPath(row.owner_id, id, found.file.path, found.file.kind)) return fail();
+  const { data: signed, error: signError } = await db.storage.from(PRODUCT_BUCKET).createSignedUrl(found.file.path, 30);
+  if (signError || !signed?.signedUrl) return fail(503);
+  const upstream = await fetcher(signed.signedUrl).catch(() => null);
+  if (!upstream?.ok) { await upstream?.body?.cancel(); return fail(upstream?.status === 404 ? 404 : 503); }
+  return new Response(upstream.body, { status: 200, headers: { ...headers, "Content-Type": ANIMATION_FILE_MIME[found.file.kind][0]! } });
 }
 
 /** Feature A: the cover of a published product, proxied (no redirect, no storage URL). Drafts get 404. */

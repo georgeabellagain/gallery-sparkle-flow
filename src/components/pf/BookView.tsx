@@ -14,7 +14,8 @@ import { StoredFoldout } from "./FoldoutCard";
 import { BookLoader } from "./book-loader";
 import { getBookInset, subscribeBookInset } from "@/lib/portfolia/book-framing";
 import { PageStickerMark } from "./AnimatedSticker";
-import { drawPageLayer, loadPageLayerPictures } from "./sticker-layer";
+import { animationsShowing, drawPageLayer, loadPageLayerPictures } from "./sticker-layer";
+import { isAnimation } from "@/lib/portfolia/page-extras";
 import { PageHotspotMark } from "./PageHotspots";
 import { PageSlideshowMark } from "./PageSlideshow";
 import { PageJumpLink, PageLinkAnchor } from "./PageLinks";
@@ -531,7 +532,9 @@ export function BookView({
   ]);
   const [pageBounds, setPageBounds] = useState<PageBounds[]>([]);
   /** Sticker layers drawn so far (one per page face with stickers), redrawn while they ride on turning paper. */
-  const pageLayers = useRef<Array<{ canvas: HTMLCanvasElement; stickers: PageSticker[]; slides: PageSlideshow[] }>>([]);
+  const pageLayers = useRef<Array<{ canvas: HTMLCanvasElement; stickers: PageSticker[]; slides: PageSlideshow[]; leaf: number }>>([]);
+  /** What the layers hold just now: everything (turning), or only the animations (still pages; the rest is shown flat). */
+  const layerOnly = useRef<"animations" | undefined>(undefined);
   /** The outer page corner the mouse rests near (it lifts slightly), if any. */
   const [peek, setPeek] = useState<{ side: 1 | -1; corner: "top" | "bottom" } | null>(null);
   const [tabRects, setTabRects] = useState<Array<{ id: string; x: number; y: number; width: number; height: number }>>([]);
@@ -1400,9 +1403,9 @@ export function BookView({
         if (!at) return null;
         if (!layers.has(n)) {
           const stickers = stickersForLeaf(pageStickers, at), slides = slideshowsForLeaf(pageSlideshows, at);
-          const layer = drawPageLayer(stickers, slides, ratio);
+          const layer = drawPageLayer(stickers, slides, ratio, undefined, undefined, layerOnly.current);
           layers.set(n, layer);
-          if (layer && stickers.length) pageLayers.current.push({ canvas: layer, stickers, slides });
+          if (layer && stickers.length) pageLayers.current.push({ canvas: layer, stickers, slides, leaf: n });
         }
         return layers.get(n) ?? null;
       });
@@ -1410,27 +1413,50 @@ export function BookView({
     return () => { live = false; pageLayers.current = []; s.setStickerLayerLookup(() => null); };
   }, [ready, pageStickers, pageSlideshows, layout, ratio]);
   const overlayShown = bookReady && !busy && !wait && !fallback && !view3d;
-  useEffect(() => { scene.current?.setStickerLayerShown(!overlayShown); }, [overlayShown, ready]);
-  // While the stickers ride on the turning (or tilted) paper, they keep moving: their layers are drawn again from
-  // the page's clock about 30 times a second. Reduced motion keeps them still.
+  // Animations are part of the paper all the time, not only in a turn: the page's light, shade and paper finish fall
+  // on them exactly as on the print round them, and nothing changes hands when a turn starts or ends. So their
+  // layer stays on while the flat overlay is back; drawn stickers and slideshows leave it then (their flat copies show).
+  const hasAnimations = useMemo(() => pageStickers.some(isAnimation), [pageStickers]);
+  useEffect(() => { scene.current?.setStickerLayerShown(!overlayShown || hasAnimations); }, [overlayShown, hasAnimations, ready]);
+  const spreadNow = useRef(spread);
+  spreadNow.current = spread;
+  // The layers are drawn again from the page's clock about 30 times a second: everything on them while they ride
+  // on turning (or tilted) paper, only the animations of the open pages while the book is still. Reduced motion
+  // keeps them at rest.
   useEffect(() => {
-    if (overlayShown || !pageStickers.length || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const only = overlayShown ? "animations" as const : undefined;
+    layerOnly.current = only;
+    if (!pageStickers.length || (overlayShown && !hasAnimations)) return;
+    const paint = (time: number | undefined, showing?: Map<HTMLCanvasElement, string>) => {
+      let changed = false;
+      for (const l of pageLayers.current) {
+        if (showing) {
+          // Still pages: only the open ones, and only when one of their animations has moved on a frame.
+          if (!spreadNow.current.includes(l.leaf)) continue;
+          const now = animationsShowing(l.stickers, time);
+          if (showing.get(l.canvas) === now) continue;
+          showing.set(l.canvas, now);
+        }
+        drawPageLayer(l.stickers, l.slides, ratio, l.canvas, time, only);
+        changed = true;
+      }
+      if (changed) scene.current?.stickerLayerFrame();
+    };
+    const reduced = Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+    // Straight away at the present moment of each loop, so nothing skips back a frame as a turn starts or ends.
+    paint(reduced ? undefined : performance.now() / 1000);
+    if (reduced) return;
     let frame = 0, last = 0;
+    const showing = only ? new Map<HTMLCanvasElement, string>() : undefined;
     const tick = (now: number) => {
       frame = requestAnimationFrame(tick);
       if (now - last < 33 || !pageLayers.current.length) return;
       last = now;
-      for (const l of pageLayers.current) drawPageLayer(l.stickers, l.slides, ratio, l.canvas, now / 1000);
-      scene.current?.stickerLayerFrame();
+      paint(now / 1000, showing);
     };
     frame = requestAnimationFrame(tick);
-    return () => {
-      cancelAnimationFrame(frame);
-      // Back to the still pictures, ready for the next turn.
-      for (const l of pageLayers.current) drawPageLayer(l.stickers, l.slides, ratio, l.canvas);
-      scene.current?.stickerLayerFrame();
-    };
-  }, [overlayShown, pageStickers.length, ratio]);
+    return () => cancelAnimationFrame(frame);
+  }, [overlayShown, hasAnimations, pageStickers.length, ratio]);
   const [litNotesKey, setLitNotesKey] = useState("");
   const notesForSpread = (pages: Array<number | null>) => pages.flatMap((n, side) => n === null ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side, seed: n + 1, exterior: n === 0 || n === layout.leaves.length - 1 })));
   useEffect(() => { noteProgresses.current.clear(); setOpenNote(false); }, [leaf, additions]);
@@ -1736,7 +1762,7 @@ export function BookView({
             {onLeaf.map(link => <PageLinkAnchor key={link.id} link={link} visible painted />)}
             {videosForLeaf(pageVideos, layout.leaves[n]!).filter(v => !v.silent).map(v => <PageVideoSound key={v.id} video={v} on={videoSound === v.id} onToggle={() => videoPlayer.current?.toggleSound(v.id)} />)}
             {slideshowsForLeaf(pageSlideshows, layout.leaves[n]!).map(s => <PageSlideshowMark key={s.id} slideshow={s} />)}
-            {stickersForLeaf(pageStickers, layout.leaves[n]!).map(s => <PageStickerMark key={s.id} sticker={s} />)}
+            {stickersForLeaf(pageStickers, layout.leaves[n]!).map(s => <PageStickerMark key={s.id} sticker={s} onPaper />)}
             {hotspotsForLeaf(pageHotspots, layout.leaves[n]!).map(h => <PageHotspotMark key={h.id} hotspot={h} />)}
             {jumpsForLeaf(pageJumps, layout.leaves[n]!).map(j => <PageJumpLink key={j.id} jump={j} onGo={(page) => void jumpTo(layout.leaves.findIndex((l) => l.page === page))} />)}
             {spotlightsForLeaf(spotlightViews.map(v => v.spotlight), layout.leaves[n]!).map(s => <SpotlightTarget key={s.id} spotlight={s} onOpen={() => setOpenSpotlight(spotlightViews.findIndex(v => v.spotlight.id === s.id))} />)}

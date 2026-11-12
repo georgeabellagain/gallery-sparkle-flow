@@ -11,7 +11,7 @@ import {
   type Foldout,
   type ResizeCorner,
 } from "@/lib/portfolia/foldouts";
-import { slideshowsForLeaf, readablePageSlideshows, hotspotsForLeaf, readablePageHotspots, MAX_STICKERS, STICKER_SIZE, STICKER_COLOURS, jumpsForLeaf, linksForLeaf, placeSticker, placeVideo, readablePageJumps, readablePageStickers, stickerInfo, stickersForLeaf, type PageSticker, readablePageSpotlights, readablePageVideos, spotlightsForLeaf, tabSlots, videoHeight, videosForLeaf, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
+import { slideshowsForLeaf, readablePageSlideshows, hotspotsForLeaf, readablePageHotspots, MAX_STICKERS, STICKER_SIZE, STICKER_COLOURS, isAnimation, stickerLabel, jumpsForLeaf, linksForLeaf, placeSticker, placeVideo, readablePageJumps, readablePageStickers, stickerInfo, stickersForLeaf, type PageSticker, readablePageSpotlights, readablePageVideos, spotlightsForLeaf, tabSlots, videoHeight, videosForLeaf, type PageLink, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { CornerDownRight, Search } from "lucide-react";
 import { useBlob } from "./Chrome";
 
@@ -30,7 +30,7 @@ function VideoPoster({ video }: { video: PageVideo }) {
 import { tabSlot } from "@/lib/portfolia/tab-geometry";
 import type { Leaf } from "@/lib/portfolia/book-layout";
 import { addPortfolioExtra, patchPortfolioExtra, removePortfolioExtra } from "@/lib/portfolia/store";
-import { AnimatedSticker } from "./AnimatedSticker";
+import { StickerArt } from "./AnimatedSticker";
 import { HotspotFace } from "./PageHotspots";
 import { SlideshowFrame } from "./PageSlideshow";
 import { uid } from "@/lib/portfolia/assets";
@@ -391,10 +391,10 @@ export function LiveScrapbookPage({
             className="absolute pointer-events-auto ring-1 ring-blue-500/50 data-[selected]:ring-2 data-[selected]:ring-blue-600"
             style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${s.size * 100}%`, aspectRatio: "1" }}
           >
-            <AnimatedSticker sticker={s.sticker} colour={s.colour} />
+            <StickerArt sticker={s} />
             <button
               type="button"
-              aria-label={`Move sticker ${stickerInfo(s.sticker)?.label ?? ""}`}
+              aria-label={`Move ${isAnimation(s) ? "animation" : "sticker"} ${stickerLabel(s)}`}
               {...controls("stickers", s, "move")}
               className="absolute inset-0 touch-none cursor-move bg-transparent"
             />
