@@ -103,3 +103,15 @@ test("a still page's animation layer is only drawn again when a frame has change
   assert.equal(animationsShowing(stickers, 1), animationsShowing(stickers, 1.5));
   assert.equal(animationsShowing(stickers, 1), "-1");
 });
+
+
+test("MP4 animations support larger uploads and are served as video from the product's own folder", async () => {
+  const file = { path: `${owner}/${id}/${fileA}.mp4`, bytes: 10 * 1048576, kind: "mp4" as const };
+  const loop = animation({ file });
+  const appearance = { mode: "book", look: "clean", animations: [loop] };
+  assert.equal(productAppearance.parse(appearance).animations?.[0]?.file.kind, "mp4");
+  assert.equal(productAppearance.safeParse({ ...appearance, animations: [animation({ file: { ...file, bytes: file.bytes + 1 } })] }).success, false);
+  const live = db(product([loop]));
+  assert.equal((await serveProductAnimation(live, id, fileA, picture)).headers.get("Content-Type"), "video/mp4");
+  assert.deepEqual(live.signed, [file.path]);
+});

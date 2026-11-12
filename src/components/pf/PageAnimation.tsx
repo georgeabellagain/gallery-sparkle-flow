@@ -21,6 +21,7 @@ export function PageAnimation({ sticker, interactive = false, onPaper = false }:
   onPaper?: boolean;
 }) {
   const key = sticker.image?.key;
+  const video = useRef<HTMLVideoElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [animation, setAnimation] = useState<LoadedAnimation | null>(null);
   // Browsers that can't read frames show the file itself, which moves on its own.
@@ -38,9 +39,9 @@ export function PageAnimation({ sticker, interactive = false, onPaper = false }:
   useEffect(() => {
     if (!key || !animation?.stillOnly) return;
     let url: string | undefined, live = true;
-    void getBlob(key).then((blob) => { if (blob && live) { url = URL.createObjectURL(blob); setFileUrl(url); } });
+    void getBlob(key).then((blob) => { if (blob && live) { url = URL.createObjectURL(animation?.video ? new Blob([blob], { type: "video/mp4" }) : blob); setFileUrl(url); } });
     return () => { live = false; if (url) URL.revokeObjectURL(url); setFileUrl(undefined); };
-  }, [key, animation?.stillOnly]);
+  }, [key, animation?.stillOnly, animation?.video]);
 
   // "Open" starts as the page appears and is forgotten when it goes, so it plays again next time.
   useEffect(() => {
@@ -73,7 +74,12 @@ export function PageAnimation({ sticker, interactive = false, onPaper = false }:
 
   // Browsers that can't read frames show the file itself moving, even over the 3D book.
   const picture = animation?.stillOnly && fileUrl
-    ? <img src={fileUrl} alt="" draggable={false} className="h-full w-full object-contain" style={sticker.flip ? { transform: "scaleX(-1)" } : undefined} />
+    ? animation.video
+      ? <video ref={video} src={fileUrl} muted playsInline preload="auto" aria-hidden
+          autoPlay={play !== "tap" && !reducedMotion()} loop={play === "loop"}
+          onEnded={play === "tap" ? (e) => { e.currentTarget.currentTime = 0; } : undefined}
+          className="h-full w-full object-contain" style={sticker.flip ? { transform: "scaleX(-1)" } : undefined} />
+      : <img src={fileUrl} alt="" draggable={false} className="h-full w-full object-contain" style={sticker.flip ? { transform: "scaleX(-1)" } : undefined} />
     : onPaper ? null : <canvas ref={canvas} aria-hidden className="h-full w-full" />;
   if (play !== "tap") return <span role="img" aria-label={name} className="block h-full w-full">{picture}</span>;
   return (
@@ -81,7 +87,7 @@ export function PageAnimation({ sticker, interactive = false, onPaper = false }:
       className="pointer-events-auto block h-full w-full cursor-pointer rounded-lg bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
       // The press is for the animation, not for turning the page underneath.
       onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}
-      onClick={(e) => { e.stopPropagation(); startAnimation(sticker.id, performance.now() / 1000); }}>
+      onClick={(e) => { e.stopPropagation(); startAnimation(sticker.id, performance.now() / 1000); if (video.current && !reducedMotion()) { video.current.currentTime = 0; void video.current.play().catch(() => {}); } }}>
       {picture}
     </button>
   );

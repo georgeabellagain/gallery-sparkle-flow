@@ -1,5 +1,5 @@
 import { getBlob } from "./assets";
-import { ANIMATION_MAX_MB, type AnimationPlay, type PageSticker } from "./page-extras";
+import { ANIMATION_MAX_MB, MP4_ANIMATION_MAX_MB, type AnimationPlay, type PageSticker } from "./page-extras";
 
 /**
  * Page animations: small moving pictures (animated GIF, WebP or PNG) that sit on a page with their own see-through
@@ -14,10 +14,11 @@ const MAX_SIDE = 512;
 const MEMORY_BYTES = 40 * 1048576;
 const MIN_SIDE = 96;
 
-export type AnimationKind = "image/gif" | "image/webp" | "image/png";
+export type AnimationKind = "image/gif" | "image/webp" | "image/png" | "video/mp4";
 /** What a file really is, from its first bytes (stored files do not always keep their type). */
 export function animationKind(bytes: Uint8Array): AnimationKind | null {
   const text = (from: number, length: number) => String.fromCharCode(...bytes.subarray(from, from + length));
+  if (bytes.length >= 12 && text(4, 4) === "ftyp" && /^(?:isom|iso[2-9]|mp4[12]|avc1|M4V |dash|MSNV)$/.test(text(8, 4))) return "video/mp4";
   if (text(0, 4) === "GIF8") return "image/gif";
   if (text(0, 4) === "RIFF" && text(8, 4) === "WEBP") return "image/webp";
   if (bytes[0] === 0x89 && text(1, 3) === "PNG") return "image/png";
@@ -26,8 +27,9 @@ export function animationKind(bytes: Uint8Array): AnimationKind | null {
 
 /** Why a chosen file can't be an animation, or null when it can. */
 export function animationFileProblem(file: { size: number; name: string }, kind: AnimationKind | null): string | null {
-  if (!kind) return "Use an animated GIF, WebP or PNG.";
-  if (file.size > ANIMATION_MAX_MB * 1048576) return `This file is ${(file.size / 1048576).toFixed(1)} MB. Animations can be up to ${ANIMATION_MAX_MB} MB; for something longer, add it as a video.`;
+  if (!kind) return "Use an animated GIF, WebP or PNG, or an MP4.";
+  const cap = kind === "video/mp4" ? MP4_ANIMATION_MAX_MB : ANIMATION_MAX_MB;
+  if (file.size > cap * 1048576) return `This file is ${(file.size / 1048576).toFixed(1)} MB. This animation format can be up to ${cap} MB.`;
   return null;
 }
 
@@ -35,9 +37,9 @@ export function animationFileProblem(file: { size: number; name: string }, kind:
 export const animationFrameSeconds = (durationUs: number | null | undefined) => (!durationUs || durationUs < 20_000 ? 0.1 : durationUs / 1e6);
 
 /** The size frames are kept at: the picture's shape, within MAX_SIDE and within the memory allowed for all frames. */
-export function animationFrameSize(width: number, height: number, frames: number): { width: number; height: number } {
+export function animationFrameSize(width: number, height: number, frames: number, maxSide = MAX_SIDE): { width: number; height: number } {
   const byMemory = Math.sqrt(MEMORY_BYTES / (4 * Math.max(1, frames) * Math.max(1, width * height)));
-  const scale = Math.min(1, MAX_SIDE / Math.max(width, height), byMemory);
+  const scale = Math.min(1, maxSide / Math.max(width, height), byMemory);
   const floor = Math.min(1, MIN_SIDE / Math.max(width, height));
   const s = Math.max(scale, floor);
   return { width: Math.max(1, Math.round(width * s)), height: Math.max(1, Math.round(height * s)) };
@@ -67,6 +69,7 @@ export type LoadedAnimation = {
   height: number;
   /** The browser could not read the frames: only the first is here, and the page shows the file itself moving. */
   stillOnly: boolean;
+  video?: true;
 };
 
 // The parts of WebCodecs' ImageDecoder used here (not in every TypeScript DOM library yet).
@@ -78,11 +81,67 @@ type Decoder = {
 };
 type DecoderClass = { new (init: { data: ArrayBuffer; type: string }): Decoder; isTypeSupported: (type: string) => Promise<boolean> };
 
+/** Native playback for browsers without WebCodecs, with a still for the turning page. */
+async function videoStill(blob: Blob): Promise<LoadedAnimation> {
+  const el = document.createElement("video");
+  const url = URL.createObjectURL(blob);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    el.muted = true;
+    el.playsInline = true;
+    await new Promise<void>((resolve, reject) => {
+      el.onloadeddata = () => resolve();
+      el.onerror = () => reject(new Error("MP4 could not be decoded"));
+      timer = setTimeout(() => reject(new Error("MP4 timed out")), 6000);
+      el.src = url;
+    });
+    const picture = await createImageBitmap(el);
+    return { frames: [picture], durations: [1], width: picture.width, height: picture.height, stillOnly: true, video: true };
+  } finally {
+    clearTimeout(timer);
+    el.removeAttribute("src");
+    el.load();
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function readMp4(blob: Blob): Promise<LoadedAnimation> {
+  if (typeof VideoDecoder === "undefined") return videoStill(blob);
+  const { Input, BlobSource, MP4, CanvasSink } = await import("mediabunny");
+  const input = new Input({ source: new BlobSource(blob), formats: [MP4] });
+  const frames: ImageBitmap[] = [];
+  let success = false;
+  try {
+    const track = await input.getPrimaryVideoTrack();
+    if (!track || !(await track.canDecode())) return videoStill(blob);
+    const start = await track.getFirstTimestamp();
+    const length = await track.computeDuration() - start;
+    if (!(length > 0 && length <= 15)) return videoStill(blob);
+    const count = Math.max(2, Math.min(MAX_ANIMATION_FRAMES, Math.ceil(length * 20)));
+    const step = length / count;
+    const size = animationFrameSize(await track.getDisplayWidth(), await track.getDisplayHeight(), count, 1024);
+    const sink = new CanvasSink(track, { ...size, poolSize: 1 });
+    for await (const sample of sink.canvasesAtTimestamps(Array.from({ length: count }, (_, i) => start + i * step))) {
+      if (!sample) throw new Error("Missing MP4 animation frame");
+      frames.push(await createImageBitmap(sample.canvas));
+    }
+    if (frames.length !== count) throw new Error("Incomplete MP4 animation");
+    success = true;
+    return { frames, durations: Array<number>(count).fill(step), ...size, stillOnly: false, video: true };
+  } catch {
+    return videoStill(blob);
+  } finally {
+    if (!success) frames.forEach(frame => frame.close());
+    input.dispose();
+  }
+}
+
 async function readFrames(blob: Blob): Promise<LoadedAnimation | null> {
   const data = await blob.arrayBuffer();
   const kind = animationKind(new Uint8Array(data, 0, Math.min(16, data.byteLength)));
   if (!kind) return null;
   const typed = new Blob([data], { type: kind });
+  if (kind === "video/mp4") return readMp4(typed);
   const still = async (): Promise<LoadedAnimation> => {
     const picture = await createImageBitmap(typed);
     return { frames: [picture], durations: [1], width: picture.width, height: picture.height, stillOnly: true };

@@ -5,7 +5,7 @@ import { readableTurnCurve } from "../portfolia/turn-curve";
 import { readableTurnStyle } from "../portfolia/turn-motion";
 import { paperFinish } from "../portfolia/surface";
 import type { ViewerSettings } from "../portfolia/store";
-import { ANIMATION_MAX_MB, ANIMATION_PLAYS, ANIMATION_SIZE, MAX_ANIMATIONS, STICKER_SIZE, validatePageSticker, type PageSticker } from "../portfolia/page-extras";
+import { ANIMATION_MAX_MB, MP4_ANIMATION_MAX_MB, ANIMATION_PLAYS, ANIMATION_SIZE, MAX_ANIMATIONS, STICKER_SIZE, validatePageSticker, type PageSticker } from "../portfolia/page-extras";
 export const PRODUCT_BUCKET = "product-files";
 export const productId = z.string().uuid();
 export const productFile = z.object({
@@ -26,10 +26,10 @@ function listingText(max: number) {
     .optional();
 }
 /** Page animations: moving pictures with a see-through background, kept with the product's other files. */
-export const ANIMATION_FILE_KINDS = ["webp", "gif", "png"] as const;
+export const ANIMATION_FILE_KINDS = ["webp", "gif", "png", "mp4"] as const;
 export type AnimationFileKind = (typeof ANIMATION_FILE_KINDS)[number];
-export const ANIMATION_FILE_MIME: Record<AnimationFileKind, string[]> = { webp: ["image/webp"], gif: ["image/gif"], png: ["image/png", "image/apng"] };
-export const ANIMATION_MAX_BYTES = ANIMATION_MAX_MB * 1048576;
+export const ANIMATION_FILE_MIME: Record<AnimationFileKind, string[]> = { webp: ["image/webp"], gif: ["image/gif"], png: ["image/png", "image/apng"], mp4: ["video/mp4"] };
+export const animationMaxBytes = (kind: AnimationFileKind) => (kind === "mp4" ? MP4_ANIMATION_MAX_MB : ANIMATION_MAX_MB) * 1048576;
 const productAnimation = z.object({
   id: z.string().regex(/^[a-zA-Z0-9_.-]{1,120}$/),
   page: z.number().int().min(1).max(2000),
@@ -41,7 +41,7 @@ const productAnimation = z.object({
   flip: z.literal(true).optional(),
   name: listingText(80),
   credit: z.literal("noto").optional(),
-  file: z.object({ path: z.string().max(240), bytes: z.number().int().positive().max(ANIMATION_MAX_BYTES), kind: z.enum(ANIMATION_FILE_KINDS) }),
+  file: z.object({ path: z.string().max(240), bytes: z.number().int().positive().max(animationMaxBytes("mp4")), kind: z.enum(ANIMATION_FILE_KINDS) }).refine(file => file.bytes <= animationMaxBytes(file.kind), "Animation exceeds its format’s upload limit"),
 });
 // Deliberate allowlist: no hidden pages, asset keys, tracking, scripts or external
 // media in the public product reader. Preview and customer files stay separate.
@@ -107,7 +107,7 @@ export const productAppearance = z.object({
 });
 export type ProductAnimation = z.infer<typeof productAnimation>;
 /** The name an animation's stored picture goes by in the reader: its random file name, without the type. */
-export const productAnimationKey = (a: Pick<ProductAnimation, "file">) => (a.file.path.split("/").pop() ?? "").replace(/\.[a-z]+$/, "");
+export const productAnimationKey = (a: Pick<ProductAnimation, "file">) => (a.file.path.split("/").pop() ?? "").replace(/\.(?:webp|gif|png|mp4)$/, "");
 export function productAnimationPath(owner: string, id: string, path: string, kind: AnimationFileKind) {
   return path.startsWith(`${owner}/${id}/`) && new RegExp(`^[a-f0-9-]+/[a-f0-9-]+/[a-f0-9-]{36}\\.${kind}$`).test(path);
 }

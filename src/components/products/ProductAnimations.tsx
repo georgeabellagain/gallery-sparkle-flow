@@ -10,7 +10,7 @@ import { uploadProductAnimation } from "@/lib/products/client";
 import { productAnimationKey, productStickers, type AnimationFileKind, type ProductAnimation } from "@/lib/products/model";
 import { cn } from "@/lib/utils";
 
-const KIND: Record<string, AnimationFileKind> = { "image/webp": "webp", "image/gif": "gif", "image/png": "png" };
+const KIND: Record<string, AnimationFileKind> = { "image/webp": "webp", "image/gif": "gif", "image/png": "png", "video/mp4": "mp4" };
 const field = "mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm outline-none focus:border-foreground/40";
 
 /**
@@ -47,7 +47,7 @@ export function ProductAnimations({ id, animations, pages, sheets, page, ratio =
     const data = await blob.arrayBuffer();
     const mime = animationKind(new Uint8Array(data, 0, Math.min(16, data.byteLength)));
     const problem = animationFileProblem({ size: blob.size, name }, mime);
-    if (problem || !mime) return onError(problem ?? "Use an animated GIF, WebP or PNG.");
+    if (problem || !mime) return onError(problem ?? "Use an animated GIF, WebP or PNG, or an MP4.");
     const typed = new Blob([data], { type: mime });
     const file = await uploadProductAnimation(id, typed, KIND[mime]!);
     const base: ProductAnimation = { id: uid("anim"), page: Math.min(Math.max(1, page), Math.max(1, pages)), half: "right", x: 0, y: 0, size: ANIMATION_SIZE.default, play: "loop", name: name.slice(0, 80) || undefined, ...(credit ? { credit } : {}), file };

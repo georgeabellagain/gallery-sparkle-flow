@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireAccount } from "@/lib/require-account";
 import {
   ANIMATION_FILE_MIME,
-  ANIMATION_MAX_BYTES,
+  animationMaxBytes,
   productAnimationPath,
   EXTRA_MIME,
   OPTIONAL_PRODUCT_COLUMNS,
@@ -248,7 +248,7 @@ export const saveProduct = createServerFn({ method: "POST" })
         if (checked.has(key)) continue;
         if (!looked.has(key)) {
           const found = await storedObject(db, a.file.path);
-          looked.set(key, Boolean(found && found.size === a.file.bytes && found.size <= ANIMATION_MAX_BYTES && ANIMATION_FILE_MIME[a.file.kind].includes(found.mimetype)));
+          looked.set(key, Boolean(found && found.size === a.file.bytes && found.size <= animationMaxBytes(a.file.kind) && ANIMATION_FILE_MIME[a.file.kind].includes(found.mimetype)));
         }
         if (!looked.get(key)) throw new Error("An animation’s picture is missing or not the type it says. Remove it and add it again.");
       }
