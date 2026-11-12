@@ -1,3 +1,4 @@
+import { mediaClipPath } from "@/lib/portfolia/media-crop";
 import { useEffect, useRef, useState } from "react";
 import { publicAssetUrl, resolveAssetUrl } from "@/lib/portfolia/assets";
 import { MAX_PLAYING } from "@/lib/portfolia/page-video-player";
@@ -52,7 +53,7 @@ function OneVideo({ video }: { video: PageVideo }) {
         preload="metadata"
         aria-hidden
         className="pointer-events-none absolute object-cover"
-        style={{ left: `${video.x * 100}%`, top: `${video.y * 100}%`, width: `${video.width * 100}%`, height: `${video.height * 100}%` }}
+        style={{ clipPath: mediaClipPath(video.crop), left: `${video.x * 100}%`, top: `${video.y * 100}%`, width: `${video.width * 100}%`, height: `${video.height * 100}%` }}
       />
       {!video.silent && <PageVideoSound video={video} on={sound} onToggle={() => {
         const v = el.current;

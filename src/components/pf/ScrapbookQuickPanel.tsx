@@ -1,3 +1,4 @@
+import { PINK_ANIMATION_PLACEMENT, PINK_PDF_KEY, PINK_PORTFOLIO_CODE } from "@/lib/portfolia/pink-animation-placement";
 import { LinkIconFields } from "./LinkIconFields";
 import { ExtraPositionControls } from "./ExtraPositionControls";
 import { LiveScrapbookContext } from "./live-scrapbook-context";
@@ -18,7 +19,7 @@ import { MAX_FOLDOUTS, MAX_NOTE_ROTATION, newFoldout, noteRotation, readableFold
 import { MAX_SLIDESHOWS, SLIDESHOW_SIZE, SLIDE_INTERVAL, placeSlideshow, readablePageSlideshows, type PageSlideshow, hotspotStartSize, MAX_HOTSPOTS, placeHotspot, readablePageHotspots, type HotspotStyle, type PageHotspot, MAX_STICKERS, STICKERS, STICKER_COLOURS, STICKER_SIZE, ANIMATION_SIZE, MAX_ANIMATIONS, isAnimation, stickerLabel, placeSticker, readablePageStickers, stickerInfo, type PageSticker, type StickerId, JUMP_SIZE, LINK_SIZE, MAX_JUMPS, MAX_LINKS, MAX_TAGS, MAX_VIDEOS, SPOTLIGHT_CAPTION_LIMIT, SPOTLIGHT_LIMITS, SPOTLIGHT_SIZE, TAG_COLOURS, VIDEO_MAX_MB, VIDEO_WIDTH, hostOf, normaliseUrl, placeJump, placeVideo, readablePageJumps, readablePageLinks, readablePageSpotlights, readablePageTags, readablePageVideos, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { readVideo, videoFileProblem, videoMime } from "@/lib/portfolia/page-video-file";
 import { gifFileProblem, gifToVideo, isGif } from "@/lib/portfolia/gif-to-video";
-import { addPortfolioExtra, deleteUnusedPortfolioAsset, isPaid, patchPortfolioExtra, removePortfolioExtra, useDoc, type Portfolio } from "@/lib/portfolia/store";
+import { addPortfolioExtra, deleteUnusedPortfolioAsset, getDoc, isPaid, patchPortfolio, patchPortfolioExtra, removePortfolioExtra, useDoc, type Portfolio } from "@/lib/portfolia/store";
 import { cn } from "@/lib/utils";
 
 type Shown = { page: number; half?: "left" | "right"; ratio?: number };
@@ -237,6 +238,51 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
     if (!response.ok) throw new Error("unavailable");
     await addAnimation(await response.blob(), entry.name, "noto");
   });
+  const pinkInput = useRef<HTMLInputElement>(null);
+  const isPink = p.code === PINK_PORTFOLIO_CODE && pdf.blobKey === PINK_PDF_KEY && p.viewer?.spreads !== "ready";
+  const importPink = async (files: File[]) => {
+    if (!isPink || !files.length) return;
+    setAnimationPhase("Checking Pink clips…");
+    const uploaded: string[] = [];
+    try {
+      const supplied = new Map(files.map(file => [file.name, file]));
+      if (files.length !== PINK_ANIMATION_PLACEMENT.length || supplied.size !== files.length)
+        throw new Error("Select all eight extracted Pink MP4s together.");
+      const verified = await Promise.all(PINK_ANIMATION_PLACEMENT.map(async (entry) => {
+        const file = supplied.get(entry.name);
+        if (!file || file.size > 10485760) throw new Error(`Choose the original ${entry.name} from the Pink MP4 ZIP.`);
+        const data = await file.arrayBuffer();
+        const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", data)), n => n.toString(16).padStart(2, "0")).join("");
+        if (digest !== entry.sha256) throw new Error(`${entry.name} does not match the prepared clip.`);
+        return { ...entry, data, id: entry.name.replace(".mp4", "") };
+      }));
+      const ids = new Set<string>(verified.map(clip => clip.id));
+      const remaining = (items: PageSticker[] | undefined) => (items ?? []).filter(s => !ids.has(s.id));
+      const fits = (items: PageSticker[]) => items.length + verified.length <= MAX_STICKERS && items.filter(isAnimation).length + verified.length <= MAX_ANIMATIONS;
+      if (!fits(remaining(pdf.stickers))) throw new Error("Remove a few animations before importing the Pink clips.");
+      setAnimationPhase("Uploading and positioning the eight clips…");
+      const added: PageSticker[] = [];
+      for (const clip of verified) {
+        const key = uid("anim");
+        uploaded.push(key);
+        await putBlob(key, new Blob([clip.data], { type: "video/mp4" }));
+        added.push({ id: clip.id, page: clip.page, half: "right", x: clip.x, y: clip.y, size: clip.size, sticker: "animation",
+          colour: "#1c1c1c", play: "loop", image: { key, name: clip.name } });
+      }
+      const active = getDoc().portfolio;
+      if (active?.code !== p.code || active.pdf?.blobKey !== PINK_PDF_KEY || !fits(remaining(active.pdf.stickers)))
+        throw new Error("Pink changed while uploading. Reopen it and try again.");
+      if (!patchPortfolio({ pdf: { ...active.pdf, stickers: [...remaining(active.pdf.stickers), ...added] } }))
+        throw new Error("The clips could not be added to the draft.");
+    } catch (error) {
+      await Promise.all(uploaded.map(key => deleteUnusedPortfolioAsset(key).catch(() => {})));
+      onError(error instanceof Error ? error.message : "Could not import the Pink clips.");
+      return;
+    } finally { setAnimationPhase(null); }
+    onError(null);
+    select("stickers", "pink-page-01");
+    onGoTo?.(1);
+  };
   const uploadAnimation = (file: File) => void working("Adding your animation…", () => addAnimation(file, file.name.replace(/\.[a-z0-9]+$/i, "").replace(/[-_]+/g, " ")));
   const patchNote = (next: Foldout) => report(patchPortfolioExtra(p.code, pdf.blobKey, "foldouts", next.id, next), "That change could not be saved. Check the text length.");
   const remove = () => {
@@ -363,6 +409,12 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
       </FeatureBox>
 
       <FeatureBox icon={Clapperboard} title="Animations" count={`${animations.length} of ${MAX_ANIMATIONS}`} hint="Moving pictures that sit on the page with no box round them: a waving character, falling rain, a twinkling star. Pick one to add it to the page in view." active={Boolean(animation)}>
+        {isPink && <>
+          <Button size="xs" variant="line" disabled={Boolean(animationPhase)} onClick={() => pinkInput.current?.click()}>Import eight aligned Pink clips</Button>
+          <input ref={pinkInput} type="file" accept=".mp4,video/mp4" multiple className="sr-only" tabIndex={-1} aria-label="Choose the eight Pink MP4s"
+            onChange={e => { const files = Array.from(e.target.files ?? []); e.currentTarget.value = ""; void importPink(files); }} />
+          <p className="text-xs text-muted-foreground">Select all eight MP4s from the ZIP. They are placed on their matching pages in this draft.</p>
+        </>}
         <AnimationPicker disabled={Boolean(animationPhase) || animations.length >= MAX_ANIMATIONS} busy={animationPhase} onPick={pickAnimation} onUpload={uploadAnimation} />
         {chips("stickers", animations.map((s) => ({ id: s.id, page: s.page, label: stickerLabel(s) })))}
         {animation && editing(

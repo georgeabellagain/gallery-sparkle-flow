@@ -1,3 +1,4 @@
+import { mediaClipPath } from "@/lib/portfolia/media-crop";
 import { nudgeStep, snapExtraToPage } from "@/lib/portfolia/extra-placement";
 import { useContext, useEffect, useRef, useState, type PointerEvent } from "react";
 import { LiveScrapbookContext } from "./live-scrapbook-context";
@@ -263,7 +264,7 @@ export function LiveScrapbookPage({
             className="absolute pointer-events-auto overflow-visible ring-1 ring-blue-500/60 data-[selected]:ring-2 data-[selected]:ring-blue-600"
             style={{ left: `${v.x * 100}%`, top: `${v.y * 100}%`, width: `${v.width * 100}%`, height: `${v.height * 100}%` }}
           >
-            <VideoPoster video={v} />
+            <div className="absolute inset-0" style={{ clipPath: mediaClipPath(v.crop) }}><VideoPoster video={v} /></div>
             <span aria-hidden className="pointer-events-none absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">Video</span>
             <button
               type="button"

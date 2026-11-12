@@ -1,3 +1,4 @@
+import { MAX_MEDIA_CROP, MEDIA_BLEED } from "../portfolia/media-crop";
 import { BACKGROUND_PRESETS } from "../portfolia/background-presets";
 import { isBackgroundScene } from "../portfolia/background-scenes";
 import { z } from "zod";
@@ -34,8 +35,9 @@ const productAnimation = z.object({
   id: z.string().regex(/^[a-zA-Z0-9_.-]{1,120}$/),
   page: z.number().int().min(1).max(2000),
   half: z.enum(["left", "right"]),
-  x: z.number().min(0).max(1),
-  y: z.number().min(0).max(1),
+  x: z.number().min(-MEDIA_BLEED).max(1),
+  y: z.number().min(-MEDIA_BLEED).max(1),
+  crop: z.object({ top: z.number().min(0).max(MAX_MEDIA_CROP).optional(), right: z.number().min(0).max(MAX_MEDIA_CROP).optional(), bottom: z.number().min(0).max(MAX_MEDIA_CROP).optional(), left: z.number().min(0).max(MAX_MEDIA_CROP).optional() }).optional(),
   size: z.number().min(STICKER_SIZE.min).max(ANIMATION_SIZE.max),
   play: z.enum(ANIMATION_PLAYS).optional(),
   flip: z.literal(true).optional(),
@@ -123,7 +125,7 @@ export function productStickers(animations: unknown, pages: { total: number } | 
   return list.data.flatMap((a): PageSticker[] => {
     const page = "total" in pages ? a.page : pages.preview.indexOf(a.page) + 1;
     const sticker: PageSticker = {
-      id: a.id, page, half: a.half, sticker: "animation", colour: "#1c1c1c", x: a.x, y: a.y, size: a.size,
+      id: a.id, page, half: a.half, sticker: "animation", colour: "#1c1c1c", x: a.x, y: a.y, size: a.size, crop: a.crop,
       image: { key: productAnimationKey(a), ...(a.name ? { name: a.name } : {}), ...(a.credit ? { credit: a.credit } : {}) },
       ...(a.play ? { play: a.play } : {}), ...(a.flip ? { flip: true as const } : {}),
     };

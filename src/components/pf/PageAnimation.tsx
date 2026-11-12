@@ -1,3 +1,4 @@
+import { mediaClipPath } from "@/lib/portfolia/media-crop";
 import { useEffect, useRef, useState } from "react";
 import { getBlob } from "@/lib/portfolia/assets";
 import { animationFrameAt, drawAnimationFrame, loadAnimation, startAnimation, stopAnimation, type LoadedAnimation } from "@/lib/portfolia/page-animation";
@@ -81,14 +82,15 @@ export function PageAnimation({ sticker, interactive = false, onPaper = false }:
           className="h-full w-full object-contain" style={sticker.flip ? { transform: "scaleX(-1)" } : undefined} />
       : <img src={fileUrl} alt="" draggable={false} className="h-full w-full object-contain" style={sticker.flip ? { transform: "scaleX(-1)" } : undefined} />
     : onPaper ? null : <canvas ref={canvas} aria-hidden className="h-full w-full" />;
-  if (play !== "tap") return <span role="img" aria-label={name} className="block h-full w-full">{picture}</span>;
+  const clipped = <span className="block h-full w-full" style={{ clipPath: mediaClipPath(sticker.crop) }}>{picture}</span>;
+  if (play !== "tap") return <span role="img" aria-label={name} className="block h-full w-full">{clipped}</span>;
   return (
     <button type="button" aria-label={`Play ${name}`} title="Press to play"
       className="pointer-events-auto block h-full w-full cursor-pointer rounded-lg bg-transparent p-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
       // The press is for the animation, not for turning the page underneath.
       onPointerDown={(e) => e.stopPropagation()} onPointerUp={(e) => e.stopPropagation()}
       onClick={(e) => { e.stopPropagation(); startAnimation(sticker.id, performance.now() / 1000); if (video.current && !reducedMotion()) { video.current.currentTime = 0; void video.current.play().catch(() => {}); } }}>
-      {picture}
+      {clipped}
     </button>
   );
 }

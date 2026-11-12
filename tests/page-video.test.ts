@@ -20,7 +20,7 @@ test("a valid page video passes; bad files, sizes and positions are refused", ()
   assert.match(validatePageVideo(video({ page: 9 }), 4)!, /page/);
   assert.match(validatePageVideo(video({ mime: "video/quicktime" as never }), 4)!, /MP4 or WebM/);
   assert.match(validatePageVideo(video({ bytes: VIDEO_MAX_MB * 1048576 + 1 }), 4)!, new RegExp(`${VIDEO_MAX_MB} MB`));
-  assert.match(validatePageVideo(video({ x: 0.6 }), 4)!, /on the page/);
+  assert.match(validatePageVideo(video({ x: -0.6 }), 4)!, /position/);
   assert.match(validatePageVideo(video({ blobKey: "../escape" }), 4)!, /file/);
 });
 
@@ -32,14 +32,14 @@ test("only one moving video per page side, and at most six in all", () => {
   assert.equal(new Set(sides).size, sides.length);
 });
 
-test("moving and resizing keeps the video's shape and keeps it on the page", () => {
+test("moving and resizing preserves video shape while allowing bleed", () => {
   const ratio = 1.4, v = video();
   const bigger = transformExtra("videos", v, 0.3, 0, "se", ratio) as PageVideo;
   assert.ok(bigger.width > v.width);
   assert.ok(Math.abs(bigger.height - videoHeight(bigger, ratio)) < 1e-9);
-  assert.ok(bigger.x + bigger.width <= 1 + 1e-9 && bigger.y + bigger.height <= 1 + 1e-9);
+  assert.ok(bigger.x + bigger.width > 1);
   const moved = placeVideo(v, 5, 5, v.width, ratio);
-  assert.ok(moved.x + moved.width <= 1 + 1e-9 && moved.y + moved.height <= 1 + 1e-9);
+  assert.ok(moved.x < 1 && moved.y < 1 && moved.x + moved.width > 1);
   assert.equal(validatePageVideo(moved, 4), null);
 });
 
