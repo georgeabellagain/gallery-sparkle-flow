@@ -1,3 +1,4 @@
+import { silentLoopFrame } from "../src/lib/portfolia/silent-video-loop";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { placeVideo, readablePageVideos, validatePageVideo, videoHeight, videosForLeaf, videosForPage, VIDEO_MAX_MB, type PageVideo } from "../src/lib/portfolia/page-extras";
@@ -68,4 +69,11 @@ test("videos are a Personal feature: saving asks to upgrade, unpaid public links
   assert.ok(publicAssetKeys(p, true).includes("video_abc"));
   assert.equal(publicPortfolioPlan(p, false).pdf?.videos, undefined);
   assert.equal(publicPortfolioPlan(p, true).pdf?.videos?.length, 1);
+});
+
+
+test("a decoded silent loop honours unequal frame holds and wraps directly to its first frame", () => {
+  const frames = [{ at: 0 }, { at: .04 }, { at: .1 }];
+  assert.deepEqual([0, .039, .04, .099, .1, .199, .2, .22].map(t => silentLoopFrame(frames, .2, t)),
+    [0, 0, 1, 1, 2, 2, 0, 0]);
 });
