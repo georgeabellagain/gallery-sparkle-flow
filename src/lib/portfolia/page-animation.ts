@@ -89,13 +89,19 @@ async function videoStill(blob: Blob): Promise<LoadedAnimation> {
   try {
     el.muted = true;
     el.playsInline = true;
+    el.preload = "auto";
     await new Promise<void>((resolve, reject) => {
       el.onloadeddata = () => resolve();
       el.onerror = () => reject(new Error("MP4 could not be decoded"));
       timer = setTimeout(() => reject(new Error("MP4 timed out")), 6000);
       el.src = url;
     });
-    const picture = await createImageBitmap(el);
+    const size = animationFrameSize(el.videoWidth, el.videoHeight, 1, 1024);
+    const canvas = document.createElement("canvas");
+    canvas.width = size.width;
+    canvas.height = size.height;
+    canvas.getContext("2d")!.drawImage(el, 0, 0, size.width, size.height);
+    const picture = await createImageBitmap(canvas);
     return { frames: [picture], durations: [1], width: picture.width, height: picture.height, stillOnly: true, video: true };
   } finally {
     clearTimeout(timer);
