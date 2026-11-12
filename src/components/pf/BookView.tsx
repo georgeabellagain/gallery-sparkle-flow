@@ -27,7 +27,7 @@ import { videoThumbnail, hotspotHeight, jumpsForLeaf, linksForLeaf, readablePage
 import { SpotlightLightbox, SpotlightTarget, type SpotlightView } from "./PageSpotlights";
 import { getBlob, publicAssetUrl, resolveAssetUrl } from "@/lib/portfolia/assets";
 import { videoUvRect } from "@/lib/portfolia/page-video";
-import { createPageVideoPlayer, type PageVideoPlayer } from "@/lib/portfolia/page-video-player";
+import { createPageVideoPlayer, MAX_PLAYING, type PageVideoPlayer } from "@/lib/portfolia/page-video-player";
 import { PageVideoSound } from "./PageVideoSound";
 import { foldoutsForLeaf, readableFoldouts, type Foldout, type PageBounds } from "@/lib/portfolia/foldouts";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -115,7 +115,7 @@ function pageLoader(
   const loadPosters = async (page: number) => {
     const out = new Map<string, ImageBitmap>();
     await Promise.all(videos.filter((v) => v.page === page).map(async (v) => {
-      try { const blob = await getBlob(v.posterKey); if (blob) out.set(v.id, await createImageBitmap(blob)); } catch { /* the box stays dark until the video plays */ }
+      try { const blob = await getBlob(v.posterKey); if (blob) out.set(v.id, await createImageBitmap(blob)); } catch { /* Keep the original page artwork if no poster loads. */ }
     }));
     await Promise.all(hotspots.filter(h => h.page === page && h.style === "video").map(async h => {
       const url = h.video && videoThumbnail(h.video);
@@ -220,8 +220,6 @@ function pageLoader(
     );
     for (const v of videosForLeaf(videos, leaf)) {
       const poster = posters.get(v.id);
-      ctx.fillStyle = "#111";
-      ctx.fillRect(v.x * canvas.width, v.y * canvas.height, v.width * canvas.width, v.height * canvas.height);
       if (poster) ctx.drawImage(poster, v.x * canvas.width, v.y * canvas.height, v.width * canvas.width, v.height * canvas.height);
     }
     for (const h of hotspotsForLeaf(hotspots, leaf).filter(h => h.style === "video")) {
@@ -738,14 +736,27 @@ export function BookView({
       setVideoSound(null);
     };
   }, [ready, pageVideos, layout]);
-  // Only the videos on the pages in view play (at most two); the rest pause, and all pause in a hidden tab.
-  const videosInView = useMemo(() => spread.filter((n): n is number => n !== null).flatMap((n) => videosForLeaf(pageVideos, layout.leaves[n]!).map((v) => v.id)), [spread, pageVideos, layout]);
+  // Start nearby silent loops before turning onto their spread. Visible clips
+  // take priority, and the player still runs at most two decoders at a time.
   useEffect(() => {
-    const apply = () => videoPlayer.current?.setInView(presentationActive ? videosInView : []);
+    const apply = () => {
+      const player = videoPlayer.current;
+      if (!player) return;
+      if (!presentationActive || document.hidden) { player.setInView([]); return; }
+      const clips = (leaves: Array<number | null>) => leaves
+        .filter((n): n is number => n !== null)
+        .flatMap((n) => videosForLeaf(pageVideos, layout.leaves[n]!));
+      const visible = clips(spread);
+      const nearby = [layout.spreads[index + 1], layout.spreads[index - 1]]
+        .flatMap((side) => side ? clips(side) : []).filter((v) => v.silent);
+      const playing = [...new Map([...visible, ...nearby].map(v => [v.id, v])).values()].slice(0, MAX_PLAYING);
+      for (const clip of playing) player.element(clip);
+      player.setInView(playing.map(v => v.id));
+    };
     apply();
     document.addEventListener("visibilitychange", apply);
     return () => document.removeEventListener("visibilitychange", apply);
-  }, [videosInView, ready, presentationActive]);
+  }, [spread, index, pageVideos, layout, ready, presentationActive]);
   const focus = bookFocus(spread, leaf, narrow);
   const atStart = narrow ? leaf === 0 : index === 0;
   const atEnd = narrow ? leaf === layout.leaves.length - 1 : index === layout.spreads.length - 1;

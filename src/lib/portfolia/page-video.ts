@@ -1,3 +1,4 @@
+import { silentVideoSurfaces } from "./silent-video-loop";
 import * as THREE from "three";
 
 /** The video shown in a page face: its element, and its box in the face's texture coordinates [left, bottom, right, top]. */
@@ -20,7 +21,10 @@ export const PAGE_VIDEO_FRAGMENT = {
   if (pageVideoOn > 0.5) {
     vec2 pageVideoQ = (vMapUv - pageVideoRect.xy) / max(pageVideoRect.zw - pageVideoRect.xy, vec2(1e-5));
     if (pageVideoQ.x >= 0.0 && pageVideoQ.x <= 1.0 && pageVideoQ.y >= 0.0 && pageVideoQ.y <= 1.0) {
-      pageVideoColour = texture2D(pageVideoMap, pageVideoQ).rgb;
+      // VideoTexture uploads use a linear GPU format. Decode sRGB like Three's
+      // built-in video-map shader, before applying the same lighting as the PDF.
+      vec4 pageVideoSample = texture2D(pageVideoMap, pageVideoQ);
+      pageVideoColour = pageVideoOn < 1.5 ? sRGBTransferEOTF(pageVideoSample).rgb : pageVideoSample.rgb;
       pageVideoIn = 1.0;
       diffuseColor.rgb = diffuse * pageVideoColour;
     }
@@ -47,7 +51,8 @@ export function createPageVideo() {
   blank.needsUpdate = true;
   const clear = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1);
   clear.needsUpdate = true;
-  const textures = new WeakMap<HTMLVideoElement, THREE.VideoTexture>();
+  const textures = new Map<HTMLVideoElement, THREE.VideoTexture>();
+  const loopTextures = new Map<HTMLVideoElement, { texture: THREE.CanvasTexture; version: number }>();
   type State = { map: { value: THREE.Texture }; rect: { value: THREE.Vector4 }; on: { value: number }; canvas: HTMLCanvasElement | null; source: PageVideoSource | null; layerMap: { value: THREE.Texture }; layerOn: { value: number }; layer: HTMLCanvasElement | null };
   const states = new Map<THREE.Material, State>();
   let lookup: (canvas: HTMLCanvasElement) => PageVideoSource | null = () => null;
@@ -87,7 +92,31 @@ export function createPageVideo() {
     return t;
   };
   const refresh = (s: State) => {
-    const ready = Boolean(s.source && !still && s.source.video.readyState >= 2 && s.source.video.videoWidth > 0);
+    const video = s.source?.video;
+    const surface = video && !still ? silentVideoSurfaces.get(video) : undefined;
+    if (surface && video && s.source) {
+      let entry = loopTextures.get(video);
+      if (!entry) {
+        const texture = new THREE.CanvasTexture(surface.canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.generateMipmaps = false;
+        texture.minFilter = THREE.LinearFilter;
+        entry = { texture, version: -1 };
+        loopTextures.set(video, entry);
+      }
+      if (entry.version !== surface.version) {
+        entry.version = surface.version;
+        entry.texture.needsUpdate = true;
+      }
+      s.on.value = 2;
+      s.map.value = entry.texture;
+      s.rect.value.set(...s.source.rect);
+      return;
+    }
+    // Keep the last uploaded frame during the native loop seek, rather than
+    // flashing back to the printed poster when readyState temporarily drops.
+    const ready = Boolean(s.source && !still && (textures.has(s.source.video)
+      || (!s.source.video.seeking && s.source.video.readyState >= 2 && s.source.video.videoWidth > 0)));
     s.on.value = ready ? 1 : 0;
     s.map.value = ready ? textureOf(s.source!.video) : blank;
     if (s.source) s.rect.value.set(...s.source.rect);
@@ -127,6 +156,10 @@ export function createPageVideo() {
     /** Which video belongs to a page picture; re-reads every face. */
     setLookup(next: (canvas: HTMLCanvasElement) => PageVideoSource | null) {
       lookup = next;
+      for (const t of textures.values()) t.dispose();
+      textures.clear();
+      for (const { texture } of loopTextures.values()) texture.dispose();
+      loopTextures.clear();
       for (const s of states.values()) { s.source = s.canvas ? lookup(s.canvas) : null; refresh(s); }
     },
     /** Which sticker layer (a transparent picture the size of the face) belongs to a page picture; re-reads every face. */
@@ -143,6 +176,6 @@ export function createPageVideo() {
     setStill(value: boolean) { still = value; for (const s of states.values()) refresh(s); },
     /** Before each frame: faces whose video has become ready start showing it. */
     update() { for (const s of states.values()) if (s.source) refresh(s); },
-    dispose() { blank.dispose(); clear.dispose(); for (const t of layerTextures.values()) t.dispose(); layerTextures.clear(); states.clear(); },
+    dispose() { for (const t of textures.values()) t.dispose(); textures.clear(); for (const { texture } of loopTextures.values()) texture.dispose(); loopTextures.clear(); blank.dispose(); clear.dispose(); for (const t of layerTextures.values()) t.dispose(); layerTextures.clear(); states.clear(); },
   };
 }
