@@ -1,3 +1,4 @@
+import { mediaClipPath } from "@/lib/portfolia/media-crop";
 import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Images } from "lucide-react";
 import { useBlob, useObjectUrl } from "./Chrome";
@@ -30,7 +31,7 @@ export function SlideshowFrame({ slideshow, still = false }: { slideshow: PageSl
   }
   const go = (step: number) => setIndex((i) => (i + step + count) % count);
   return (
-    <span className="absolute inset-0 block overflow-hidden" onPointerEnter={() => setPaused(true)} onPointerLeave={() => setPaused(false)}>
+    <span className="absolute inset-0 block overflow-hidden" style={{ clipPath: mediaClipPath(slideshow.crop) }} onPointerEnter={() => setPaused(true)} onPointerLeave={() => setPaused(false)}>
       {slideshow.images.map((key, i) => {
         const shown = i === index;
         const offset = ((i - index + count) % count);

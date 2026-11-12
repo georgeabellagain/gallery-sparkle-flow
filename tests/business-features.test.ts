@@ -53,16 +53,16 @@ test("there are plenty of stickers, each with a known motion", () => {
 
 const show: PageSlideshow = { id: "s1", page: 3, half: "left", x: 0.1, y: 0.2, width: 0.6, height: 0.4, images: ["slide_a", "slide_b"], interval: 4, transition: "fade", fit: "cover" };
 
-test("slideshows are validated, kept on the page and their pictures publish with the portfolio", () => {
+test("slideshows are validated, allow bleed and their pictures publish with the portfolio", () => {
   assert.equal(validatePageSlideshow(show, 4), null);
   assert.ok(validatePageSlideshow({ ...show, page: 5 }, 4));
   assert.ok(validatePageSlideshow({ ...show, interval: 1 }, 4));
   assert.ok(validatePageSlideshow({ ...show, images: Array.from({ length: MAX_SLIDES + 1 }, (_, i) => `slide_${i}`) }, 4));
-  assert.ok(validatePageSlideshow({ ...show, x: 0.6 }, 4), "the box must stay on the page");
+  assert.ok(validatePageSlideshow({ ...show, x: -0.6 }, 4), "bleed remains bounded");
   const placed = placeSlideshow(show, 0.9, 0.9, 0.01, 2);
   assert.equal(placed.width, SLIDESHOW_SIZE.min);
   assert.equal(placed.height, 1);
-  assert.ok(placed.x + placed.width <= 1 && placed.y === 0);
+  assert.ok(placed.x === 0.9 && placed.y === 0.9);
   assert.equal(readablePageSlideshows([show, { ...show, fit: "stretch" }], 4).length, 1);
   assert.equal(slideshowsForLeaf([show], { page: 3, half: "right" }).length, 0);
   assert.equal(slideshowsForPage([show], 3, true)[0]!.width, 0.3);

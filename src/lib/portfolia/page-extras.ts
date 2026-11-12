@@ -1,3 +1,4 @@
+import { placeMediaAxis, validMediaCrop, validMediaPosition, type MediaCrop } from "./media-crop";
 import { NOTE_FONT_IDS, type NoteFont } from "./foldouts";
 /** Page tabs and website links: small extras that sit on a page of the book. Pure data and validation. */
 export interface PageTag {
@@ -37,6 +38,7 @@ export interface PageLink {
 }
 /** A video printed on a page (Personal). It plays inside its box on the paper; its first frame is the still. */
 export interface PageVideo {
+  crop?: MediaCrop;
   id: string;
   page: number;
   /** Which half of a spread-sheet page the video sits on. */
@@ -179,7 +181,7 @@ export function validatePageVideo(v: PageVideo, pages: number): string | null {
   if (v.silent !== undefined && v.silent !== true) return "Choose a valid video.";
   if (![v.x, v.y, v.width, v.height, v.aspect].every(Number.isFinite) || v.aspect < 0.2 || v.aspect > 5) return "Choose a valid video shape.";
   if (v.width < VIDEO_WIDTH.min - 1e-9 || v.width > VIDEO_WIDTH.max + 1e-9 || v.height <= 0 || v.height > 1.0001) return "Choose a valid video size.";
-  if (v.x < -1e-9 || v.y < -1e-9 || v.x + v.width > 1.0001 || v.y + v.height > 1.0001) return "Keep the video on the page.";
+  if (!validMediaPosition(v.x, v.y) || !validMediaCrop(v.crop)) return "Choose a valid video position and crop.";
   return null;
 }
 /** One moving video per page side keeps phones smooth; validation of the list enforces it. */
@@ -205,7 +207,7 @@ export function videosForPage(videos: PageVideo[], page: number, split: boolean)
 export function placeVideo(v: PageVideo, x: number, y: number, width: number, ratio = 1.4): PageVideo {
   const w = Math.min(Math.max(VIDEO_WIDTH.min, width), VIDEO_WIDTH.max, v.aspect * ratio);
   const h = videoHeight({ width: w, aspect: v.aspect }, ratio);
-  return { ...v, width: w, height: h, x: Math.min(Math.max(0, x), 1 - w), y: Math.min(Math.max(0, y), Math.max(0, 1 - h)) };
+  return { ...v, width: w, height: h, x: placeMediaAxis(x, w), y: placeMediaAxis(y, h) };
 }
 export function validatePageSpotlight(s: PageSpotlight, pages: number): string | null {
   if (!s || typeof s !== "object" || !key.test(s.id)) return "Choose a valid spotlight.";
@@ -320,6 +322,7 @@ export const stickerInfo = (id: string) => STICKERS.find((s) => s.id === id);
 export const ANIMATION_PLAYS = ["loop", "open", "tap"] as const;
 export type AnimationPlay = (typeof ANIMATION_PLAYS)[number];
 export interface PageSticker {
+  crop?: MediaCrop;
   id: string;
   page: number;
   /** Which half of a spread-sheet page it sits on. */
@@ -371,7 +374,9 @@ export function validatePageSticker(s: PageSticker, pages: number): string | nul
   }
   if (!hex.test(s.colour)) return "Choose a sticker colour.";
   if (![s.x, s.y, s.size].every(Number.isFinite) || s.size < STICKER_SIZE.min - 1e-9 || s.size > stickerMaxSize(s) + 1e-9) return "Choose a valid sticker size.";
-  if (s.x < -1e-9 || s.y < -1e-9 || s.x + s.size > 1.0001 || s.y > 1.0001) return "Keep the sticker on the page.";
+  if (isAnimation(s)) {
+    if (!validMediaPosition(s.x, s.y) || !validMediaCrop(s.crop)) return "Choose a valid animation position and crop.";
+  } else if (s.crop !== undefined || s.x < -1e-9 || s.y < -1e-9 || s.x + s.size > 1.0001 || s.y > 1.0001) return "Keep the sticker on the page.";
   return null;
 }
 export function readablePageStickers(value: unknown, pages: number): PageSticker[] {
@@ -390,7 +395,8 @@ export function stickersForPage(stickers: PageSticker[], page: number, split: bo
 /** Keeps a sticker on its page while it is moved or resized (`ratio` is page height over width). */
 export function placeSticker(s: PageSticker, x: number, y: number, size: number, ratio = 1.4): PageSticker {
   const w = Math.min(Math.max(STICKER_SIZE.min, size), stickerMaxSize(s)), h = w / ratio;
-  return { ...s, size: w, x: Math.min(Math.max(0, x), 1 - w), y: Math.min(Math.max(0, y), Math.max(0, 1 - h)) };
+  return { ...s, size: w, x: isAnimation(s) ? placeMediaAxis(x, w) : Math.min(Math.max(0, x), 1 - w),
+    y: isAnimation(s) ? placeMediaAxis(y, h) : Math.min(Math.max(0, y), Math.max(0, 1 - h)) };
 }
 /**
  * A hotspot: something readers press on a page. It looks like a pulsing dot, a labelled tag or a button, and either
@@ -514,6 +520,7 @@ export function placeHotspot(h: PageHotspot, x: number, y: number, size: number,
  * step through with arrows or a swipe. Like a photo slideshow element in a catalogue maker.
  */
 export interface PageSlideshow {
+  crop?: MediaCrop;
   id: string;
   page: number;
   half: "left" | "right";
@@ -544,7 +551,7 @@ export function validatePageSlideshow(s: PageSlideshow, pages: number): string |
   if (s.fit !== "cover" && s.fit !== "contain") return "Choose how pictures fit.";
   if (![s.x, s.y, s.width, s.height].every(Number.isFinite)) return "Choose a valid slideshow size.";
   if (s.width < SLIDESHOW_SIZE.min - 1e-9 || s.height < SLIDESHOW_SIZE.min - 1e-9 || s.width > 1.0001 || s.height > 1.0001) return "Choose a valid slideshow size.";
-  if (s.x < -1e-9 || s.y < -1e-9 || s.x + s.width > 1.0001 || s.y + s.height > 1.0001) return "Keep the slideshow on the page.";
+  if (!validMediaPosition(s.x, s.y) || !validMediaCrop(s.crop)) return "Choose a valid slideshow position and crop.";
   return null;
 }
 export const readablePageSlideshows = (value: unknown, pages: number): PageSlideshow[] =>
@@ -558,7 +565,7 @@ export function slideshowsForPage(slideshows: PageSlideshow[], page: number, spl
 /** Keeps a slideshow's box on its page while it is moved or resized. Its shape is free. */
 export function placeSlideshow(s: PageSlideshow, x: number, y: number, width: number, height: number): PageSlideshow {
   const w = Math.min(Math.max(SLIDESHOW_SIZE.min, width), 1), h = Math.min(Math.max(SLIDESHOW_SIZE.min, height), 1);
-  return { ...s, width: w, height: h, x: Math.min(Math.max(0, x), 1 - w), y: Math.min(Math.max(0, y), 1 - h) };
+  return { ...s, width: w, height: h, x: placeMediaAxis(x, w), y: placeMediaAxis(y, h) };
 }
 function readable<T extends { id: string }>(value: unknown, max: number, ok: (v: T) => boolean): T[] {
   if (!Array.isArray(value)) return [];

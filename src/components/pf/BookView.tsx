@@ -1,3 +1,4 @@
+import { clipMediaCanvas } from "@/lib/portfolia/media-crop";
 import { takePreviewTurn, subscribePreviewTurn } from "@/lib/portfolia/preview-turn";
 import { ribbonGutterFor } from "@/lib/portfolia/book-details";
 import { coverLeaf } from "@/lib/portfolia/rigid-cover";
@@ -220,7 +221,13 @@ function pageLoader(
     );
     for (const v of videosForLeaf(videos, leaf)) {
       const poster = posters.get(v.id);
-      if (poster) ctx.drawImage(poster, v.x * canvas.width, v.y * canvas.height, v.width * canvas.width, v.height * canvas.height);
+      if (poster) {
+        const x = v.x * canvas.width, y = v.y * canvas.height, width = v.width * canvas.width, height = v.height * canvas.height;
+        ctx.save();
+        clipMediaCanvas(ctx, x, y, width, height, v.crop);
+        ctx.drawImage(poster, x, y, width, height);
+        ctx.restore();
+      }
     }
     for (const h of hotspotsForLeaf(hotspots, leaf).filter(h => h.style === "video")) {
       const poster = posters.get("embed:" + h.id);
@@ -722,7 +729,7 @@ export function BookView({
     s.setVideoLookup((canvas) => {
       const at = layout.leaves[Number(canvas.dataset["seed"])];
       const v = at ? videosForLeaf(pageVideos, at)[0] : undefined;
-      return v ? { video: player.element(v), rect: videoUvRect(v) } : null;
+      return v ? { video: player.element(v), rect: videoUvRect(v), crop: v.crop } : null;
     });
     const motion = matchMedia("(prefers-reduced-motion: reduce)");
     const still = () => s.setVideoStill(motion.matches);
@@ -1783,9 +1790,11 @@ export function BookView({
             onClickCapture={(e) => { if (handoff.current?.started) { e.preventDefault(); e.stopPropagation(); } }}>
             {editingExtras && <LiveScrapbookPage leaf={layout.leaves[n]!} side={side===0?'left':'right'} ratio={ratio} neighbour={spread[1-side] != null ? layout.leaves[spread[1-side]!] : undefined}/>}
             {onLeaf.map(link => <PageLinkAnchor key={link.id} link={link} visible painted />)}
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
             {videosForLeaf(pageVideos, layout.leaves[n]!).filter(v => !v.silent).map(v => <PageVideoSound key={v.id} video={v} on={videoSound === v.id} onToggle={() => videoPlayer.current?.toggleSound(v.id)} />)}
             {slideshowsForLeaf(pageSlideshows, layout.leaves[n]!).map(s => <PageSlideshowMark key={s.id} slideshow={s} />)}
             {stickersForLeaf(pageStickers, layout.leaves[n]!).map(s => <PageStickerMark key={s.id} sticker={s} onPaper />)}
+            </div>
             {hotspotsForLeaf(pageHotspots, layout.leaves[n]!).map(h => <PageHotspotMark key={h.id} hotspot={h} />)}
             {jumpsForLeaf(pageJumps, layout.leaves[n]!).map(j => <PageJumpLink key={j.id} jump={j} onGo={(page) => void jumpTo(layout.leaves.findIndex((l) => l.page === page))} />)}
             {spotlightsForLeaf(spotlightViews.map(v => v.spotlight), layout.leaves[n]!).map(s => <SpotlightTarget key={s.id} spotlight={s} onOpen={() => setOpenSpotlight(spotlightViews.findIndex(v => v.spotlight.id === s.id))} />)}

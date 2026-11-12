@@ -1,3 +1,4 @@
+import { clipMediaCanvas } from "@/lib/portfolia/media-crop";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { getBlob } from "@/lib/portfolia/assets";
@@ -136,9 +137,7 @@ export function drawPageLayer(stickers: PageSticker[], slideshows: PageSlideshow
     const scale = (s.fit === "cover" ? Math.max : Math.min)(bw / picture.width, bh / picture.height);
     const pw = picture.width * scale, ph = picture.height * scale;
     ctx.save();
-    ctx.beginPath();
-    ctx.rect(x, y, bw, bh);
-    ctx.clip();
+    clipMediaCanvas(ctx, x, y, bw, bh, s.crop ?? {});
     ctx.drawImage(picture, x + (bw - pw) / 2, y + (bh - ph) / 2, pw, ph);
     ctx.restore();
   }
@@ -147,7 +146,13 @@ export function drawPageLayer(stickers: PageSticker[], slideshows: PageSlideshow
       // The frame its flat copy would be showing now, so a looping animation keeps going as its page turns.
       const animation = s.image ? readyAnimation(s.image.key) : null;
       // Where the browser can't read frames, the flat copy shows the file moving instead while the page is still.
-      if (animation && !(only && animation.stillOnly)) drawAnimationFrame(ctx, animationFrameAt(s, animation, time), s.x * w, s.y * h, s.size * w, Boolean(s.flip));
+      if (animation && !(only && animation.stillOnly)) {
+        const x = s.x * w, y = s.y * h, size = s.size * w;
+        ctx.save();
+        clipMediaCanvas(ctx, x, y, size, size, s.crop);
+        drawAnimationFrame(ctx, animationFrameAt(s, animation, time), x, y, size, Boolean(s.flip));
+        ctx.restore();
+      }
       continue;
     }
     if (only) continue;

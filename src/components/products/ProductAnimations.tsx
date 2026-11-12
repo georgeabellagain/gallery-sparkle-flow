@@ -1,3 +1,4 @@
+import { MediaCropControls } from "@/components/pf/MediaCropControls";
 import { useState } from "react";
 import { Copy, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -115,8 +116,9 @@ export function ProductAnimations({ id, animations, pages, sheets, page, ratio =
             )}
           </div>
           {slider("Size", selected.size, STICKER_SIZE.min, ANIMATION_SIZE.max, (v) => patch(place(selected, selected.x, selected.y, v)))}
-          {slider("From the left", selected.x, 0, Math.max(0, 1 - selected.size), (v) => patch(place(selected, v, selected.y, selected.size)))}
-          {slider("From the top", selected.y, 0, Math.max(0, 1 - selected.size / ratio), (v) => patch(place(selected, selected.x, v, selected.size)))}
+          {slider("From the left", selected.x, -.5, 1, (v) => patch(place(selected, v, selected.y, selected.size)))}
+          {slider("From the top", selected.y, -.5, 1, (v) => patch(place(selected, selected.x, v, selected.size)))}
+          <MediaCropControls crop={selected.crop} onChange={crop => patch({ ...selected, crop })} />
           <AnimationOptions sticker={sticker} save={(next) => patch({ ...selected, play: next.play, flip: next.flip, name: next.image?.name?.slice(0, 80) || undefined })} />
           <div className="flex justify-end gap-1">
             <Button size="xs" variant="quiet" disabled={animations.length >= MAX_ANIMATIONS} onClick={() => { const copy = place({ ...selected, id: uid("anim") }, selected.x + 0.04, selected.y + 0.04, selected.size); onChange([...animations, copy]); setChosen(copy.id); }}><Copy className="size-3.5" />Duplicate</Button>

@@ -1,8 +1,9 @@
+import { mediaCropInsets, type MediaCrop } from "./media-crop";
 import { silentVideoSurfaces } from "./silent-video-loop";
 import * as THREE from "three";
 
 /** The video shown in a page face: its element, and its box in the face's texture coordinates [left, bottom, right, top]. */
-export type PageVideoSource = { video: HTMLVideoElement; rect: readonly [number, number, number, number] };
+export type PageVideoSource = { video: HTMLVideoElement; crop?: MediaCrop; rect: readonly [number, number, number, number] };
 
 /** A page box (fractions from the top-left) in texture coordinates, which run from the bottom-left. */
 export function videoUvRect(box: { x: number; y: number; width: number; height: number }): [number, number, number, number] {
@@ -11,7 +12,7 @@ export function videoUvRect(box: { x: number; y: number; width: number; height: 
 
 /** Shader text added to a page material: replaces the printed still with the playing video inside its box. */
 export const PAGE_VIDEO_FRAGMENT = {
-  uniforms: "uniform sampler2D pageVideoMap;\nuniform vec4 pageVideoRect;\nuniform float pageVideoOn;\nuniform sampler2D pageLayerMap;\nuniform float pageLayerOn;\n",
+  uniforms: "uniform sampler2D pageVideoMap;\nuniform vec4 pageVideoRect;\nuniform vec4 pageVideoCrop;\nuniform float pageVideoOn;\nuniform sampler2D pageLayerMap;\nuniform float pageLayerOn;\n",
   // After the page picture is sampled: the video is part of the paper's colour, so lighting, the gutter shade and
   // the paper finish all apply to it exactly as to the print around it.
   afterMap: `
@@ -20,7 +21,7 @@ export const PAGE_VIDEO_FRAGMENT = {
   #ifdef USE_MAP
   if (pageVideoOn > 0.5) {
     vec2 pageVideoQ = (vMapUv - pageVideoRect.xy) / max(pageVideoRect.zw - pageVideoRect.xy, vec2(1e-5));
-    if (pageVideoQ.x >= 0.0 && pageVideoQ.x <= 1.0 && pageVideoQ.y >= 0.0 && pageVideoQ.y <= 1.0) {
+    if (pageVideoQ.x >= pageVideoCrop.w && pageVideoQ.x <= 1.0 - pageVideoCrop.y && pageVideoQ.y >= pageVideoCrop.z && pageVideoQ.y <= 1.0 - pageVideoCrop.x) {
       // VideoTexture uploads use a linear GPU format. Decode sRGB like Three's
       // built-in video-map shader, before applying the same lighting as the PDF.
       vec4 pageVideoSample = texture2D(pageVideoMap, pageVideoQ);
@@ -53,7 +54,7 @@ export function createPageVideo() {
   clear.needsUpdate = true;
   const textures = new Map<HTMLVideoElement, THREE.VideoTexture>();
   const loopTextures = new Map<HTMLVideoElement, { texture: THREE.CanvasTexture; version: number }>();
-  type State = { map: { value: THREE.Texture }; rect: { value: THREE.Vector4 }; on: { value: number }; canvas: HTMLCanvasElement | null; source: PageVideoSource | null; layerMap: { value: THREE.Texture }; layerOn: { value: number }; layer: HTMLCanvasElement | null };
+  type State = { map: { value: THREE.Texture }; rect: { value: THREE.Vector4 }; crop: { value: THREE.Vector4 }; on: { value: number }; canvas: HTMLCanvasElement | null; source: PageVideoSource | null; layerMap: { value: THREE.Texture }; layerOn: { value: number }; layer: HTMLCanvasElement | null };
   const states = new Map<THREE.Material, State>();
   let lookup: (canvas: HTMLCanvasElement) => PageVideoSource | null = () => null;
   let layerLookup: (canvas: HTMLCanvasElement) => HTMLCanvasElement | null = () => null;
@@ -93,6 +94,7 @@ export function createPageVideo() {
   };
   const refresh = (s: State) => {
     const video = s.source?.video;
+    s.crop.value.set(...mediaCropInsets(s.source?.crop));
     const surface = video && !still ? silentVideoSurfaces.get(video) : undefined;
     if (surface && video && s.source) {
       let entry = loopTextures.get(video);
@@ -125,13 +127,14 @@ export function createPageVideo() {
     apply(material: THREE.Material) {
       if (material.userData["pageVideo"]) return;
       material.userData["pageVideo"] = true;
-      const state: State = { map: { value: blank }, rect: { value: new THREE.Vector4(0, 0, 0, 0) }, on: { value: 0 }, canvas: null, source: null, layerMap: { value: clear }, layerOn: { value: 0 }, layer: null };
+      const state: State = { map: { value: blank }, rect: { value: new THREE.Vector4(0, 0, 0, 0) }, crop: { value: new THREE.Vector4() }, on: { value: 0 }, canvas: null, source: null, layerMap: { value: clear }, layerOn: { value: 0 }, layer: null };
       states.set(material, state);
       const previous = material.onBeforeCompile, key = material.customProgramCacheKey.bind(material);
       material.onBeforeCompile = (shader, renderer) => {
         previous.call(material, shader, renderer);
         shader.uniforms["pageVideoMap"] = state.map;
         shader.uniforms["pageVideoRect"] = state.rect;
+        shader.uniforms["pageVideoCrop"] = state.crop;
         shader.uniforms["pageVideoOn"] = state.on;
         shader.uniforms["pageLayerMap"] = state.layerMap;
         shader.uniforms["pageLayerOn"] = state.layerOn;
@@ -139,7 +142,7 @@ export function createPageVideo() {
           .replace("#include <map_fragment>", "#include <map_fragment>" + PAGE_VIDEO_FRAGMENT.afterMap)
           .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>" + PAGE_VIDEO_FRAGMENT.afterEmissive);
       };
-      material.customProgramCacheKey = () => key() + "_pagevideo";
+      material.customProgramCacheKey = () => key() + "_pagevideo_crop";
       material.needsUpdate = true;
     },
     /** Called whenever a page picture is put on a material. */

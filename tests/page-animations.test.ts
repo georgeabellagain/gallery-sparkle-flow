@@ -67,11 +67,13 @@ test("an animation needs its picture and a known way of playing; drawn stickers 
   assert.equal(stickerLabel(star), "Star");
 });
 
-test("animations can fill the page width, stay on the page and keep their settings on every reading style", () => {
+test("animations can extend beyond the page and keep their settings on every reading style", () => {
   const big = placeSticker(animation(), 0.5, 0.9, 3, 1.4);
   assert.equal(big.size, 1);
-  assert.equal(big.x, 0);
-  assert.ok(big.y + big.size / 1.4 <= 1 + 1e-9);
+  assert.equal(big.x, 0.5);
+  assert.ok(big.y + big.size / 1.4 > 1);
+  assert.equal(validatePageSticker({ ...big, crop: { top: .25 } }, 10), null);
+  assert.ok(validatePageSticker({ ...big, crop: { top: .8 } }, 10));
   const [onSheet] = stickersForPage([animation({ play: "tap", flip: true })], 2, true);
   assert.equal(onSheet?.play, "tap");
   assert.equal(onSheet?.flip, true);
