@@ -653,6 +653,8 @@ export function BookView({
   const orbitAt = useRef<Orbit>({ yaw: 0, pitch: 0 });
   const orbiting = useRef<{ id: number; x: number; y: number; moved: boolean } | null>(null);
   const orbitFrame = useRef(0);
+  const flyoverActive = useRef(false);
+  const cameraMoving = () => Boolean(flyoverActive.current || orbiting.current?.moved || orbitFrame.current || panning.current || pinching.current);
   const glideOrbit = (to: Orbit, ms = 700) => {
     cancelAnimationFrame(orbitFrame.current);
     const from = orbitAt.current, start = performance.now();
@@ -703,10 +705,12 @@ export function BookView({
       }
       frame = requestAnimationFrame(drift);
     };
+    flyoverActive.current = true;
     setView3d(true);
     frame = requestAnimationFrame(drift);
     return () => {
       cancelled = true;
+      flyoverActive.current = false;
       cancelAnimationFrame(frame);
       if (tilted.current) return;
       setView3d(false);
@@ -1424,7 +1428,7 @@ export function BookView({
       if (!layers.has(n)) {
         const stickers = stickersForLeaf(pageStickers, at), slides = slideshowsForLeaf(pageSlideshows, at);
         const clock = () => matchMedia("(prefers-reduced-motion: reduce)").matches ? undefined : animationClock.current;
-        const held = () => lock.current || !spreadNow.current.includes(n);
+        const held = () => lock.current || cameraMoving() || !spreadNow.current.includes(n);
         const layer = drawPageLayer(stickers, slides, ratio, undefined, clock(), layerOnly.current, held());
         layers.set(n, layer);
         if (layer) {
@@ -1472,19 +1476,19 @@ export function BookView({
         const now = animationsShowing(l.stickers, time);
         if (!force && showing.get(l.canvas) === now) continue;
         showing.set(l.canvas, now);
-        drawPageLayer(l.stickers, l.slides, ratio, l.canvas, time, only, busy || !spreadNow.current.includes(l.leaf));
+        drawPageLayer(l.stickers, l.slides, ratio, l.canvas, time, only, busy || cameraMoving() || !spreadNow.current.includes(l.leaf));
         changed = true;
       }
       if (changed) scene.current?.stickerLayerFrame();
     };
     // Draw one frozen frame on the paper; never upload fresh animation textures during a turn.
-    if (!orbiting.current?.moved && !orbitFrame.current) paint(true);
+    if (flyoverActive.current || !cameraMoving()) paint(true);
     if (busy || reduced || (only && !hasAnimations)) return;
     let frame = 0, last = performance.now();
     let pausedForCamera = false;
     const tick = (now: number) => {
       frame = requestAnimationFrame(tick);
-      const movingCamera = Boolean(orbiting.current?.moved || orbitFrame.current || panning.current || pinching.current);
+      const movingCamera = cameraMoving();
       if (movingCamera && !pausedForCamera) {
         for (const layer of pageLayers.current) for (const sticker of layer.stickers) if (sticker.image) pausePaperAnimation(sticker.image.key);
       }
