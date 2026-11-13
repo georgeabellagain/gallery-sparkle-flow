@@ -11,7 +11,7 @@ import { uploadProductAnimation } from "@/lib/products/client";
 import { productAnimationKey, productStickers, type AnimationFileKind, type ProductAnimation } from "@/lib/products/model";
 import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
 import { readablePageStickers } from "@/lib/portfolia/page-extras";
-import { PINK_ANIMATION_PLACEMENT, PINK_PORTFOLIO_CODE } from "@/lib/portfolia/pink-animation-placement";
+import { PINK_ANIMATION_PLACEMENT, PINK_NEW_ANIMATIONS, PINK_PORTFOLIO_CODE } from "@/lib/portfolia/pink-animation-placement";
 import { cn } from "@/lib/utils";
 
 const KIND: Record<string, AnimationFileKind> = { "image/webp": "webp", "image/gif": "gif", "image/png": "png", "video/mp4": "mp4" };
@@ -80,10 +80,13 @@ export function ProductAnimations({ id, animations, pages, sheets, page, ratio =
     const pdf = source?.portfolio.pdf;
     if (!pdf || pdf.pages !== pages || sheets) throw new Error("Use the original single-page Pink PDF to import these placements.");
     const ids = new Set<string>(PINK_ANIMATION_PLACEMENT.map(a => a.name.replace(/\.mp4$/, "")));
-    const placements = readablePageStickers(pdf.stickers, pages).filter(a => ids.has(a.id) && a.sticker === "animation");
-    if (placements.length !== ids.size) throw new Error("The published Pink portfolio is missing an animation.");
-    const remaining = animations.filter(a => !ids.has(a.id));
-    if (remaining.length + placements.length > MAX_ANIMATIONS) throw new Error("There isn't room for all eight Pink animations.");
+    const all = readablePageStickers(pdf.stickers, pages).filter(a => a.sticker === "animation");
+    const optional = new Set<string>(PINK_NEW_ANIMATIONS.map(a => a.id));
+    const placements = all.filter(a => ids.has(a.id) || optional.has(a.id));
+    if (placements.filter(a => ids.has(a.id)).length !== ids.size) throw new Error("The published Pink portfolio is missing an animation.");
+    const importing = new Set(placements.map(a => a.id));
+    const remaining = animations.filter(a => !importing.has(a.id));
+    if (remaining.length + placements.length > MAX_ANIMATIONS) throw new Error("There isn't room for all the Pink animations.");
     const copied: ProductAnimation[] = [];
     for (const s of placements) {
       const url = s.image && source.urls[s.image.key];
