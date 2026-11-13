@@ -14,8 +14,8 @@ export function createTurnSelfShade() {
         shader.uniforms["turnSelfShade"] = amount;
         shader.vertexShader = 'varying float foldFacing;\n' + shader.vertexShader.replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nfoldFacing = abs(objectNormal.z);');
         shader.fragmentShader = 'uniform float turnSelfShade;\nvarying float foldFacing;\n' + shader.fragmentShader
-          .replace('#include <color_fragment>', '#include <color_fragment>\nfloat foldLight = 1.0 - turnSelfShade * (1.0 - smoothstep(0.05, 0.95, foldFacing));\ndiffuseColor.rgb *= foldLight;')
-          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= foldLight;');
+          .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nfloat foldLight = 1.0 - turnSelfShade * (1.0 - smoothstep(0.05, 0.95, foldFacing));\ndiffuseColor.rgb *= foldLight;')
+          .replace('#include <lights_physical_fragment>', 'totalEmissiveRadiance *= foldLight;\n#include <lights_physical_fragment>');
       };
       material.customProgramCacheKey = () => key() + '_turn_self_shade_v1';
       material.needsUpdate = true;

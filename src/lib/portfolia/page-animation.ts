@@ -70,6 +70,7 @@ export type LoadedAnimation = {
   /** The browser could not read the frames: only the first is here, and the page shows the file itself moving. */
   stillOnly: boolean;
   video?: true;
+  media?: HTMLVideoElement;
 };
 
 // The parts of WebCodecs' ImageDecoder used here (not in every TypeScript DOM library yet).
@@ -86,6 +87,7 @@ async function videoStill(blob: Blob): Promise<LoadedAnimation> {
   const el = document.createElement("video");
   const url = URL.createObjectURL(blob);
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let retained = false;
   try {
     el.muted = true;
     el.playsInline = true;
@@ -102,12 +104,13 @@ async function videoStill(blob: Blob): Promise<LoadedAnimation> {
     canvas.height = size.height;
     canvas.getContext("2d")!.drawImage(el, 0, 0, size.width, size.height);
     const picture = await createImageBitmap(canvas);
-    return { frames: [picture], durations: [1], width: picture.width, height: picture.height, stillOnly: true, video: true };
+    retained = true;
+    el.onloadeddata = null;
+    el.onerror = null;
+    return { frames: [picture], durations: [1], width: picture.width, height: picture.height, stillOnly: true, video: true, media: el };
   } finally {
     clearTimeout(timer);
-    el.removeAttribute("src");
-    el.load();
-    URL.revokeObjectURL(url);
+    if (!retained) { el.removeAttribute("src"); el.load(); URL.revokeObjectURL(url); }
   }
 }
 
@@ -218,12 +221,33 @@ export function animationFrameAt(sticker: Pick<PageSticker, "id" | "play">, anim
 }
 
 /** Draws a frame inside a square box, keeping its shape (like object-fit: contain), mirrored when asked. */
-export function drawAnimationFrame(ctx: CanvasRenderingContext2D, frame: ImageBitmap, x: number, y: number, size: number, flip = false) {
-  const scale = Math.min(size / frame.width, size / frame.height);
-  const w = frame.width * scale, h = frame.height * scale;
+export function drawAnimationFrame(ctx: CanvasRenderingContext2D, frame: ImageBitmap | HTMLVideoElement, x: number, y: number, size: number, flip = false) {
+  const width = "videoWidth" in frame ? frame.videoWidth : frame.width;
+  const height = "videoHeight" in frame ? frame.videoHeight : frame.height;
+  if (!width || !height) return;
+  const scale = Math.min(size / width, size / height);
+  const w = width * scale, h = height * scale;
   ctx.save();
   ctx.translate(x + size / 2, y + size / 2);
   if (flip) ctx.scale(-1, 1);
   ctx.drawImage(frame, -w / 2, -h / 2, w, h);
   ctx.restore();
 }
+
+
+/** Native MP4 decoding still paints into the page texture, including on a turning sheet. */
+export function paperAnimationFrame(sticker: PageSticker, animation: LoadedAnimation, time?: number) {
+  const media = animation.media;
+  if (!media || time === undefined) { media?.pause(); return animationFrameAt(sticker, animation, time); }
+  const play = sticker.play ?? "loop";
+  const start = starts.get(sticker.id);
+  if (play !== "loop" && start === undefined) return animation.frames[0]!;
+  const elapsed = start === undefined ? 0 : Math.max(0, time - start);
+  if (play === "tap" && elapsed >= media.duration) { media.pause(); return animation.frames[0]!; }
+  media.loop = play === "loop";
+  if (play !== "loop" && elapsed < .1 && media.currentTime > .15) media.currentTime = 0;
+  if (media.paused && (!media.ended || media.loop || elapsed < .1)) void media.play().catch(() => {});
+  return media.readyState >= 2 ? media : animation.frames[0]!;
+}
+
+export function pausePaperAnimation(key: string) { loaded.get(key)?.media?.pause(); }

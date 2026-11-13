@@ -74,7 +74,7 @@ export function PageAnimation({ sticker, interactive = false, onPaper = false }:
   }, [animation, play, sticker.id, sticker.flip, onPaper]);
 
   // Browsers that can't read frames show the file itself moving, even over the 3D book.
-  const picture = animation?.stillOnly && fileUrl
+  const picture = animation?.stillOnly && fileUrl && !(onPaper && animation.video)
     ? animation.video
       ? <video ref={video} src={fileUrl} muted playsInline preload="auto" aria-hidden
           autoPlay={play !== "tap" && !reducedMotion()} loop={play === "loop"}
