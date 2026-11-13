@@ -1408,6 +1408,8 @@ export function BookView({
   // Tell the viewer when the book is rendered and ready, so it can show nothing but a loader until then.
   useEffect(() => { if (error) { console.error("Book render error", error); onRenderError?.(error); } }, [error, onRenderError]);
   const bookReady = (ready > 0 || fallback) && warm && !loading && !error;
+  const spreadNow = useRef(spread);
+  spreadNow.current = spread;
   // Stickers and slideshows move in a flat overlay over still pages. While that overlay is away (turning, tilted,
   // preparing) the pages carry still copies drawn on the paper, so they stay fixed to their page as it turns.
   useEffect(() => {
@@ -1422,14 +1424,15 @@ export function BookView({
       if (!layers.has(n)) {
         const stickers = stickersForLeaf(pageStickers, at), slides = slideshowsForLeaf(pageSlideshows, at);
         const clock = () => matchMedia("(prefers-reduced-motion: reduce)").matches ? undefined : animationClock.current;
-        const layer = drawPageLayer(stickers, slides, ratio, undefined, clock(), layerOnly.current);
+        const held = () => lock.current || !spreadNow.current.includes(n);
+        const layer = drawPageLayer(stickers, slides, ratio, undefined, clock(), layerOnly.current, held());
         layers.set(n, layer);
         if (layer) {
           if (stickers.length) pageLayers.current.push({ canvas: layer, stickers, slides, leaf: n });
           // Decode only when this face is used, rather than loading every clip in a long book at startup.
           void loadPageLayerPictures(stickers, slides).then(() => {
             if (!live) return;
-            drawPageLayer(stickers, slides, ratio, layer, clock(), layerOnly.current);
+            drawPageLayer(stickers, slides, ratio, layer, clock(), layerOnly.current, held());
             s.stickerLayerFrame();
           });
         }
@@ -1450,9 +1453,7 @@ export function BookView({
   // layer stays on while the flat overlay is back; drawn stickers and slideshows leave it then (their flat copies show).
   const hasAnimations = useMemo(() => pageStickers.some(isAnimation), [pageStickers]);
   useEffect(() => { scene.current?.setStickerLayerShown(!overlayShown || hasAnimations); }, [overlayShown, hasAnimations, ready]);
-  const spreadNow = useRef(spread);
-  spreadNow.current = spread;
-  // The layers are drawn again from the page's clock about 30 times a second: everything on them while they ride
+  // The layers are drawn again from the page's clock up to 20 times a second: everything on them while they ride
   // on turning (or tilted) paper, only the animations of the open pages while the book is still. Reduced motion
   // keeps them at rest.
   useEffect(() => {
@@ -1471,7 +1472,7 @@ export function BookView({
         const now = animationsShowing(l.stickers, time);
         if (!force && showing.get(l.canvas) === now) continue;
         showing.set(l.canvas, now);
-        drawPageLayer(l.stickers, l.slides, ratio, l.canvas, time, only, busy);
+        drawPageLayer(l.stickers, l.slides, ratio, l.canvas, time, only, busy || !spreadNow.current.includes(l.leaf));
         changed = true;
       }
       if (changed) scene.current?.stickerLayerFrame();
