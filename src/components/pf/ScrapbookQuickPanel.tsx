@@ -238,6 +238,22 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
     if (!response.ok) throw new Error("unavailable");
     await addAnimation(await response.blob(), entry.name, "noto");
   });
+  const replaceInput = useRef<HTMLInputElement>(null);
+  const replaceAnimation = (file: File, id: string) => void working("Replacing animation…", async () => {
+    const header = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+    const kind = animationKind(header);
+    const problem = animationFileProblem(file, kind);
+    if (problem || !kind) return report(false, problem ?? "Choose a supported animation.");
+    const key = uid("anim");
+    await putBlob(key, new Blob([file], { type: kind }));
+    const active = getDoc().portfolio;
+    const original = active?.pdf?.stickers?.find(item => item.id === id);
+    if (!original || !isAnimation(original) || !patchPortfolioExtra(p.code, pdf.blobKey, "stickers", id,
+      { ...original, image: { key, name: original.image?.name || file.name.slice(0, 80) } })) {
+      void deleteUnusedPortfolioAsset(key).catch(() => {});
+      report(false, "The animation could not be replaced.");
+    } else onError(null);
+  });
   const pinkInput = useRef<HTMLInputElement>(null);
   const isPink = p.code === PINK_PORTFOLIO_CODE && pdf.blobKey === PINK_PDF_KEY && p.viewer?.spreads !== "ready";
   const importPink = async (files: File[]) => {
@@ -418,7 +434,12 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
         <AnimationPicker disabled={Boolean(animationPhase) || animations.length >= MAX_ANIMATIONS} busy={animationPhase} onPick={pickAnimation} onUpload={uploadAnimation} />
         {chips("stickers", animations.map((s) => ({ id: s.id, page: s.page, label: stickerLabel(s) })))}
         {animation && editing(
-          <AnimationOptions sticker={animation} save={(next) => report(patchPortfolioExtra(p.code, pdf.blobKey, "stickers", next.id, next), "That change couldn’t be saved.")} />,
+          <>
+            <Button size="xs" variant="line" disabled={Boolean(animationPhase)} onClick={() => replaceInput.current?.click()}>Replace animation file</Button>
+            <input ref={replaceInput} type="file" accept=".mp4,.gif,.webp,.png" hidden
+              onChange={e => { const file = e.currentTarget.files?.[0]; e.currentTarget.value = ""; if (file) replaceAnimation(file, animation.id); }} />
+            <AnimationOptions sticker={animation} save={(next) => report(patchPortfolioExtra(p.code, pdf.blobKey, "stickers", next.id, next), "That change couldn’t be saved.")} />
+          </>,
           "animation")}
       </FeatureBox>
 
