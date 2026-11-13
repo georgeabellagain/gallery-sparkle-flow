@@ -5,6 +5,7 @@ import { PreviewChrome } from "@/components/products/PreviewChrome";
 import { registerPublicUrls } from "@/lib/portfolia/assets";
 import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
 import { getProduct } from "@/lib/products/functions";
+import { readablePageStickers, type PageSticker } from "@/lib/portfolia/page-extras";
 import { DEFAULT_VIEWER, type ViewerSettings } from "@/lib/portfolia/store";
 
 // Owner-chosen example: the published Pink product's shop preview (cover + chosen
@@ -13,17 +14,19 @@ export const PRODUCT_DEMO_ID = "c959096a-aa5d-41c7-8f7c-8dfc5e93f666";
 export const PRODUCT_DEMO_CODE = "pink28";
 export const PRODUCT_DEMO_BUY_URL = "https://www.etsy.com/uk/listing/4479273509/pink-fun-childrens-story-book-o";
 
-type Demo = { url: string; name: string; viewer: Partial<ViewerSettings>; backgroundUrl?: string; pages: number; buyUrl: string };
+type Demo = { url: string; name: string; viewer: Partial<ViewerSettings>; backgroundUrl?: string; pages: number; buyUrl: string; animations: PageSticker[] };
 
 async function loadDemo(): Promise<Demo | null> {
   const product = await getProduct({ data: { id: PRODUCT_DEMO_ID } }).catch(() => null);
-  if (product?.fileUrl && !product.customer)
-    return { url: product.fileUrl, name: product.title, viewer: product.appearance, pages: product.pages, buyUrl: product.buyUrl || PRODUCT_DEMO_BUY_URL };
+  if (product?.fileUrl && !product.customer) {
+    registerPublicUrls(Object.fromEntries(product.animations.flatMap(s => s.image ? [[s.image.key, `/api/public/product-animation/${product.id}?file=${s.image.key}`]] : [])));
+    return { animations: product.animations, url: product.fileUrl, name: product.title, viewer: product.appearance, pages: product.pages, buyUrl: product.buyUrl || PRODUCT_DEMO_BUY_URL };
+  }
   const r = await getPublicPortfolio({ data: { by: "code", value: PRODUCT_DEMO_CODE } });
   const p = r?.portfolio, url = p?.pdf && r?.urls[p.pdf.blobKey];
   if (!r || !p?.pdf || !url) return null;
   registerPublicUrls(r.urls);
-  return { url, name: p.pdf.name, viewer: p.viewer ?? {}, backgroundUrl: p.viewer?.backgroundKey ? r.urls[p.viewer.backgroundKey] : undefined, pages: 0, buyUrl: PRODUCT_DEMO_BUY_URL };
+  return { animations: readablePageStickers(p.pdf.stickers, p.pdf.pages), url, name: p.pdf.name, viewer: p.viewer ?? {}, backgroundUrl: p.viewer?.backgroundKey ? r.urls[p.viewer.backgroundKey] : undefined, pages: 0, buyUrl: PRODUCT_DEMO_BUY_URL };
 }
 
 /** hero: a landing page keeps its own still picture underneath, so no loader or error text is drawn here. calm: no idle orbit. */
@@ -61,6 +64,7 @@ export function ProductDemo({ className, hero = false, calm = false, onReady, on
             <PdfViewer
               source={source}
               fileName={demo.name}
+              stickers={demo.animations}
               viewer={{ ...DEFAULT_VIEWER, ...demo.viewer, mode: "book", look: "studio", modes: ["book"], looks: ["studio"], idleOrbit: interacted || calm ? "off" : "start" }}
               backgroundUrl={demo.backgroundUrl}
               controls
