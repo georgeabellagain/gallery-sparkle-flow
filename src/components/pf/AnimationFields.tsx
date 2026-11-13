@@ -79,7 +79,7 @@ export function AnimationPicker({ disabled, busy, onPick, onUpload }: {
 }
 
 const PLAYS: Array<[AnimationPlay, string, string]> = [
-  ["loop", "Always", "Loops all the time, and keeps moving while the page turns."],
+  ["loop", "Always", "Loops while the page is open and holds its frame during a turn."],
   ["open", "When the page opens", "Plays once each time a reader arrives at the page, then rests on its last picture."],
   ["tap", "When pressed", "Waits on its first picture. Plays once each time a reader presses it."],
 ];

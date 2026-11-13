@@ -540,6 +540,7 @@ export function BookView({
   /** Sticker layers drawn so far (one per page face with stickers), redrawn while they ride on turning paper. */
   const pageLayers = useRef<Array<{ canvas: HTMLCanvasElement; stickers: PageSticker[]; slides: PageSlideshow[]; leaf: number }>>([]);
   /** What the layers hold just now: everything (turning), or only the animations (still pages; the rest is shown flat). */
+  const animationClock = useRef(typeof performance === "undefined" ? 0 : performance.now() / 1000);
   const layerOnly = useRef<"animations" | undefined>(undefined);
   /** The outer page corner the mouse rests near (it lifts slightly), if any. */
   const [peek, setPeek] = useState<{ side: 1 | -1; corner: "top" | "bottom" } | null>(null);
@@ -1407,6 +1408,8 @@ export function BookView({
   // Tell the viewer when the book is rendered and ready, so it can show nothing but a loader until then.
   useEffect(() => { if (error) { console.error("Book render error", error); onRenderError?.(error); } }, [error, onRenderError]);
   const bookReady = (ready > 0 || fallback) && warm && !loading && !error;
+  const spreadNow = useRef(spread);
+  spreadNow.current = spread;
   // Stickers and slideshows move in a flat overlay over still pages. While that overlay is away (turning, tilted,
   // preparing) the pages carry still copies drawn on the paper, so they stay fixed to their page as it turns.
   useEffect(() => {
@@ -1420,15 +1423,16 @@ export function BookView({
       if (!at) return null;
       if (!layers.has(n)) {
         const stickers = stickersForLeaf(pageStickers, at), slides = slideshowsForLeaf(pageSlideshows, at);
-        const clock = () => matchMedia("(prefers-reduced-motion: reduce)").matches ? undefined : performance.now() / 1000;
-        const layer = drawPageLayer(stickers, slides, ratio, undefined, clock(), layerOnly.current);
+        const clock = () => matchMedia("(prefers-reduced-motion: reduce)").matches ? undefined : animationClock.current;
+        const held = () => lock.current || !spreadNow.current.includes(n);
+        const layer = drawPageLayer(stickers, slides, ratio, undefined, clock(), layerOnly.current, held());
         layers.set(n, layer);
         if (layer) {
           if (stickers.length) pageLayers.current.push({ canvas: layer, stickers, slides, leaf: n });
           // Decode only when this face is used, rather than loading every clip in a long book at startup.
           void loadPageLayerPictures(stickers, slides).then(() => {
             if (!live) return;
-            drawPageLayer(stickers, slides, ratio, layer, clock(), layerOnly.current);
+            drawPageLayer(stickers, slides, ratio, layer, clock(), layerOnly.current, held());
             s.stickerLayerFrame();
           });
         }
@@ -1449,49 +1453,45 @@ export function BookView({
   // layer stays on while the flat overlay is back; drawn stickers and slideshows leave it then (their flat copies show).
   const hasAnimations = useMemo(() => pageStickers.some(isAnimation), [pageStickers]);
   useEffect(() => { scene.current?.setStickerLayerShown(!overlayShown || hasAnimations); }, [overlayShown, hasAnimations, ready]);
-  const spreadNow = useRef(spread);
-  spreadNow.current = spread;
-  // The layers are drawn again from the page's clock about 30 times a second: everything on them while they ride
+  // The layers are drawn again from the page's clock up to 20 times a second: everything on them while they ride
   // on turning (or tilted) paper, only the animations of the open pages while the book is still. Reduced motion
   // keeps them at rest.
   useEffect(() => {
     const only = overlayShown ? "animations" as const : undefined;
-    if (only) {
-      const active = new Set(pageLayers.current.filter(l => spreadNow.current.includes(l.leaf)).flatMap(l => l.stickers.map(s => s.image?.key)));
-      for (const l of pageLayers.current) for (const s of l.stickers) if (s.image && !active.has(s.image.key)) pausePaperAnimation(s.image.key);
-    }
     layerOnly.current = only;
-    if (!pageStickers.length || (overlayShown && !hasAnimations)) return;
-    const paint = (time: number | undefined, showing?: Map<HTMLCanvasElement, string>) => {
+    if (!pageStickers.length) return;
+    const active = new Set(pageLayers.current.filter(l => !busy && spreadNow.current.includes(l.leaf)).flatMap(l => l.stickers.map(s => s.image?.key)));
+    for (const l of pageLayers.current) for (const s of l.stickers) if (s.image && !active.has(s.image.key)) pausePaperAnimation(s.image.key);
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const showing = new Map<HTMLCanvasElement, string>();
+    const paint = (force = false) => {
       let changed = false;
+      const time = reduced ? undefined : animationClock.current;
       for (const l of pageLayers.current) {
-        if (showing) {
-          // Still pages: only the open ones, and only when one of their animations has moved on a frame.
-          if (!spreadNow.current.includes(l.leaf)) continue;
-          const now = animationsShowing(l.stickers, time);
-          if (showing.get(l.canvas) === now) continue;
-          showing.set(l.canvas, now);
-        }
-        drawPageLayer(l.stickers, l.slides, ratio, l.canvas, time, only);
+        if (!force && !spreadNow.current.includes(l.leaf)) continue;
+        const now = animationsShowing(l.stickers, time);
+        if (!force && showing.get(l.canvas) === now) continue;
+        showing.set(l.canvas, now);
+        drawPageLayer(l.stickers, l.slides, ratio, l.canvas, time, only, busy || !spreadNow.current.includes(l.leaf));
         changed = true;
       }
       if (changed) scene.current?.stickerLayerFrame();
     };
-    const reduced = Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
-    // Straight away at the present moment of each loop, so nothing skips back a frame as a turn starts or ends.
-    paint(reduced ? undefined : performance.now() / 1000);
-    if (reduced) return;
-    let frame = 0, last = 0;
-    const showing = only ? new Map<HTMLCanvasElement, string>() : undefined;
+    // Draw one frozen frame on the paper; never upload fresh animation textures during a turn.
+    paint(true);
+    if (busy || reduced || (only && !hasAnimations)) return;
+    let frame = 0, last = performance.now();
     const tick = (now: number) => {
       frame = requestAnimationFrame(tick);
-      if (now - last < 33 || !pageLayers.current.length) return;
+      if (lock.current || document.hidden) { last = now; return; }
+      if (now - last < 50) return;
+      animationClock.current += Math.min(.1, (now - last) / 1000);
       last = now;
-      paint(now / 1000, showing);
+      paint();
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [overlayShown, hasAnimations, pageStickers.length, ratio, index]);
+  }, [overlayShown, hasAnimations, pageStickers.length, ratio, index, busy]);
   const [litNotesKey, setLitNotesKey] = useState("");
   const notesForSpread = (pages: Array<number | null>) => pages.flatMap((n, side) => n === null ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side, seed: n + 1, exterior: n === 0 || n === layout.leaves.length - 1 })));
   useEffect(() => { noteProgresses.current.clear(); setOpenNote(false); }, [leaf, additions]);

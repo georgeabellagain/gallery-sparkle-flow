@@ -17,7 +17,7 @@ const ANIMATED_LAYER_WIDTH = 1024;
 export function animationsShowing(stickers: PageSticker[], time: number | undefined): string {
   return stickers.map((s) => {
     const animation = s.sticker === "animation" && s.image ? readyAnimation(s.image.key) : null;
-    return animation?.media ? (time ?? -1) : animation ? animationFrameNumber(s, animation, time) : -1;
+    return animation?.media ? (time ?? -1) : animation ? animationFrameNumber(s, animation, s.play && s.play !== "loop" && time !== undefined ? performance.now() / 1000 : time) : -1;
   }).join(",");
 }
 
@@ -152,7 +152,7 @@ function drawFeatheredVideo(ctx: CanvasRenderingContext2D, frame: ImageBitmap | 
  * the paper while their live copies (which sit flat over the page) are away, so they turn with the page. Drawn again
  * into the same `canvas` with a `time`, the stickers move as they do on the page.
  */
-export function drawPageLayer(stickers: PageSticker[], slideshows: PageSlideshow[], ratio: number, canvas?: HTMLCanvasElement, time?: number, only?: "animations"): HTMLCanvasElement | null {
+export function drawPageLayer(stickers: PageSticker[], slideshows: PageSlideshow[], ratio: number, canvas?: HTMLCanvasElement, time?: number, only?: "animations", frozen = false): HTMLCanvasElement | null {
   if (!stickers.length && !slideshows.length) return null;
   canvas ??= document.createElement("canvas");
   // Animations stay on the paper while the page is read, so their layer is sharper than one only seen in motion.
@@ -182,7 +182,7 @@ export function drawPageLayer(stickers: PageSticker[], slideshows: PageSlideshow
         const x = s.x * w, y = s.y * h, size = s.size * w;
         ctx.save();
         clipMediaCanvas(ctx, x, y, size, size, s.crop);
-        const frame = paperAnimationFrame(s, animation, time);
+        const frame = frozen && animation.media ? (animation.media.readyState >= 2 ? animation.media : animation.frames[0]!) : paperAnimationFrame(s, animation, s.play && s.play !== "loop" && time !== undefined ? performance.now() / 1000 : time);
         if (animation.video) drawFeatheredVideo(ctx, frame, x, y, size, Boolean(s.flip));
         else drawAnimationFrame(ctx, frame, x, y, size, Boolean(s.flip));
         ctx.restore();
