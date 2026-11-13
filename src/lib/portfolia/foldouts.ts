@@ -201,6 +201,10 @@ export function foldoutKeys(
 export function pageVideoKeys(pdf?: { videos?: unknown; pages: number } | null): string[] {
   return readablePageVideos(pdf?.videos, pdf?.pages ?? 0).flatMap((v) => [v.blobKey, v.posterKey]);
 }
+/** The same notes on the full PDF page, for Scroll and Page by page (a spread sheet's halves side by side). */
+export function foldoutsForPage(items: Foldout[], page: number, split: boolean): Foldout[] {
+  return items.filter((f) => f.page === page).map((f) => (split ? { ...f, x: (f.half === "right" ? 0.5 : 0) + f.x / 2, width: f.width / 2 } : f));
+}
 export function foldoutsForLeaf(items: Foldout[], leaf: Leaf): Foldout[] {
   return items.filter(
     (f) => f.page === leaf.page && (!leaf.half || f.half === leaf.half),

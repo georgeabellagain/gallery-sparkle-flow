@@ -5,7 +5,7 @@ import { useBlob } from "./Chrome";
 import { PdfViewer } from "./PdfViewer";
 import { DEFAULT_VIEWER, useDoc, type Portfolio } from "@/lib/portfolia/store";
 import type { StudioExporter } from "@/lib/portfolia/rendered-studio";
-import { studioCaptureCapability } from "@/lib/portfolia/studio-recorder";
+import { studioCaptureCapability, VIDEO_HOLD_SECONDS, VIDEO_TURN_PACES } from "@/lib/portfolia/studio-recorder";
 import { canShareVideo, SOCIAL_NETWORKS, videoComposer, type SocialNetwork } from "@/lib/portfolia/social-share";
 
 /**
@@ -27,6 +27,8 @@ export function VideoExportPanel({ p, onClose, share, listing = false }: { p: Po
   const [result, setResult] = useState<{ url: string; extension: string; blob: Blob }>();
   const [shareNote, setShareNote] = useState("");
   const [generation, setGeneration] = useState(0);
+  // The flip-through's pace, chosen here for the video only (the portfolio's own turn speed is left as it is).
+  const [turnPace, setTurnPace] = useState<number>(VIDEO_TURN_PACES[1].pace), [holdSeconds, setHoldSeconds] = useState<number>(1.6);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => { let alive = true; void studioCaptureCapability(1920, 1080).then(value => { if (alive) setCapability(value); }); return () => { alive = false; }; }, []);
   useEffect(() => {
@@ -45,7 +47,7 @@ export function VideoExportPanel({ p, onClose, share, listing = false }: { p: Po
     const abort = new AbortController(); controller.current = abort;
     setBusy(true); setError(""); setResult(undefined); setFraction(0);
     try {
-      const blob = await exporter.video((text, value) => { setStatus(text); if (value !== undefined) setFraction(value); }, abort.signal, listing);
+      const blob = await exporter.video((text, value) => { setStatus(text); if (value !== undefined) setFraction(value); }, abort.signal, listing, { turnPace: turnPace, holdMs: holdSeconds * 1000 });
       abort.signal.throwIfAborted();
       if (listing && (!blob.type.includes("mp4") || blob.size > 100 * 1024 * 1024))
         throw new Error("This browser could not create a listing-ready MP4 under 100 MB. Try Chrome or Edge with MP4 encoding support.");
@@ -79,6 +81,21 @@ export function VideoExportPanel({ p, onClose, share, listing = false }: { p: Po
     <h2 className="text-lg font-medium">{listing ? "Export listing video" : share ? "Share with a flip-through video" : "Export HD video"}</h2>
     <p className="mt-2 text-sm text-muted-foreground">Download a 1920 × 1080 video that flips through your portfolio in Studio, with your lighting, paper and background. 60 FPS MP4 where supported; other browsers may export WebM. Keep this tab visible until finished.</p>
     {listing && <p className="mt-3 text-sm">Listing clip: the first three preview spreads, with a short pause on each. MP4 only, up to 100 MB. Check the finished clip before adding it to your listing.</p>}
+    {!listing && !result && <fieldset disabled={busy} className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div>
+        <p className="mb-1.5 text-xs font-medium">Page turns</p>
+        <div role="radiogroup" aria-label="Page turn speed" className="grid grid-cols-3 gap-1 rounded-full bg-muted p-1 text-xs">
+          {VIDEO_TURN_PACES.map((s) => <button key={s.id} type="button" role="radio" aria-checked={turnPace === s.pace} onClick={() => setTurnPace(s.pace)} className="rounded-full px-2 py-1.5 aria-checked:bg-background aria-checked:font-medium aria-checked:shadow-soft">{s.label}</button>)}
+        </div>
+      </div>
+      <label className="block text-xs font-medium">
+        Time on each spread
+        <select className="mt-1.5 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm font-normal" value={holdSeconds} onChange={(e) => setHoldSeconds(Number(e.target.value))}>
+          {VIDEO_HOLD_SECONDS.map((s) => <option key={s} value={s}>{s} second{s === 1 ? "" : "s"}</option>)}
+        </select>
+      </label>
+      <p className="text-xs text-muted-foreground sm:col-span-2">About {Math.round(((p.pdf?.pages ?? 2) / 2 + 1) * (holdSeconds + turnPace * 1.1))} seconds for {p.pdf?.pages ?? 0} pages. Slower turns and longer rests make a calmer film; faster ones suit social posts.</p>
+    </fieldset>}
     <p role="status" className="mt-4 text-sm">{!busy && !result && exporter ? "Ready to export." : status}</p>
     <progress aria-label="Video export progress" max={1} value={fraction} className="mt-3 w-full accent-foreground" />
     <p className="text-xs tabular-nums">{Math.round(fraction * 100)}%</p>

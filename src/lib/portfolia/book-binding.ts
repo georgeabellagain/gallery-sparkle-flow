@@ -11,6 +11,15 @@ export type BindingSide = { kind: "page" | CoverRest; share: number; leaf?: numb
 const PAGE_SIDE: BindingSide = { kind: "page", share: 1 };
 
 /** Page-block thickness grows with the number of leaves, within believable limits. */
+/**
+ * How a closed book's spine meets its covers. The cover boards are rounded at their edges (coverBoardGeometry), so a
+ * spine that stopped at the board edge left a dark groove along the seam and stood a fraction above the boards at
+ * the head and tail. `round` is that rounding; `inset` is how far the spine's inner face reaches in under the covers.
+ */
+export function spineFit(style: BookStyle) {
+  const board = bookStyleProfile(style).board, round = Math.min(.003, board * .2);
+  return { round, inset: Math.max(.0035, round + .0015) };
+}
 export function stackDepth(style: BookStyle, leaves: number) {
   const profile = bookStyleProfile(style);
   if (!leaves) return profile.stack;
@@ -312,7 +321,7 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
         if(root.visible)deepest=Math.max(deepest,-(board.position.z-board.scale.z/2));
       });
       // The case spine wraps the deepest side, from the block top down.
-      spine.scale.set(profile.spine*.65,ratio+2*profile.overhang,Math.max(profile.spine,deepest+.002));
+      spine.scale.set(profile.spine*.65,ratio+2*profile.overhang-2*spineFit(style).round,Math.max(profile.spine,deepest+.002));
       // It reaches the front board only while a closed or turning cover needs it, otherwise it stays below the paper.
       const raised=hard&&(turning.visible||sides.some(({root},index)=>root.visible&&layout[index]!.kind==="closed"));
       spine.position.z=PAGE_TOP+(raised?B:0)-.001;
@@ -324,9 +333,11 @@ export function createBookBinding(parent:THREE.Group,ratio:number){
       const closedIndex=([0,1] as const).find(index=>visible[index]&&(layout[index]!.kind==="closed"||(!hard&&!visible[1-index]&&layout[index]!.share>=.999)));
       const shown=style!=="flipbook"&&(visible[0]||visible[1]),closed=shown&&closedIndex!==undefined&&!turning.visible;
       if(closed){
-        const sign=closedIndex===0?-1:1,topZ=hard?PAGE_TOP+B+.0003:pageRelief(0,.5,0)-.0003,bottomZ=-deepest-.0004;
-        closedSpine.scale.set(sign*Math.max(.007,profile.spine*.8),ratio+2*profile.overhang,(topZ-bottomZ)/2);
-        closedSpine.position.set(sign*.0025,0,(topZ+bottomZ)/2);
+        // The spine tucks in under the covers past their rounded inner edges, so no dark groove shows at the seam,
+        // and stops level with the cover's top face and its rounded head and tail rather than standing proud of them.
+        const sign=closedIndex===0?-1:1,fit=spineFit(style),topZ=hard?PAGE_TOP+B:pageRelief(0,.5,0)-fit.round-.0003,bottomZ=-deepest-.0004;
+        closedSpine.scale.set(sign*(Math.max(.007,profile.spine*.8)+fit.inset-.0025),ratio+2*profile.overhang-2*fit.round,(topZ-bottomZ)/2);
+        closedSpine.position.set(sign*fit.inset,0,(topZ+bottomZ)/2);
       }
       closedSpine.visible=closed;
       spine.visible=shown&&!closed;

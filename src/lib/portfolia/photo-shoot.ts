@@ -31,6 +31,18 @@ export const SHOOT_PRESETS=[
  {id:"spine",label:"Spine",layout:"lean",yaw:-34,elevation:14,zoom:1.05},
  {id:"flat",label:"Flat lay",layout:"flat",yaw:0,elevation:2,zoom:1},
 ] as const;
+/** How far a leaning book tips back from upright, in radians. */
+export const LEAN_TILT=.1;
+/**
+ * Where the key light goes and what it aims at. The HDRI presets place it for a leaning book centred at
+ * (0, ratio/2, 0); the same light is carried to the book's real middle and, for a flat lay (upright on the wall),
+ * turned down by the lean's tilt so it meets the page at the angle it would on a leaning book.
+ */
+export function shootLight(position:readonly [number,number,number],ratio:number,focus:THREE.Vector3,flat:boolean){
+ const offset=new THREE.Vector3(position[0],position[1]-ratio*.5,position[2]);
+ if(flat)offset.applyAxisAngle(new THREE.Vector3(1,0,0),LEAN_TILT);
+ return {position:focus.clone().add(offset),target:focus.clone()};
+}
 export function shootCamera(yaw:number,elevation:number,zoom:number,ratio:number,aspect:number,span=1,centre?:THREE.Vector3){
  const angle=THREE.MathUtils.degToRad(Math.max(-40,Math.min(40,yaw))),pitch=THREE.MathUtils.degToRad(Math.max(2,Math.min(25,elevation)));
  const distance=Math.max(ratio*2.3,span*2.3/aspect)/Math.max(.7,Math.min(1.4,zoom));
@@ -76,6 +88,8 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
  for(const light of [key,sun]){light.shadow.mapSize.set(2048,2048);light.shadow.normalBias=.008;light.shadow.radius=4;}
  Object.assign(key.shadow.camera,{left:-4,right:4,top:5,bottom:-2,near:.1,far:20});key.shadow.camera.updateProjectionMatrix();
  const FLOOR_Y=-.002,WALL_Z=-.12;
+ /** The middle of the book as it stands, which the lights aim at. */
+ const lightFocus=new THREE.Vector3(0,ratio*.5,0);
  let options:ShootOptions={layout:"lean",style:"flipbook",colour:"#ded9cf",floorColour:"#ded9cf",yaw:20,elevation:10,zoom:1,hdri:"4",finish:"satin",brightness:.5,strength:.75,topLight:0,...initial};
  let outputSize:PhotoSize={width:2048,height:2560};
  let disposed=false,frame=0,open=false,shapeStamp="",environmentKey="",environmentRevision=0,environment:THREE.WebGLRenderTarget|undefined;
@@ -115,10 +129,12 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
  let pendingEnvironment:Promise<void>=Promise.resolve();
  const setLighting=()=>{
    renderer.toneMappingExposure=studioExposure(options.brightness);top.intensity=studioTopLight(options.topLight);
-   // A flat lay moves the book away from the wall; the lights move with it so shadows keep their direction.
-   const shadow=presetShadow(options.hdri);
-   key.position.set(...shadow.position);
-   key.target.position.set(0,ratio*.5,0);key.shadow.radius=shadow.radius*4;
+   // The lights aim at the book wherever it is. Laid flat on the wall it stands upright (a leaning book tips back
+   // a little), so the light turns with it: the HDRI's light and dappled pattern fall on the flat book's face at the
+   // same angle as on a leaning one, instead of grazing past it.
+   const shadow=presetShadow(options.hdri),light=shootLight(shadow.position,ratio,lightFocus,options.layout==="flat");
+   key.position.copy(light.position);
+   key.target.position.copy(light.target);key.shadow.radius=shadow.radius*4;
    sun.position.copy(key.position);sun.target.position.copy(key.target.position);sun.penumbra=shadow.penumbra;sun.shadow.radius=shadow.radius*4;
    const pattern=HDRI_PRESETS.find(p=>p.id===options.hdri)?.dapple;
    if(pattern&&!masks.has(options.hdri)){const mask=dappleTexture(pattern,shadow);masks.set(options.hdri,mask);}
@@ -170,6 +186,7 @@ export function createPhotoShoot(host:HTMLElement,front:HTMLCanvasElement,back:H
      }
      book.updateMatrixWorld(true);gutter.setSpace(spread.matrixWorld.clone().invert());
      const bounds=visibleBookBounds(open?spread:closed);
+     bounds.getCenter(lightFocus);
      grounding.update(bounds,depth,flat?"flat":"lean");
      ribbonMesh.visible=ribbonShadow.visible=showRibbon;
      if(showRibbon&&marked){

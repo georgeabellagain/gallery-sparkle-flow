@@ -2,9 +2,10 @@ import { SavedLooks } from "./SavedLooks";
 import { BookMarketingSettings } from "./BookMarketingSettings";
 import { LiveScrapbookContext, type ScrapbookSelection } from "./live-scrapbook-context";
 import { ScrapbookQuickPanel } from "./ScrapbookQuickPanel";
+import { PAGE_SECTIONS, SECTION_OF, type PageSection } from "@/lib/portfolia/page-sections";
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, BadgeCheck, Briefcase, Eye, Inbox, Redo2, Undo2, Book as BookIcon, Camera, ChartNoAxesColumn, BookOpen, ChevronRight, ChevronsLeft, ChevronsRight, GripHorizontal, FolderOpen, Image as ImageIcon, Megaphone, Share2, StickyNote, Sun, Upload, X } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Briefcase, Eye, Inbox, Redo2, Undo2, Book as BookIcon, Camera, ChartNoAxesColumn, BookOpen, ChevronRight, ChevronsLeft, ChevronsRight, GripHorizontal, FolderOpen, Image as ImageIcon, Megaphone, Share2, StickyNote, Sun, Upload, X, MousePointerClick, Film, Clapperboard, Link2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Wordmark } from "@/components/pf/Chrome";
 import { ScrapbookDialog, type ScrapbookPanel } from "@/components/pf/FoldoutSettings";
@@ -49,7 +50,7 @@ import { openingLook } from "@/lib/portfolia/appearance";
 
 const PhotoShoot=lazy(()=>import("./PhotoShoot").then(module=>({default:module.PhotoShoot})));
 
-type Tool = "shoot" | "book" | "customise" | "profile" | "reading" | "look" | "paper" | "background" | "scrapbook" | "projects" | "publish" | "share" | "statistics" | "leads" | "branding" | "business";
+type Tool = "shoot" | "book" | "customise" | "profile" | "reading" | "look" | "paper" | "background" | PageSection | "projects" | "publish" | "share" | "statistics" | "leads" | "branding" | "business";
 /** The dock, in three groups: how the book looks, what is on it, and getting it out. */
 const TOOL_GROUPS: Array<Array<[Tool, string, typeof Sun]>> = [
   [
@@ -60,7 +61,12 @@ const TOOL_GROUPS: Array<Array<[Tool, string, typeof Sun]>> = [
     ["branding", "Branding", BadgeCheck],
   ],
   [
-    ["scrapbook", "Scrapbook", StickyNote],
+    ["notes", "Notes & fold-outs", StickyNote],
+    ["buttons", "Buttons & pop-ups", MousePointerClick],
+    ["media", "Pictures & video", Film],
+    ["motion", "Animations & stickers", Clapperboard],
+    ["navigation", "Tabs & links", Link2],
+    ["spotlights", "Spotlights", Search],
     ["projects", "Projects", FolderOpen],
     ["book", "Book marketing", Megaphone],
     ["shoot", "Photo shoot", Camera],
@@ -74,13 +80,20 @@ const TOOL_GROUPS: Array<Array<[Tool, string, typeof Sun]>> = [
   ],
 ];
 const TOOLS = TOOL_GROUPS.flat();
+const PAGE_TOOLS: readonly string[] = PAGE_SECTIONS;
+const isPageTool = (tool: Tool | null): tool is PageSection => tool !== null && PAGE_TOOLS.includes(tool);
 /** One line under each panel's title saying what it changes. */
 const TOOL_HINTS: Partial<Record<Tool, string>> = {
   paper: "The kind of book, how its pages turn, and the paper.",
   look: "Simple and Studio: shadows, shading and light.",
   background: "What sits behind the book.",
   reading: "How visitors can read: flipbook, scroll or page by page.",
-  scrapbook: "Notes, tabs, links, hotspots, stickers and more on pages.",
+  notes: "Sticky notes, and fold-outs readers open for more.",
+  buttons: "Hotspots, shop buttons, pop-up cards, info icons and YouTube or Vimeo.",
+  media: "Slideshows of your pictures, and videos or GIFs that play on the page.",
+  motion: "Moving pictures and animated stickers on the page.",
+  navigation: "Page tabs, contents links and website links.",
+  spotlights: "Details readers can open large and sharp.",
   leads: "A form that collects readers' details, and the leads it brings in.",
   branding: "Your own logo in the viewer.",
   business: "Google Analytics, team lead alerts and more.",
@@ -202,7 +215,12 @@ export function EditorStage({
   const [wide, setWide] = useState(() => { try { return localStorage.getItem(PANEL_WIDE_KEY) === "1"; } catch { return false; } });
   const toggleWide = () => setWide((current) => { try { localStorage.setItem(PANEL_WIDE_KEY, current ? "0" : "1"); } catch { /* not remembered */ } return !current; });
   const [scrapbook, setScrapbook] = useState<ScrapbookPanel | null>(null);
-  const [selection, setSelection] = useState<ScrapbookSelection>(null);
+  const [selection, setSelectionState] = useState<ScrapbookSelection>(null);
+  // Picking an item on the page opens the tool it belongs to (a tab while in Notes opens Tabs & links).
+  const setSelection = (next: ScrapbookSelection) => {
+    setSelectionState(next);
+    if (next) setTool((current) => (isPageTool(current) && current !== SECTION_OF[next.kind] ? SECTION_OF[next.kind] : current));
+  };
   const [shownPages, setShownPages] = useState<Array<{ page: number; half?: "left" | "right"; ratio?: number }>>([]);
   const [snapToGuides, setSnapToGuides] = useState(true);
   const [pageRequest, setPageRequest] = useState<{ page: number; t: number } | null>(null);
@@ -234,7 +252,7 @@ export function EditorStage({
   const row = "flex items-center justify-between gap-3";
   return (
     <EditorFullscreenContext.Provider value={fullscreen}>
-    <LiveScrapbookContext.Provider value={{portfolio:p,snapToGuides,onSnapChange:setSnapToGuides,enabled:tool==="scrapbook"&&!scrapbook,onError:onSaveError,selected:selection,onSelect:setSelection,onPages:setShownPages,pageRequest,draggingSticker}}>
+    <LiveScrapbookContext.Provider value={{portfolio:p,snapToGuides,onSnapChange:setSnapToGuides,enabled:isPageTool(tool)&&!scrapbook,onError:onSaveError,selected:selection,onSelect:setSelection,onPages:setShownPages,pageRequest,draggingSticker}}>
     <div ref={stageRef} data-fullscreen={fullscreen.full || undefined} style={fullscreen.full ? { height: "100dvh" } : undefined} className={cn("pf-editor-stage overflow-hidden bg-muted/50", fullscreen.fallback ? "fixed inset-0 z-[200]" : "relative h-[calc(100dvh-3.5rem)]")}>
       <div className="absolute inset-0 overflow-auto" onPointerDown={() => undefined}>
         {preview}
@@ -363,7 +381,7 @@ export function EditorStage({
           {tool === "book" && <BookMarketingSettings p={p} />}
           {tool === "background" && <StyleForm sidebar part="background" p={p} onSaveError={onSaveError} />}
           {tool === "projects" && <ProjectSettings key={`${p.code}:${pdf.blobKey}`} p={p} />}
-          {tool === "scrapbook" && <ScrapbookQuickPanel p={p} shown={shownPages} selected={selection} onSelect={setSelection} onOpen={setScrapbook} onError={onSaveError} onGoTo={(page) => setPageRequest({ page, t: Date.now() })} onStickerDrag={setDraggingSticker} />}
+          {isPageTool(tool) && <ScrapbookQuickPanel key={tool} section={tool} p={p} shown={shownPages} selected={selection} onSelect={setSelection} onOpen={setScrapbook} onError={onSaveError} onGoTo={(page) => setPageRequest({ page, t: Date.now() })} onStickerDrag={setDraggingSticker} />}
           {tool === "share" && <>{home && <Button className="mb-4 w-full" onClick={onPublish}>{p.status === "published" ? "Save & view sharing options" : "Publish portfolio"}</Button>}<ShareActions p={p} /></>}
           {tool === "publish" && (
             <div className="space-y-5 text-sm">

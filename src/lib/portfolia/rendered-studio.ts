@@ -20,7 +20,8 @@ export type RenderedStudio = {
   bytes: number;
 };
 export type StudioExporter = {
-  video(progress: (value: string, fraction?: number) => void, signal: AbortSignal, listing?: boolean): Promise<Blob>;
+  /** `pace`: seconds-on-each-spread and turn-speed choices for a full flip-through (studio-recorder.ts). */
+  video(progress: (value: string, fraction?: number) => void, signal: AbortSignal, listing?: boolean, pace?: { holdMs?: number; turnPace?: number }): Promise<Blob>;
   render(
     signature: string,
     save: (blob: Blob) => Promise<string>,

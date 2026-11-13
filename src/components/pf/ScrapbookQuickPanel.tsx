@@ -23,6 +23,7 @@ import { addPortfolioExtra, deleteUnusedPortfolioAsset, getDoc, isPaid, patchPor
 import { cn } from "@/lib/utils";
 
 type Shown = { page: number; half?: "left" | "right"; ratio?: number };
+import type { PageSection } from "@/lib/portfolia/page-sections";
 type Kind = NonNullable<ScrapbookSelection>["kind"];
 
 /** One feature: its name, how many there are, an Add button, its items on the open pages and the chosen one's settings. */
@@ -50,8 +51,10 @@ function FeatureBox({ icon: Icon, title, count, badge, hint, action, active, chi
  * Everything added on top of the pages, edited on the main editor's page: one box per feature. Add an item to the
  * page in view, drag it there, and change it in its box. Every change goes into the draft, so Save keeps it.
  */
-export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onError, onGoTo, onStickerDrag }: {
+export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onError, onGoTo, onStickerDrag, section }: {
   p: Portfolio;
+  /** Which of the editor's page tools is open: only its features show. Omitted shows them all. */
+  section?: PageSection;
   shown: Shown[];
   selected: ScrapbookSelection;
   onSelect: (selection: ScrapbookSelection) => void;
@@ -73,6 +76,7 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
   const half = page.half ?? "right";
   const report = (ok: boolean, message: string) => onError(ok ? null : message);
   const select = (kind: Kind, id: string) => onSelect({ kind, id });
+  const show = (s: PageSection) => !section || section === s;
   const inView = (item: { page: number }) => shown.some((s) => s.page === item.page);
 
   const notes = readableFoldouts(pdf.foldouts, pdf.pages);
@@ -378,6 +382,7 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
         resize. Every item in the book is listed below; pick one on another page to turn to it. Save keeps your changes.
       </p>
 
+      {show("notes") && <>
       <FeatureBox icon={StickyNote} title="Notes" count={`${notes.length} of ${MAX_FOLDOUTS}`} hint="A sticky note, or a fold-out readers open to see more." active={Boolean(note)}
         action={<div className="flex gap-1">{add("Sticky", () => addNote("sticky"))}{add("Fold-out", () => addNote("foldout"))}</div>}>
         {chips("foldouts", notes.map((n) => ({ id: n.id, page: n.page, label: (n.outside?.text ?? n.title) || (n.style === "sticky" ? "Sticky note" : "Fold-out") })))}
@@ -397,25 +402,33 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
           <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline" onClick={() => onOpen("notes")}>Add a picture or change the font</button>
         </>, "note")}
       </FeatureBox>
+      </>}
 
+      {show("buttons") && <>
       <FeatureBox icon={MousePointerClick} title="Hotspots & buttons" count={`${hotspots.length} of ${MAX_HOTSPOTS}`} hint="Product tags, pop-ups with a picture, price, video or shop button, and call-to-action buttons to your site, email or phone." active={Boolean(hotspot)}
         action={<div className="flex gap-1">{add("Dot", () => addHotspot("dot"), hotspots.length >= MAX_HOTSPOTS)}{add("Tag", () => addHotspot("tag"), hotspots.length >= MAX_HOTSPOTS)}{add("Button", () => addHotspot("button"), hotspots.length >= MAX_HOTSPOTS)}</div>}>
         {chips("hotspots", hotspots.filter((h) => h.style !== "info" && h.style !== "video").map((h) => ({ id: h.id, page: h.page, label: h.title || h.label || (h.style === "dot" ? "Dot" : "Hotspot") })))}
         {hotspot && hotspot.style !== "info" && hotspot.style !== "video" && editing(hotspotFields(hotspot), "hotspot")}
       </FeatureBox>
+      </>}
 
+      {show("buttons") && <>
       <FeatureBox icon={Info} title="Info icons" count={`${hotspots.filter((h) => h.style === "info").length}`} hint="A small (i) on the page that shows extra words when readers hover over it, or tap it on a phone." active={hotspot?.style === "info"}
         action={add("Info icon", () => addHotspot("info"), hotspots.length >= MAX_HOTSPOTS)}>
         {chips("hotspots", hotspots.filter((h) => h.style === "info").map((h) => ({ id: h.id, page: h.page, label: h.title || "Info" })))}
         {hotspot?.style === "info" && editing(hotspotFields(hotspot), "info icon")}
       </FeatureBox>
+      </>}
 
+      {show("buttons") && <>
       <FeatureBox icon={Youtube} title="YouTube & Vimeo" count={`${hotspots.filter((h) => h.style === "video").length}`} hint="Paste a link and the video plays right on the page. Resize it like any item; it can start by itself, muted." active={hotspot?.style === "video"}
         action={add("Video", () => addHotspot("video"), hotspots.length >= MAX_HOTSPOTS)}>
         {chips("hotspots", hotspots.filter((h) => h.style === "video").map((h) => ({ id: h.id, page: h.page, label: h.title || "Video" })))}
         {hotspot?.style === "video" && editing(hotspotFields(hotspot), "video")}
       </FeatureBox>
+      </>}
 
+      {show("media") && <>
       <FeatureBox icon={GalleryHorizontal} title="Slideshows" count={`${slideshows.length} of ${MAX_SLIDESHOWS}`} hint="A box of your pictures on the page that changes by itself. Readers can step through with arrows." active={Boolean(slideshow)}
         action={add("Add", addSlideshow, slideshows.length >= MAX_SLIDESHOWS)}>
         {chips("slideshows", slideshows.map((s) => ({ id: s.id, page: s.page, label: `${s.images.length} picture${s.images.length === 1 ? "" : "s"}` })))}
@@ -423,7 +436,9 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
           <SlideshowFields slideshow={slideshow} save={(next: PageSlideshow, message?: string) => { const ok = patchPortfolioExtra(p.code, pdf.blobKey, "slideshows", next.id, next); report(ok, message ?? "That change couldn't be saved."); return ok; }} />,
         "slideshow")}
       </FeatureBox>
+      </>}
 
+      {show("motion") && <>
       <FeatureBox icon={Clapperboard} title="Animations" count={`${animations.length} of ${MAX_ANIMATIONS}`} hint="Moving pictures that sit on the page with no box round them: a waving character, falling rain, a twinkling star. Pick one to add it to the page in view." active={Boolean(animation)}>
         {isPink && <>
           <Button size="xs" variant="line" disabled={Boolean(animationPhase)} onClick={() => pinkInput.current?.click()}>Import eight aligned Pink clips</Button>
@@ -442,7 +457,9 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
           </>,
           "animation")}
       </FeatureBox>
+      </>}
 
+      {show("motion") && <>
       <FeatureBox icon={Shapes} title="Animated stickers" count={`${drawnStickers.length} of ${MAX_STICKERS - animations.length}`} hint="Small moving arrows, circles and marks. Drag one onto a page, or click it to add it to the page in view." active={Boolean(drawnSticker)}>
         <div className="grid grid-cols-8 gap-1" role="list" aria-label="Stickers">
           {STICKERS.map((s) => (
@@ -464,7 +481,9 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
           <p className="text-xs text-muted-foreground">Drag it on the page; pull its corner to resize. It moves on its own in the reader.</p>
         </>, "sticker"))(drawnSticker)}
       </FeatureBox>
+      </>}
 
+      {show("navigation") && <>
       <FeatureBox icon={Tag} title="Page tabs" count={`${tags.length} of ${MAX_TAGS}`} hint="Coloured tabs on the edge of the book. Readers press one to turn straight to its page." active={Boolean(tab)}
         action={add("Add", addTab, tags.length >= MAX_TAGS)}>
         {chips("tags", tags.map((t) => ({ id: t.id, page: t.page, label: t.label || "Tab" })))}
@@ -478,7 +497,9 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
           <p className="text-xs text-muted-foreground">Goes to page {tab.page}. The tab shape is set in Book & turns.</p>
         </>, "tab")}
       </FeatureBox>
+      </>}
 
+      {show("navigation") && <>
       <FeatureBox icon={Link2} title="Website links" count={`${links.length} of ${MAX_LINKS}`} hint="The site's logo on the page. Readers click it to open the site in a new tab." active={Boolean(link)}>
         <div className="flex gap-2">
           <input aria-label="Website address" inputMode="url" placeholder="behance.net/yourname" value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addLink(); } }} className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm" />
@@ -494,7 +515,9 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
           </label>
         </>, "link")}
       </FeatureBox>
+      </>}
 
+      {show("navigation") && <>
       <FeatureBox icon={CornerDownRight} title="Contents links" count={`${jumps.length} of ${MAX_JUMPS}`} hint="A box over each line of your contents page. Readers click the line to go straight to its page." active={Boolean(jump)}
         action={add("Add", addJump, jumps.length >= MAX_JUMPS)}>
         {chips("jumps", jumps.map((j) => ({ id: j.id, page: j.page, label: `to p. ${j.target}` })))}
@@ -506,7 +529,9 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
           <p className="text-xs text-muted-foreground">Fit the box over its line. The next one you add appears just below.</p>
         </>, "contents link")}
       </FeatureBox>
+      </>}
 
+      {show("spotlights") && <>
       <FeatureBox icon={Search} title="Spotlights" count={`${spotlights.length} of ${spotlightLimit}`} hint="Mark a detail. Readers open it large and sharp, with your caption." active={Boolean(spotlight)}
         action={add("Add", addSpotlight, spotlights.length >= spotlightLimit)}>
         {chips("spotlights", spotlights.map((s) => ({ id: s.id, page: s.page, label: s.caption || "Spotlight" })))}
@@ -520,7 +545,9 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
           </label>
         </>, "spotlight")}
       </FeatureBox>
+      </>}
 
+      {show("media") && <>
       <FeatureBox icon={Film} title="Video or GIF" count={`${pageVideos.length} of ${MAX_VIDEOS}`} badge={!isPaid(doc) ? <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-normal">Personal</span> : undefined}
         hint={`Plays inside the page, muted until tapped. MP4, WebM or GIF up to ${VIDEO_MAX_MB} MB, one per page.`} active={Boolean(video)}
         action={add(videoPhase ? "Adding…" : "Add", () => videoInput.current?.click(), Boolean(videoPhase) || sideHasVideo)}>
@@ -533,6 +560,7 @@ export function ScrapbookQuickPanel({ p, shown, selected, onSelect, onOpen, onEr
           <p className="text-xs text-muted-foreground">{video.name ?? "Video"} · {(video.bytes / 1048576).toFixed(1)} MB · page {video.page}{!isPaid(doc) && ". Saving a portfolio with videos needs Personal."}</p>,
         "video")}
       </FeatureBox>
+      </>}
     </div>
   );
 }

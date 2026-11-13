@@ -13,7 +13,9 @@ import { loadLinkIcons, paintPageLinks } from "@/lib/portfolia/link-paint";
 import { createRenderQueue } from "@/lib/portfolia/render-queue";
 import { cachedReaderArtwork, copyReaderArtwork, prepareReaderArtwork } from "@/lib/portfolia/reader-artwork";
 import { READER_SLIDE_MS, READER_SLIDE_DISTANCE } from "@/lib/portfolia/reader-slide";
-import type { Foldout } from "@/lib/portfolia/foldouts";
+import { foldoutsForPage, readableFoldouts, type Foldout } from "@/lib/portfolia/foldouts";
+import { StoredFoldout } from "./FoldoutCard";
+import { LiveScrapbookPage } from "./LiveScrapbookPage";
 import { jumpsForPage, linksForPage, readablePageJumps, readablePageStickers, stickersForPage, readablePageHotspots, hotspotsForPage, type PageHotspot, readablePageSlideshows, slideshowsForPage, type PageSlideshow, type PageSticker, readablePageSpotlights, spotlightRegion, spotlightsForPage, videosForPage, type PageJump, type PageLink, type PageSpotlight, type PageTag, type PageVideo } from "@/lib/portfolia/page-extras";
 import { SpotlightLightbox, SpotlightTarget, type SpotlightView } from "./PageSpotlights";
 import { PageVideoHtml } from "./PageVideoHtml";
@@ -28,7 +30,7 @@ import { readableLeadForm, type LeadForm } from "@/lib/portfolia/lead-form";
 import { lazy, Suspense, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { EditorFullscreenContext } from "./editor-fullscreen";
 import { toggleFullscreen, type FullscreenDocument } from "@/lib/portfolia/fullscreen";
-import { List, Copy, X } from "lucide-react";
+import { List, Copy, RotateCcw, X } from "lucide-react";
 import { projectFromHash, projectPath, readableProjects, type PortfolioProject } from "@/lib/portfolia/projects";
 import { BookOpen, Check, ChevronLeft, ChevronRight, Download, Share2, FileText, LayoutGrid, Maximize2, Minimize2, ScrollText, Search, User, ZoomIn, ZoomOut } from "lucide-react";
 import { BookSearch } from "./BookSearch";
@@ -43,6 +45,7 @@ import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { getPreviewLook, pinPreviewLook, subscribePreviewLook } from "@/lib/portfolia/preview-look";
 import { isTouchDevice } from "@/lib/portfolia/scan";
+import { dismissRotateHint, lockLandscape, rotateHintDismissed, unlockOrientation, wantsRotateHint } from "@/lib/portfolia/orientation";
 import { useTouchGestures } from "@/components/pf/touch-gestures";
 import { BookLoader } from "@/components/pf/book-loader";
 import { DEFAULT_VIEWER, type ViewerControl, type ViewerSettings } from "@/lib/portfolia/store";
@@ -242,6 +245,12 @@ export function PdfViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [JSON.stringify(slideshows ?? []), doc]);
   const pageSlideshows = (page: number) => slideshowsForPage(allSlideshows, page, spreadSheet(page));
+  // Notes and tabs in Scroll and Page by page too, so everything added in the flipbook shows in every reading style.
+  const allNotes = useMemo(() => readableFoldouts(foldouts ?? [], doc?.numPages ?? 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(foldouts ?? []), doc]);
+  const pageNotes = (page: number) => foldoutsForPage(allNotes, page, spreadSheet(page));
+  const pageTabs = (page: number) => (tags ?? []).filter((t) => t.page === page);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -396,7 +405,21 @@ export function PdfViewer({
     if (editorFullscreen) return editorFullscreen.toggle();
     const result = await toggleFullscreen(rootRef.current, document as FullscreenDocument, pseudoFull);
     setPseudoFull(result === "fallback");
+    // A phone in full screen is held sideways, where the browser allows it, so the whole spread shows.
+    if (result === "native" && isTouchDevice()) void lockLandscape();
+    if (result === "exited") unlockOrientation();
   };
+  // The phone is upright in the flipbook: suggest turning it sideways (once a session; it goes when turned).
+  const [screenBox, setScreenBox] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    const read = () => setScreenBox({ width: window.innerWidth, height: window.innerHeight });
+    read();
+    window.addEventListener("resize", read);
+    return () => window.removeEventListener("resize", read);
+  }, []);
+  const [hintDismissed, setHintDismissed] = useState(true);
+  useEffect(() => setHintDismissed(rotateHintDismissed()), []);
+  useEffect(() => () => unlockOrientation(), []);
 
   const [mode, setMode] = useState<"scroll" | "paged" | "book">(startMode);
   const modeLive = useRef(mode);
@@ -412,6 +435,8 @@ export function PdfViewer({
   // Pages the creator hid are skipped in every reading style (but shown while placing scrapbook items, so each
   // page's items can still be reached).
   const scrapbookEditing = Boolean(useContext(LiveScrapbookContext)?.enabled);
+  // The editor's page tools work in Scroll and Page by page as well as the flipbook.
+  const editFlat = scrapbookEditing && !compact;
   const hiddenKey = JSON.stringify(view.hiddenPages ?? []);
   const hiddenPages = useMemo(() => new Set(scrapbookEditing ? [] : readableHiddenPages(view.hiddenPages, total)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -855,6 +880,13 @@ export function PdfViewer({
       onFocusCapture={autoHide ? wake : undefined}
       onTouchStart={autoHide ? wake : undefined}
     >
+      {!hintDismissed && showControls && !homepageExample && !renderCapture && (immersive || full) && wantsRotateHint({ touch: isTouchDevice(), width: screenBox.width, height: screenBox.height, mode }) && (
+        <div role="status" className="pointer-events-auto absolute inset-x-3 bottom-20 z-40 mx-auto flex max-w-sm items-center gap-3 rounded-2xl bg-background/95 p-3 text-sm text-foreground shadow-lift backdrop-blur">
+          <RotateCcw aria-hidden className="size-5 shrink-0 -rotate-90" />
+          <span className="min-w-0 flex-1">Turn your phone sideways to see the whole spread.</span>
+          <button type="button" aria-label="Dismiss" className="rounded-full p-1 text-muted-foreground hover:text-foreground" onClick={() => { dismissRotateHint(); setHintDismissed(true); }}><X className="size-4" /></button>
+        </div>
+      )}
       {backgroundUrl && mode !== "book" && (
         <div aria-hidden className="pointer-events-none sticky top-0 -z-10 -mb-[100svh] h-[100svh] w-full overflow-hidden">
           <BackdropLayer animate={presentationActive} colour={colour} imageUrl={backgroundUrl} fit={bgView.backgroundFit} scene={bgView.backgroundKey ? undefined : bgView.backgroundPreset} />
@@ -1060,7 +1092,7 @@ export function PdfViewer({
             >
               {sizes[current - 1] && (
                 <div className="shrink-0" style={{ width: `calc(min(100%, max(1px, calc((${pagedHeight} - ${topGap + 24}px) * ${sizes[current - 1]!.w / sizes[current - 1]!.h}))) * ${zoom})` }}>
-                <PdfPage links={pageLinks(current)} videos={pageVideos(current)} spotlights={pageSpotlights(current)} onSpotlight={openSpotlightById} jumps={pageJumps(current)} stickers={pageStickers(current)} hotspots={pageHotspots(current)} slideshows={pageSlideshows(current)} onJump={jumpTo} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={noop} eager onRendered={markReady} />
+                <PdfPage notes={pageNotes(current)} tabs={pageTabs(current)} edit={editFlat ? { split: spreadSheet(current) } : undefined} links={pageLinks(current)} videos={pageVideos(current)} spotlights={pageSpotlights(current)} onSpotlight={openSpotlightById} jumps={pageJumps(current)} stickers={pageStickers(current)} hotspots={pageHotspots(current)} slideshows={pageSlideshows(current)} onJump={jumpTo} slide pageSizes={sizes} doc={doc} n={current} size={sizes[current - 1]!} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={noop} eager onRendered={markReady} />
                 </div>
               )}
             </div>
@@ -1079,7 +1111,7 @@ export function PdfViewer({
             style={{ paddingTop: topGap, width: `calc(min(100%, ${compact ? 900 : 1100}px) * ${zoom})` }}
           >
             {sizes.map((s, i) => hiddenPages.has(i + 1) ? null : (
-              <PdfPage links={pageLinks(i + 1)} videos={pageVideos(i + 1)} spotlights={pageSpotlights(i + 1)} onSpotlight={openSpotlightById} jumps={pageJumps(i + 1)} stickers={pageStickers(i + 1)} hotspots={pageHotspots(i + 1)} slideshows={pageSlideshows(i + 1)} onJump={jumpTo} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={setCurrent} eager={!streamedDoc} renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
+              <PdfPage notes={pageNotes(i + 1)} tabs={pageTabs(i + 1)} edit={editFlat ? { split: spreadSheet(i + 1) } : undefined} links={pageLinks(i + 1)} videos={pageVideos(i + 1)} spotlights={pageSpotlights(i + 1)} onSpotlight={openSpotlightById} jumps={pageJumps(i + 1)} stickers={pageStickers(i + 1)} hotspots={pageHotspots(i + 1)} slideshows={pageSlideshows(i + 1)} onJump={jumpTo} key={i} doc={doc} n={i + 1} size={s} lighting={studio ? pageLighting : null} zoom={zoom} detail={fullDetail} onVisible={setCurrent} eager={!streamedDoc} renderQueue={scrollQueue} retainArtwork onPrepared={scrollCallbacks[i]} />
             ))}
           </div>
         </div>
@@ -1204,8 +1236,17 @@ function PdfPage({
   hotspots,
   slideshows,
   onJump,
+  notes,
+  tabs,
+  edit,
   detail = 0,
 }: {
+  /** Notes and fold-outs on the full page. */
+  notes?: Foldout[];
+  /** Page tabs belonging to this page: in the flat reading styles a small tab on its edge turns to it. */
+  tabs?: PageTag[];
+  /** The editor's page tools are open: items are moved and resized here, as in the flipbook. */
+  edit?: { split: boolean };
   links?: PageLink[];
   videos?: PageVideo[];
   /** Spotlight boxes on the full page; `onSpotlight` opens one by id. */
@@ -1476,11 +1517,21 @@ function PdfPage({
           {linkLayer.links.map((link) => <PageLinkAnchor key={link.id} link={link} visible painted />)}
           {/* Inside the drawn page layer, which replaces the page's children whenever it redraws. */}
           {videos && videos.length > 0 && <PageVideoHtml videos={videos} />}
+          {edit ? (edit.split
+            ? (["left", "right"] as const).map((half) => <div key={half} className="absolute inset-y-0 w-1/2" style={{ left: half === "left" ? 0 : "50%" }}><LiveScrapbookPage leaf={{ page: n, half }} side={half} ratio={size.h / (size.w / 2)} neighbour={{ page: n, half: half === "left" ? "right" : "left" }} /></div>)
+            : <LiveScrapbookPage leaf={{ page: n }} side="right" ratio={size.h / size.w} />)
+          : <>
           {spotlights?.map((s) => <SpotlightTarget key={s.id} spotlight={s} onOpen={() => onSpotlight?.(s.id)} />)}
           {slideshows?.map((s) => <PageSlideshowMark key={s.id} slideshow={s} />)}
-        {stickers?.map((s) => <PageStickerMark key={s.id} sticker={s} />)}
-        {hotspots?.map((h) => <PageHotspotMark key={h.id} hotspot={h} />)}
-        {onJump && jumps?.map((j) => <PageJumpLink key={j.id} jump={j} onGo={onJump} />)}
+          {stickers?.map((s) => <PageStickerMark key={s.id} sticker={s} />)}
+          {hotspots?.map((h) => <PageHotspotMark key={h.id} hotspot={h} />)}
+          {onJump && jumps?.map((j) => <PageJumpLink key={j.id} jump={j} onGo={onJump} />)}
+          {notes?.map((item) => <div key={item.id} className="pointer-events-auto"><StoredFoldout item={item} /></div>)}
+          </>}
+          {!edit && tabs?.map((t, i) => (
+            <span key={t.id} className="absolute right-0 z-10 max-w-[30%] translate-x-[1px] truncate rounded-l-md px-2 py-1 text-[11px] font-medium leading-none text-white shadow-sm"
+              style={{ top: `${((t.position ?? 0.12 + i * 0.08) * 100).toFixed(2)}%`, background: t.colour }}>{t.label}</span>
+          ))}
         </div>, linkLayer.element,
       )}
       {failed && (

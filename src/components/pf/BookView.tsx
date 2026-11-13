@@ -8,7 +8,7 @@ import { LiveScrapbookContext } from "./live-scrapbook-context";
 import { LiveScrapbookPage } from "./LiveScrapbookPage";
 import { HomeScrollContext, releaseHomeScroll } from "./home-scroll";
 import { captureFrames } from "@/lib/portfolia/turn-motion";
-import { canvasStill, recordStudioClip } from "@/lib/portfolia/studio-recorder";
+import { canvasStill, recordStudioClip, videoHoldMs, videoTurnPace } from "@/lib/portfolia/studio-recorder";
 import type { StudioExporter, RenderedState, RenderHotspot } from "@/lib/portfolia/rendered-studio";
 import { loadNoteFonts, loadNoteImages, paintClosedNotes } from "@/lib/portfolia/foldout-paint";
 import { foldoutSurfaces } from "@/lib/portfolia/foldouts";
@@ -16,7 +16,8 @@ import { StoredFoldout } from "./FoldoutCard";
 import { BookLoader } from "./book-loader";
 import { getBookInset, subscribeBookInset } from "@/lib/portfolia/book-framing";
 import { PageStickerMark } from "./AnimatedSticker";
-import { animationsShowing, drawPageLayer, loadPageLayerPictures } from "./sticker-layer";
+import { animationsShowing, drawPageLayer, loadPageLayerPictures, type PageMarks } from "./sticker-layer";
+import { showsSinglePage } from "@/lib/portfolia/orientation";
 import { isAnimation } from "@/lib/portfolia/page-extras";
 import { PageHotspotMark } from "./PageHotspots";
 import { PageSlideshowMark } from "./PageSlideshow";
@@ -538,7 +539,7 @@ export function BookView({
   ]);
   const [pageBounds, setPageBounds] = useState<PageBounds[]>([]);
   /** Sticker layers drawn so far (one per page face with stickers), redrawn while they ride on turning paper. */
-  const pageLayers = useRef<Array<{ canvas: HTMLCanvasElement; stickers: PageSticker[]; slides: PageSlideshow[]; leaf: number }>>([]);
+  const pageLayers = useRef<Array<{ canvas: HTMLCanvasElement; stickers: PageSticker[]; slides: PageSlideshow[]; marks: PageMarks; leaf: number }>>([]);
   /** What the layers hold just now: everything (turning), or only the animations (still pages; the rest is shown flat). */
   const animationClock = useRef(typeof performance === "undefined" ? 0 : performance.now() / 1000);
   const layerOnly = useRef<"animations" | undefined>(undefined);
@@ -830,9 +831,10 @@ export function BookView({
     let cancelled = false;
     const element = host.current!;
     const generation = epoch;
-    const observer = new ResizeObserver(() => { setNarrow(!fullSpread && element.clientWidth < 720); requestAnimationFrame(syncBounds); });
+    // One page at a time only while the space is upright and narrow: a phone turned sideways shows the whole spread.
+    const observer = new ResizeObserver(() => { setNarrow(!fullSpread && showsSinglePage(element.clientWidth, element.clientHeight)); requestAnimationFrame(syncBounds); });
     observer.observe(element);
-    setNarrow(!fullSpread && element.clientWidth < 720);
+    setNarrow(!fullSpread && showsSinglePage(element.clientWidth, element.clientHeight));
     // The detail of the images inside the PDF is read once, in the background; pages wait for it before drawing.
     const density = lightweight ? Promise.resolve(0) : loadPdfjs().then((pdfjs) => detectDensity(doc, pdfjs.OPS as never)).catch(() => 0);
     const source = pageLoader(doc, ratio, layout, density, () => scene.current?.maxTextureSize ?? 4096, lightweight, additions, pageLinks, previewTextureCap, pageVideos, pageHotspots);
@@ -1418,7 +1420,9 @@ export function BookView({
   // preparing) the pages carry still copies drawn on the paper, so they stay fixed to their page as it turns.
   useEffect(() => {
     const s = scene.current;
-    if (!s || (!pageStickers.length && !pageSlideshows.length)) return;
+    // Hotspots, buttons, info icons, video players and spotlight magnifiers ride on the turning paper too.
+    const spotlightList = spotlightViews.map((v) => v.spotlight);
+    if (!s || (!pageStickers.length && !pageSlideshows.length && !pageHotspots.length && !spotlightList.length)) return;
     let live = true;
     const layers = new Map<number, HTMLCanvasElement | null>();
     pageLayers.current = [];
@@ -1427,16 +1431,17 @@ export function BookView({
       if (!at) return null;
       if (!layers.has(n)) {
         const stickers = stickersForLeaf(pageStickers, at), slides = slideshowsForLeaf(pageSlideshows, at);
+        const marks = { hotspots: hotspotsForLeaf(pageHotspots, at), spotlights: spotlightsForLeaf(spotlightList, at) };
         const clock = () => matchMedia("(prefers-reduced-motion: reduce)").matches ? undefined : animationClock.current;
         const held = () => lock.current || cameraMoving() || !spreadNow.current.includes(n);
-        const layer = drawPageLayer(stickers, slides, ratio, undefined, clock(), layerOnly.current, held());
+        const layer = drawPageLayer(stickers, slides, ratio, undefined, clock(), layerOnly.current, held(), marks);
         layers.set(n, layer);
         if (layer) {
-          if (stickers.length) pageLayers.current.push({ canvas: layer, stickers, slides, leaf: n });
+          pageLayers.current.push({ canvas: layer, stickers, slides, marks, leaf: n });
           // Decode only when this face is used, rather than loading every clip in a long book at startup.
           void loadPageLayerPictures(stickers, slides).then(() => {
             if (!live) return;
-            drawPageLayer(stickers, slides, ratio, layer, clock(), layerOnly.current, held());
+            drawPageLayer(stickers, slides, ratio, layer, clock(), layerOnly.current, held(), marks);
             s.stickerLayerFrame();
           });
         }
@@ -1444,7 +1449,7 @@ export function BookView({
       return layers.get(n) ?? null;
     });
     return () => { live = false; for (const sticker of pageStickers) if (sticker.image) pausePaperAnimation(sticker.image.key); pageLayers.current = []; s.setStickerLayerLookup(() => null); };
-  }, [ready, pageStickers, pageSlideshows, layout, ratio]);
+  }, [ready, pageStickers, pageSlideshows, pageHotspots, spotlightViews, layout, ratio]);
   useEffect(() => {
     if (!ready || !pageStickers.some(isAnimation)) return;
     const nearby = [index, index + 1, index - 1].flatMap(i => layout.spreads[i] ?? []);
@@ -1463,7 +1468,7 @@ export function BookView({
   useEffect(() => {
     const only = overlayShown ? "animations" as const : undefined;
     layerOnly.current = only;
-    if (!pageStickers.length) return;
+    if (!pageLayers.current.length && !pageStickers.length) return;
     const active = new Set(pageLayers.current.filter(l => !busy && spreadNow.current.includes(l.leaf)).flatMap(l => l.stickers.map(s => s.image?.key)));
     for (const l of pageLayers.current) for (const s of l.stickers) if (s.image && !active.has(s.image.key)) pausePaperAnimation(s.image.key);
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1476,7 +1481,7 @@ export function BookView({
         const now = animationsShowing(l.stickers, time);
         if (!force && showing.get(l.canvas) === now) continue;
         showing.set(l.canvas, now);
-        drawPageLayer(l.stickers, l.slides, ratio, l.canvas, time, only, busy || cameraMoving() || !spreadNow.current.includes(l.leaf));
+        drawPageLayer(l.stickers, l.slides, ratio, l.canvas, time, only, busy || cameraMoving() || !spreadNow.current.includes(l.leaf), l.marks);
         changed = true;
       }
       if (changed) scene.current?.stickerLayerFrame();
@@ -1551,7 +1556,7 @@ export function BookView({
   useEffect(() => {
     const renderer = scene.current;
     if (!onExporter || !bookReady || fallback || !renderer || !settings.studio) { onExporter?.(null); return; }
-    const render = async (signature: string, save: (blob: Blob) => Promise<string>, progress: (value: string, fraction?: number) => void, signal: AbortSignal, video?: (blob: Blob) => void, listing = false): Promise<import("@/lib/portfolia/rendered-studio").RenderedStudio> => {
+    const render = async (signature: string, save: (blob: Blob) => Promise<string>, progress: (value: string, fraction?: number) => void, signal: AbortSignal, video?: (blob: Blob) => void, listing = false, pace?: { holdMs?: number; turnPace?: number }): Promise<import("@/lib/portfolia/rendered-studio").RenderedStudio> => {
       if (lock.current) throw new Error("The book is still moving. Please try again.");
       lock.current = true;
       const output = document.createElement("canvas"); output.width=Math.round(viewportRef.current!.clientWidth*2); output.height=Math.round(viewportRef.current!.clientHeight*2);
@@ -1595,7 +1600,7 @@ export function BookView({
           // Listing clips use at most three preview spreads and six seconds of
           // total holds, leaving room for complete turns within marketplace limits.
           const videoSpreads = listing ? Math.min(3, layout.spreads.length) : layout.spreads.length;
-          const holdMs = listing ? 6000 / Math.max(1, videoSpreads) : 1600;
+          const holdMs = listing ? 6000 / Math.max(1, videoSpreads) : videoHoldMs(pace?.holdMs);
           // One continuous timeline: retain the cover and each spread long enough to read.
           const hold = async () => {
             if (stepFrame) await captureFrames(holdMs, () => { signal.throwIfAborted(); renderer.renderFrame(); }, stepFrame);
@@ -1615,7 +1620,7 @@ export function BookView({
               progress(`Exporting spread ${i + 1} of ${videoSpreads}`, i / videoSpreads);
               const next = layout.spreads[i]!, to = await faces(next);
               await renderer.prepareNotes(specs(i - 1), specs(i));
-              await renderer.turn(from, to, 1, bookFocus(next, next.find(n => n !== null)!, false), 1, tabPlanFor(layout.spreads[i - 1]!, next, 1));
+              await renderer.turn(from, to, 1, bookFocus(next, next.find(n => n !== null)!, false), listing ? 1 : videoTurnPace(pace?.turnPace), tabPlanFor(layout.spreads[i - 1]!, next, 1));
               from = await show(i);
               await hold();
             }
@@ -1655,9 +1660,9 @@ export function BookView({
         return {version:1,signature,createdAt:Date.now(),width:output.width,height:output.height,states,bytes};
       } finally { renderer.setCaptureClock(); renderer.setFrameSink(); renderer.setVideoStill(typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches); lock.current=false; if(alive.current) { await renderer.setNotes(currentNoteSpecs); renderer.show(await faces(spread)); renderer.viewport(narrow,zoom,bookFocus(spread,leafRef.current,narrow)); } }
     };
-    onExporter({ render, video: async (progress, signal, listing = false) => {
+    onExporter({ render, video: async (progress, signal, listing = false, pace) => {
       let result: Blob | undefined;
-      await render("", async () => "", progress, signal, blob => { result = blob; }, listing);
+      await render("", async () => "", progress, signal, blob => { result = blob; }, listing, pace);
       if (!result) throw new Error("The video could not be created.");
       return result;
     }});

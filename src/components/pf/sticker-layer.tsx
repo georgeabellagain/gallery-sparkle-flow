@@ -2,7 +2,8 @@ import { clipMediaCanvas } from "@/lib/portfolia/media-crop";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { getBlob } from "@/lib/portfolia/assets";
-import { stickerInfo, type PageSlideshow, type PageSticker, type StickerId } from "@/lib/portfolia/page-extras";
+import { stickerInfo, type PageHotspot, type PageSlideshow, type PageSpotlight, type PageSticker, type StickerId } from "@/lib/portfolia/page-extras";
+import { noteInk } from "@/lib/portfolia/foldout-paint";
 import { paperAnimationFrame, animationFrameNumber, drawAnimationFrame, loadAnimation, readyAnimation } from "@/lib/portfolia/page-animation";
 import { AnimatedSticker } from "./AnimatedSticker";
 
@@ -152,8 +153,10 @@ function drawFeatheredVideo(ctx: CanvasRenderingContext2D, frame: ImageBitmap | 
  * the paper while their live copies (which sit flat over the page) are away, so they turn with the page. Drawn again
  * into the same `canvas` with a `time`, the stickers move as they do on the page.
  */
-export function drawPageLayer(stickers: PageSticker[], slideshows: PageSlideshow[], ratio: number, canvas?: HTMLCanvasElement, time?: number, only?: "animations", frozen = false): HTMLCanvasElement | null {
-  if (!stickers.length && !slideshows.length) return null;
+export function drawPageLayer(stickers: PageSticker[], slideshows: PageSlideshow[], ratio: number, canvas?: HTMLCanvasElement, time?: number, only?: "animations", frozen = false, marks?: PageMarks): HTMLCanvasElement | null {
+  // On a still page these are live buttons over the paper; only a turning page needs their picture.
+  const hotspots = only ? [] : marks?.hotspots ?? [], spotlights = only ? [] : marks?.spotlights ?? [];
+  if (!stickers.length && !slideshows.length && !marks?.hotspots.length && !marks?.spotlights.length) return null;
   canvas ??= document.createElement("canvas");
   // Animations stay on the paper while the page is read, so their layer is sharper than one only seen in motion.
   const width = stickers.some((s) => s.sticker === "animation") ? ANIMATED_LAYER_WIDTH : LAYER_WIDTH;
@@ -203,5 +206,75 @@ export function drawPageLayer(stickers: PageSticker[], slideshows: PageSlideshow
     ctx.drawImage(picture, -origin[0] * size, -origin[1] * size, size, size);
     ctx.restore();
   }
+  for (const s of spotlights) drawSpotlightIcon(ctx, s, w, h);
+  for (const hs of hotspots) drawHotspot(ctx, hs, w, h);
   return canvas;
+}
+
+/** The hotspots and spotlights on one page face, drawn on the paper while it turns (their live buttons are away). */
+export type PageMarks = { hotspots: PageHotspot[]; spotlights: PageSpotlight[] };
+
+const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) => {
+  ctx.beginPath();
+  ctx.roundRect(x, y, width, height, Math.min(radius, width / 2, height / 2));
+};
+/**
+ * A hotspot as readers see it on a still page (PageHotspots.tsx): a ringed dot, a pill with its words, a round (i),
+ * or a video player's frame with a play button. Video pictures come from YouTube or Vimeo, which would stop the page
+ * picture being usable on the graphics card, so a turning page shows the player's dark frame instead.
+ */
+function drawHotspot(ctx: CanvasRenderingContext2D, hs: PageHotspot, w: number, h: number) {
+  const x = hs.x * w, y = hs.y * h, width = hs.size * w, ink = noteInk(hs.colour);
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,.28)";
+  ctx.shadowBlur = Math.max(2, width * 0.04);
+  ctx.shadowOffsetY = Math.max(1, width * 0.015);
+  if (hs.style === "video") {
+    const height = width * 9 / 16;
+    roundRect(ctx, x, y, width, height, 3);
+    ctx.fillStyle = "#1e293b";
+    ctx.fill();
+    ctx.shadowColor = "transparent";
+    const r = width * 0.08;
+    ctx.beginPath(); ctx.arc(x + width / 2, y + height / 2, r, 0, Math.PI * 2); ctx.fillStyle = hs.colour; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x + width / 2 - r * 0.32, y + height / 2 - r * 0.45); ctx.lineTo(x + width / 2 + r * 0.5, y + height / 2); ctx.lineTo(x + width / 2 - r * 0.32, y + height / 2 + r * 0.45); ctx.closePath(); ctx.fillStyle = ink; ctx.fill();
+  } else if (hs.style === "info" || hs.style === "dot") {
+    const r = hs.style === "dot" ? width * 0.28 : width / 2, cx = x + width / 2, cy = y + width / 2;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = hs.colour; ctx.fill();
+    ctx.shadowColor = "transparent";
+    ctx.lineWidth = Math.max(1.5, r * 0.14); ctx.strokeStyle = "#ffffff"; ctx.stroke();
+    if (hs.style === "info") {
+      ctx.fillStyle = ink; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.font = `italic 600 ${Math.round(width * 0.62)}px Georgia, "Times New Roman", serif`;
+      ctx.fillText("i", cx, cy + width * 0.03);
+    }
+  } else {
+    const height = width / 3.6;
+    roundRect(ctx, x, y, width, height, height / 2);
+    ctx.fillStyle = hs.colour;
+    ctx.fill();
+    ctx.shadowColor = "transparent";
+    const words = hs.label || (hs.action === "link" ? "Visit" : "See more"), size = width * 0.11;
+    ctx.fillStyle = ink; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `500 ${Math.round(size)}px "Instrument Sans", Arial, sans-serif`;
+    const pip = hs.style === "tag" ? size * 1.6 : 0;
+    if (pip) { ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.arc(x + width * 0.07 + size / 2, y + height / 2, size / 2, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
+    ctx.fillText(words, x + width / 2 + pip / 2, y + height / 2, width * 0.86 - pip);
+  }
+  ctx.restore();
+}
+/** A spotlight's small magnifier badge, where readers see it on a still page (PageSpotlights.tsx). */
+function drawSpotlightIcon(ctx: CanvasRenderingContext2D, s: PageSpotlight, w: number, h: number) {
+  if (s.hideIcon) return;
+  // The live badge is 20 CSS pixels at about 600 px of page; scale it with this layer.
+  const r = (10 * w / 600) * (s.iconScale ?? 1);
+  const cx = s.iconX === undefined ? (s.x + s.width) * w - 14 * w / 600 : (s.x + s.iconX * s.width) * w;
+  const cy = s.iconY === undefined ? s.y * h + 14 * w / 600 : (s.y + s.iconY * s.height) * h;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = "rgba(2,6,23,.7)"; ctx.fill();
+  ctx.lineWidth = Math.max(1, r * 0.1); ctx.strokeStyle = "rgba(255,255,255,.4)"; ctx.stroke();
+  ctx.lineWidth = Math.max(1, r * 0.16); ctx.strokeStyle = "#ffffff"; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.arc(cx - r * 0.1, cy - r * 0.1, r * 0.32, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx + r * 0.14, cy + r * 0.14); ctx.lineTo(cx + r * 0.4, cy + r * 0.4); ctx.stroke();
+  ctx.restore();
 }

@@ -1,3 +1,14 @@
+/** How a flip-through video turns its pages: each turn's length as a share of a normal turn (more is slower). */
+export const VIDEO_TURN_PACES = [
+  { id: "slow", label: "Slow", pace: 1.6 },
+  { id: "normal", label: "Normal", pace: 1 },
+  { id: "fast", label: "Fast", pace: 0.6 },
+] as const;
+/** How long the video rests on each spread before turning, in seconds. */
+export const VIDEO_HOLD_SECONDS = [1, 1.6, 3, 5] as const;
+export const videoTurnPace = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? Math.max(0.4, Math.min(2, value)) : 1);
+export const videoHoldMs = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? Math.max(500, Math.min(8000, value)) : 1600);
+
 const encodingSupport = new Map<string, Promise<boolean>>();
 async function supportsAvc(width: number, height: number) {
   const key = `${width}x${height}@60`;
