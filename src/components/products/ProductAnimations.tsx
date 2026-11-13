@@ -9,6 +9,9 @@ import { animationFileProblem, animationKind } from "@/lib/portfolia/page-animat
 import { ANIMATION_SIZE, MAX_ANIMATIONS, STICKER_SIZE, placeSticker, type PageSticker } from "@/lib/portfolia/page-extras";
 import { uploadProductAnimation } from "@/lib/products/client";
 import { productAnimationKey, productStickers, type AnimationFileKind, type ProductAnimation } from "@/lib/products/model";
+import { getPublicPortfolio } from "@/lib/portfolia/public.functions";
+import { readablePageStickers } from "@/lib/portfolia/page-extras";
+import { PINK_ANIMATION_PLACEMENT, PINK_PORTFOLIO_CODE } from "@/lib/portfolia/pink-animation-placement";
 import { cn } from "@/lib/utils";
 
 const KIND: Record<string, AnimationFileKind> = { "image/webp": "webp", "image/gif": "gif", "image/png": "png", "video/mp4": "mp4" };
@@ -72,6 +75,36 @@ export function ProductAnimations({ id, animations, pages, sheets, page, ratio =
   });
   const upload = (file: File) => void working("Adding your animation…", () => add(file, file.name.replace(/\.[a-z0-9]+$/i, "").replace(/[-_]+/g, " ")));
 
+  const importPink = () => void working("Copying Pink animations…", async () => {
+    const source = await getPublicPortfolio({ data: { by: "code", value: PINK_PORTFOLIO_CODE } });
+    const pdf = source?.portfolio.pdf;
+    if (!pdf || pdf.pages !== pages || sheets) throw new Error("Use the original single-page Pink PDF to import these placements.");
+    const ids = new Set<string>(PINK_ANIMATION_PLACEMENT.map(a => a.name.replace(/\.mp4$/, "")));
+    const placements = readablePageStickers(pdf.stickers, pages).filter(a => ids.has(a.id) && a.sticker === "animation");
+    if (placements.length !== ids.size) throw new Error("The published Pink portfolio is missing an animation.");
+    const remaining = animations.filter(a => !ids.has(a.id));
+    if (remaining.length + placements.length > MAX_ANIMATIONS) throw new Error("There isn't room for all eight Pink animations.");
+    const copied: ProductAnimation[] = [];
+    for (const s of placements) {
+      const url = s.image && source.urls[s.image.key];
+      if (!url) throw new Error("A Pink animation file is missing.");
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("A Pink animation could not be downloaded.");
+      const blob = await response.blob();
+      const mime = animationKind(new Uint8Array(await blob.slice(0, 16).arrayBuffer()));
+      const name = (s.image?.name ?? s.id).replace(/\.(?:mp4|webp|gif|png)$/i, "");
+      const problem = animationFileProblem({ size: blob.size, name }, mime);
+      if (problem || !mime || !KIND[mime]) throw new Error(problem ?? "An unsupported Pink animation was found.");
+      const typed = new Blob([blob], { type: mime });
+      const file = await uploadProductAnimation(id, typed, KIND[mime]);
+      const { id: animationId, page, half, x, y, size, crop, play, flip } = s;
+      const placement: ProductAnimation = { id: animationId, page, half, x, y, size, crop, play, flip, name, file };
+      await putLocalBlob(productAnimationKey(placement), typed);
+      copied.push(placement);
+    }
+    onChange([...remaining, ...copied]);
+  });
+
   const asSticker = (a: ProductAnimation): PageSticker | undefined => productStickers([a], { total: Math.max(pages, a.page) })[0];
   const sticker = selected && asSticker(selected);
   const slider = (label: string, value: number, min: number, max: number, set: (v: number) => void) => (
@@ -83,6 +116,7 @@ export function ProductAnimations({ id, animations, pages, sheets, page, ratio =
   return (
     <div className="space-y-4">
       <p className="text-muted-foreground">Moving pictures that sit on your pages with no box round them. Shoppers see the ones on preview pages; customers see them all.</p>
+      {id === "c959096a-aa5d-41c7-8f7c-8dfc5e93f666" && <Button size="xs" variant="line" disabled={Boolean(phase)} onClick={importPink}>Copy aligned animations from Pink portfolio</Button>}
       <AnimationPicker disabled={Boolean(phase) || animations.length >= MAX_ANIMATIONS} busy={phase} onPick={pick} onUpload={upload} />
       {animations.length > 0 && (
         <div className="space-y-1.5">
