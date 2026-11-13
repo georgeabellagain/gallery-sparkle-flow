@@ -392,7 +392,7 @@ export function LiveScrapbookPage({
             className="absolute pointer-events-auto ring-1 ring-blue-500/50 data-[selected]:ring-2 data-[selected]:ring-blue-600"
             style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${s.size * 100}%`, aspectRatio: "1" }}
           >
-            <StickerArt sticker={s} />
+            {(!isAnimation(s) || draft?.item.id === s.id) && <StickerArt sticker={s} />}
             <button
               type="button"
               aria-label={`Move ${isAnimation(s) ? "animation" : "sticker"} ${stickerLabel(s)}`}

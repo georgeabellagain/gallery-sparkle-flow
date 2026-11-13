@@ -1,3 +1,4 @@
+import { pausePaperAnimation } from "@/lib/portfolia/page-animation";
 import { clipMediaCanvas } from "@/lib/portfolia/media-crop";
 import { takePreviewTurn, subscribePreviewTurn } from "@/lib/portfolia/preview-turn";
 import { ribbonGutterFor } from "@/lib/portfolia/book-details";
@@ -573,7 +574,7 @@ export function BookView({
   const backdropScene = !viewer.backgroundKey && isBackgroundScene(viewer.backgroundPreset) ? viewer.backgroundPreset! : null;
   const jumpsSignature = JSON.stringify(editingExtras ? [] : jumps ?? []);
   const pageJumps = useMemo(() => readablePageJumps(JSON.parse(jumpsSignature), doc.numPages), [jumpsSignature, doc.numPages]);
-  const stickersSignature = JSON.stringify(editingExtras ? [] : stickers ?? []);
+  const stickersSignature = JSON.stringify(editingExtras ? (stickers ?? []).filter(isAnimation) : stickers ?? []);
   const pageStickers = useMemo(() => readablePageStickers(JSON.parse(stickersSignature), doc.numPages), [stickersSignature, doc.numPages]);
   const hotspotsSignature = JSON.stringify(editingExtras ? [] : hotspots ?? []);
   const pageHotspots = useMemo(() => readablePageHotspots(JSON.parse(hotspotsSignature), doc.numPages), [hotspotsSignature, doc.numPages]);
@@ -1434,7 +1435,7 @@ export function BookView({
       }
       return layers.get(n) ?? null;
     });
-    return () => { live = false; pageLayers.current = []; s.setStickerLayerLookup(() => null); };
+    return () => { live = false; for (const sticker of pageStickers) if (sticker.image) pausePaperAnimation(sticker.image.key); pageLayers.current = []; s.setStickerLayerLookup(() => null); };
   }, [ready, pageStickers, pageSlideshows, layout, ratio]);
   useEffect(() => {
     if (!ready || !pageStickers.some(isAnimation)) return;
@@ -1455,6 +1456,10 @@ export function BookView({
   // keeps them at rest.
   useEffect(() => {
     const only = overlayShown ? "animations" as const : undefined;
+    if (only) {
+      const active = new Set(pageLayers.current.filter(l => spreadNow.current.includes(l.leaf)).flatMap(l => l.stickers.map(s => s.image?.key)));
+      for (const l of pageLayers.current) for (const s of l.stickers) if (s.image && !active.has(s.image.key)) pausePaperAnimation(s.image.key);
+    }
     layerOnly.current = only;
     if (!pageStickers.length || (overlayShown && !hasAnimations)) return;
     const paint = (time: number | undefined, showing?: Map<HTMLCanvasElement, string>) => {
@@ -1486,7 +1491,7 @@ export function BookView({
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [overlayShown, hasAnimations, pageStickers.length, ratio]);
+  }, [overlayShown, hasAnimations, pageStickers.length, ratio, index]);
   const [litNotesKey, setLitNotesKey] = useState("");
   const notesForSpread = (pages: Array<number | null>) => pages.flatMap((n, side) => n === null ? [] : foldoutsForLeaf(additions, layout.leaves[n]!).map(item => ({ item, side, seed: n + 1, exterior: n === 0 || n === layout.leaves.length - 1 })));
   useEffect(() => { noteProgresses.current.clear(); setOpenNote(false); }, [leaf, additions]);
@@ -1793,7 +1798,7 @@ export function BookView({
             <div className="pointer-events-none absolute inset-0 overflow-hidden">
             {videosForLeaf(pageVideos, layout.leaves[n]!).filter(v => !v.silent).map(v => <PageVideoSound key={v.id} video={v} on={videoSound === v.id} onToggle={() => videoPlayer.current?.toggleSound(v.id)} />)}
             {slideshowsForLeaf(pageSlideshows, layout.leaves[n]!).map(s => <PageSlideshowMark key={s.id} slideshow={s} />)}
-            {stickersForLeaf(pageStickers, layout.leaves[n]!).map(s => <PageStickerMark key={s.id} sticker={s} onPaper />)}
+            {!editingExtras && stickersForLeaf(pageStickers, layout.leaves[n]!).map(s => <PageStickerMark key={s.id} sticker={s} onPaper />)}
             </div>
             {hotspotsForLeaf(pageHotspots, layout.leaves[n]!).map(h => <PageHotspotMark key={h.id} hotspot={h} />)}
             {jumpsForLeaf(pageJumps, layout.leaves[n]!).map(j => <PageJumpLink key={j.id} jump={j} onGo={(page) => void jumpTo(layout.leaves.findIndex((l) => l.page === page))} />)}

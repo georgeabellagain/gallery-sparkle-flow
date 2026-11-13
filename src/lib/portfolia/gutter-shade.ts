@@ -24,15 +24,15 @@ export function createGutterShade() {
         );
         // Simple draws the artwork through the emissive channel (unlit), so the shade darkens both.
         shader.fragmentShader = "uniform float gutterAmount;\nuniform float gutterWidth;\nvarying float gutterDistance;\n" + shader.fragmentShader.replace(
-          "#include <color_fragment>",
-          `#include <color_fragment>
+          "#include <roughnessmap_fragment>",
+          `#include <roughnessmap_fragment>
           float gutterShadeK = 1.0;
           if (gutterAmount > 0.0) {
             float gutter = 1.0 - smoothstep(0.0, gutterWidth, gutterDistance);
             gutterShadeK = 1.0 - gutterAmount * gutter * gutter;
             diffuseColor.rgb *= gutterShadeK;
           }`,
-        ).replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance *= gutterShadeK;");
+        ).replace("#include <lights_physical_fragment>", "totalEmissiveRadiance *= gutterShadeK;\n#include <lights_physical_fragment>");
       };
       material.customProgramCacheKey = () => key() + "_gutter";
       material.needsUpdate = true;

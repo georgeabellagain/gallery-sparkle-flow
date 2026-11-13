@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { getBlob } from "@/lib/portfolia/assets";
 import { stickerInfo, type PageSlideshow, type PageSticker, type StickerId } from "@/lib/portfolia/page-extras";
-import { animationFrameAt, animationFrameNumber, drawAnimationFrame, loadAnimation, readyAnimation } from "@/lib/portfolia/page-animation";
+import { paperAnimationFrame, animationFrameNumber, drawAnimationFrame, loadAnimation, readyAnimation } from "@/lib/portfolia/page-animation";
 import { AnimatedSticker } from "./AnimatedSticker";
 
 /** Width of a page's sticker layer; turning pages are seen in motion, so it need not match the print's detail. */
@@ -17,7 +17,7 @@ const ANIMATED_LAYER_WIDTH = 1024;
 export function animationsShowing(stickers: PageSticker[], time: number | undefined): string {
   return stickers.map((s) => {
     const animation = s.sticker === "animation" && s.image ? readyAnimation(s.image.key) : null;
-    return animation ? animationFrameNumber(s, animation, time) : -1;
+    return animation?.media ? (time ?? -1) : animation ? animationFrameNumber(s, animation, time) : -1;
   }).join(",");
 }
 
@@ -115,6 +115,38 @@ export function stickerPose(motion: string, t: number): Pose {
   }
 }
 
+let videoPatch: HTMLCanvasElement | undefined;
+function drawFeatheredVideo(ctx: CanvasRenderingContext2D, frame: ImageBitmap | HTMLVideoElement, x: number, y: number, size: number, flip: boolean) {
+  const w = "videoWidth" in frame ? frame.videoWidth : frame.width;
+  const h = "videoHeight" in frame ? frame.videoHeight : frame.height;
+  if (!w || !h) return;
+  const scale = size / Math.max(w, h);
+  const width = Math.max(1, Math.round(w * scale)), height = Math.max(1, Math.round(h * scale));
+  const patch = videoPatch ??= document.createElement("canvas");
+  if (patch.width !== width) patch.width = width;
+  if (patch.height !== height) patch.height = height;
+  const c = patch.getContext("2d")!;
+  c.clearRect(0, 0, width, height);
+  c.save();
+  c.imageSmoothingQuality = "high";
+  if (flip) { c.translate(width, 0); c.scale(-1, 1); }
+  c.drawImage(frame, 0, 0, width, height);
+  c.restore();
+  c.save();
+  c.globalCompositeOperation = "destination-in";
+  for (const horizontal of [true, false]) {
+    const span = horizontal ? width : height;
+    const edge = Math.min(.1, 3 / span);
+    const mask = c.createLinearGradient(0, 0, horizontal ? width : 0, horizontal ? 0 : height);
+    mask.addColorStop(0, "transparent"); mask.addColorStop(edge, "black");
+    mask.addColorStop(1 - edge, "black"); mask.addColorStop(1, "transparent");
+    c.fillStyle = mask;
+    c.fillRect(0, 0, width, height);
+  }
+  c.restore();
+  ctx.drawImage(patch, x + (size - w * scale) / 2, y + (size - h * scale) / 2, w * scale, h * scale);
+}
+
 /**
  * The stickers and slideshows of one page face on a transparent picture the shape of the page. The book shows it on
  * the paper while their live copies (which sit flat over the page) are away, so they turn with the page. Drawn again
@@ -146,11 +178,13 @@ export function drawPageLayer(stickers: PageSticker[], slideshows: PageSlideshow
       // The frame its flat copy would be showing now, so a looping animation keeps going as its page turns.
       const animation = s.image ? readyAnimation(s.image.key) : null;
       // Where the browser can't read frames, the flat copy shows the file moving instead while the page is still.
-      if (animation && !(only && animation.stillOnly)) {
+      if (animation && !(only && animation.stillOnly && !animation.video)) {
         const x = s.x * w, y = s.y * h, size = s.size * w;
         ctx.save();
         clipMediaCanvas(ctx, x, y, size, size, s.crop);
-        drawAnimationFrame(ctx, animationFrameAt(s, animation, time), x, y, size, Boolean(s.flip));
+        const frame = paperAnimationFrame(s, animation, time);
+        if (animation.video) drawFeatheredVideo(ctx, frame, x, y, size, Boolean(s.flip));
+        else drawAnimationFrame(ctx, frame, x, y, size, Boolean(s.flip));
         ctx.restore();
       }
       continue;

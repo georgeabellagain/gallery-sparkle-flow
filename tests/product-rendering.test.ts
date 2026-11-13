@@ -19,7 +19,7 @@ test('photo surface defaults to half size and bounds invalid remembered values',
 test('moving sheet shade composes with existing material hooks and clears at rest',()=>{
   const shade=createTurnSelfShade(),mat=new THREE.MeshStandardMaterial();
   let called=false;mat.onBeforeCompile=()=>{called=true;};shade.apply(mat);
-  const shader={uniforms:{},vertexShader:'#include <beginnormal_vertex>',fragmentShader:'#include <color_fragment>\n#include <emissivemap_fragment>'} as any;
+  const shader={uniforms:{},vertexShader:'#include <beginnormal_vertex>',fragmentShader:'#include <roughnessmap_fragment>\n#include <emissivemap_fragment>\n#include <lights_physical_fragment>'} as any;
   mat.onBeforeCompile(shader,{} as any);assert.ok(called);
   shade.drive(.5);assert.equal(shader.uniforms.turnSelfShade.value,.32);
   assert.match(shader.fragmentShader,/totalEmissiveRadiance \*= foldLight/);

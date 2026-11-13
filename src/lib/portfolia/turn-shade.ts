@@ -54,14 +54,14 @@ export function createTurnShade() {
           "#include <project_vertex>\nturnShadeX = (modelMatrix * vec4(transformed, 1.0)).x;",
         );
         shader.fragmentShader = "uniform vec3 turnShadeLeft;\nuniform vec3 turnShadeRight;\nvarying float turnShadeX;\n" + shader.fragmentShader.replace(
-          "#include <color_fragment>",
-          `#include <color_fragment>
+          "#include <roughnessmap_fragment>",
+          `#include <roughnessmap_fragment>
           vec3 turnShadeSide = turnShadeX < 0.0 ? turnShadeLeft : turnShadeRight;
           // Full under the sheet, softening away beyond its edge.
           float turnShadeFall = 1.0 - smoothstep(turnShadeSide.y, turnShadeSide.y + turnShadeSide.z, abs(turnShadeX));
           float turnShadeK = 1.0 - turnShadeSide.x * turnShadeFall * turnShadeFall * (3.0 - 2.0 * turnShadeFall);
           diffuseColor.rgb *= turnShadeK;`,
-        ).replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance *= turnShadeK;");
+        ).replace("#include <lights_physical_fragment>", "totalEmissiveRadiance *= turnShadeK;\n#include <lights_physical_fragment>");
       };
       material.customProgramCacheKey = () => key() + "_turnshade2";
       material.needsUpdate = true;
