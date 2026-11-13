@@ -660,7 +660,7 @@ export function BookView({
       const t = Math.min(1, (now - start) / ms), e = 1 - Math.pow(1 - t, 3);
       orbitAt.current = scene.current?.orbit({ yaw: from.yaw + (to.yaw - from.yaw) * e, pitch: from.pitch + (to.pitch - from.pitch) * e }) ?? orbitAt.current;
       syncBounds();
-      if (t < 1) orbitFrame.current = requestAnimationFrame(step);
+      orbitFrame.current = t < 1 ? requestAnimationFrame(step) : 0;
     };
     orbitFrame.current = requestAnimationFrame(step);
   };
@@ -1478,12 +1478,18 @@ export function BookView({
       if (changed) scene.current?.stickerLayerFrame();
     };
     // Draw one frozen frame on the paper; never upload fresh animation textures during a turn.
-    paint(true);
+    if (!orbiting.current?.moved && !orbitFrame.current) paint(true);
     if (busy || reduced || (only && !hasAnimations)) return;
     let frame = 0, last = performance.now();
+    let pausedForCamera = false;
     const tick = (now: number) => {
       frame = requestAnimationFrame(tick);
-      if (lock.current || document.hidden) { last = now; return; }
+      const movingCamera = Boolean(orbiting.current?.moved || orbitFrame.current || panning.current || pinching.current);
+      if (movingCamera && !pausedForCamera) {
+        for (const layer of pageLayers.current) for (const sticker of layer.stickers) if (sticker.image) pausePaperAnimation(sticker.image.key);
+      }
+      pausedForCamera = movingCamera;
+      if (movingCamera || lock.current || document.hidden) { last = now; return; }
       if (now - last < 50) return;
       animationClock.current += Math.min(.1, (now - last) / 1000);
       last = now;
@@ -1706,6 +1712,7 @@ export function BookView({
               if (Math.hypot(e.clientX - spin.x, e.clientY - spin.y) < 4) return;
               spin.moved = true;
               cancelAnimationFrame(orbitFrame.current);
+              orbitFrame.current = 0;
               tilted.current = true;
               setView3d(true);
             }

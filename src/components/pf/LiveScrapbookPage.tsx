@@ -1,4 +1,4 @@
-import { mediaClipPath } from "@/lib/portfolia/media-crop";
+import { MAX_MEDIA_CROP, mediaCropInsets, type MediaCrop, mediaClipPath } from "@/lib/portfolia/media-crop";
 import { nudgeStep, snapExtraToPage } from "@/lib/portfolia/extra-placement";
 import { useContext, useEffect, useRef, useState, type PointerEvent } from "react";
 import { LiveScrapbookContext } from "./live-scrapbook-context";
@@ -31,6 +31,7 @@ function VideoPoster({ video }: { video: PageVideo }) {
 import { tabSlot } from "@/lib/portfolia/tab-geometry";
 import type { Leaf } from "@/lib/portfolia/book-layout";
 import { addPortfolioExtra, patchPortfolioExtra, removePortfolioExtra } from "@/lib/portfolia/store";
+import { loadAnimation } from "@/lib/portfolia/page-animation";
 import { StickerArt } from "./AnimatedSticker";
 import { HotspotFace } from "./PageHotspots";
 import { SlideshowFrame } from "./PageSlideshow";
@@ -56,6 +57,17 @@ export function LiveScrapbookPage({
   // The editor's side panel shares the selection when it can, so the picked item can be edited there.
   const selected = context.onSelect ? context.selected?.id ?? null : ownSelection;
   const setSelected = (kind: ExtraKind, id: string) => (context.onSelect ? context.onSelect({ kind, id }) : setOwnSelection(id));
+  const [cropId, setCropId] = useState<string | null>(null);
+  const [dimensions, setDimensions] = useState<Record<string, number>>({});
+  const animationKeys = readablePageStickers(pdf.stickers, pdf.pages).filter(s => isAnimation(s) && s.image && s.page === leaf.page).map(s => s.image!.key).join(",");
+  useEffect(() => {
+    let active = true;
+    for (const key of animationKeys.split(",").filter(Boolean)) {
+      void loadAnimation(key).then(a => { if (active && a?.width && a.height) setDimensions(prev => ({ ...prev, [key]: a.width / a.height })); });
+    }
+    return () => { active = false; };
+  }, [animationKeys]);
+  const aspectOf = (kind: ExtraKind, item: Extra) => kind === "stickers" ? dimensions[(item as PageSticker).image?.key ?? ""] ?? 1 : 1;
   const drag = useRef<{
     kind: ExtraKind;
     item: Extra;
@@ -65,11 +77,12 @@ export function LiveScrapbookPage({
     height: number;
     handle: "move" | ResizeCorner | "rotate";
     next: Extra;
+    crop?: ResizeCorner;
     centre?: { x: number; y: number };
     /** How far it has been moved across, unclamped, so it can be carried over the spine. */
     dx: number;
   } | null>(null);
-  useEffect(() => setDraft(null), [pdf.foldouts, pdf.links, pdf.tags, pdf.videos, pdf.spotlights, pdf.jumps, pdf.stickers, pdf.hotspots, pdf.slideshows]);
+  useEffect(() => { if (!drag.current) setDraft(null); }, [pdf.foldouts, pdf.links, pdf.tags, pdf.videos, pdf.spotlights, pdf.jumps, pdf.stickers, pdf.hotspots, pdf.slideshows]);
   const leafVideos = videosForLeaf(readablePageVideos(pdf.videos, pdf.pages), leaf);
   // A new video is placed at a typical page shape; fit its height to this page's real shape once it is seen.
   useEffect(() => {
@@ -89,6 +102,7 @@ export function LiveScrapbookPage({
     kind: ExtraKind,
     item: Extra,
     handle: "move" | ResizeCorner | "rotate",
+    crop?: ResizeCorner,
   ) => {
     if (e.button !== 0) return;
     e.preventDefault();
@@ -105,6 +119,7 @@ export function LiveScrapbookPage({
       width: bounds.width,
       height: bounds.height,
       handle,
+      crop,
       next: item,
       dx: 0,
       ...(handle === "rotate" ? { centre: { x: bounds.left + (note.x + note.width / 2) * bounds.width, y: bounds.top + (note.y + note.height / 2) * bounds.height } } : {}),
@@ -124,6 +139,23 @@ export function LiveScrapbookPage({
       return;
     }
     d.dx = (e.clientX - d.x) / d.width;
+    if (d.crop) {
+      const s = d.item as PageSticker;
+      const crop: MediaCrop = { ...s.crop };
+      const clamp = (n: number) => Math.min(MAX_MEDIA_CROP, Math.max(0, n));
+      const vertical = (e.clientY - d.y) / d.width / s.size;
+      const horizontal = d.dx / s.size;
+      const [t, r, b, l] = mediaCropInsets(crop);
+      const a = aspectOf(d.kind, s);
+      const mx = (1 - Math.min(1, a)) / 2, my = (1 - Math.min(1, 1 / a)) / 2;
+      if (d.crop.includes("w")) crop.left = clamp(Math.max(l, mx) + horizontal);
+      if (d.crop.includes("e")) crop.right = clamp(Math.max(r, mx) - horizontal);
+      if (d.crop.includes("n")) crop.top = clamp(Math.max(t, my) + vertical);
+      if (d.crop.includes("s")) crop.bottom = clamp(Math.max(b, my) - vertical);
+      d.next = { ...s, crop };
+      setDraft({ kind: d.kind, item: d.next });
+      return;
+    }
     d.next = transformExtra(
       d.kind,
       d.item,
@@ -131,15 +163,15 @@ export function LiveScrapbookPage({
       (e.clientY - d.y) / d.height,
       d.handle,
       ratio,
+      aspectOf(d.kind, d.item),
     );
     if (d.handle === "move" && context.snapToGuides !== false && !e.altKey) d.next = snapExtraToPage(d.kind, d.next, ratio);
-    // While moving, it follows the pointer even past the page's edge, towards the other page.
-    const across = d.handle === "move" && d.kind !== "tags" && neighbour;
-    setDraft({ kind: d.kind, item: across && (((d.item as { x: number }).x + d.dx) < 0 || ((d.item as { x: number }).x + d.dx + extraWidth(d.kind, d.item)) > 1) ? ({ ...d.next, x: ((d.item as { x: number }).x) + d.dx } as Extra) : d.next });
+    setDraft({ kind: d.kind, item: d.next });
   };
   const end = (e: PointerEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     const d = drag.current;
+    if (d && (d.x !== e.clientX || d.y !== e.clientY)) move(e);
     drag.current = null;
     if (!d) return;
     // Let go over the other page: it moves there, where it was dropped.
@@ -151,7 +183,8 @@ export function LiveScrapbookPage({
         return;
       }
     }
-    commit(d.kind, d.next);
+    if (d.next !== d.item) commit(d.kind, d.next);
+    setDraft(null);
   };
   const cancel = () => {
     drag.current = null;
@@ -159,8 +192,8 @@ export function LiveScrapbookPage({
   };
   const live = <T extends Extra>(item: T) =>
     draft?.item.id === item.id ? (draft.item as T) : item;
-  const controls = (kind: ExtraKind, item: Extra, handle: "move" | ResizeCorner | "rotate") => ({
-    onPointerDown: (e: PointerEvent<HTMLButtonElement>) => begin(e, kind, item, handle),
+  const controls = (kind: ExtraKind, item: Extra, handle: "move" | ResizeCorner | "rotate", crop?: ResizeCorner) => ({
+    onPointerDown: (e: PointerEvent<HTMLButtonElement>) => begin(e, kind, item, handle, crop),
     onPointerMove: move,
     onPointerUp: end,
     onPointerCancel: cancel,
@@ -169,6 +202,7 @@ export function LiveScrapbookPage({
       e.preventDefault();
     },
     onKeyDown: (e: React.KeyboardEvent) => {
+      if (crop) return;
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
         e.stopPropagation();
@@ -188,16 +222,16 @@ export function LiveScrapbookPage({
       if (!dx && !dy) return;
       e.preventDefault();
       e.stopPropagation();
-      if (handle !== "rotate") commit(kind, transformExtra(kind, item, dx, dy, handle, ratio));
+      if (handle !== "rotate") commit(kind, transformExtra(kind, item, dx, dy, handle, ratio, aspectOf(kind, item)));
     },
   });
-  const resize = (kind: ExtraKind, item: Extra, all = false) =>
+  const resize = (kind: ExtraKind, item: Extra, all = false, crop = false) =>
     (all ? ["nw", "ne", "sw", "se"] : ["se"]).map((corner) => (
       <button
         key={corner}
         type="button"
-        aria-label={`Resize ${kind === "foldouts" ? "note" : kind === "tags" ? "tab" : kind === "videos" ? "video" : kind === "spotlights" ? "spotlight" : kind === "jumps" ? "page link" : kind === "stickers" ? "sticker" : kind === "hotspots" ? "hotspot" : kind === "slideshows" ? "slideshow" : "link"} ${corner}`}
-        {...controls(kind, item, corner as ResizeCorner)}
+        aria-label={`${crop ? "Crop" : "Resize"} ${kind === "foldouts" ? "note" : kind === "tags" ? "tab" : kind === "videos" ? "video" : kind === "spotlights" ? "spotlight" : kind === "jumps" ? "page link" : kind === "stickers" ? "sticker" : kind === "hotspots" ? "hotspot" : kind === "slideshows" ? "slideshow" : "link"} ${corner}`}
+        {...controls(kind, item, corner as ResizeCorner, crop ? corner as ResizeCorner : undefined)}
         className={`pointer-events-auto absolute z-20 size-3 touch-none border border-white bg-blue-600 ${corner.includes("n") ? "-top-1.5" : "-bottom-1.5"} ${corner.includes("w") ? "-left-1.5" : "-right-1.5"}`}
         style={{ cursor: corner === "nw" || corner === "se" ? "nwse-resize" : "nesw-resize" }}
       />
@@ -384,22 +418,25 @@ export function LiveScrapbookPage({
           </div>
         );
       })}
-      {stickersForLeaf(readablePageStickers(pdf.stickers, pdf.pages), leaf).map((original) => {        const s = live(original);
+      {stickersForLeaf(readablePageStickers(pdf.stickers, pdf.pages), leaf).map((original) => {
+        const s = live(original), animation = isAnimation(s), chosen = selected === s.id;
+        const aspect = aspectOf("stickers", s);
+        const [t, r, b, l] = mediaCropInsets(s.crop);
+        const mx = (1 - Math.min(1, aspect)) / 2, my = (1 - Math.min(1, 1 / aspect)) / 2;
+        const cropping = animation && chosen && cropId === s.id;
         return (
-          <div
-            key={s.id}
-            data-selected={selected === s.id || undefined}
-            className="absolute pointer-events-auto ring-1 ring-blue-500/50 data-[selected]:ring-1 data-[selected]:ring-blue-500/70"
-            style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${s.size * 100}%`, aspectRatio: "1" }}
-          >
-            {(!isAnimation(s) || draft?.item.id === s.id) && <StickerArt sticker={s} />}
-            <button
-              type="button"
-              aria-label={`Move ${isAnimation(s) ? "animation" : "sticker"} ${stickerLabel(s)}`}
-              {...controls("stickers", s, "move")}
-              className="absolute inset-0 touch-none cursor-move bg-transparent"
-            />
-            {selected === s.id && resize("stickers", s, true)}
+          <div key={s.id} className="absolute pointer-events-none"
+            style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${s.size * 100}%`, aspectRatio: "1" }}>
+            {(!animation || draft?.item.id === s.id) && <StickerArt sticker={s} />}
+            <div className="absolute pointer-events-auto ring-1 ring-blue-500/60" style={{ top: `${Math.max(t, my)*100}%`, right: `${Math.max(r, mx)*100}%`, bottom: `${Math.max(b, my)*100}%`, left: `${Math.max(l, mx)*100}%` }}>
+              <button type="button" aria-label={`Move ${animation ? "animation" : "sticker"} ${stickerLabel(s)}`}
+                {...(cropping ? {} : controls("stickers", original, "move"))}
+                className={`absolute inset-0 touch-none bg-transparent ${cropping ? "cursor-default" : "cursor-move"}`} />
+              {chosen && resize("stickers", original, true, cropping)}
+              {animation && chosen && <button type="button" aria-pressed={cropping} onClick={e => { e.stopPropagation(); setCropId(cropping ? null : s.id); }}
+                onPointerDown={e => e.stopPropagation()}
+                className="pointer-events-auto absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded bg-blue-700 px-2 py-1 text-xs text-white">{cropping ? "Done cropping" : "Crop"}</button>}
+            </div>
           </div>
         );
       })}

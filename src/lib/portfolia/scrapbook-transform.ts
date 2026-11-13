@@ -10,6 +10,7 @@ export function transformExtra(
   dy: number,
   handle: "move" | ResizeCorner,
   ratio: number,
+  aspect = 1,
 ): Extra {
   if (kind === "foldouts") return transformFoldout(item as Foldout, dx, dy, handle);
   if (kind === "tags") {
@@ -50,9 +51,13 @@ export function transformExtra(
     if (handle === "move") return placeSticker(s, s.x + dx, s.y + dy, s.size, ratio);
     const west = handle.includes("w"), north = handle.includes("n");
     const horizontal = west ? -dx : dx, vertical = north ? -dy : dy;
-    const next = placeSticker(s, s.x, s.y, s.size + (Math.abs(horizontal) >= Math.abs(vertical * ratio) ? horizontal : vertical * ratio), ratio);
-    return placeSticker(next, west ? s.x + s.size - next.size : s.x,
-      north ? s.y + s.size / ratio - (next.size / ratio) : s.y, next.size, ratio);
+    const horizontalSize = horizontal / Math.min(1, aspect);
+    const verticalSize = vertical * ratio / Math.min(1, 1 / aspect);
+    const next = placeSticker(s, s.x, s.y, s.size + (Math.abs(horizontalSize) >= Math.abs(verticalSize) ? horizontalSize : verticalSize), ratio);
+    const delta = s.size - next.size;
+    const mx = (1 - Math.min(1, aspect)) / 2, my = (1 - Math.min(1, 1 / aspect)) / 2;
+    return placeSticker(next, s.x + delta * (west ? 1 - Math.max(mx, s.crop?.right ?? 0) : Math.max(mx, s.crop?.left ?? 0)),
+      s.y + delta / ratio * (north ? 1 - Math.max(my, s.crop?.bottom ?? 0) : Math.max(my, s.crop?.top ?? 0)), next.size, ratio);
   }
   if (kind === "spotlights") {
     // A spotlight is any shape: the bottom-right handle changes width and height freely.
