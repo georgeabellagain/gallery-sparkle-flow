@@ -19,11 +19,13 @@ export function transformExtra(
       : { ...tag, scale: clamp((tag.scale ?? 1) + dy * 8, 0.5, 2) };
   }
   if (kind === "videos") {
-    // A video keeps its own shape: the bottom-right handle changes its width, the height follows.
     const video = item as PageVideo;
-    return handle === "move"
-      ? placeVideo(video, video.x + dx, video.y + dy, video.width, ratio)
-      : placeVideo(video, video.x, video.y, video.width + Math.max(dx, dy * video.aspect * ratio), ratio);
+    if (handle === "move") return placeVideo(video, video.x + dx, video.y + dy, video.width, ratio);
+    const west = handle.includes("w"), north = handle.includes("n");
+    const horizontal = west ? -dx : dx, vertical = north ? -dy : dy;
+    const next = placeVideo(video, video.x, video.y, video.width + (Math.abs(horizontal) >= Math.abs(vertical * video.aspect * ratio) ? horizontal : vertical * video.aspect * ratio), ratio);
+    return placeVideo(next, west ? video.x + video.width - next.width : video.x,
+      north ? video.y + video.height - (next.height) : video.y, next.width, ratio);
   }
   if (kind === "jumps") {
     // A page link's box is any shape, like a spotlight: it covers one line of a contents page.
@@ -31,18 +33,26 @@ export function transformExtra(
     return handle === "move" ? placeJump(j, j.x + dx, j.y + dy, j.width, j.height) : placeJump(j, j.x, j.y, j.width + dx, j.height + dy);
   }
   if (kind === "slideshows") {
-    // Any shape, like a spotlight: the corner handle changes width and height freely.
     const s = item as PageSlideshow;
-    return handle === "move" ? placeSlideshow(s, s.x + dx, s.y + dy, s.width, s.height) : placeSlideshow(s, s.x, s.y, s.width + dx, s.height + dy);
+    if (handle === "move") return placeSlideshow(s, s.x + dx, s.y + dy, s.width, s.height);
+    const west = handle.includes("w"), north = handle.includes("n");
+    const horizontal = west ? -dx : dx, vertical = north ? -dy : dy;
+    const next = placeSlideshow(s, s.x, s.y, s.width + horizontal, s.height + vertical);
+    return placeSlideshow(next, west ? s.x + s.width - next.width : s.x,
+      north ? s.y + s.height - (next.height) : s.y, next.width, next.height);
   }
   if (kind === "hotspots") {
     const h = item as PageHotspot;
     return handle === "move" ? placeHotspot(h, h.x + dx, h.y + dy, h.size, ratio) : placeHotspot(h, h.x, h.y, h.size + dx, ratio);
   }
   if (kind === "stickers") {
-    // A sticker stays square: its corner handle changes its size.
     const s = item as PageSticker;
-    return handle === "move" ? placeSticker(s, s.x + dx, s.y + dy, s.size, ratio) : placeSticker(s, s.x, s.y, s.size + Math.max(dx, dy * ratio), ratio);
+    if (handle === "move") return placeSticker(s, s.x + dx, s.y + dy, s.size, ratio);
+    const west = handle.includes("w"), north = handle.includes("n");
+    const horizontal = west ? -dx : dx, vertical = north ? -dy : dy;
+    const next = placeSticker(s, s.x, s.y, s.size + (Math.abs(horizontal) >= Math.abs(vertical * ratio) ? horizontal : vertical * ratio), ratio);
+    return placeSticker(next, west ? s.x + s.size - next.size : s.x,
+      north ? s.y + s.size / ratio - (next.size / ratio) : s.y, next.size, ratio);
   }
   if (kind === "spotlights") {
     // A spotlight is any shape: the bottom-right handle changes width and height freely.

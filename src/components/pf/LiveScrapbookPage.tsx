@@ -227,7 +227,7 @@ export function LiveScrapbookPage({
           <div
             key={f.id}
             data-selected={selected === f.id || undefined}
-            className="absolute pointer-events-auto shadow-[0_2px_6px_rgba(0,0,0,.25)] ring-1 ring-blue-500/60 data-[selected]:ring-2 data-[selected]:ring-blue-600"
+            className="absolute pointer-events-auto shadow-[0_2px_6px_rgba(0,0,0,.25)] ring-1 ring-blue-500/60 data-[selected]:ring-1 data-[selected]:ring-blue-500/70"
             style={{
               left: `${f.x * 100}%`,
               top: `${f.y * 100}%`,
@@ -261,7 +261,7 @@ export function LiveScrapbookPage({
           <div
             key={v.id}
             data-selected={selected === v.id || undefined}
-            className="absolute pointer-events-auto overflow-visible ring-1 ring-blue-500/60 data-[selected]:ring-2 data-[selected]:ring-blue-600"
+            className="absolute pointer-events-auto overflow-visible ring-1 ring-blue-500/60 data-[selected]:ring-1 data-[selected]:ring-blue-500/70"
             style={{ left: `${v.x * 100}%`, top: `${v.y * 100}%`, width: `${v.width * 100}%`, height: `${v.height * 100}%` }}
           >
             <div className="absolute inset-0" style={{ clipPath: mediaClipPath(v.crop) }}><VideoPoster video={v} /></div>
@@ -272,7 +272,7 @@ export function LiveScrapbookPage({
               {...controls("videos", v, "move")}
               className="absolute inset-0 touch-none cursor-move bg-transparent"
             />
-            {resize("videos", v)}
+            {selected === v.id && resize("videos", v, true)}
           </div>
         );
       })}
@@ -350,7 +350,7 @@ export function LiveScrapbookPage({
           <div
             key={s.id}
             data-selected={selected === s.id || undefined}
-            className="absolute pointer-events-auto overflow-visible ring-1 ring-blue-500/60 data-[selected]:ring-2 data-[selected]:ring-blue-600"
+            className="absolute pointer-events-auto overflow-visible ring-1 ring-blue-500/60 data-[selected]:ring-1 data-[selected]:ring-blue-500/70"
             style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${s.width * 100}%`, height: `${s.height * 100}%` }}
           >
             <span className="absolute inset-0 overflow-hidden"><SlideshowFrame slideshow={s} still /></span>
@@ -361,7 +361,7 @@ export function LiveScrapbookPage({
               {...controls("slideshows", s, "move")}
               className="absolute inset-0 touch-none cursor-move bg-transparent"
             />
-            {resize("slideshows", s)}
+            {selected === s.id && resize("slideshows", s, true)}
           </div>
         );
       })}
@@ -370,7 +370,7 @@ export function LiveScrapbookPage({
           <div
             key={h.id}
             data-selected={selected === h.id || undefined}
-            className="absolute pointer-events-auto ring-1 ring-blue-500/50 data-[selected]:ring-2 data-[selected]:ring-blue-600"
+            className="absolute pointer-events-auto ring-1 ring-blue-500/50 data-[selected]:ring-1 data-[selected]:ring-blue-500/70"
             style={{ left: `${h.x * 100}%`, top: `${h.y * 100}%`, width: `${h.size * 100}%`, aspectRatio: h.style === "dot" || h.style === "info" ? "1" : h.style === "video" ? "16 / 9" : "3.6", containerType: "inline-size" }}
           >
             <HotspotFace hotspot={h} />
@@ -389,7 +389,7 @@ export function LiveScrapbookPage({
           <div
             key={s.id}
             data-selected={selected === s.id || undefined}
-            className="absolute pointer-events-auto ring-1 ring-blue-500/50 data-[selected]:ring-2 data-[selected]:ring-blue-600"
+            className="absolute pointer-events-auto ring-1 ring-blue-500/50 data-[selected]:ring-1 data-[selected]:ring-blue-500/70"
             style={{ left: `${s.x * 100}%`, top: `${s.y * 100}%`, width: `${s.size * 100}%`, aspectRatio: "1" }}
           >
             {(!isAnimation(s) || draft?.item.id === s.id) && <StickerArt sticker={s} />}
@@ -399,7 +399,7 @@ export function LiveScrapbookPage({
               {...controls("stickers", s, "move")}
               className="absolute inset-0 touch-none cursor-move bg-transparent"
             />
-            {resize("stickers", s)}
+            {selected === s.id && resize("stickers", s, true)}
           </div>
         );
       })}
