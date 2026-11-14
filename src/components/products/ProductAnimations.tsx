@@ -91,8 +91,11 @@ export function ProductAnimations({ id, animations, pages, sheets, page, ratio =
     for (const s of placements) {
       const url = s.image && source.urls[s.image.key];
       if (!url) throw new Error("A Pink animation file is missing.");
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("A Pink animation could not be downloaded.");
+      const asset = s.image!.key;
+      const response = await fetch(
+        `/api/public/portfolio-file/${encodeURIComponent(PINK_PORTFOLIO_CODE)}?asset=${encodeURIComponent(asset)}`,
+      ).catch(() => null);
+      if (!response?.ok) throw new Error(`Could not download the Pink animation on page ${s.page}. Please try again.`);
       const blob = await response.blob();
       const mime = animationKind(new Uint8Array(await blob.slice(0, 16).arrayBuffer()));
       const name = (s.image?.name ?? s.id).replace(/\.(?:mp4|webp|gif|png)$/i, "");
