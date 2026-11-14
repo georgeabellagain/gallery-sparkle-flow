@@ -12,104 +12,105 @@ export const PINK_ANIMATION_PLACEMENT = [
   { name: "pink-page-21.mp4", page: 21, x: 233/800, y: 435/800, size: 228/800, sha256: "a7b6cb32973a06c6f6e93e5b4920efad8abc1a32a7bfe46523b75861b38df16e" },
 ] as const;
 
+// Original-pixel cutout pack: rigid motion, corrected mouse and lightbulb targets.
 export const PINK_NEW_ANIMATIONS = [
   {
     "id": "pink-page-06",
     "name": "pink-page-06.webp",
     "page": 6,
-    "x": 0.5,
-    "y": 0.12166666666666667,
-    "size": 0.4766666666666667,
-    "sha256": "20af24868a5f3add71203632e71b5b0e87539ce6947c1e8f95d117e2d5750c1b"
+    "x": 0.5145833333333333,
+    "y": 0.1171875,
+    "size": 0.4552083333333333,
+    "sha256": "bd755da7f11580df02e1c677513d32ca2effbcfe051ea96cf507260328348157"
   },
   {
     "id": "pink-page-07",
     "name": "pink-page-07.webp",
     "page": 7,
-    "x": -0.13333333333333333,
-    "y": 0.043333333333333335,
-    "size": 0.7133333333333334,
-    "sha256": "5adb0143b1ddc9403fc2ad97fdc9261bf10c625f174a56aab3d37fcb876b117d"
+    "x": -0.03177083333333333,
+    "y": 0.058333333333333334,
+    "size": 0.5333333333333333,
+    "sha256": "b570dde8cefcef4e6d7b370ac0d2b479c1bfb824b5b83b7bc7af2df44a8c59e3"
   },
   {
     "id": "pink-page-08",
     "name": "pink-page-08.webp",
     "page": 8,
-    "x": 0.26,
-    "y": 0.20666666666666667,
-    "size": 0.24666666666666667,
-    "sha256": "f914c5bc8062c79c9eea02fcf528e2880154d8197d70fec87dbdae2b283a5774"
+    "x": 0.21041666666666667,
+    "y": 0.2760416666666667,
+    "size": 0.13333333333333333,
+    "sha256": "9de481cd4ac3f58f9abdd0cd14eeea615fea62528be296885553a12afd2e0353"
   },
   {
     "id": "pink-page-09",
     "name": "pink-page-09.webp",
     "page": 9,
-    "x": 0.745,
-    "y": 0.29333333333333333,
-    "size": 0.2,
-    "sha256": "1bc3df8141f7cc3d053e9410ed356fb6a37e4364bcdb7bb24211428472dfd06c"
+    "x": 0.5635416666666667,
+    "y": 0.1375,
+    "size": 0.075,
+    "sha256": "7aa6b6163f8be157b7b529fa5a7ece71cec6537ab55f6a389493b1a9fa682eb5"
   },
   {
     "id": "pink-page-12",
     "name": "pink-page-12.webp",
     "page": 12,
-    "x": 0.0,
-    "y": 0.3416666666666667,
-    "size": 0.6966666666666667,
-    "sha256": "76ec86c9b4bcf7d193e505acb196d4e760123b988334797c913955c726e8d116"
+    "x": 0.015625,
+    "y": 0.3921875,
+    "size": 0.5854166666666667,
+    "sha256": "dc20865740e6a1b15479f9f335ec04680afceea58213f929e925da8b1e3026d7"
   },
   {
     "id": "pink-page-13",
     "name": "pink-page-13.webp",
     "page": 13,
-    "x": 0.52,
-    "y": 0.6216666666666667,
-    "size": 0.39,
-    "sha256": "62b7c7472151b20d823e7f683225548084c5a85694e372e7dab7f65d95bdbb1d"
+    "x": 0.5385416666666667,
+    "y": 0.6026041666666667,
+    "size": 0.36770833333333336,
+    "sha256": "b01f7314a75db12b9a12d4f0b2791d2f183010d96c8350b211dd0e23634c28ac"
   },
   {
     "id": "pink-page-14",
     "name": "pink-page-14.webp",
     "page": 14,
-    "x": 0.6733333333333333,
-    "y": 0.20166666666666666,
-    "size": 0.24333333333333335,
-    "sha256": "a2916569abdcc982ff73e81994b6e757a0dc58804f10153b3c9170cd115bca55"
+    "x": 0.7526041666666666,
+    "y": 0.27708333333333335,
+    "size": 0.15625,
+    "sha256": "37f5ea8ad41e4223341aa9f88d176c2aa89c7e78327f1bc9ab05e719c872e0af"
   },
   {
     "id": "pink-page-15",
     "name": "pink-page-15.webp",
     "page": 15,
-    "x": 0.58,
-    "y": 0.6183333333333333,
-    "size": 0.16,
-    "sha256": "648467e6af4a24850a0fa0b9b1447b99c7bbfaa80de368f31072016cf274742d"
+    "x": 0.5541666666666667,
+    "y": 0.6734375,
+    "size": 0.06979166666666667,
+    "sha256": "a6866527ade6fcdd6676c62c10847490ce1d838276d6b38d950f74e8457e0359"
   },
   {
     "id": "pink-page-18",
     "name": "pink-page-18.webp",
     "page": 18,
-    "x": 0.5733333333333334,
-    "y": 0.49833333333333335,
-    "size": 0.17666666666666667,
-    "sha256": "9ca52b42fc0cfdee8f48534b3b931424d1adbb39fcf1d290da527f042789f7b0"
+    "x": 0.584375,
+    "y": 0.51875,
+    "size": 0.15,
+    "sha256": "41f1f13c759649246a27682b7cca3e57dfe100f6f6d42efd9c8f82b27f063e67"
   },
   {
     "id": "pink-page-19",
     "name": "pink-page-19.webp",
     "page": 19,
-    "x": 0.19666666666666666,
-    "y": 0.14166666666666666,
-    "size": 0.6233333333333333,
-    "sha256": "d9d5124689841e12fe2875d76cd3fd05ef00237ebe03563e1ac303e8a0b7d487"
+    "x": 0.246875,
+    "y": 0.21927083333333333,
+    "size": 0.5489583333333333,
+    "sha256": "6352c9acc79607f05e6b9028e37d95a194cb4d14d7728992789d5895cb42dc57"
   },
   {
     "id": "pink-page-22",
     "name": "pink-page-22.webp",
     "page": 22,
-    "x": 0.22,
-    "y": -0.11666666666666667,
-    "size": 0.55,
-    "sha256": "ef76f3a62cf4c47c27b466689b0b39023e780999b6bf1b3caf5caf05f36023ab"
+    "x": 0.24166666666666667,
+    "y": -0.084375,
+    "size": 0.48333333333333334,
+    "sha256": "46700c610f06f188e157b4369980ac79c18d4742f2774ac876a1b1014a65908e"
   }
 ] as const;
