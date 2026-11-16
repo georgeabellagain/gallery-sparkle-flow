@@ -1,6 +1,6 @@
 import { openCookieSettings } from "@/lib/ads-consent";
 import { Link } from "@tanstack/react-router";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +13,9 @@ import portfoliaLogo from "@/assets/portfolia-logo.png";
 export function Wordmark({ className }: { className?: string }) {
   return (
     <Link to="/" className={cn("inline-flex items-center", className)} aria-label="Portfolia home">
-      <img src={portfoliaLogo} alt="Portfolia" width={1162} height={257} className="h-6 w-auto lg:h-8 2xl:h-10" />
+      <span className="pf-wordmark inline-flex" style={{ "--pf-logo-image": `url("${portfoliaLogo}")` } as CSSProperties}>
+        <img src={portfoliaLogo} alt="Portfolia" width={1247} height={261} className="h-6 w-auto lg:h-8 2xl:h-10" />
+      </span>
     </Link>
   );
 }

@@ -61,7 +61,7 @@ export function HomeWorkspace() {
     catch (e) { setError(e instanceof Error ? e.message : "Couldn’t upload this PDF."); setDialog("upload"); }
     finally { busy.current = false; setPhase(null); if (input.current) input.current.value = ""; }
   };
-  return <div className="pf-home-workspace flex min-h-[100dvh] flex-col bg-[#eae6df]">
+  return <div className="pf-home-workspace flex min-h-[100dvh] flex-col bg-background">
     <MarketingHeader uploadHere onHelp={() => setDialog("help")} />
     <HomeScrollContext.Provider value={true}><main id="upload" className="relative flex-1">
       <input ref={input} type="file" accept="application/pdf,.pdf" className="sr-only" aria-label="Upload portfolio PDF" onChange={e => void upload(e.target.files?.[0])} />
@@ -69,19 +69,19 @@ export function HomeWorkspace() {
         headerOffset="4rem"
         clampIntro={false}
         eyebrow={workspaceTab === "portfolios" ? "Free PDF portfolio hosting" : "Digital Product Studio"}
-        tabs={<div role="tablist" aria-label="Choose your workspace" className="mb-1 flex gap-2 text-xs">{(["portfolios", "products"] as const).map(t => <button key={t} role="tab" aria-selected={workspaceTab === t} onClick={() => chooseTab(t)} className={workspaceTab === t ? "rounded-full bg-foreground px-4 py-2 text-background" : "rounded-full border border-border px-4 py-2 hover:bg-muted"}>{t === "portfolios" ? "Share a portfolio" : "Sell a digital product"}</button>)}</div>}
-        heading={workspaceTab === "portfolios" ? "Turn your PDF into a portfolio people remember." : <>Let shoppers look inside <em>before they buy.</em></>}
+        tabs={<div role="tablist" aria-label="Choose your workspace" className="flex w-fit max-w-full flex-wrap gap-1 rounded-2xl border border-border bg-white p-1 text-xs font-medium">{(["portfolios", "products"] as const).map(t => <button key={t} role="tab" aria-selected={workspaceTab === t} onClick={() => chooseTab(t)} className="rounded-xl px-3 py-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-selected:bg-primary aria-selected:text-primary-foreground hover:not-aria-selected:bg-muted sm:px-4">{t === "portfolios" ? "Share a portfolio" : "Sell a digital product"}</button>)}</div>}
+        heading={workspaceTab === "portfolios" ? <>Turn your PDF into a <em>portfolio people remember.</em></> : <>Let shoppers look inside <em>before they buy.</em></>}
         intro={workspaceTab === "portfolios" ? "Upload the portfolio you already have and share it as a beautifully lit 3D flipbook, with one link, a QR code or an embed on your own site." : "Turn your digital book or zine into a lit 3D preview, then deliver the full edition to customers through a private link."}
         demo={workspaceTab === "portfolios" ? "portfolio" : "product"}
         upload={workspaceTab === "portfolios" ? "portfolio" : "product"}
         ticks={workspaceTab === "portfolios" ? PORTFOLIO_TICKS : PRODUCT_TICKS}
         onDropFile={workspaceTab === "portfolios" ? file => void upload(file) : undefined}
-        uploadNode={workspaceTab === "portfolios" ? <button type="button" onClick={() => input.current?.click()} disabled={Boolean(phase)} className="group flex w-full max-w-md items-center gap-4 rounded-2xl border border-dashed border-border-strong bg-canvas p-4 text-left transition-colors hover:border-foreground hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Drop a PDF here or choose a PDF to upload">
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-border bg-white shadow-soft transition-transform group-hover:-translate-y-0.5"><Upload className="size-5" aria-hidden /></span>
+        uploadNode={workspaceTab === "portfolios" ? <button type="button" onClick={() => input.current?.click()} disabled={Boolean(phase)} className="group flex w-full max-w-md items-center gap-4 rounded-3xl border border-dashed border-border-strong bg-white p-4 text-left transition-colors hover:border-primary hover:bg-leaf-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Drop a PDF here or choose a PDF to upload">
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-leaf-soft text-leaf transition-transform group-hover:-translate-y-0.5"><Upload className="size-5" aria-hidden /></span>
           <span className="min-w-0 flex-1"><span className="block text-sm font-medium">Drop your PDF here</span><span className="block text-xs text-muted-foreground">or click to choose · publish up to {uploadLimitMb(doc)} MB</span></span>
-          <span className="hidden rounded-full bg-foreground px-4 py-2 text-sm text-background sm:inline">Choose PDF</span>
+          <span className="hidden rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground sm:inline">Choose PDF</span>
         </button> : undefined}
-        secondary={workspaceTab === "products" ? <p className="text-sm"><a href="/digital-product-studio" className="underline underline-offset-4">How it works</a></p> : undefined}
+        secondary={workspaceTab === "products" ? <p className="text-sm"><a href="/digital-product-studio" className="font-medium text-leaf underline underline-offset-4">How it works</a></p> : undefined}
       />
       {phase && <div role="status" className="pointer-events-none absolute inset-0 z-[70] flex items-center justify-center bg-background/90"><p className="display-title text-3xl">{`${phase}…`}</p></div>}
       {error && <p role="alert" className="absolute left-1/2 top-20 z-[80] w-[min(90vw,32rem)] -translate-x-1/2 rounded-xl border border-destructive/20 bg-background p-3 text-sm text-destructive shadow-soft">{error}</p>}

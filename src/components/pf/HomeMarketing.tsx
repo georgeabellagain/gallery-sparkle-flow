@@ -46,14 +46,14 @@ export function HomeMarketing({onUpgrade}:{onUpgrade:(billing:Billing,plan?:"per
     </div>
    </section>
 
-   <section className="rule-t bg-foreground text-background">
-    <div className="shell flex flex-col items-start gap-6 py-16 sm:flex-row sm:items-center sm:justify-between">
+   <section className="shell mb-10 rounded-3xl bg-primary text-primary-foreground sm:mb-16">
+    <div className="flex flex-col items-start gap-6 px-6 py-12 sm:flex-row sm:items-center sm:justify-between sm:px-10 lg:px-16">
      <div>
       <h2 className="display-title text-3xl sm:text-4xl">Give your work the presentation it deserves.</h2>
       <p className="mt-2 flex items-center gap-2 text-sm text-background/70"><Lock className="size-3.5" aria-hidden /> Free forever for one portfolio. No card needed.</p>
      </div>
      <div className="flex flex-wrap gap-3">
-      <Button asChild size="lg" className="bg-background text-foreground hover:bg-background/90"><a href="#upload">Upload your PDF</a></Button>
+      <Button asChild size="lg" className="bg-background text-leaf hover:bg-background/90"><a href="#upload">Upload your PDF</a></Button>
       <Button asChild size="lg" variant="ghost" className="text-background hover:bg-background/10 hover:text-background"><a href="/examples"><BookOpen aria-hidden /> See examples</a></Button>
      </div>
     </div>
